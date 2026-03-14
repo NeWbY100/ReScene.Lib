@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="RARLib.Tests/RARLib.Tests.csproj" />
+  <Project Path="RARLib/RARLib.csproj" />
+  <Project Path="SRRLib.Tests/SRRLib.Tests.csproj" />
+  <Project Path="SRRLib/SRRLib.csproj" />
+</Solution>
