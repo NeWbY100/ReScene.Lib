@@ -1,4 +1,4 @@
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Tests for FlacMetadataReader: metadata block header reading,

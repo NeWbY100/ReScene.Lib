@@ -1,6 +1,6 @@
-using RARLib.Decompression;
+using RAR.Decompression;
 
-namespace RARLib.Tests;
+namespace RAR.Tests;
 
 public class RARArchiveTests
 {
@@ -10,7 +10,7 @@ public class RARArchiveTests
     private const string ExpectedComment = "Test comment for RARLib.\r\nThis is a compressed comment test.\r\n";
 
     /// <summary>
-    /// Helper method to extract comment from a RAR file using RARLib.
+    /// Helper method to extract comment from a RAR file using RAR.
     /// </summary>
     private static string? ExtractCommentFromRar(string rarFilePath)
     {
@@ -396,7 +396,7 @@ public class RARArchiveTests
     // ================== RAR 5.0 Tests ==================
 
     /// <summary>
-    /// Helper method to extract comment from a RAR 5.0 file using RARLib.
+    /// Helper method to extract comment from a RAR 5.0 file using RAR.
     /// </summary>
     private static string? ExtractCommentFromRar5(string rarFilePath)
     {

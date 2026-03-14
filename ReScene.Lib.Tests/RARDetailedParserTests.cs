@@ -1,7 +1,7 @@
 using System.Text;
 using Force.Crc32;
 
-namespace RARLib.Tests;
+namespace RAR.Tests;
 
 public class RARDetailedParserTests
 {

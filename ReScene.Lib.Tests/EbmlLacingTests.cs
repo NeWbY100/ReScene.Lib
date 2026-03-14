@@ -1,4 +1,4 @@
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Tests for EBML lacing parsing, EBML VINT decoding, and header stripping detection.

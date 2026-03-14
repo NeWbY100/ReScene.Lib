@@ -1,4 +1,4 @@
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 public class SRRFileRealDataTests : IDisposable
 {

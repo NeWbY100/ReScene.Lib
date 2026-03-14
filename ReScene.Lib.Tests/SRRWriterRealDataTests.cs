@@ -1,6 +1,6 @@
-using RARLib;
+using RAR;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 public class SRRWriterRealDataTests : IDisposable
 {

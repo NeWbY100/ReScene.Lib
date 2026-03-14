@@ -1,7 +1,7 @@
 using System.Text;
-using RARLib;
+using RAR;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 public class SRRWriterTests : IDisposable
 {
@@ -13,7 +13,7 @@ public class SRRWriterTests : IDisposable
         _testDir = Path.Combine(Path.GetTempPath(), $"srrwriter_tests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDir);
 
-        // Path to RARLib test data (RAR files for testing)
+        // Path to RAR test data (RAR files for testing)
         _testDataDir = Path.Combine(AppContext.BaseDirectory, "TestData");
     }
 

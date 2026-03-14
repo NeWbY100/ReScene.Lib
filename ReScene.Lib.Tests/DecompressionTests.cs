@@ -1,6 +1,6 @@
-using RARLib.Decompression;
+using RAR.Decompression;
 
-namespace RARLib.Tests;
+namespace RAR.Tests;
 
 public class DecompressionTests
 {

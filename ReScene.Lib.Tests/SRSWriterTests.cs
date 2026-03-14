@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Tests for SRSWriter and SRS round-trip (create + parse with SRSFile).

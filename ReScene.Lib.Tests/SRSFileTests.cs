@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Dedicated tests for SRSFile.Load() parsing across all container formats.

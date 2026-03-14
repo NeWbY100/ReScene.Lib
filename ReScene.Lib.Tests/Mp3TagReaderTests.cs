@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Tests for Mp3TagReader: ID3v2, ID3v1, Lyrics3v1, Lyrics3v2, APEv2/v1 detection,

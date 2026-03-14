@@ -1,7 +1,7 @@
 using System.Text;
-using RARLib;
+using RAR;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 public class SRRFileTests : IDisposable
 {

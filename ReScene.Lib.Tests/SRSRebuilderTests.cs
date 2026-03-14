@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.IO.Hashing;
 using System.Text;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Tests for SRSRebuilder - reconstruction of sample files from SRS + original media.

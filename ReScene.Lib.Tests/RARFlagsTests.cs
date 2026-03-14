@@ -1,4 +1,4 @@
-namespace RARLib.Tests;
+namespace RAR.Tests;
 
 public class RARFlagsTests
 {

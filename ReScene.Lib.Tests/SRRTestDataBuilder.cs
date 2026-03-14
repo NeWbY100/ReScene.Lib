@@ -1,8 +1,8 @@
 using System.Text;
 using Force.Crc32;
-using RARLib;
+using RAR;
 
-namespace SRRLib.Tests;
+namespace SRR.Tests;
 
 /// <summary>
 /// Builds synthetic SRR files for unit testing.
