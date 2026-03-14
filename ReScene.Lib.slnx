@@ -1,4 +1,4 @@
 <Solution>
   <Project Path="ReScene/ReScene.csproj" />
-  <Project Path="Tests/Tests.csproj" />
+  <Project Path="ReScene.Tests/ReScene.Tests.csproj" />
 </Solution>
