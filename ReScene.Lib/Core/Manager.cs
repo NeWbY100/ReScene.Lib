@@ -31,7 +31,7 @@ public partial class Manager(IReSceneLogger? logger = null)
 
     private readonly Dictionary<RARProcess, StreamWriter> ProcessLogWriters = [];
     private readonly HashSet<RARProcess> ActiveProcesses = [];
-    private readonly Lock ProcessLock = new();
+    private readonly object ProcessLock = new();
     private string? CommentFilePath = null;
 
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
