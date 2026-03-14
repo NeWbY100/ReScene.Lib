@@ -1,6 +1,4 @@
 <Solution>
-  <Project Path="RARLib.Tests/RARLib.Tests.csproj" />
-  <Project Path="RARLib/RARLib.csproj" />
-  <Project Path="SRRLib.Tests/SRRLib.Tests.csproj" />
-  <Project Path="SRRLib/SRRLib.csproj" />
+  <Project Path="ReScene.Lib/ReScene.Lib.csproj" />
+  <Project Path="ReScene.Lib.Tests/ReScene.Lib.Tests.csproj" />
 </Solution>
