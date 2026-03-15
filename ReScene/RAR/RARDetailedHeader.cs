@@ -72,22 +72,37 @@ public class RARDetailedParser
     /// <summary>
     /// Parses a RAR file and returns all header blocks with detailed field information.
     /// </summary>
-    public static List<RARDetailedBlock> Parse(string filePath)
+    public static List<RARDetailedBlock> Parse(string filePath, bool enableSfx = false)
     {
         using var fs = File.OpenRead(filePath);
-        return Parse(fs);
+        return Parse(fs, enableSfx);
     }
 
     /// <summary>
     /// Parses a RAR stream and returns all header blocks with detailed field information.
     /// </summary>
-    public static List<RARDetailedBlock> Parse(Stream stream)
+    public static List<RARDetailedBlock> Parse(Stream stream, bool enableSfx = false)
     {
         var blocks = new List<RARDetailedBlock>();
 
-        // Check RAR version
+        // Check RAR version at position 0
         bool isRAR5 = RAR5HeaderReader.IsRAR5(stream);
         stream.Position = 0;
+
+        if (!HasValidRARSignature(stream))
+        {
+            if (!enableSfx)
+                return blocks;
+
+            // SFX mode: scan for the RAR marker within the executable
+            long offset = RARUtils.FindRarMarkerOffset(stream);
+            if (offset < 0)
+                return blocks;
+
+            stream.Position = offset;
+            isRAR5 = stream.Length - offset >= 8 && RAR5HeaderReader.IsRAR5(stream, offset);
+            stream.Position = offset;
+        }
 
         if (isRAR5)
         {

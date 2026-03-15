@@ -269,4 +269,59 @@ public static class RARUtils
     }
 
     #endregion
+
+    #region SFX Support
+
+    private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static readonly byte[] Rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+
+    /// <summary>
+    /// Scans a stream for the RAR marker signature (RAR4 or RAR5).
+    /// Used for finding the RAR archive within SFX (self-extracting) executables.
+    /// </summary>
+    /// <param name="stream">The stream to scan.</param>
+    /// <param name="maxScanSize">Maximum number of bytes to scan (default 1 MB).</param>
+    /// <returns>The byte offset of the RAR marker, or -1 if not found.</returns>
+    public static long FindRarMarkerOffset(Stream stream, long maxScanSize = 0x100000)
+    {
+        long savedPos = stream.Position;
+        stream.Position = 0;
+
+        int toRead = (int)Math.Min(maxScanSize, stream.Length);
+        byte[] buffer = new byte[toRead];
+        int bytesRead = stream.ReadAtLeast(buffer, toRead, throwOnEndOfStream: false);
+        stream.Position = savedPos;
+
+        // Scan for RAR5 marker first (8 bytes, superset of RAR4's first 7)
+        for (int i = 0; i <= bytesRead - 8; i++)
+        {
+            if (buffer[i] == 0x52 && buffer[i + 1] == 0x61 &&
+                buffer[i + 2] == 0x72 && buffer[i + 3] == 0x21 &&
+                buffer[i + 4] == 0x1A && buffer[i + 5] == 0x07)
+            {
+                // Check RAR5 (byte 6 = 0x01, byte 7 = 0x00)
+                if (buffer[i + 6] == 0x01 && buffer[i + 7] == 0x00)
+                    return i;
+
+                // Check RAR4 (byte 6 = 0x00)
+                if (buffer[i + 6] == 0x00)
+                    return i;
+            }
+        }
+
+        // Check the last position that could be RAR4 but not RAR5
+        if (bytesRead >= 7 && bytesRead - 7 > bytesRead - 8)
+        {
+            int i = bytesRead - 7;
+            if (buffer[i] == 0x52 && buffer[i + 1] == 0x61 &&
+                buffer[i + 2] == 0x72 && buffer[i + 3] == 0x21 &&
+                buffer[i + 4] == 0x1A && buffer[i + 5] == 0x07 &&
+                buffer[i + 6] == 0x00)
+                return i;
+        }
+
+        return -1;
+    }
+
+    #endregion
 }

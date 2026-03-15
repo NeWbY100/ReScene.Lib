@@ -204,12 +204,15 @@ public class RAR5HeaderReader(Stream stream)
     /// <summary>
     /// Checks if the stream starts with RAR 5.0 marker.
     /// </summary>
-    public static bool IsRAR5(Stream stream)
+    public static bool IsRAR5(Stream stream) => IsRAR5(stream, 0);
+
+    public static bool IsRAR5(Stream stream, long offset)
     {
-        if (stream.Length < 8)
+        if (stream.Length - offset < 8)
             return false;
 
         long pos = stream.Position;
+        stream.Position = offset;
         byte[] marker = new byte[8];
         stream.ReadExactly(marker, 0, 8);
         stream.Position = pos;

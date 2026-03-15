@@ -1137,4 +1137,101 @@ public class RARDetailedParserTests
     }
 
     #endregion
+
+    #region SFX Parsing Tests
+
+    [Fact]
+    public void Parse_SfxArchive_FindsRarBlocks()
+    {
+        string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
+        if (!File.Exists(sfxPath)) return;
+
+        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+
+        Assert.True(blocks.Count >= 3, $"Expected at least 3 blocks, got {blocks.Count}");
+    }
+
+    [Fact]
+    public void Parse_SfxArchive_FirstBlockIsSignature()
+    {
+        string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
+        if (!File.Exists(sfxPath)) return;
+
+        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+
+        Assert.Equal("Signature", blocks[0].BlockType);
+    }
+
+    [Fact]
+    public void Parse_SfxArchive_LastBlockIsEndArchive()
+    {
+        string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
+        if (!File.Exists(sfxPath)) return;
+
+        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+
+        Assert.Equal("End of Archive", blocks[^1].BlockType);
+    }
+
+    [Fact]
+    public void Parse_SfxArchive_ContainsFileHeader()
+    {
+        string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
+        if (!File.Exists(sfxPath)) return;
+
+        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+
+        var fileBlock = blocks.FirstOrDefault(b => b.BlockType.Contains("File"));
+        Assert.NotNull(fileBlock);
+        Assert.Equal("little_file.txt", fileBlock!.ItemName);
+    }
+
+    [Fact]
+    public void Parse_SfxArchive_WithoutSfxFlag_ReturnsEmpty()
+    {
+        string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
+        if (!File.Exists(sfxPath)) return;
+
+        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: false);
+
+        Assert.Empty(blocks);
+    }
+
+    [Fact]
+    public void FindRarMarkerOffset_SfxFile_ReturnsNonZeroOffset()
+    {
+        string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
+        if (!File.Exists(sfxPath)) return;
+
+        using var fs = File.OpenRead(sfxPath);
+        long offset = RARUtils.FindRarMarkerOffset(fs);
+
+        Assert.True(offset > 0, $"Expected positive offset for SFX, got {offset}");
+    }
+
+    [Fact]
+    public void FindRarMarkerOffset_RegularRar_ReturnsZero()
+    {
+        string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
+        if (!File.Exists(rarPath)) return;
+
+        using var fs = File.OpenRead(rarPath);
+        long offset = RARUtils.FindRarMarkerOffset(fs);
+
+        Assert.Equal(0, offset);
+    }
+
+    [Fact]
+    public void FindRarMarkerOffset_Rar5_ReturnsZero()
+    {
+        string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
+        if (!File.Exists(rarPath)) return;
+
+        using var fs = File.OpenRead(rarPath);
+        long offset = RARUtils.FindRarMarkerOffset(fs);
+
+        Assert.Equal(0, offset);
+    }
+
+    #endregion
 }
