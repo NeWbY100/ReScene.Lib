@@ -1275,7 +1275,7 @@ public class RarStreamTests
 
         // Read all content
         byte[] buffer = new byte[rs.Length];
-        rs.Read(buffer, 0, buffer.Length);
+        rs.ReadExactly(buffer, 0, buffer.Length);
 
         // After reading all, position should equal length
         Assert.Equal(rs.Length, rs.Position);
