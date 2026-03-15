@@ -1,4 +1,6 @@
-namespace ReScene.SRR.Tests;
+using ReScene.SRS;
+
+namespace ReScene.SRS.Tests;
 
 /// <summary>
 /// Tests for FlacMetadataReader: metadata block header reading,

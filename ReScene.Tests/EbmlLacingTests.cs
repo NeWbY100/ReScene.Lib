@@ -1,4 +1,6 @@
-namespace ReScene.SRR.Tests;
+using ReScene.SRS;
+
+namespace ReScene.SRS.Tests;
 
 /// <summary>
 /// Tests for EBML lacing parsing, EBML VINT decoding, and header stripping detection.

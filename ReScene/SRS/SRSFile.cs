@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Parser for SRS (Sample ReScene) files.

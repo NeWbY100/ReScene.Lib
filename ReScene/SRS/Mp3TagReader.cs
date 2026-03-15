@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Utility class for detecting and measuring MP3 tags at the beginning and end of files.

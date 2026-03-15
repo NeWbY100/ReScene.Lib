@@ -1,4 +1,7 @@
-namespace ReScene.SRR.Tests;
+using ReScene.SRR;
+using ReScene.SRS;
+
+namespace ReScene.SRS.Tests;
 
 public class SRSFileFromSrrTests : IDisposable
 {

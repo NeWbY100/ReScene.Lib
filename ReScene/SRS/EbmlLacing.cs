@@ -1,4 +1,4 @@
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Lacing mode for MKV Block/SimpleBlock elements.

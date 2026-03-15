@@ -1,4 +1,4 @@
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Container format types for SRS files.

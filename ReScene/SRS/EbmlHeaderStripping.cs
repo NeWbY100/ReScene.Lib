@@ -1,4 +1,4 @@
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Detects and restores MKV header stripping compression (ContentCompAlgo = 3).

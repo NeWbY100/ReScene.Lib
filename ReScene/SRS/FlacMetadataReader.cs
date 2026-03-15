@@ -1,4 +1,4 @@
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Utility class for reading FLAC metadata block headers and detecting

@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.IO.Hashing;
 using System.Text;
 
-namespace ReScene.SRR;
+namespace ReScene.SRS;
 
 /// <summary>
 /// Result of SRS sample reconstruction.
