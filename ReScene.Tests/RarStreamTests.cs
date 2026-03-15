@@ -1144,4 +1144,191 @@ public class RarStreamTests
     }
 
     #endregion
+
+    #region Real Multi-Volume Tests (WinRAR 2.80 Old-Style)
+
+    [Fact]
+    public void Read_WinRar280_UnicodeDosNfo_MatchesReferenceFile()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
+        string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
+        if (!File.Exists(rarPath)) return;
+
+        byte[] expected = File.ReadAllBytes(refPath);
+
+        using var rs = new RarStream(rarPath, "unicode_dos.nfo");
+        byte[] actual = new byte[rs.Length];
+        int bytesRead = rs.Read(actual, 0, actual.Length);
+
+        Assert.Equal(expected.Length, bytesRead);
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Read_WinRar280_UnicodeDosNfo_SeekNearEndThenSeekToStart()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
+        string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
+        if (!File.Exists(rarPath)) return;
+
+        byte[] expected = File.ReadAllBytes(refPath);
+
+        using var rs = new RarStream(rarPath, "unicode_dos.nfo");
+
+        // Seek to position 3312, read 4 bytes (near end of 3316-byte file)
+        rs.Seek(3312, SeekOrigin.Begin);
+        byte[] tail = new byte[4];
+        int tailRead = rs.Read(tail, 0, 4);
+        Assert.Equal(4, tailRead);
+        Assert.Equal(expected[3312..3316], tail);
+
+        // Seek back to start and read entire file
+        rs.Seek(0, SeekOrigin.Begin);
+        byte[] full = new byte[rs.Length];
+        int fullRead = rs.Read(full, 0, full.Length);
+        Assert.Equal(expected.Length, fullRead);
+        Assert.Equal(expected, full);
+    }
+
+    [Fact]
+    public void Read_WinRar280_UnicodeDosNfo_SeekFromEnd()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
+        string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
+        if (!File.Exists(rarPath)) return;
+
+        byte[] expected = File.ReadAllBytes(refPath);
+
+        using var rs = new RarStream(rarPath, "unicode_dos.nfo");
+
+        // Seek to -20 from end, read remaining bytes
+        rs.Seek(-20, SeekOrigin.End);
+        byte[] last20 = new byte[20];
+        int bytesRead = rs.Read(last20, 0, 20);
+
+        Assert.Equal(20, bytesRead);
+        Assert.Equal(expected[^20..], last20);
+    }
+
+    [Fact]
+    public void Read_WinRar280_UnicodeMacNfo_SeekAndReadRemainder()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
+        string refPath = Path.Combine(TestDataPath, "txt", "unicode_mac.nfo");
+        if (!File.Exists(rarPath)) return;
+
+        byte[] expected = File.ReadAllBytes(refPath);
+
+        using var rs = new RarStream(rarPath, "unicode_mac.nfo");
+
+        // Seek to position 333, read the rest
+        rs.Seek(333, SeekOrigin.Begin);
+        byte[] remainder = new byte[rs.Length - 333];
+        int bytesRead = rs.Read(remainder, 0, remainder.Length);
+
+        Assert.Equal(expected.Length - 333, bytesRead);
+        Assert.Equal(expected[333..], remainder);
+    }
+
+    [Fact]
+    public void Close_WinRar280_CanReadIsFalseAfterClose()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
+        if (!File.Exists(rarPath)) return;
+
+        var rs = new RarStream(rarPath, "unicode_dos.nfo");
+        Assert.True(rs.CanRead);
+
+        rs.Close();
+
+        Assert.False(rs.CanRead);
+    }
+
+    #endregion
+
+    #region Real Multi-Volume Tests (store_split_folder)
+
+    [Fact]
+    public void Read_StoreSplitFolder_UsersManual_MatchesReferenceFile()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
+        string refPath = Path.Combine(TestDataPath, "txt", "users_manual4.00.txt");
+        if (!File.Exists(rarPath)) return;
+
+        byte[] expected = File.ReadAllBytes(refPath);
+
+        using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
+        byte[] actual = new byte[rs.Length];
+        int bytesRead = rs.Read(actual, 0, actual.Length);
+
+        Assert.Equal(expected.Length, bytesRead);
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Read_StoreSplitFolder_UsersManual_PositionAtEndAfterFullRead()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
+        if (!File.Exists(rarPath)) return;
+
+        using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
+
+        // Read all content
+        byte[] buffer = new byte[rs.Length];
+        rs.Read(buffer, 0, buffer.Length);
+
+        // After reading all, position should equal length
+        Assert.Equal(rs.Length, rs.Position);
+
+        // Further read should return 0 bytes
+        byte[] extra = new byte[10];
+        int bytesRead = rs.Read(extra, 0, extra.Length);
+        Assert.Equal(0, bytesRead);
+    }
+
+    [Fact]
+    public void Read_StoreSplitFolder_UsersManual_SeekAfterPartialRead()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
+        if (!File.Exists(rarPath)) return;
+
+        using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
+
+        // Seek to start, read 2 bytes
+        rs.Seek(0, SeekOrigin.Begin);
+        byte[] buf = new byte[2];
+        int bytesRead = rs.Read(buf, 0, 2);
+        Assert.Equal(2, bytesRead);
+
+        // Seek to end, verify position equals length
+        rs.Seek(0, SeekOrigin.End);
+        Assert.Equal(rs.Length, rs.Position);
+    }
+
+    #endregion
+
+    #region Real Single-Volume Tests (store_little)
+
+    [Fact]
+    public void Read_StoreLittle_FirstFile_MatchesReferenceFile()
+    {
+        string rarPath = Path.Combine(TestDataPath, "store_little", "store_little.rar");
+        string refPath = Path.Combine(TestDataPath, "txt", "little_file.txt");
+        if (!File.Exists(rarPath)) return;
+
+        // Reference file has CRLF line endings; the packed file uses LF only
+        byte[] refBytes = File.ReadAllBytes(refPath);
+        byte[] expected = Encoding.UTF8.GetBytes(
+            Encoding.UTF8.GetString(refBytes).ReplaceLineEndings("\n"));
+
+        // No specific filename = reads first file in archive
+        using var rs = new RarStream(rarPath);
+        byte[] actual = new byte[rs.Length];
+        int bytesRead = rs.Read(actual, 0, actual.Length);
+
+        Assert.Equal(expected.Length, bytesRead);
+        Assert.Equal(expected, actual);
+    }
+
+    #endregion
 }

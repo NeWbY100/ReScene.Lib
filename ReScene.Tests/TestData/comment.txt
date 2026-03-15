@@ -1,2 +1,0 @@
-Test comment for RARLib.
-This is a compressed comment test.
