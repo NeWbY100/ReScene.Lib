@@ -1,6 +1,7 @@
+using ReScene.RAR;
 using ReScene.RAR.Decompression;
 
-namespace ReScene.RAR.Tests;
+namespace ReScene.Tests;
 
 public class RARArchiveTests
 {

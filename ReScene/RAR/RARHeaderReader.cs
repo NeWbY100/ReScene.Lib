@@ -5,55 +5,89 @@ namespace ReScene.RAR;
 /// </summary>
 public class RARServiceBlockInfo
 {
-    /// <summary>Sub-block type name (e.g., "CMT", "RR", "AV").</summary>
+    /// <summary>
+    /// Sub-block type name (e.g., "CMT", "RR", "AV").
+    /// </summary>
     public string SubType { get; set; } = string.Empty;
 
-    /// <summary>Packed (compressed) size of data.</summary>
+    /// <summary>
+    /// Packed (compressed) size of data.
+    /// </summary>
     public ulong PackedSize { get; set; }
 
-    /// <summary>Unpacked size of data.</summary>
+    /// <summary>
+    /// Unpacked size of data.
+    /// </summary>
     public ulong UnpackedSize { get; set; }
 
-    /// <summary>Compression method (0x30=Store, 0x33=Normal, etc.).</summary>
+    /// <summary>
+    /// Compression method (0x30=Store, 0x33=Normal, etc.).
+    /// </summary>
     public byte CompressionMethod { get; set; }
 
-    /// <summary>Data CRC.</summary>
+    /// <summary>
+    /// Data CRC.
+    /// </summary>
     public uint DataCrc { get; set; }
 
-    /// <summary>Offset where the data starts (relative to block start).</summary>
+    /// <summary>
+    /// Offset where the data starts (relative to block start).
+    /// </summary>
     public int DataOffset { get; set; }
 
-    /// <summary>For CMT blocks: the comment text if extracted.</summary>
+    /// <summary>
+    /// For CMT blocks: the comment text if extracted.
+    /// </summary>
     public string? CommentText { get; set; }
 
-    /// <summary>For CMT blocks: raw comment data (may be compressed).</summary>
+    /// <summary>
+    /// For CMT blocks: raw comment data (may be compressed).
+    /// </summary>
     public byte[]? RawData { get; set; }
 
-    /// <summary>True if comment is stored (uncompressed), false if compressed.</summary>
+    /// <summary>
+    /// True if comment is stored (uncompressed), false if compressed.
+    /// </summary>
     public bool IsStored => CompressionMethod == 0x30;
 
-    /// <summary>Host operating system (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix, etc.).</summary>
+    /// <summary>
+    /// Host operating system (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix, etc.).
+    /// </summary>
     public byte HostOS { get; set; }
 
-    /// <summary>Raw DOS file time value (0 indicates no timestamp/zeroed).</summary>
+    /// <summary>
+    /// Raw DOS file time value (0 indicates no timestamp/zeroed).
+    /// </summary>
     public uint FileTimeDOS { get; set; }
 
-    /// <summary>File attributes.</summary>
+    /// <summary>
+    /// File attributes.
+    /// </summary>
     public uint FileAttributes { get; set; }
 
-    /// <summary>RAR version needed to unpack.</summary>
+    /// <summary>
+    /// RAR version needed to unpack.
+    /// </summary>
     public byte UnpackVersion { get; set; }
 
-    /// <summary>True if file time is zeroed (0x00000000).</summary>
+    /// <summary>
+    /// True if file time is zeroed (0x00000000).
+    /// </summary>
     public bool HasZeroedFileTime => FileTimeDOS == 0;
 
-    /// <summary>Modification time precision level (maps to -tsm0 through -tsm4).</summary>
+    /// <summary>
+    /// Modification time precision level (maps to -tsm0 through -tsm4).
+    /// </summary>
     public TimestampPrecision MtimePrecision { get; set; }
 
-    /// <summary>Creation time precision level (maps to -tsc0 through -tsc4).</summary>
+    /// <summary>
+    /// Creation time precision level (maps to -tsc0 through -tsc4).
+    /// </summary>
     public TimestampPrecision CtimePrecision { get; set; }
 
-    /// <summary>Access time precision level (maps to -tsa0 through -tsa4).</summary>
+    /// <summary>
+    /// Access time precision level (maps to -tsa0 through -tsa4).
+    /// </summary>
     public TimestampPrecision AtimePrecision { get; set; }
 }
 
@@ -62,34 +96,54 @@ public class RARServiceBlockInfo
 /// </summary>
 public class RARBlockReadResult
 {
-    /// <summary>Block type (RAR 4.x).</summary>
+    /// <summary>
+    /// Block type (RAR 4.x).
+    /// </summary>
     public RAR4BlockType BlockType { get; set; }
 
-    /// <summary>Raw flags value.</summary>
+    /// <summary>
+    /// Raw flags value.
+    /// </summary>
     public ushort Flags { get; set; }
 
-    /// <summary>Header size in bytes.</summary>
+    /// <summary>
+    /// Header size in bytes.
+    /// </summary>
     public ushort HeaderSize { get; set; }
 
-    /// <summary>Additional data size (from LONG_BLOCK or file headers).</summary>
+    /// <summary>
+    /// Additional data size (from LONG_BLOCK or file headers).
+    /// </summary>
     public uint AddSize { get; set; }
 
-    /// <summary>Position where the block starts.</summary>
+    /// <summary>
+    /// Position where the block starts.
+    /// </summary>
     public long BlockPosition { get; set; }
 
-    /// <summary>Header CRC value.</summary>
+    /// <summary>
+    /// Header CRC value.
+    /// </summary>
     public ushort HeaderCrc { get; set; }
 
-    /// <summary>True if header CRC is valid.</summary>
+    /// <summary>
+    /// True if header CRC is valid.
+    /// </summary>
     public bool CrcValid { get; set; }
 
-    /// <summary>Parsed archive header (if BlockType is ArchiveHeader).</summary>
+    /// <summary>
+    /// Parsed archive header (if BlockType is ArchiveHeader).
+    /// </summary>
     public RARArchiveHeader? ArchiveHeader { get; set; }
 
-    /// <summary>Parsed file header (if BlockType is FileHeader).</summary>
+    /// <summary>
+    /// Parsed file header (if BlockType is FileHeader).
+    /// </summary>
     public RARFileHeader? FileHeader { get; set; }
 
-    /// <summary>Parsed service block info (if BlockType is Service).</summary>
+    /// <summary>
+    /// Parsed service block info (if BlockType is Service).
+    /// </summary>
     public RARServiceBlockInfo? ServiceBlockInfo { get; set; }
 }
 

@@ -70,13 +70,21 @@ public enum RAREndArchiveFlags : ushort
 /// </summary>
 public static class RARFlagMasks
 {
-    /// <summary>Mask for dictionary size bits (bits 5-7)</summary>
+    /// <summary>
+    /// Mask for dictionary size bits (bits 5-7)
+    /// </summary>
     public const ushort DictionarySizeMask = 0x00E0;
 
-    /// <summary>Shift amount for dictionary size bits</summary>
+    /// <summary>
+    /// Shift amount for dictionary size bits
+    /// </summary>
     public const int DictionarySizeShift = 5;
 
-    /// <summary>Salt length in bytes</summary>
+    /// <summary>
+
+    /// Salt length in bytes
+
+    /// </summary>
     public const int SaltLength = 8;
 }
 
@@ -86,18 +94,28 @@ public static class RARFlagMasks
 /// </summary>
 public enum TimestampPrecision : byte
 {
-    /// <summary>Time not saved (ts*0, -ts*-)</summary>
+    /// <summary>
+    /// Time not saved (ts*0, -ts*-)
+    /// </summary>
     NotSaved = 0,
 
-    /// <summary>1 second precision (ts*1, DOS time only)</summary>
+    /// <summary>
+    /// 1 second precision (ts*1, DOS time only)
+    /// </summary>
     OneSecond = 1,
 
-    /// <summary>~0.0065536 second precision (ts*2, 1 extra byte)</summary>
+    /// <summary>
+    /// ~0.0065536 second precision (ts*2, 1 extra byte)
+    /// </summary>
     HighPrecision1 = 2,
 
-    /// <summary>~0.0000256 second precision (ts*3, 2 extra bytes)</summary>
+    /// <summary>
+    /// ~0.0000256 second precision (ts*3, 2 extra bytes)
+    /// </summary>
     HighPrecision2 = 3,
 
-    /// <summary>NTFS 100-nanosecond precision (ts*4, 3 extra bytes)</summary>
+    /// <summary>
+    /// NTFS 100-nanosecond precision (ts*4, 3 extra bytes)
+    /// </summary>
     NtfsPrecision = 4
 }

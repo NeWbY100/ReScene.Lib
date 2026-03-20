@@ -5,17 +5,29 @@ namespace ReScene.RAR.Decompression;
 /// </summary>
 public enum RARMethod
 {
-    /// <summary>Store (no compression)</summary>
+    /// <summary>
+    /// Store (no compression)
+    /// </summary>
     Store = 0x30,
-    /// <summary>Fastest compression</summary>
+    /// <summary>
+    /// Fastest compression
+    /// </summary>
     Fastest = 0x31,
-    /// <summary>Fast compression</summary>
+    /// <summary>
+    /// Fast compression
+    /// </summary>
     Fast = 0x32,
-    /// <summary>Normal compression</summary>
+    /// <summary>
+    /// Normal compression
+    /// </summary>
     Normal = 0x33,
-    /// <summary>Good compression</summary>
+    /// <summary>
+    /// Good compression
+    /// </summary>
     Good = 0x34,
-    /// <summary>Best compression</summary>
+    /// <summary>
+    /// Best compression
+    /// </summary>
     Best = 0x35
 }
 
@@ -24,13 +36,21 @@ public enum RARMethod
 /// </summary>
 public enum RARVersion
 {
-    /// <summary>RAR 1.5</summary>
+    /// <summary>
+    /// RAR 1.5
+    /// </summary>
     RAR15 = 15,
-    /// <summary>RAR 2.0</summary>
+    /// <summary>
+    /// RAR 2.0
+    /// </summary>
     RAR20 = 20,
-    /// <summary>RAR 2.9/3.x</summary>
+    /// <summary>
+    /// RAR 2.9/3.x
+    /// </summary>
     RAR29 = 29,
-    /// <summary>RAR 5.x</summary>
+    /// <summary>
+    /// RAR 5.x
+    /// </summary>
     RAR50 = 50
 }
 

@@ -74,18 +74,28 @@ public class DecodeTable
 /// </summary>
 public class UnpackBlockTables
 {
-    /// <summary>Decode literals.</summary>
+    /// <summary>
+    /// Decode literals.
+    /// </summary>
     public DecodeTable LD { get; } = new();
 
-    /// <summary>Decode distances.</summary>
+    /// <summary>
+    /// Decode distances.
+    /// </summary>
     public DecodeTable DD { get; } = new();
 
-    /// <summary>Decode lower bits of distances.</summary>
+    /// <summary>
+    /// Decode lower bits of distances.
+    /// </summary>
     public DecodeTable LDD { get; } = new();
 
-    /// <summary>Decode repeating distances.</summary>
+    /// <summary>
+    /// Decode repeating distances.
+    /// </summary>
     public DecodeTable RD { get; } = new();
 
-    /// <summary>Decode bit lengths in Huffman table.</summary>
+    /// <summary>
+    /// Decode bit lengths in Huffman table.
+    /// </summary>
     public DecodeTable BD { get; } = new();
 }

@@ -1,9 +1,8 @@
+using ReScene.SRS;
 using System.Buffers.Binary;
 using System.Text;
 
-using ReScene.SRS;
-
-namespace ReScene.SRS.Tests;
+namespace ReScene.Tests;
 
 /// <summary>
 /// Tests for Mp3TagReader: ID3v2, ID3v1, Lyrics3v1, Lyrics3v2, APEv2/v1 detection,

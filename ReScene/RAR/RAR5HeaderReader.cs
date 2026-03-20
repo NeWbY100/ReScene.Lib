@@ -7,37 +7,59 @@ namespace ReScene.RAR;
 /// </summary>
 public class RAR5BlockReadResult
 {
-    /// <summary>Block type (RAR 5.0).</summary>
+    /// <summary>
+    /// Block type (RAR 5.0).
+    /// </summary>
     public RAR5BlockType BlockType { get; set; }
 
-    /// <summary>Raw header flags value.</summary>
+    /// <summary>
+    /// Raw header flags value.
+    /// </summary>
     public ulong Flags { get; set; }
 
-    /// <summary>Header size in bytes (excluding CRC).</summary>
+    /// <summary>
+    /// Header size in bytes (excluding CRC).
+    /// </summary>
     public ulong HeaderSize { get; set; }
 
-    /// <summary>Extra area size (if present).</summary>
+    /// <summary>
+    /// Extra area size (if present).
+    /// </summary>
     public ulong ExtraAreaSize { get; set; }
 
-    /// <summary>Data size (if present).</summary>
+    /// <summary>
+    /// Data size (if present).
+    /// </summary>
     public ulong DataSize { get; set; }
 
-    /// <summary>Position where the block starts (after CRC).</summary>
+    /// <summary>
+    /// Position where the block starts (after CRC).
+    /// </summary>
     public long BlockPosition { get; set; }
 
-    /// <summary>Header CRC32 value.</summary>
+    /// <summary>
+    /// Header CRC32 value.
+    /// </summary>
     public uint HeaderCrc { get; set; }
 
-    /// <summary>True if header CRC is valid.</summary>
+    /// <summary>
+    /// True if header CRC is valid.
+    /// </summary>
     public bool CrcValid { get; set; }
 
-    /// <summary>Parsed archive header info (if BlockType is Main).</summary>
+    /// <summary>
+    /// Parsed archive header info (if BlockType is Main).
+    /// </summary>
     public RAR5ArchiveInfo? ArchiveInfo { get; set; }
 
-    /// <summary>Parsed file header info (if BlockType is File).</summary>
+    /// <summary>
+    /// Parsed file header info (if BlockType is File).
+    /// </summary>
     public RAR5FileInfo? FileInfo { get; set; }
 
-    /// <summary>Parsed service block info (if BlockType is Service).</summary>
+    /// <summary>
+    /// Parsed service block info (if BlockType is Service).
+    /// </summary>
     public RAR5ServiceBlockInfo? ServiceBlockInfo { get; set; }
 }
 
@@ -46,25 +68,39 @@ public class RAR5BlockReadResult
 /// </summary>
 public class RAR5ArchiveInfo
 {
-    /// <summary>Archive flags.</summary>
+    /// <summary>
+    /// Archive flags.
+    /// </summary>
     public ulong ArchiveFlags { get; set; }
 
-    /// <summary>Volume number (if present).</summary>
+    /// <summary>
+    /// Volume number (if present).
+    /// </summary>
     public ulong? VolumeNumber { get; set; }
 
-    /// <summary>True if this is a multi-volume archive.</summary>
+    /// <summary>
+    /// True if this is a multi-volume archive.
+    /// </summary>
     public bool IsVolume => (ArchiveFlags & 0x0001) != 0;
 
-    /// <summary>True if volume number field is present.</summary>
+    /// <summary>
+    /// True if volume number field is present.
+    /// </summary>
     public bool HasVolumeNumber => (ArchiveFlags & 0x0002) != 0;
 
-    /// <summary>True if this is a solid archive.</summary>
+    /// <summary>
+    /// True if this is a solid archive.
+    /// </summary>
     public bool IsSolid => (ArchiveFlags & 0x0004) != 0;
 
-    /// <summary>True if archive has recovery record.</summary>
+    /// <summary>
+    /// True if archive has recovery record.
+    /// </summary>
     public bool HasRecoveryRecord => (ArchiveFlags & 0x0008) != 0;
 
-    /// <summary>True if archive headers are locked.</summary>
+    /// <summary>
+    /// True if archive headers are locked.
+    /// </summary>
     public bool IsLocked => (ArchiveFlags & 0x0010) != 0;
 }
 
@@ -73,49 +109,79 @@ public class RAR5ArchiveInfo
 /// </summary>
 public class RAR5FileInfo
 {
-    /// <summary>File flags.</summary>
+    /// <summary>
+    /// File flags.
+    /// </summary>
     public ulong FileFlags { get; set; }
 
-    /// <summary>Unpacked size.</summary>
+    /// <summary>
+    /// Unpacked size.
+    /// </summary>
     public ulong UnpackedSize { get; set; }
 
-    /// <summary>File attributes.</summary>
+    /// <summary>
+    /// File attributes.
+    /// </summary>
     public ulong Attributes { get; set; }
 
-    /// <summary>Modification time (Unix timestamp).</summary>
+    /// <summary>
+    /// Modification time (Unix timestamp).
+    /// </summary>
     public uint? ModificationTime { get; set; }
 
-    /// <summary>File CRC32.</summary>
+    /// <summary>
+    /// File CRC32.
+    /// </summary>
     public uint? FileCrc { get; set; }
 
-    /// <summary>Compression info (version, solid, method, dict size).</summary>
+    /// <summary>
+    /// Compression info (version, solid, method, dict size).
+    /// </summary>
     public ulong CompressionInfo { get; set; }
 
-    /// <summary>Host OS.</summary>
+    /// <summary>
+    /// Host OS.
+    /// </summary>
     public ulong HostOS { get; set; }
 
-    /// <summary>File name.</summary>
+    /// <summary>
+    /// File name.
+    /// </summary>
     public string FileName { get; set; } = string.Empty;
 
-    /// <summary>True if this is a directory.</summary>
+    /// <summary>
+    /// True if this is a directory.
+    /// </summary>
     public bool IsDirectory => (FileFlags & (ulong)RAR5FileFlags.Directory) != 0;
 
-    /// <summary>True if data is stored uncompressed.</summary>
+    /// <summary>
+    /// True if data is stored uncompressed.
+    /// </summary>
     public bool IsStored => CompressionMethod == 0;
 
-    /// <summary>Compression method (0-5).</summary>
+    /// <summary>
+    /// Compression method (0-5).
+    /// </summary>
     public int CompressionMethod => (int)((CompressionInfo >> 7) & 0x07);
 
-    /// <summary>Dictionary size as power of 2 (bits 10-13 of CompInfo for RAR5).</summary>
+    /// <summary>
+    /// Dictionary size as power of 2 (bits 10-13 of CompInfo for RAR5).
+    /// </summary>
     public int DictSizePower => (int)((CompressionInfo >> 10) & 0x0F);
 
-    /// <summary>Dictionary size in KB (base 128KB shifted by DictSizePower).</summary>
+    /// <summary>
+    /// Dictionary size in KB (base 128KB shifted by DictSizePower).
+    /// </summary>
     public int DictionarySizeKB => 128 << DictSizePower;
 
-    /// <summary>True if file continues from previous volume.</summary>
+    /// <summary>
+    /// True if file continues from previous volume.
+    /// </summary>
     public bool IsSplitBefore { get; set; }
 
-    /// <summary>True if file continues in next volume.</summary>
+    /// <summary>
+    /// True if file continues in next volume.
+    /// </summary>
     public bool IsSplitAfter { get; set; }
 }
 
@@ -124,31 +190,49 @@ public class RAR5FileInfo
 /// </summary>
 public class RAR5ServiceBlockInfo
 {
-    /// <summary>Service data type (e.g., 0x03 for CMT comment).</summary>
+    /// <summary>
+    /// Service data type (e.g., 0x03 for CMT comment).
+    /// </summary>
     public ulong ServiceDataType { get; set; }
 
-    /// <summary>Sub-type name (e.g., "CMT").</summary>
+    /// <summary>
+    /// Sub-type name (e.g., "CMT").
+    /// </summary>
     public string SubType { get; set; } = string.Empty;
 
-    /// <summary>Unpacked data size.</summary>
+    /// <summary>
+    /// Unpacked data size.
+    /// </summary>
     public ulong UnpackedSize { get; set; }
 
-    /// <summary>File flags.</summary>
+    /// <summary>
+    /// File flags.
+    /// </summary>
     public ulong FileFlags { get; set; }
 
-    /// <summary>True if data is stored uncompressed.</summary>
+    /// <summary>
+    /// True if data is stored uncompressed.
+    /// </summary>
     public bool IsStored { get; set; }
 
-    /// <summary>Compression version.</summary>
+    /// <summary>
+    /// Compression version.
+    /// </summary>
     public int CompressionVersion { get; set; }
 
-    /// <summary>Compression method (0-5).</summary>
+    /// <summary>
+    /// Compression method (0-5).
+    /// </summary>
     public int CompressionMethod { get; set; }
 
-    /// <summary>Dictionary size as power of 2.</summary>
+    /// <summary>
+    /// Dictionary size as power of 2.
+    /// </summary>
     public int DictSize { get; set; }
 
-    /// <summary>For CMT blocks: the comment text if extracted.</summary>
+    /// <summary>
+    /// For CMT blocks: the comment text if extracted.
+    /// </summary>
     public string? CommentText { get; set; }
 }
 
@@ -195,7 +279,9 @@ public enum RAR5ServiceType : ulong
 /// </remarks>
 public class RAR5HeaderReader(Stream stream)
 {
-    /// <summary>RAR 5.0 marker bytes.</summary>
+    /// <summary>
+    /// RAR 5.0 marker bytes.
+    /// </summary>
     public static readonly byte[] RAR5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
     private readonly Stream _stream = stream ?? throw new ArgumentNullException(nameof(stream));

@@ -8,16 +8,24 @@ namespace ReScene.SRR;
 /// </summary>
 public class SrrCreationOptions
 {
-    /// <summary>Application name to embed in the SRR header.</summary>
+    /// <summary>
+    /// Application name to embed in the SRR header.
+    /// </summary>
     public string? AppName { get; set; } = "ReScene.NET";
 
-    /// <summary>If false, reject compressed RAR volumes (method != Store).</summary>
+    /// <summary>
+    /// If false, reject compressed RAR volumes (method != Store).
+    /// </summary>
     public bool AllowCompressed { get; set; } = true;
 
-    /// <summary>Whether to store directory paths in stored file names.</summary>
+    /// <summary>
+    /// Whether to store directory paths in stored file names.
+    /// </summary>
     public bool StorePaths { get; set; } = true;
 
-    /// <summary>Whether to compute and store OSO hashes for archived files.</summary>
+    /// <summary>
+    /// Whether to compute and store OSO hashes for archived files.
+    /// </summary>
     public bool ComputeOsoHashes { get; set; }
 }
 
@@ -26,25 +34,39 @@ public class SrrCreationOptions
 /// </summary>
 public class SrrCreationResult
 {
-    /// <summary>Whether creation succeeded.</summary>
+    /// <summary>
+    /// Whether creation succeeded.
+    /// </summary>
     public bool Success { get; set; }
 
-    /// <summary>Path to the created SRR file.</summary>
+    /// <summary>
+    /// Path to the created SRR file.
+    /// </summary>
     public string? OutputPath { get; set; }
 
-    /// <summary>Error message if creation failed.</summary>
+    /// <summary>
+    /// Error message if creation failed.
+    /// </summary>
     public string? ErrorMessage { get; set; }
 
-    /// <summary>Number of RAR volumes processed.</summary>
+    /// <summary>
+    /// Number of RAR volumes processed.
+    /// </summary>
     public int VolumeCount { get; set; }
 
-    /// <summary>Number of stored files embedded.</summary>
+    /// <summary>
+    /// Number of stored files embedded.
+    /// </summary>
     public int StoredFileCount { get; set; }
 
-    /// <summary>Size of the created SRR file in bytes.</summary>
+    /// <summary>
+    /// Size of the created SRR file in bytes.
+    /// </summary>
     public long SrrFileSize { get; set; }
 
-    /// <summary>Non-fatal warnings encountered during creation.</summary>
+    /// <summary>
+    /// Non-fatal warnings encountered during creation.
+    /// </summary>
     public List<string> Warnings { get; set; } = [];
 }
 
@@ -53,16 +75,24 @@ public class SrrCreationResult
 /// </summary>
 public class SrrCreationProgressEventArgs : EventArgs
 {
-    /// <summary>Overall progress percentage (0-100).</summary>
+    /// <summary>
+    /// Overall progress percentage (0-100).
+    /// </summary>
     public int ProgressPercent { get; set; }
 
-    /// <summary>Current volume being processed (1-based).</summary>
+    /// <summary>
+    /// Current volume being processed (1-based).
+    /// </summary>
     public int CurrentVolume { get; set; }
 
-    /// <summary>Total number of volumes to process.</summary>
+    /// <summary>
+    /// Total number of volumes to process.
+    /// </summary>
     public int TotalVolumes { get; set; }
 
-    /// <summary>Status message describing current operation.</summary>
+    /// <summary>
+    /// Status message describing current operation.
+    /// </summary>
     public string Message { get; set; } = string.Empty;
 }
 

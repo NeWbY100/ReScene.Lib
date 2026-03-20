@@ -1,9 +1,8 @@
+using ReScene.SRS;
 using System.Buffers.Binary;
 using System.Text;
 
-using ReScene.SRS;
-
-namespace ReScene.SRS.Tests;
+namespace ReScene.Tests;
 
 /// <summary>
 /// Tests for SRSWriter and SRS round-trip (create + parse with SRSFile).

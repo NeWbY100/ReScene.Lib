@@ -1,4 +1,6 @@
-namespace ReScene.SRR.Tests;
+using ReScene.SRR;
+
+namespace ReScene.Tests;
 
 public class SRRFileRealDataTests : IDisposable
 {

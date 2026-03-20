@@ -1,6 +1,6 @@
-using ReScene.RAR;
+using ReScene.SRR;
 
-namespace ReScene.SRR.Tests;
+namespace ReScene.Tests;
 
 public class SRRWriterRealDataTests : IDisposable
 {

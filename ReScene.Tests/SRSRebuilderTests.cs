@@ -1,10 +1,8 @@
+using ReScene.SRS;
 using System.Buffers.Binary;
-using System.IO.Hashing;
 using System.Text;
 
-using ReScene.SRS;
-
-namespace ReScene.SRS.Tests;
+namespace ReScene.Tests;
 
 /// <summary>
 /// Tests for SRSRebuilder - reconstruction of sample files from SRS + original media.

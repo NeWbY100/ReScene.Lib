@@ -1,6 +1,7 @@
 using Force.Crc32;
+using ReScene.RAR;
 
-namespace ReScene.RAR.Tests;
+namespace ReScene.Tests;
 
 public class RARPatcherTests : IDisposable
 {

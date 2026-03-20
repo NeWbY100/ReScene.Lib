@@ -7,25 +7,39 @@ namespace ReScene.RAR;
 /// </summary>
 public class RARHeaderField
 {
-    /// <summary>Field name (e.g., "Header CRC", "Flags", "Packed Size").</summary>
+    /// <summary>
+    /// Field name (e.g., "Header CRC", "Flags", "Packed Size").
+    /// </summary>
     public string Name { get; set; } = string.Empty;
 
-    /// <summary>Byte offset from the start of the file.</summary>
+    /// <summary>
+    /// Byte offset from the start of the file.
+    /// </summary>
     public long Offset { get; set; }
 
-    /// <summary>Length in bytes.</summary>
+    /// <summary>
+    /// Length in bytes.
+    /// </summary>
     public int Length { get; set; }
 
-    /// <summary>Raw bytes of this field.</summary>
+    /// <summary>
+    /// Raw bytes of this field.
+    /// </summary>
     public byte[] RawBytes { get; set; } = [];
 
-    /// <summary>Formatted display value.</summary>
+    /// <summary>
+    /// Formatted display value.
+    /// </summary>
     public string Value { get; set; } = string.Empty;
 
-    /// <summary>Additional description or decoded meaning.</summary>
+    /// <summary>
+    /// Additional description or decoded meaning.
+    /// </summary>
     public string? Description { get; set; }
 
-    /// <summary>Child fields (for nested structures like flags).</summary>
+    /// <summary>
+    /// Child fields (for nested structures like flags).
+    /// </summary>
     public List<RARHeaderField> Children { get; set; } = [];
 
     public override string ToString() => $"{Name}: {Value}";
@@ -36,31 +50,49 @@ public class RARHeaderField
 /// </summary>
 public class RARDetailedBlock
 {
-    /// <summary>Block type name.</summary>
+    /// <summary>
+    /// Block type name.
+    /// </summary>
     public string BlockType { get; set; } = string.Empty;
 
-    /// <summary>Block type value.</summary>
+    /// <summary>
+    /// Block type value.
+    /// </summary>
     public byte BlockTypeValue { get; set; }
 
-    /// <summary>Start offset of this block.</summary>
+    /// <summary>
+    /// Start offset of this block.
+    /// </summary>
     public long StartOffset { get; set; }
 
-    /// <summary>Total block size (header + data).</summary>
+    /// <summary>
+    /// Total block size (header + data).
+    /// </summary>
     public long TotalSize { get; set; }
 
-    /// <summary>Header size only.</summary>
+    /// <summary>
+    /// Header size only.
+    /// </summary>
     public int HeaderSize { get; set; }
 
-    /// <summary>All fields in this block header.</summary>
+    /// <summary>
+    /// All fields in this block header.
+    /// </summary>
     public List<RARHeaderField> Fields { get; set; } = [];
 
-    /// <summary>True if this block has associated data after the header.</summary>
+    /// <summary>
+    /// True if this block has associated data after the header.
+    /// </summary>
     public bool HasData { get; set; }
 
-    /// <summary>Size of data after header.</summary>
+    /// <summary>
+    /// Size of data after header.
+    /// </summary>
     public long DataSize { get; set; }
 
-    /// <summary>For file/service blocks: the item name.</summary>
+    /// <summary>
+    /// For file/service blocks: the item name.
+    /// </summary>
     public string? ItemName { get; set; }
 }
 

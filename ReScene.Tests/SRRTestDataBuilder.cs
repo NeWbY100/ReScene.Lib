@@ -2,7 +2,7 @@ using System.Text;
 using Force.Crc32;
 using ReScene.RAR;
 
-namespace ReScene.SRR.Tests;
+namespace ReScene.Tests;
 
 /// <summary>
 /// Builds synthetic SRR files for unit testing.

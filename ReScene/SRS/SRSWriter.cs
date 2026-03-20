@@ -9,7 +9,9 @@ namespace ReScene.SRS;
 /// </summary>
 public class SrsCreationOptions
 {
-    /// <summary>Application name to embed in the SRS file.</summary>
+    /// <summary>
+    /// Application name to embed in the SRS file.
+    /// </summary>
     public string AppName { get; set; } = "ReScene.NET";
 }
 
@@ -1989,7 +1991,11 @@ public class SRSWriter
         return true;
     }
 
-    /// <summary>Reads a VINT value (masks out marker bit).</summary>
+    /// <summary>
+
+    /// Reads a VINT value (masks out marker bit).
+
+    /// </summary>
     private static bool TryReadEbmlVint(Stream stream, out ulong value, out int length)
     {
         return TryReadEbmlSize(stream, out value, out length);

@@ -1,4 +1,6 @@
-namespace ReScene.RAR.Tests;
+using ReScene.RAR;
+
+namespace ReScene.Tests;
 
 public class RARFlagsTests
 {

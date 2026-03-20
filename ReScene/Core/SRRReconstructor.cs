@@ -10,7 +10,9 @@ namespace ReScene.Core;
 /// </summary>
 public class SRRReconstructor(IReSceneLogger? logger = null)
 {
-    /// <summary>Occurs when reconstruction progress updates.</summary>
+    /// <summary>
+    /// Occurs when reconstruction progress updates.
+    /// </summary>
     public event EventHandler<BruteForceProgressEventArgs>? Progress;
 
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;

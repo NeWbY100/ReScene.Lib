@@ -6,16 +6,24 @@ namespace ReScene.SRS;
 /// </summary>
 public enum EbmlLaceType : byte
 {
-    /// <summary>No lacing - single frame per block.</summary>
+    /// <summary>
+    /// No lacing - single frame per block.
+    /// </summary>
     None = 0,
 
-    /// <summary>Xiph lacing - 0xFF-terminated sizes.</summary>
+    /// <summary>
+    /// Xiph lacing - 0xFF-terminated sizes.
+    /// </summary>
     Xiph = 2,
 
-    /// <summary>Fixed-size lacing - all frames are equal size.</summary>
+    /// <summary>
+    /// Fixed-size lacing - all frames are equal size.
+    /// </summary>
     Fixed = 4,
 
-    /// <summary>EBML lacing - delta-encoded sizes using EBML VINTs.</summary>
+    /// <summary>
+    /// EBML lacing - delta-encoded sizes using EBML VINTs.
+    /// </summary>
     Ebml = 6
 }
 

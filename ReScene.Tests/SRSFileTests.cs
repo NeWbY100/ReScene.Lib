@@ -1,9 +1,8 @@
+using ReScene.SRS;
 using System.Buffers.Binary;
 using System.Text;
 
-using ReScene.SRS;
-
-namespace ReScene.SRS.Tests;
+namespace ReScene.Tests;
 
 /// <summary>
 /// Dedicated tests for SRSFile.Load() parsing across all container formats.

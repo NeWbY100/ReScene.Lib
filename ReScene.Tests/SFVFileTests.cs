@@ -1,6 +1,6 @@
 using ReScene.Core.IO;
 
-namespace ReScene.Core.IO.Tests;
+namespace ReScene.Tests;
 
 public class SFVFileTests
 {

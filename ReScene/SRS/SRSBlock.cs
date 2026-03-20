@@ -20,16 +20,24 @@ public enum SRSContainerType
 /// </summary>
 public class SrsFileDataBlock
 {
-    /// <summary>Absolute position of the container frame in the file.</summary>
+    /// <summary>
+    /// Absolute position of the container frame in the file.
+    /// </summary>
     public long BlockPosition { get; set; }
 
-    /// <summary>Total size including container framing.</summary>
+    /// <summary>
+    /// Total size including container framing.
+    /// </summary>
     public long BlockSize { get; set; }
 
-    /// <summary>Offset of the container frame header.</summary>
+    /// <summary>
+    /// Offset of the container frame header.
+    /// </summary>
     public long FrameOffset { get; set; }
 
-    /// <summary>Size of the container frame header (before SRSF payload).</summary>
+    /// <summary>
+    /// Size of the container frame header (before SRSF payload).
+    /// </summary>
     public int FrameHeaderSize { get; set; }
 
     public long FlagsOffset { get; set; }
@@ -59,16 +67,24 @@ public class SrsFileDataBlock
 /// </summary>
 public class SrsTrackDataBlock
 {
-    /// <summary>Absolute position of the container frame in the file.</summary>
+    /// <summary>
+    /// Absolute position of the container frame in the file.
+    /// </summary>
     public long BlockPosition { get; set; }
 
-    /// <summary>Total size including container framing.</summary>
+    /// <summary>
+    /// Total size including container framing.
+    /// </summary>
     public long BlockSize { get; set; }
 
-    /// <summary>Offset of the container frame header.</summary>
+    /// <summary>
+    /// Offset of the container frame header.
+    /// </summary>
     public long FrameOffset { get; set; }
 
-    /// <summary>Size of the container frame header (before SRST payload).</summary>
+    /// <summary>
+    /// Size of the container frame header (before SRST payload).
+    /// </summary>
     public int FrameHeaderSize { get; set; }
 
     public long FlagsOffset { get; set; }
@@ -97,21 +113,33 @@ public class SrsTrackDataBlock
 /// </summary>
 public class SrsContainerChunk
 {
-    /// <summary>Absolute position in the file.</summary>
+    /// <summary>
+    /// Absolute position in the file.
+    /// </summary>
     public long BlockPosition { get; set; }
 
-    /// <summary>Total size of the chunk (header + payload).</summary>
+    /// <summary>
+    /// Total size of the chunk (header + payload).
+    /// </summary>
     public long BlockSize { get; set; }
 
-    /// <summary>Display label (e.g. "RIFF AVI", "LIST movi").</summary>
+    /// <summary>
+    /// Display label (e.g. "RIFF AVI", "LIST movi").
+    /// </summary>
     public string Label { get; set; } = string.Empty;
 
-    /// <summary>Raw chunk ID/tag (e.g. "RIFF", "LIST", GUID bytes).</summary>
+    /// <summary>
+    /// Raw chunk ID/tag (e.g. "RIFF", "LIST", GUID bytes).
+    /// </summary>
     public string ChunkId { get; set; } = string.Empty;
 
-    /// <summary>Size of the chunk header.</summary>
+    /// <summary>
+    /// Size of the chunk header.
+    /// </summary>
     public int HeaderSize { get; set; }
 
-    /// <summary>Size of the payload (excluding header).</summary>
+    /// <summary>
+    /// Size of the payload (excluding header).
+    /// </summary>
     public long PayloadSize { get; set; }
 }

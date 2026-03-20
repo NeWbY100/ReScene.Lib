@@ -9,54 +9,86 @@ namespace ReScene.SRR;
 /// </summary>
 public class SRRFile
 {
-    /// <summary>Gets the SRR file header block.</summary>
+    /// <summary>
+    /// Gets the SRR file header block.
+    /// </summary>
     public SrrHeaderBlock? HeaderBlock { get; private set; }
 
-    /// <summary>Gets the OSO hash blocks from the SRR file.</summary>
+    /// <summary>
+    /// Gets the OSO hash blocks from the SRR file.
+    /// </summary>
     public List<SrrOsoHashBlock> OsoHashBlocks { get; private set; } = [];
 
-    /// <summary>Gets the RAR padding blocks from the SRR file.</summary>
+    /// <summary>
+    /// Gets the RAR padding blocks from the SRR file.
+    /// </summary>
     public List<SrrRarPaddingBlock> RarPaddingBlocks { get; private set; } = [];
 
-    /// <summary>Gets the RAR file reference blocks from the SRR file.</summary>
+    /// <summary>
+    /// Gets the RAR file reference blocks from the SRR file.
+    /// </summary>
     public List<SrrRarFileBlock> RarFiles { get; private set; } = [];
 
-    /// <summary>Gets the stored file blocks (SFV, NFO, etc.) from the SRR file.</summary>
+    /// <summary>
+    /// Gets the stored file blocks (SFV, NFO, etc.) from the SRR file.
+    /// </summary>
     public List<SrrStoredFileBlock> StoredFiles { get; private set; } = [];
 
-    /// <summary>Gets the set of archived file paths (normalized, case-insensitive).</summary>
+    /// <summary>
+    /// Gets the set of archived file paths (normalized, case-insensitive).
+    /// </summary>
     public HashSet<string> ArchivedFiles { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets the set of archived directory paths (normalized, case-insensitive).</summary>
+    /// <summary>
+    /// Gets the set of archived directory paths (normalized, case-insensitive).
+    /// </summary>
     public HashSet<string> ArchivedDirectories { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets directory modification times keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets directory modification times keyed by normalized path.
+    /// </summary>
     public Dictionary<string, DateTime> ArchivedDirectoryTimestamps { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets directory creation times keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets directory creation times keyed by normalized path.
+    /// </summary>
     public Dictionary<string, DateTime> ArchivedDirectoryCreationTimes { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets directory access times keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets directory access times keyed by normalized path.
+    /// </summary>
     public Dictionary<string, DateTime> ArchivedDirectoryAccessTimes { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets file modification times keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets file modification times keyed by normalized path.
+    /// </summary>
     public Dictionary<string, DateTime> ArchivedFileTimestamps { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets file creation times keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets file creation times keyed by normalized path.
+    /// </summary>
     public Dictionary<string, DateTime> ArchivedFileCreationTimes { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets file access times keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets file access times keyed by normalized path.
+    /// </summary>
     public Dictionary<string, DateTime> ArchivedFileAccessTimes { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets file CRC32 values (as hex strings) keyed by normalized path.</summary>
+    /// <summary>
+    /// Gets file CRC32 values (as hex strings) keyed by normalized path.
+    /// </summary>
     public Dictionary<string, string> ArchivedFileCrcs { get; private set; } = new(StringComparer.OrdinalIgnoreCase);
 
     private Dictionary<string, RARFileFlags> ArchivedFileCrcFlags { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Gets the calculated RAR volume sizes in bytes for each volume.</summary>
+    /// <summary>
+    /// Gets the calculated RAR volume sizes in bytes for each volume.
+    /// </summary>
     public List<long> RarVolumeSizes { get; private set; } = [];
 
-    /// <summary>Gets the most common volume size in bytes (for multi-volume archives).</summary>
+    /// <summary>
+    /// Gets the most common volume size in bytes (for multi-volume archives).
+    /// </summary>
     public long? VolumeSizeBytes { get; private set; }
 
     // Archive metadata extracted from RAR headers
@@ -75,10 +107,14 @@ public class SRRFile
     public bool? HasUnicodeNames { get; private set; }
     public bool? HasExtendedTime { get; private set; }
 
-    /// <summary>Upper 32 bits of packed size from first LARGE file header.</summary>
+    /// <summary>
+    /// Upper 32 bits of packed size from first LARGE file header.
+    /// </summary>
     public uint? DetectedHighPackSize { get; private set; }
 
-    /// <summary>Upper 32 bits of unpacked size from first LARGE file header.</summary>
+    /// <summary>
+    /// Upper 32 bits of unpacked size from first LARGE file header.
+    /// </summary>
     public uint? DetectedHighUnpSize { get; private set; }
 
     // CRC validation tracking
@@ -92,26 +128,38 @@ public class SRRFile
     /// </summary>
     public bool HasCustomPackerHeaders { get; private set; }
 
-    /// <summary>The type of custom packer anomaly detected, if any.</summary>
+    /// <summary>
+    /// The type of custom packer anomaly detected, if any.
+    /// </summary>
     public CustomPackerType CustomPackerDetected { get; private set; }
 
     // Archive comment extracted from CMT sub-block
     public string? ArchiveComment { get; private set; }
 
-    /// <summary>Raw archive comment bytes (for exact reconstruction).</summary>
+    /// <summary>
+    /// Raw archive comment bytes (for exact reconstruction).
+    /// </summary>
     public byte[]? ArchiveCommentBytes { get; private set; }
 
-    /// <summary>Raw CMT block compressed data (for Phase 1 brute-force comparison).</summary>
+    /// <summary>
+    /// Raw CMT block compressed data (for Phase 1 brute-force comparison).
+    /// </summary>
     public byte[]? CmtCompressedData { get; private set; }
 
-    /// <summary>CMT block compression method (0x30=Store, 0x31-0x35=Compressed).</summary>
+    /// <summary>
+    /// CMT block compression method (0x30=Store, 0x31-0x35=Compressed).
+    /// </summary>
     public byte? CmtCompressionMethod { get; private set; }
 
     // Host OS and timestamp settings detected from headers
-    /// <summary>Host OS from file headers (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix).</summary>
+    /// <summary>
+    /// Host OS from file headers (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix).
+    /// </summary>
     public byte? DetectedHostOS { get; private set; }
 
-    /// <summary>Host OS name for display.</summary>
+    /// <summary>
+    /// Host OS name for display.
+    /// </summary>
     public string DetectedHostOSName => DetectedHostOS switch
     {
         0 => "MS-DOS",
@@ -124,13 +172,19 @@ public class SRRFile
         _ => $"Unknown ({DetectedHostOS})"
     };
 
-    /// <summary>File attributes from first file header (for patching).</summary>
+    /// <summary>
+    /// File attributes from first file header (for patching).
+    /// </summary>
     public uint? DetectedFileAttributes { get; private set; }
 
-    /// <summary>Host OS from CMT service block (may differ from file headers).</summary>
+    /// <summary>
+    /// Host OS from CMT service block (may differ from file headers).
+    /// </summary>
     public byte? CmtHostOS { get; private set; }
 
-    /// <summary>CMT Host OS name for display.</summary>
+    /// <summary>
+    /// CMT Host OS name for display.
+    /// </summary>
     public string CmtHostOSName => CmtHostOS switch
     {
         0 => "MS-DOS",
@@ -143,16 +197,24 @@ public class SRRFile
         _ => $"Unknown ({CmtHostOS})"
     };
 
-    /// <summary>Raw DOS file time from CMT block (0 = zeroed/no timestamp).</summary>
+    /// <summary>
+    /// Raw DOS file time from CMT block (0 = zeroed/no timestamp).
+    /// </summary>
     public uint? CmtFileTimeDOS { get; private set; }
 
-    /// <summary>True if CMT block has zeroed file time (suggests -ts- or similar option).</summary>
+    /// <summary>
+    /// True if CMT block has zeroed file time (suggests -ts- or similar option).
+    /// </summary>
     public bool CmtHasZeroedFileTime => CmtFileTimeDOS == 0;
 
-    /// <summary>File attributes from CMT block.</summary>
+    /// <summary>
+    /// File attributes from CMT block.
+    /// </summary>
     public uint? CmtFileAttributes { get; private set; }
 
-    /// <summary>Whether CMT timestamp appears to be current time vs zeroed.</summary>
+    /// <summary>
+    /// Whether CMT timestamp appears to be current time vs zeroed.
+    /// </summary>
     public string CmtTimestampMode => CmtFileTimeDOS switch
     {
         null => "Unknown",
@@ -162,24 +224,36 @@ public class SRRFile
 
     // ===== Timestamp Precision (from file headers) =====
 
-    /// <summary>Modification time precision from file headers (maps to -tsm0 through -tsm4).</summary>
+    /// <summary>
+    /// Modification time precision from file headers (maps to -tsm0 through -tsm4).
+    /// </summary>
     public TimestampPrecision? FileMtimePrecision { get; private set; }
 
-    /// <summary>Creation time precision from file headers (maps to -tsc0 through -tsc4).</summary>
+    /// <summary>
+    /// Creation time precision from file headers (maps to -tsc0 through -tsc4).
+    /// </summary>
     public TimestampPrecision? FileCtimePrecision { get; private set; }
 
-    /// <summary>Access time precision from file headers (maps to -tsa0 through -tsa4).</summary>
+    /// <summary>
+    /// Access time precision from file headers (maps to -tsa0 through -tsa4).
+    /// </summary>
     public TimestampPrecision? FileAtimePrecision { get; private set; }
 
     // ===== Timestamp Precision (from CMT service block) =====
 
-    /// <summary>Modification time precision from CMT block (maps to -tsm0 through -tsm4).</summary>
+    /// <summary>
+    /// Modification time precision from CMT block (maps to -tsm0 through -tsm4).
+    /// </summary>
     public TimestampPrecision? CmtMtimePrecision { get; private set; }
 
-    /// <summary>Creation time precision from CMT block (maps to -tsc0 through -tsc4).</summary>
+    /// <summary>
+    /// Creation time precision from CMT block (maps to -tsc0 through -tsc4).
+    /// </summary>
     public TimestampPrecision? CmtCtimePrecision { get; private set; }
 
-    /// <summary>Access time precision from CMT block (maps to -tsa0 through -tsa4).</summary>
+    /// <summary>
+    /// Access time precision from CMT block (maps to -tsa0 through -tsa4).
+    /// </summary>
     public TimestampPrecision? CmtAtimePrecision { get; private set; }
 
     /// <summary>
