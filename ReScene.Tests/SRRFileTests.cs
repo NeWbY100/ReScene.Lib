@@ -16,6 +16,8 @@ public class SRRFileTests : IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
+
         try { Directory.Delete(_testDir, true); } catch { }
     }
 
