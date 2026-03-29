@@ -453,6 +453,8 @@ public class RARDetailedParser
             bool isStored = block.Fields.Exists(f =>
                 f.Name == "Compression Method" && f.Value == "0x30");
 
+            if (block.DataSize > int.MaxValue)
+                return;
             stream.Position = dataStart;
             byte[] data = reader.ReadBytes((int)block.DataSize);
 
@@ -1494,6 +1496,8 @@ public class RARDetailedParser
                 f.Name == "Compression Info" && f.Children.Exists(c =>
                     c.Name == "METHOD" && c.Value.StartsWith("0 ")));
 
+            if (block.DataSize > int.MaxValue)
+                return;
             stream.Position = dataStart;
             byte[] data = reader.ReadBytes((int)block.DataSize);
 

@@ -704,7 +704,7 @@ public class SRRWriterTests : IDisposable
 
         var writer = new SRRWriter();
         var result = await writer.CreateAsync(srrPath, [rarPath], storedFiles,
-            options: new SrrCreationOptions { StorePaths = true });
+            options: new SrrCreationOptions());
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
@@ -713,55 +713,6 @@ public class SRRWriterTests : IDisposable
         Assert.Equal("another/dir/release.nfo", srr.StoredFiles[1].FileName);
     }
 
-    [Fact]
-    public async Task CreateAsync_StorePathsFalse_UsesFileNameOnly()
-    {
-        string rarPath = CreateMinimalRar4File("test.rar");
-        string sfvPath = CreateTextFile("release.sfv", "test.rar DEADBEEF\r\n");
-        string nfoPath = CreateTextFile("release.nfo", "NFO content\r\n");
-        string srrPath = Path.Combine(_testDir, "output.srr");
-
-        // Use paths with directory components
-        var storedFiles = new Dictionary<string, string>
-        {
-            ["subdir/release.sfv"] = sfvPath,
-            ["another/dir/release.nfo"] = nfoPath
-        };
-
-        var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath], storedFiles,
-            options: new SrrCreationOptions { StorePaths = false });
-
-        Assert.True(result.Success, result.ErrorMessage);
-        var srr = SRRFile.Load(srrPath);
-        Assert.Equal(2, srr.StoredFiles.Count);
-        // StorePaths=false should strip directory and use just the filename
-        Assert.Equal("release.sfv", srr.StoredFiles[0].FileName);
-        Assert.Equal("release.nfo", srr.StoredFiles[1].FileName);
-    }
-
-    [Fact]
-    public async Task CreateAsync_StorePathsFalse_FlatFileNameUnchanged()
-    {
-        string rarPath = CreateMinimalRar4File("test.rar");
-        string sfvPath = CreateTextFile("release.sfv", "test.rar DEADBEEF\r\n");
-        string srrPath = Path.Combine(_testDir, "output.srr");
-
-        // Name without directory path
-        var storedFiles = new Dictionary<string, string>
-        {
-            ["release.sfv"] = sfvPath
-        };
-
-        var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath], storedFiles,
-            options: new SrrCreationOptions { StorePaths = false });
-
-        Assert.True(result.Success, result.ErrorMessage);
-        var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.StoredFiles);
-        Assert.Equal("release.sfv", srr.StoredFiles[0].FileName);
-    }
 
     #endregion
 

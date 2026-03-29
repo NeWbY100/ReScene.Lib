@@ -605,17 +605,17 @@ public static class RARPatcher
                 }
 
                 // Copy data section unchanged
-                if (addSize > 0 && blockStart + headerSize + addSize <= bytesRead)
+                if (addSize > 0 && addSize <= int.MaxValue && blockStart + headerSize + (int)addSize <= bytesRead)
                 {
                     output.Write(original, blockStart + headerSize, (int)addSize);
                 }
 
-                pos = blockStart + headerSize + (int)addSize;
+                pos = blockStart + headerSize + (addSize <= int.MaxValue ? (int)addSize : 0);
             }
             else
             {
                 // Non-file/service block: copy unchanged (header + data)
-                int blockTotalSize = headerSize + (hasAddSize ? (int)addSize : 0);
+                int blockTotalSize = headerSize + (hasAddSize && addSize <= int.MaxValue ? (int)addSize : 0);
                 if (blockStart + blockTotalSize > bytesRead)
                     blockTotalSize = bytesRead - blockStart;
                 output.Write(original, blockStart, blockTotalSize);

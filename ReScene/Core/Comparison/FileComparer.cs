@@ -1,5 +1,6 @@
 using ReScene.RAR;
 using ReScene.SRR;
+using ReScene.SRS;
 
 namespace ReScene.Core.Comparison;
 
@@ -16,6 +17,10 @@ public static class FileComparer
         if (leftData is SRRFileData leftSrr && rightData is SRRFileData rightSrr)
         {
             CompareSRRFiles(leftSrr.SrrFile, rightSrr.SrrFile, result);
+        }
+        else if (leftData is SRSFile leftSrs && rightData is SRSFile rightSrs)
+        {
+            CompareSRSFiles(leftSrs, rightSrs, result);
         }
         else if (leftData is RARFileData leftRar && rightData is RARFileData rightRar)
         {
@@ -37,6 +42,7 @@ public static class FileComparer
     public static string GetFileTypeName(object? data) => data switch
     {
         SRRFileData => "SRR File",
+        SRSFile => "SRS File",
         RARFileData r => r.IsRAR5 ? "RAR 5.x" : "RAR 4.x",
         _ => "Unknown"
     };
@@ -111,9 +117,9 @@ public static class FileComparer
                 result.FileDifferences.Add(fileDiff);
         }
 
-        // Compare stored files
-        var leftStored = left.StoredFiles.Select(s => s.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var rightStored = right.StoredFiles.Select(s => s.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Compare stored files (normalize path separators for cross-platform compatibility)
+        var leftStored = left.StoredFiles.Select(s => s.FileName.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rightStored = right.StoredFiles.Select(s => s.FileName.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var file in leftStored.Union(rightStored).OrderBy(f => f))
         {
@@ -127,6 +133,57 @@ public static class FileComparer
                     FileName = file,
                     Type = inLeft ? DifferenceType.Removed : DifferenceType.Added
                 });
+            }
+        }
+    }
+
+    public static void CompareSRSFiles(SRSFile left, SRSFile right, CompareResult result)
+    {
+        if (left.FileData is { } leftFd && right.FileData is { } rightFd)
+        {
+            CompareProperty(result.ArchiveDifferences, "App Name", leftFd.AppName, rightFd.AppName);
+            CompareProperty(result.ArchiveDifferences, "File Name", leftFd.FileName, rightFd.FileName);
+            CompareProperty(result.ArchiveDifferences, "Sample Size",
+                $"{leftFd.SampleSize:N0} bytes", $"{rightFd.SampleSize:N0} bytes");
+            CompareProperty(result.ArchiveDifferences, "CRC32",
+                leftFd.Crc32.ToString("X8"), rightFd.Crc32.ToString("X8"));
+            CompareProperty(result.ArchiveDifferences, "Flags",
+                $"0x{leftFd.Flags:X4}", $"0x{rightFd.Flags:X4}");
+        }
+
+        // Compare tracks
+        int trackCount = Math.Max(left.Tracks.Count, right.Tracks.Count);
+        for (int i = 0; i < trackCount; i++)
+        {
+            var lt = i < left.Tracks.Count ? left.Tracks[i] : null;
+            var rt = i < right.Tracks.Count ? right.Tracks[i] : null;
+            string trackName = $"Track {lt?.TrackNumber ?? rt?.TrackNumber ?? (uint)i}";
+
+            if (lt is null || rt is null)
+            {
+                result.FileDifferences.Add(new FileDifference
+                {
+                    FileName = trackName,
+                    Type = lt is null ? DifferenceType.Added : DifferenceType.Removed
+                });
+                continue;
+            }
+
+            var fileDiff = new FileDifference { FileName = trackName };
+
+            CompareProperty(fileDiff.PropertyDifferences, "Data Length",
+                $"{lt.DataLength:N0}", $"{rt.DataLength:N0}");
+            CompareProperty(fileDiff.PropertyDifferences, "Match Offset",
+                $"0x{lt.MatchOffset:X}", $"0x{rt.MatchOffset:X}");
+            CompareProperty(fileDiff.PropertyDifferences, "Signature",
+                Convert.ToHexString(lt.Signature), Convert.ToHexString(rt.Signature));
+            CompareProperty(fileDiff.PropertyDifferences, "Flags",
+                $"0x{lt.Flags:X4}", $"0x{rt.Flags:X4}");
+
+            if (fileDiff.PropertyDifferences.Count > 0)
+            {
+                fileDiff.Type = DifferenceType.Modified;
+                result.FileDifferences.Add(fileDiff);
             }
         }
     }

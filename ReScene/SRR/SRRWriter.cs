@@ -19,14 +19,14 @@ public class SrrCreationOptions
     public bool AllowCompressed { get; set; } = true;
 
     /// <summary>
-    /// Whether to store directory paths in stored file names.
-    /// </summary>
-    public bool StorePaths { get; set; } = true;
-
-    /// <summary>
     /// Whether to compute and store OSO hashes for archived files.
     /// </summary>
     public bool ComputeOsoHashes { get; set; }
+
+    /// <summary>
+    /// Whether to generate a languages.diz stored file from VobSub .idx files in the archive.
+    /// </summary>
+    public bool GenerateLanguagesDiz { get; set; }
 }
 
 /// <summary>
@@ -165,7 +165,7 @@ public class SRRWriter
                 foreach (var kvp in storedFiles)
                 {
                     ct.ThrowIfCancellationRequested();
-                    string storedName = options.StorePaths ? kvp.Key : Path.GetFileName(kvp.Key);
+                    string storedName = kvp.Key.Replace('\\', '/');
                     byte[] fileData = await File.ReadAllBytesAsync(kvp.Value, ct);
                     WriteStoredFileBlock(writer, storedName, fileData);
                     result.StoredFileCount++;
@@ -187,9 +187,26 @@ public class SRRWriter
                 result.VolumeCount++;
             }
 
-            // 4. Optionally write OSO hash blocks (placeholder - needs file data access)
-            // OSO hashes require the actual file data from reconstructed files,
-            // which is not available during SRR creation from headers alone.
+            // 4. Optionally compute and write OSO hash blocks
+            if (options.ComputeOsoHashes)
+            {
+                var hashes = OsoHashCalculator.ComputeHashes(rarVolumePaths);
+                foreach (var (fileName, fileSize, hash) in hashes)
+                {
+                    WriteOsoHashBlock(writer, fileName, fileSize, hash);
+                }
+            }
+
+            // 5. Optionally generate and store languages.diz from VobSub .idx files
+            if (options.GenerateLanguagesDiz)
+            {
+                byte[]? dizData = LanguagesDizGenerator.Generate(rarVolumePaths);
+                if (dizData is not null)
+                {
+                    WriteStoredFileBlock(writer, "languages.diz", dizData);
+                    result.StoredFileCount++;
+                }
+            }
 
             await outStream.FlushAsync(ct);
             result.SrrFileSize = outStream.Length;
@@ -217,14 +234,14 @@ public class SRRWriter
     /// </summary>
     /// <param name="outputPath">Path for the output SRR file.</param>
     /// <param name="sfvFilePath">Path to the SFV file.</param>
-    /// <param name="additionalFiles">Optional additional files to store (name -> path).</param>
+    /// <param name="additionalFiles">Optional additional files to store. Keys are stored names, values are file paths on disk.</param>
     /// <param name="options">Creation options, or null for defaults.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Result of the creation operation.</returns>
     public async Task<SrrCreationResult> CreateFromSfvAsync(
         string outputPath,
         string sfvFilePath,
-        IReadOnlyList<string>? additionalFiles = null,
+        IReadOnlyDictionary<string, string>? additionalFiles = null,
         SrrCreationOptions? options = null,
         CancellationToken ct = default)
     {
@@ -261,30 +278,27 @@ public class SRRWriter
         // Sort volumes in correct order
         rarFiles.Sort(CompareRarVolumeNames);
 
-        // Build stored files dictionary - auto-include the SFV itself
-        var storedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            [Path.GetFileName(sfvFilePath)] = sfvFilePath
-        };
+        // Build stored files dictionary — additional files first (preserves caller's sort order)
+        var storedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        // Add any additional stored files (NFO, etc.)
         if (additionalFiles != null)
         {
-            foreach (string filePath in additionalFiles)
+            foreach (var kvp in additionalFiles)
             {
-                if (File.Exists(filePath))
-                {
-                    storedFiles[Path.GetFileName(filePath)] = filePath;
-                }
+                if (File.Exists(kvp.Value))
+                    storedFiles.TryAdd(kvp.Key, kvp.Value);
             }
         }
 
-        // Also auto-detect NFO files in the same directory
+        // Auto-detect NFO files in the same directory (skipped if caller already included them)
         foreach (string nfoFile in Directory.GetFiles(sfvDir, "*.nfo"))
         {
             string nfoName = Path.GetFileName(nfoFile);
             storedFiles.TryAdd(nfoName, nfoFile);
         }
+
+        // SFV goes last (pyrescene convention: main SFV is always the last stored file)
+        storedFiles.TryAdd(Path.GetFileName(sfvFilePath), sfvFilePath);
 
         return await CreateAsync(outputPath, rarFiles, storedFiles, options, ct);
     }
@@ -599,6 +613,8 @@ public class SRRWriter
 
             // Read the full raw header bytes (CRC + vint + header content)
             long rawHeaderSize = headerEndPos - blockStart;
+            if (rawHeaderSize <= 0 || rawHeaderSize > int.MaxValue)
+                break;
             fs.Position = blockStart;
             byte[] rawHeaderBytes = reader.ReadBytes((int)rawHeaderSize);
 
