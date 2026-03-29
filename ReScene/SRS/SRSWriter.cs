@@ -20,14 +20,23 @@ public class SrsCreationOptions
 /// </summary>
 public class SrsCreationResult
 {
+    /// <summary>Whether SRS creation completed successfully.</summary>
     public bool Success { get; set; }
+    /// <summary>Path to the created SRS file.</summary>
     public string? OutputPath { get; set; }
+    /// <summary>Error message if creation failed.</summary>
     public string? ErrorMessage { get; set; }
+    /// <summary>Detected container type of the sample file.</summary>
     public SRSContainerType ContainerType { get; set; }
+    /// <summary>Number of tracks found in the sample file.</summary>
     public int TrackCount { get; set; }
+    /// <summary>Size of the created SRS file in bytes.</summary>
     public long SrsFileSize { get; set; }
+    /// <summary>CRC32 checksum of the original sample file.</summary>
     public uint SampleCrc32 { get; set; }
+    /// <summary>Size of the original sample file in bytes.</summary>
     public long SampleSize { get; set; }
+    /// <summary>Non-fatal warnings encountered during creation.</summary>
     public List<string> Warnings { get; set; } = [];
 }
 
@@ -36,6 +45,9 @@ public class SrsCreationResult
 /// </summary>
 public class SrsCreationProgressEventArgs : EventArgs
 {
+    /// <summary>
+    /// Gets or sets the progress message describing the current creation step.
+    /// </summary>
     public string Message { get; set; } = string.Empty;
 }
 
@@ -70,6 +82,9 @@ public class SRSWriter
 {
     private const int SignatureSize = 256;
 
+    /// <summary>
+    /// Occurs when SRS creation progress updates with a status message.
+    /// </summary>
     public event EventHandler<SrsCreationProgressEventArgs>? Progress;
 
     /// <summary>

@@ -2,10 +2,19 @@ using ReScene.Core.IO;
 
 namespace ReScene.Core.Diagnostics;
 
+/// <summary>
+/// Provides data for RAR compression status change events, including the associated RAR process.
+/// </summary>
 public class RARCompressionStatusChangedEventArgs : OperationStatusChangedEventArgs
 {
+    /// <summary>
+    /// Gets the RAR process associated with this status change.
+    /// </summary>
     public RARProcess Process { get; private set; }
 
+    /// <summary>
+    /// Initializes a new instance with the specified process and new status.
+    /// </summary>
     public RARCompressionStatusChangedEventArgs(RARProcess process, OperationStatus newStatus)
         : base(newStatus)
     {

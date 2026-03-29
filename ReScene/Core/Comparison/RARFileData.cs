@@ -3,16 +3,49 @@ using ReScene.RAR.Decompression;
 
 namespace ReScene.Core.Comparison;
 
+/// <summary>
+/// Holds parsed RAR archive data (headers, file entries, comments) for comparison.
+/// </summary>
 public class RARFileData
 {
+    /// <summary>
+    /// Gets or sets the path to the RAR file.
+    /// </summary>
     public string FilePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets whether the file uses RAR 5.x format.
+    /// </summary>
     public bool IsRAR5 { get; set; }
+
+    /// <summary>
+    /// Gets or sets the RAR 4.x archive header, if present.
+    /// </summary>
     public RARArchiveHeader? ArchiveHeader { get; set; }
+
+    /// <summary>
+    /// Gets or sets the RAR 5.x archive info, if present.
+    /// </summary>
     public RAR5ArchiveInfo? RAR5ArchiveInfo { get; set; }
+
+    /// <summary>
+    /// Gets or sets the RAR 4.x file headers found in the archive.
+    /// </summary>
     public List<RARFileHeader> FileHeaders { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the RAR 5.x file info entries found in the archive.
+    /// </summary>
     public List<RAR5FileInfo> RAR5FileInfos { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the archive comment text, if present.
+    /// </summary>
     public string? Comment { get; set; }
 
+    /// <summary>
+    /// Loads and parses a RAR file, returning its header and file entry data.
+    /// </summary>
     public static RARFileData Load(string filePath)
     {
         var data = new RARFileData { FilePath = filePath };

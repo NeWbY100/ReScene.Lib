@@ -6,22 +6,49 @@ using ReScene.Core.IO;
 
 namespace ReScene.Core.Diagnostics;
 
+/// <summary>
+/// Wraps a RAR command-line process, parsing its output for compression progress and status events.
+/// </summary>
 public sealed partial class RARProcess
 {
+    /// <summary>
+    /// Occurs when the RAR process writes output (stdout or stderr).
+    /// </summary>
     public event EventHandler<ProcessDataEventArgs>? ProcessOutput;
 
+    /// <summary>
+    /// Occurs when the RAR process status changes (running, completed, etc.).
+    /// </summary>
     public event EventHandler<OperationStatusChangedEventArgs>? ProcessStatusChanged;
 
+    /// <summary>
+    /// Occurs when compression progress updates for a file being archived.
+    /// </summary>
     public event EventHandler<FileCompressionOperationProgressEventArgs>? CompressionProgress;
 
+    /// <summary>
+    /// Occurs when compression status changes for a file being archived.
+    /// </summary>
     public event EventHandler<FileCompressionOperationStatusChangedEventArgs>? CompressionStatusChanged;
 
+    /// <summary>
+    /// Gets the path to the RAR executable.
+    /// </summary>
     public string ProcessFilePath { get; private set; }
 
+    /// <summary>
+    /// Gets the input directory containing files to compress.
+    /// </summary>
     public string InputDirectory { get; private set; }
 
+    /// <summary>
+    /// Gets the output RAR file path.
+    /// </summary>
     public string OutputFilePath { get; private set; }
 
+    /// <summary>
+    /// Gets the command-line options passed to the RAR process.
+    /// </summary>
     public string[] CommandLineOptions { get; private set; }
 
     /// <summary>
@@ -66,6 +93,9 @@ public sealed partial class RARProcess
     private static partial Regex GeneratedOkRegex();
     private static readonly Regex OkRegex = GeneratedOkRegex();
 
+    /// <summary>
+    /// Initializes a new RAR process with the specified executable, directories, and command-line options.
+    /// </summary>
     public RARProcess(string processFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, IReSceneLogger? logger = null)
     {
         if (!File.Exists(processFilePath))
@@ -93,6 +123,9 @@ public sealed partial class RARProcess
         CommandLineOptions = [.. options];
     }
 
+    /// <summary>
+    /// Executes the RAR process asynchronously and returns the exit code.
+    /// </summary>
     public async Task<int> RunAsync(CancellationToken cancellationToken)
     {
         // Start process

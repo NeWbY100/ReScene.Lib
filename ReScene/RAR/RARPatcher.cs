@@ -7,14 +7,49 @@ namespace ReScene.RAR;
 /// </summary>
 public class PatchResult
 {
+    /// <summary>
+    /// Byte offset of the block within the RAR file.
+    /// </summary>
     public long BlockPosition { get; set; }
+
+    /// <summary>
+    /// RAR 4.x block type (FileHeader or Service).
+    /// </summary>
     public RAR4BlockType BlockType { get; set; }
+
+    /// <summary>
+    /// File name from the block header, if available.
+    /// </summary>
     public string? FileName { get; set; }
+
+    /// <summary>
+    /// Host OS value before patching.
+    /// </summary>
     public byte OriginalHostOS { get; set; }
+
+    /// <summary>
+    /// Host OS value after patching.
+    /// </summary>
     public byte NewHostOS { get; set; }
+
+    /// <summary>
+    /// File attributes value before patching.
+    /// </summary>
     public uint OriginalAttributes { get; set; }
+
+    /// <summary>
+    /// File attributes value after patching.
+    /// </summary>
     public uint NewAttributes { get; set; }
+
+    /// <summary>
+    /// Header CRC before patching.
+    /// </summary>
     public ushort OriginalCrc { get; set; }
+
+    /// <summary>
+    /// Header CRC after patching (0 in analysis mode).
+    /// </summary>
     public ushort NewCrc { get; set; }
 }
 

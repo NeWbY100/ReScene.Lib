@@ -16,10 +16,16 @@ public class VersionRange
     /// </summary>
     public int End { get; set; }
 
+    /// <summary>
+    /// Initializes a new instance with default start and end values.
+    /// </summary>
     public VersionRange()
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance with the specified inclusive start and exclusive end values.
+    /// </summary>
     public VersionRange(int start, int end)
     {
         Start = start;

@@ -91,20 +91,64 @@ public class SRRFile
     /// </summary>
     public long? VolumeSizeBytes { get; private set; }
 
-    // Archive metadata extracted from RAR headers
+    /// <summary>
+    /// Gets the compression method from the first file header (0x30=Store, 0x31-0x35=Fastest..Best).
+    /// </summary>
     public int? CompressionMethod { get; private set; }
+
+    /// <summary>
+    /// Gets the dictionary size in kilobytes from the first file header.
+    /// </summary>
     public int? DictionarySize { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive uses solid compression.
+    /// </summary>
     public bool? IsSolidArchive { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive is a multi-volume archive.
+    /// </summary>
     public bool? IsVolumeArchive { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive contains a recovery record.
+    /// </summary>
     public bool? HasRecoveryRecord { get; private set; }
+
+    /// <summary>
+    /// Gets the RAR format version (e.g. 29 for RAR 2.9/3.x, 50 for RAR 5.0).
+    /// </summary>
     public int? RARVersion { get; private set; }
 
-    // Version indicators from RAR headers
+    /// <summary>
+    /// Gets whether the archive uses new-style volume naming (name.part01.rar).
+    /// </summary>
     public bool? HasNewVolumeNaming { get; private set; }
+
+    /// <summary>
+    /// Gets whether the first volume flag is set in the archive header.
+    /// </summary>
     public bool? HasFirstVolumeFlag { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive has encrypted headers.
+    /// </summary>
     public bool? HasEncryptedHeaders { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive contains files larger than 2 GB (LARGE flag).
+    /// </summary>
     public bool? HasLargeFiles { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive contains files with Unicode filenames.
+    /// </summary>
     public bool? HasUnicodeNames { get; private set; }
+
+    /// <summary>
+    /// Gets whether the archive file headers contain extended time fields.
+    /// </summary>
     public bool? HasExtendedTime { get; private set; }
 
     /// <summary>
@@ -117,7 +161,9 @@ public class SRRFile
     /// </summary>
     public uint? DetectedHighUnpSize { get; private set; }
 
-    // CRC validation tracking
+    /// <summary>
+    /// Gets the number of RAR header CRC mismatches detected during parsing.
+    /// </summary>
     public int HeaderCrcMismatches { get; private set; }
 
     // Custom RAR packer detection
@@ -133,7 +179,9 @@ public class SRRFile
     /// </summary>
     public CustomPackerType CustomPackerDetected { get; private set; }
 
-    // Archive comment extracted from CMT sub-block
+    /// <summary>
+    /// Gets the decoded archive comment text extracted from the CMT sub-block.
+    /// </summary>
     public string? ArchiveComment { get; private set; }
 
     /// <summary>

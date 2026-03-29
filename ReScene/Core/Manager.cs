@@ -7,24 +7,55 @@ using ReScene.Core.IO;
 
 namespace ReScene.Core;
 
+/// <summary>
+/// Orchestrates brute-force RAR reconstruction by testing RAR version and argument combinations
+/// against expected hash values until a match is found.
+/// </summary>
 public partial class Manager(IReSceneLogger? logger = null)
 {
+    /// <summary>
+    /// Occurs when a RAR process writes output.
+    /// </summary>
     public event EventHandler<RARProcessDataEventArgs>? RARProcessOutput;
 
+    /// <summary>
+    /// Occurs when a RAR process status changes.
+    /// </summary>
     public event EventHandler<RARProcessStatusChangedEventArgs>? RARProcessStatusChanged;
 
+    /// <summary>
+    /// Occurs when RAR compression progress updates.
+    /// </summary>
     public event EventHandler<RARCompressionProgressEventArgs>? RARCompressionProgress;
 
+    /// <summary>
+    /// Occurs when RAR compression status changes.
+    /// </summary>
     public event EventHandler<RARCompressionStatusChangedEventArgs>? RARCompressionStatusChanged;
 
+    /// <summary>
+    /// Occurs when brute-force progress updates (version/argument combination being tested).
+    /// </summary>
     public event EventHandler<BruteForceProgressEventArgs>? BruteForceProgress;
 
+    /// <summary>
+    /// Occurs when the brute-force operation status changes (running, completed, cancelled).
+    /// </summary>
     public event EventHandler<BruteForceStatusChangedEventArgs>? BruteForceStatusChanged;
 
+    /// <summary>
+    /// Occurs when file copy progress updates during input directory preparation.
+    /// </summary>
     public event EventHandler<FileCopyProgressEventArgs>? FileCopyProgress;
 
+    /// <summary>
+    /// Occurs when CRC validation progress updates during input file verification.
+    /// </summary>
     public event EventHandler<CrcValidationProgressEventArgs>? CrcValidationProgress;
 
+    /// <summary>
+    /// Gets the current brute-force options, or null if no operation is in progress.
+    /// </summary>
     public BruteForceOptions? BruteForceOptions { get; private set; }
 
     private readonly CancellationTokenSource CancellationTokenSource = new();
@@ -40,6 +71,9 @@ public partial class Manager(IReSceneLogger? logger = null)
     private static partial Regex GeneratedRARVersionRegex();
     private readonly static Regex RARVersionRegex = GeneratedRARVersionRegex();
 
+    /// <summary>
+    /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
+    /// </summary>
     public static int ParseRARVersion(string rarVersionDirectoryName)
     {
         Match versionMatch = RARVersionRegex.Match(rarVersionDirectoryName);
@@ -61,6 +95,9 @@ public partial class Manager(IReSceneLogger? logger = null)
         };
     }
 
+    /// <summary>
+    /// Determines the RAR archive format version from command-line arguments and the RAR version number.
+    /// </summary>
     public static RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[] commandLineArguments, int version)
     {
         RARCommandLineArgument? archiveVersionCommandLine = commandLineArguments.FirstOrDefault(a => a.Argument == "-ma4" || a.Argument == "-ma5");
@@ -82,6 +119,10 @@ public partial class Manager(IReSceneLogger? logger = null)
         };
     }
 
+    /// <summary>
+    /// Runs the brute-force RAR reconstruction, testing version and argument combinations until a hash match is found.
+    /// </summary>
+    /// <returns>True if a matching RAR archive was found; otherwise, false.</returns>
     public async Task<bool> BruteForceRARVersionAsync(BruteForceOptions options)
     {
         _logger.Information(this, $"=== Starting Brute-Force ===", LogTarget.System);
@@ -264,6 +305,9 @@ public partial class Manager(IReSceneLogger? logger = null)
         return found;
     }
 
+    /// <summary>
+    /// Cancels the brute-force operation and terminates all active RAR processes.
+    /// </summary>
     public void Stop()
     {
         _logger.Information(this, "Stopping brute force operation and cancelling all RAR processes");

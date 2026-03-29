@@ -21,18 +21,27 @@ public class OperationStatusChangedEventArgs(OperationStatus newStatus) : EventA
     /// </summary>
     public OperationCompletionStatus? CompletionStatus { get; private set; }
 
+    /// <summary>
+    /// Initializes a new instance with the specified old and new statuses.
+    /// </summary>
     public OperationStatusChangedEventArgs(OperationStatus? oldStatus, OperationStatus newStatus)
         : this(newStatus)
     {
         OldStatus = oldStatus;
     }
 
+    /// <summary>
+    /// Initializes a new instance with the specified new status and completion status.
+    /// </summary>
     public OperationStatusChangedEventArgs(OperationStatus newStatus, OperationCompletionStatus? completionStatus)
         : this(newStatus)
     {
         CompletionStatus = completionStatus;
     }
 
+    /// <summary>
+    /// Initializes a new instance with the specified old status, new status, and completion status.
+    /// </summary>
     public OperationStatusChangedEventArgs(OperationStatus? oldStatus, OperationStatus newStatus, OperationCompletionStatus? completionStatus)
         : this(oldStatus, newStatus)
     {

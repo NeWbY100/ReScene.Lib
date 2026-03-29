@@ -8,6 +8,9 @@ namespace ReScene.Core.Comparison;
 /// </summary>
 public class SRRFileData
 {
+    /// <summary>
+    /// Gets or sets the parsed SRR file.
+    /// </summary>
     public SRRFile SrrFile { get; set; } = null!;
 
     /// <summary>
@@ -15,6 +18,9 @@ public class SRRFileData
     /// </summary>
     public Dictionary<string, List<RARDetailedBlock>> VolumeDetailedBlocks { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Loads and parses an SRR file, including detailed RAR block data for each embedded volume.
+    /// </summary>
     public static SRRFileData Load(string filePath)
     {
         var srrFile = SRRFile.Load(filePath);

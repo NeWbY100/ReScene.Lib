@@ -5,6 +5,9 @@ namespace ReScene.Core;
 /// </summary>
 public sealed class NullReSceneLogger : IReSceneLogger
 {
+    /// <summary>
+    /// Gets the singleton instance of the null logger.
+    /// </summary>
     public static readonly NullReSceneLogger Instance = new();
 
     private NullReSceneLogger() { }

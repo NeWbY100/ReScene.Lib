@@ -794,6 +794,8 @@ public class RARHeaderReader
             return null;
         }
 
+        if (dataSize > int.MaxValue)
+            return null;
         _stream.Seek(dataStart, SeekOrigin.Begin);
         return _reader.ReadBytes((int)dataSize);
     }

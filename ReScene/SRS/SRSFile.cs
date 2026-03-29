@@ -8,9 +8,24 @@ namespace ReScene.SRS;
 /// </summary>
 public class SRSFile
 {
+    /// <summary>
+    /// Gets the detected container format of the SRS file.
+    /// </summary>
     public SRSContainerType ContainerType { get; private set; }
+
+    /// <summary>
+    /// Gets the parsed SRSF (file data) block, or null if not present.
+    /// </summary>
     public SrsFileDataBlock? FileData { get; private set; }
+
+    /// <summary>
+    /// Gets the parsed SRST (track data) blocks.
+    /// </summary>
     public List<SrsTrackDataBlock> Tracks { get; private set; } = [];
+
+    /// <summary>
+    /// Gets the container-native chunks (non-SRS elements) found in the file.
+    /// </summary>
     public List<SrsContainerChunk> ContainerChunks { get; private set; } = [];
 
     /// <summary>

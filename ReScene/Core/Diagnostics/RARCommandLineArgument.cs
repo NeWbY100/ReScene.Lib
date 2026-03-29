@@ -28,6 +28,9 @@ public class RARCommandLineArgument(string argument, int minimumVersion, RARArch
     /// </summary>
     public RARArchiveVersion? ArchiveVersion { get; set; } = archiveVersion;
 
+    /// <summary>
+    /// Initializes a new instance with the specified argument, version range, and optional archive version.
+    /// </summary>
     public RARCommandLineArgument(string argument, int minimumVersion, int maximumVersion, RARArchiveVersion? archiveVersion = null)
         : this(argument, minimumVersion, archiveVersion)
     {

@@ -700,6 +700,12 @@ public class SRRWriter
         return false;
     }
 
+    /// <summary>
+    /// Compares two RAR volume file paths for correct ordering (supports both old-style and new-style naming).
+    /// </summary>
+    /// <param name="a">First RAR volume path.</param>
+    /// <param name="b">Second RAR volume path.</param>
+    /// <returns>A negative value if <paramref name="a"/> comes before <paramref name="b"/>, zero if equal, or a positive value if after.</returns>
     public static int CompareRarVolumeNames(string a, string b)
     {
         string nameA = Path.GetFileName(a);

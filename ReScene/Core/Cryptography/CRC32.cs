@@ -2,11 +2,24 @@ using Force.Crc32;
 
 namespace ReScene.Core.Cryptography;
 
+/// <summary>
+/// Computes CRC32 checksums for files.
+/// </summary>
 public class CRC32
 {
+    /// <summary>
+    /// Calculates the CRC32 hash of a file, returning the result as a lowercase hex string.
+    /// </summary>
     public static string Calculate(string filePath)
         => Calculate(filePath, null, CancellationToken.None);
 
+    /// <summary>
+    /// Calculates the CRC32 hash of a file with progress reporting and cancellation support.
+    /// </summary>
+    /// <param name="filePath">The path to the file to hash.</param>
+    /// <param name="onProgress">Optional callback invoked with total bytes read so far.</param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>The CRC32 hash as a lowercase 8-character hex string.</returns>
     public static string Calculate(string filePath, Action<long>? onProgress, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))

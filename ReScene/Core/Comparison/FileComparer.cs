@@ -9,6 +9,9 @@ namespace ReScene.Core.Comparison;
 /// </summary>
 public static class FileComparer
 {
+    /// <summary>
+    /// Compares two parsed file data objects (SRR, SRS, or RAR) and returns all differences found.
+    /// </summary>
     public static CompareResult Compare(object? leftData, object? rightData,
         List<RARDetailedBlock>? leftBlocks = null, List<RARDetailedBlock>? rightBlocks = null)
     {
@@ -39,6 +42,9 @@ public static class FileComparer
         return result;
     }
 
+    /// <summary>
+    /// Returns a display name for the given parsed file data type (e.g., "SRR File", "RAR 4.x").
+    /// </summary>
     public static string GetFileTypeName(object? data) => data switch
     {
         SRRFileData => "SRR File",
@@ -47,6 +53,9 @@ public static class FileComparer
         _ => "Unknown"
     };
 
+    /// <summary>
+    /// Compares two SRR files and populates the result with archive, file, and stored file differences.
+    /// </summary>
     public static void CompareSRRFiles(SRRFile left, SRRFile right, CompareResult result)
     {
         CompareProperty(result.ArchiveDifferences, "App Name", left.HeaderBlock?.AppName, right.HeaderBlock?.AppName);
@@ -137,6 +146,9 @@ public static class FileComparer
         }
     }
 
+    /// <summary>
+    /// Compares two SRS files and populates the result with file data and track differences.
+    /// </summary>
     public static void CompareSRSFiles(SRSFile left, SRSFile right, CompareResult result)
     {
         if (left.FileData is { } leftFd && right.FileData is { } rightFd)
@@ -188,6 +200,9 @@ public static class FileComparer
         }
     }
 
+    /// <summary>
+    /// Compares two RAR files using detailed block data if available, otherwise compares archive-level properties.
+    /// </summary>
     public static void CompareRARFiles(RARFileData left, RARFileData right, CompareResult result,
         List<RARDetailedBlock>? leftBlocks, List<RARDetailedBlock>? rightBlocks)
     {
@@ -200,6 +215,9 @@ public static class FileComparer
         CompareProperty(result.ArchiveDifferences, "Format", left.IsRAR5 ? "RAR 5.x" : "RAR 4.x", right.IsRAR5 ? "RAR 5.x" : "RAR 4.x");
     }
 
+    /// <summary>
+    /// Compares two lists of detailed RAR blocks field by field, populating the result with differences.
+    /// </summary>
     public static void CompareDetailedBlocks(List<RARDetailedBlock> leftBlocks, List<RARDetailedBlock> rightBlocks, CompareResult result)
     {
         if (leftBlocks.Count != rightBlocks.Count)
@@ -270,6 +288,9 @@ public static class FileComparer
         }
     }
 
+    /// <summary>
+    /// Returns whether two RAR detailed blocks have any field value or data size differences.
+    /// </summary>
     public static bool HasFieldDifferences(RARDetailedBlock left, RARDetailedBlock right)
     {
         if (left.DataSize != right.DataSize) return true;
@@ -285,6 +306,9 @@ public static class FileComparer
         return false;
     }
 
+    /// <summary>
+    /// Adds a property difference to the list if the left and right values differ.
+    /// </summary>
     public static void CompareProperty(List<PropertyDifference> diffs, string name, string? leftValue, string? rightValue)
     {
         if (!string.Equals(leftValue ?? "", rightValue ?? "", StringComparison.Ordinal))
@@ -298,6 +322,9 @@ public static class FileComparer
         }
     }
 
+    /// <summary>
+    /// Formats a RAR version number (e.g., 29) as a display string (e.g., "RAR 2.9").
+    /// </summary>
     public static string FormatRARVersion(int? version) => version switch
     {
         null => "Unknown",
@@ -305,6 +332,9 @@ public static class FileComparer
         _ => $"RAR {version / 10}.{version % 10}"
     };
 
+    /// <summary>
+    /// Returns the display name for a RAR compression method byte (e.g., 0x33 = "Normal").
+    /// </summary>
     public static string GetCompressionMethodName(int? method) => method switch
     {
         null => "Unknown",
@@ -317,14 +347,23 @@ public static class FileComparer
         _ => $"Unknown ({method})"
     };
 
+    /// <summary>
+    /// Returns the display name for a RAR compression method byte value.
+    /// </summary>
     public static string GetCompressionMethodName(byte method) => GetCompressionMethodName((int?)method);
 
+    /// <summary>
+    /// Formats a dictionary size in KB as a display string.
+    /// </summary>
     public static string FormatDictionarySize(int? size) => size switch
     {
         null => "Unknown",
         _ => $"{size} KB"
     };
 
+    /// <summary>
+    /// Formats a nullable boolean as "Yes", "No", or "Unknown".
+    /// </summary>
     public static string FormatBool(bool? value) => value switch
     {
         null => "Unknown",

@@ -292,6 +292,11 @@ public class RAR5HeaderReader(Stream stream)
     /// </summary>
     public static bool IsRAR5(Stream stream) => IsRAR5(stream, 0);
 
+    /// <summary>
+    /// Checks if the stream contains a RAR 5.0 marker at the specified offset.
+    /// </summary>
+    /// <param name="stream">Stream to check.</param>
+    /// <param name="offset">Byte offset to check at.</param>
     public static bool IsRAR5(Stream stream, long offset)
     {
         if (stream.Length - offset < 8)

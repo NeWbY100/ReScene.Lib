@@ -2,21 +2,39 @@ using System.Text;
 
 namespace ReScene.Core.IO;
 
+/// <summary>
+/// Reads, parses, and writes SHA-1 hash files containing hash-filename pairs.
+/// </summary>
 public class SHA1File
 {
+    /// <summary>
+    /// Gets or sets the file info for the SHA-1 file on disk.
+    /// </summary>
     public FileInfo? FileInfo { get; set; }
 
+    /// <summary>
+    /// Gets or sets the parsed SHA-1 entries.
+    /// </summary>
     public List<SHA1FileEntry> Entries { get; set; } = [];
 
+    /// <summary>
+    /// Initializes a new empty SHA-1 file.
+    /// </summary>
     public SHA1File()
     {
     }
 
+    /// <summary>
+    /// Initializes a new SHA-1 file associated with the specified file info.
+    /// </summary>
     public SHA1File(FileInfo fileInfo)
     {
         FileInfo = fileInfo;
     }
 
+    /// <summary>
+    /// Writes the SHA-1 entries to the specified file path.
+    /// </summary>
     public void WriteFile(string filePath)
     {
         using FileStream fs = File.OpenWrite(filePath);
@@ -28,6 +46,9 @@ public class SHA1File
         }
     }
 
+    /// <summary>
+    /// Reads and parses a SHA-1 hash file from disk.
+    /// </summary>
     public static SHA1File ReadFile(string filePath)
     {
         FileInfo fileInfo = new(filePath);
