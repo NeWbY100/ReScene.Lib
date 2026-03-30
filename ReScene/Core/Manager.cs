@@ -74,6 +74,8 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
     /// </summary>
+    /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
+    /// <returns>The parsed version number, normalized to three digits.</returns>
     public static int ParseRARVersion(string rarVersionDirectoryName)
     {
         Match versionMatch = RARVersionRegex.Match(rarVersionDirectoryName);
@@ -98,6 +100,9 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Determines the RAR archive format version from command-line arguments and the RAR version number.
     /// </summary>
+    /// <param name="commandLineArguments">The RAR command-line arguments to check.</param>
+    /// <param name="version">The RAR version number.</param>
+    /// <returns>The detected archive format version.</returns>
     public static RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[] commandLineArguments, int version)
     {
         RARCommandLineArgument? archiveVersionCommandLine = commandLineArguments.FirstOrDefault(a => a.Argument == "-ma4" || a.Argument == "-ma5");
@@ -122,7 +127,8 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Runs the brute-force RAR reconstruction, testing version and argument combinations until a hash match is found.
     /// </summary>
-    /// <returns>True if a matching RAR archive was found; otherwise, false.</returns>
+    /// <param name="options">The brute-force configuration options.</param>
+    /// <returns><see langword="true"/> if a matching RAR archive was found.</returns>
     public async Task<bool> BruteForceRARVersionAsync(BruteForceOptions options)
     {
         _logger.Information(this, $"=== Starting Brute-Force ===", LogTarget.System);
@@ -573,7 +579,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         ref long bytesCopied, ref int filesCopied, int totalFiles, long totalBytes,
         string sourceDir, string destDir)
     {
-        byte[] buffer = new byte[1048576 * 32]; // 32MB buffer
+        byte[] buffer = new byte[32 * 1024 * 1024];
 
         using (FileStream sourceStream = File.OpenRead(sourcePath))
         using (FileStream destStream = new(destPath, FileMode.Create, FileAccess.Write))
@@ -722,8 +728,10 @@ public partial class Manager(IReSceneLogger? logger = null)
                     _logger.Debug(this, $"Skipping RAR {version} with timestamp options for RAR4 format (known issue)", LogTarget.Phase2);
                     loggedRAR6TimestampSkip = true;
                 }
+
                 continue;
             }
+
             string archiveAttribute = options.RAROptions.SetFileArchiveAttribute != TriState.Unchecked && archiveAttributeIteration == 0 ? "archived-" : string.Empty;
             string notContentIndexedAttribute = options.RAROptions.SetFileNotContentIndexedAttribute != TriState.Unchecked && notContentAttributeIteration == 0 ? "notcontentindexed-" : string.Empty;
             // Output RAR file to the rarOutputDir subdirectory
@@ -792,7 +800,9 @@ public partial class Manager(IReSceneLogger? logger = null)
 
                     // Clean up monitor if process finished before second volume appeared
                     if (!monitorTask.IsCompleted)
+                    {
                         monitorCts.Cancel();
+                    }
                 }
                 else
                 {
@@ -813,6 +823,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                         processCts!.Cancel();
                         await Task.WhenAny(runningProcessTask, Task.Delay(1000));
                     }
+
                     continue;
                 }
 
@@ -898,11 +909,20 @@ public partial class Manager(IReSceneLogger? logger = null)
                         {
                             var cmtParts = new List<string>();
                             if (opts.DetectedCmtHostOS.HasValue)
+                            {
                                 cmtParts.Add($"Host OS -> {RARPatcher.GetHostOSName(opts.DetectedCmtHostOS.Value)} (0x{opts.DetectedCmtHostOS.Value:X2})");
+                            }
+
                             if (opts.DetectedCmtFileTime.HasValue)
+                            {
                                 cmtParts.Add($"File Time -> 0x{opts.DetectedCmtFileTime.Value:X8}");
+                            }
+
                             if (opts.DetectedCmtFileAttributes.HasValue)
+                            {
                                 cmtParts.Add($"Attributes -> 0x{opts.DetectedCmtFileAttributes.Value:X8}");
+                            }
+
                             _logger.Information(this, $"  CMT:     {string.Join(", ", cmtParts)}", LogTarget.System);
                         }
                     }
@@ -1116,6 +1136,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             string relative = Path.GetRelativePath(sourceDir, dir);
             Directory.CreateDirectory(Path.Combine(destDir, relative));
         }
+
         Directory.CreateDirectory(destDir);
 
         // Copy files with progress
@@ -1129,7 +1150,9 @@ public partial class Manager(IReSceneLogger? logger = null)
             // Ensure parent directory exists (for top-level files)
             string? destParent = Path.GetDirectoryName(destFile);
             if (!string.IsNullOrEmpty(destParent))
+            {
                 Directory.CreateDirectory(destParent);
+            }
 
             CopyFileWithProgress(file, destFile, Path.GetFileName(file), ref bytesCopied, ref filesCopied,
                 allFiles.Length, totalBytes, sourceDir, destDir);
@@ -1161,7 +1184,10 @@ public partial class Manager(IReSceneLogger? logger = null)
         foreach (string file in filePaths)
         {
             if (!TryResolveRelativePath(sourceRoot, file, out string relativeFile))
+            {
                 continue;
+            }
+
             string sourcePath = Path.Combine(sourceRoot, relativeFile);
             if (File.Exists(sourcePath))
             {
@@ -1226,6 +1252,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             normalized = normalized[2..];
         }
+
         normalized = normalized.TrimStart(Path.DirectorySeparatorChar);
 
         if (normalized.Length == 0)
@@ -1304,7 +1331,9 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             string filePath = Path.Combine(inputDirectory, entry.Key);
             if (File.Exists(filePath))
+            {
                 totalBytes += new FileInfo(filePath).Length;
+            }
         }
 
         List<string> missing = [];
@@ -1409,6 +1438,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             CopyDirectory(options.ReleaseDirectoryPath, inputFilesDir);
         }
+
         _logger.Information(this, $"Finished copying {Directory.GetFiles(inputFilesDir, "*.*", SearchOption.AllDirectories).Length} files to input directory");
 
         if (options.RAROptions.ArchiveFileCrcs.Count > 0)
@@ -1687,7 +1717,9 @@ public partial class Manager(IReSceneLogger? logger = null)
 
             // Skip RAR signature (7 bytes for RAR 4.x)
             if (fs.Length < 7)
+            {
                 return null;
+            }
 
             fs.Position = 7;
 
@@ -1702,7 +1734,9 @@ public partial class Manager(IReSceneLogger? logger = null)
                 ushort headerSize = reader.ReadUInt16();
 
                 if (headerSize < 7 || blockStart + headerSize > fs.Length)
+                {
                     break;
+                }
 
                 // Check if this is a service block (0x7A)
                 if (blockType == 0x7A && headerSize >= 32)
@@ -1753,12 +1787,15 @@ public partial class Manager(IReSceneLogger? logger = null)
                             addSize = reader.ReadUInt32();
                         }
                     }
+
                     fs.Position = blockStart + headerSize + addSize;
                 }
 
                 // Safety check
                 if (fs.Position <= blockStart)
+                {
                     break;
+                }
             }
         }
         catch
@@ -1795,6 +1832,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             Directory.Delete(phase1Dir, true);
         }
+
         Directory.CreateDirectory(phase1Dir);
 
         // Create a small dummy file for testing
@@ -1852,7 +1890,9 @@ public partial class Manager(IReSceneLogger? logger = null)
         foreach (var (rarVersionDir, version) in allRarDirectories)
         {
             if (CancellationTokenSource.IsCancellationRequested)
+            {
                 break;
+            }
 
             string rarExePath = Path.Combine(rarVersionDir, "rar.exe");
             string versionName = Path.GetFileName(rarVersionDir);
@@ -2024,22 +2064,27 @@ public partial class Manager(IReSceneLogger? logger = null)
             };
             _logger.Information(this, $"  Detected file Host OS: {hostOSName} (0x{opts.DetectedFileHostOS.Value:X2})", LogTarget.System);
         }
+
         if (opts.DetectedFileAttributes.HasValue)
         {
             _logger.Information(this, $"  Detected file attributes: 0x{opts.DetectedFileAttributes.Value:X8}", LogTarget.System);
         }
+
         if (opts.DetectedCmtHostOS.HasValue)
         {
             _logger.Information(this, $"  Detected CMT Host OS: 0x{opts.DetectedCmtHostOS.Value:X2}", LogTarget.System);
         }
+
         if (opts.DetectedCmtFileTime.HasValue)
         {
             _logger.Information(this, $"  Detected CMT file time: 0x{opts.DetectedCmtFileTime.Value:X8}", LogTarget.System);
         }
+
         if (opts.DetectedCmtFileAttributes.HasValue)
         {
             _logger.Information(this, $"  Detected CMT attributes: 0x{opts.DetectedCmtFileAttributes.Value:X8}", LogTarget.System);
         }
+
         _logger.Information(this, $"  Needs Host OS patching: {opts.NeedsHostOSPatching}", LogTarget.System);
         _logger.Information(this, $"  Needs attribute patching: {opts.NeedsAttributePatching}", LogTarget.System);
 
@@ -2053,6 +2098,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                 _logger.Information(this, $"  Detected HIGH_UNP_SIZE: 0x{opts.DetectedHighUnpSize ?? 0:X8}", LogTarget.System);
             }
         }
+
         _logger.Information(this, $"  Needs LARGE patching: {opts.NeedsLargePatching}", LogTarget.System);
 
         // File/directory counts

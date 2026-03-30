@@ -96,6 +96,11 @@ public sealed partial class RARProcess
     /// <summary>
     /// Initializes a new RAR process with the specified executable, directories, and command-line options.
     /// </summary>
+    /// <param name="processFilePath">The path to the RAR executable.</param>
+    /// <param name="inputDirectory">The input directory containing files to compress.</param>
+    /// <param name="outputFilePath">The output RAR archive path.</param>
+    /// <param name="commandLineOptions">The command-line options to pass to RAR.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
     public RARProcess(string processFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, IReSceneLogger? logger = null)
     {
         if (!File.Exists(processFilePath))
@@ -126,6 +131,8 @@ public sealed partial class RARProcess
     /// <summary>
     /// Executes the RAR process asynchronously and returns the exit code.
     /// </summary>
+    /// <param name="cancellationToken">Token to cancel the process.</param>
+    /// <returns>The process exit code.</returns>
     public async Task<int> RunAsync(CancellationToken cancellationToken)
     {
         // Start process

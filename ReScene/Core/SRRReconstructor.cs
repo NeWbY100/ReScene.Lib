@@ -79,7 +79,9 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                 cancellationToken.ThrowIfCancellationRequested();
 
                 if (srrStream.Position + 7 > srrStream.Length)
+                {
                     break;
+                }
 
                 long blockStartPos = srrStream.Position;
                 ushort crc = reader.ReadUInt16();
@@ -88,7 +90,9 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                 ushort headerSize = reader.ReadUInt16();
 
                 if (headerSize < 7)
+                {
                     break;
+                }
 
                 // Determine ADD_SIZE for blocks with LONG_BLOCK flag or stored file blocks
                 uint addSize = 0;
@@ -99,7 +103,11 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                     // SRR blocks
                     if (hasLongBlock || blockType == SrrStoredFileType)
                     {
-                        if (srrStream.Position + 4 > srrStream.Length) break;
+                        if (srrStream.Position + 4 > srrStream.Length)
+                        {
+                            break;
+                        }
+
                         addSize = reader.ReadUInt32();
                     }
 
@@ -117,9 +125,17 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                         }
 
                         // Read the RAR filename from the SrrRarFile block
-                        if (srrStream.Position + 2 > srrStream.Length) break;
+                        if (srrStream.Position + 2 > srrStream.Length)
+                        {
+                            break;
+                        }
+
                         ushort nameLen = reader.ReadUInt16();
-                        if (srrStream.Position + nameLen > srrStream.Length) break;
+                        if (srrStream.Position + nameLen > srrStream.Length)
+                        {
+                            break;
+                        }
+
                         byte[] nameBytes = reader.ReadBytes(nameLen);
                         currentRarFileName = Encoding.UTF8.GetString(nameBytes);
 
@@ -216,7 +232,10 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                                     archivedFileName = Encoding.ASCII.GetString(fullHeader, nameOffset, nameSize);
                                     int nullIdx = archivedFileName.IndexOf('\0');
                                     if (nullIdx >= 0)
+                                    {
                                         archivedFileName = archivedFileName[..nullIdx];
+                                    }
+
                                     archivedFileName = archivedFileName.Replace('\\', Path.DirectorySeparatorChar);
                                 }
                             }
@@ -252,6 +271,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                                 currentSourceStream = null;
                                 currentSourceFileName = null;
                             }
+
                             break;
 
                         case ServiceBlockType:
@@ -261,6 +281,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                                 byte[] serviceData = reader.ReadBytes((int)rarAddSize);
                                 outputStream.Write(serviceData, 0, serviceData.Length);
                             }
+
                             break;
 
                         case EndArchiveType:
@@ -270,6 +291,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                                 byte[] endData = reader.ReadBytes((int)rarAddSize);
                                 outputStream.Write(endData, 0, endData.Length);
                             }
+
                             break;
 
                         default:
@@ -279,6 +301,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                                 byte[] unknownData = reader.ReadBytes((int)rarAddSize);
                                 outputStream.Write(unknownData, 0, unknownData.Length);
                             }
+
                             break;
                     }
                 }
@@ -292,6 +315,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                         uint skipAddSize = reader.ReadUInt32();
                         skipTo = blockStartPos + headerSize + skipAddSize;
                     }
+
                     srrStream.Seek(skipTo, SeekOrigin.Begin);
                 }
             }
@@ -340,11 +364,15 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
     {
         string directPath = Path.Combine(inputDirectory, archivedFileName);
         if (File.Exists(directPath))
+        {
             return directPath;
+        }
 
         string flatPath = Path.Combine(inputDirectory, Path.GetFileName(archivedFileName));
         if (File.Exists(flatPath))
+        {
             return flatPath;
+        }
 
         string searchDir = inputDirectory;
         string searchName = Path.GetFileName(archivedFileName);
@@ -354,7 +382,9 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
         {
             string subDirPath = Path.Combine(inputDirectory, subDir);
             if (Directory.Exists(subDirPath))
+            {
                 searchDir = subDirPath;
+            }
         }
 
         if (Directory.Exists(searchDir))
@@ -362,7 +392,9 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
             foreach (string file in Directory.GetFiles(searchDir, "*", SearchOption.AllDirectories))
             {
                 if (string.Equals(Path.GetFileName(file), searchName, StringComparison.OrdinalIgnoreCase))
+                {
                     return file;
+                }
             }
         }
 
@@ -380,7 +412,10 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
             int toRead = (int)Math.Min(buffer.Length, remaining);
             int read = await source.ReadAsync(buffer.AsMemory(0, toRead), cancellationToken);
             if (read <= 0)
+            {
                 throw new EndOfStreamException($"Unexpected end of source file with {remaining} bytes remaining.");
+            }
+
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             remaining -= read;
         }

@@ -12,6 +12,11 @@ public static class FileComparer
     /// <summary>
     /// Compares two parsed file data objects (SRR, SRS, or RAR) and returns all differences found.
     /// </summary>
+    /// <param name="leftData">The left (original) parsed file data.</param>
+    /// <param name="rightData">The right (comparison) parsed file data.</param>
+    /// <param name="leftBlocks">Optional detailed RAR blocks for the left file.</param>
+    /// <param name="rightBlocks">Optional detailed RAR blocks for the right file.</param>
+    /// <returns>A <see cref="CompareResult"/> containing all detected differences.</returns>
     public static CompareResult Compare(object? leftData, object? rightData,
         List<RARDetailedBlock>? leftBlocks = null, List<RARDetailedBlock>? rightBlocks = null)
     {
@@ -45,6 +50,8 @@ public static class FileComparer
     /// <summary>
     /// Returns a display name for the given parsed file data type (e.g., "SRR File", "RAR 4.x").
     /// </summary>
+    /// <param name="data">The parsed file data object.</param>
+    /// <returns>A human-readable file type name.</returns>
     public static string GetFileTypeName(object? data) => data switch
     {
         SRRFileData => "SRR File",
@@ -56,6 +63,9 @@ public static class FileComparer
     /// <summary>
     /// Compares two SRR files and populates the result with archive, file, and stored file differences.
     /// </summary>
+    /// <param name="left">The left SRR file.</param>
+    /// <param name="right">The right SRR file.</param>
+    /// <param name="result">The result to populate with differences.</param>
     public static void CompareSRRFiles(SRRFile left, SRRFile right, CompareResult result)
     {
         CompareProperty(result.ArchiveDifferences, "App Name", left.HeaderBlock?.AppName, right.HeaderBlock?.AppName);
@@ -123,7 +133,9 @@ public static class FileComparer
             }
 
             if (fileDiff.Type != DifferenceType.None)
+            {
                 result.FileDifferences.Add(fileDiff);
+            }
         }
 
         // Compare stored files (normalize path separators for cross-platform compatibility)
@@ -149,6 +161,9 @@ public static class FileComparer
     /// <summary>
     /// Compares two SRS files and populates the result with file data and track differences.
     /// </summary>
+    /// <param name="left">The left SRS file.</param>
+    /// <param name="right">The right SRS file.</param>
+    /// <param name="result">The result to populate with differences.</param>
     public static void CompareSRSFiles(SRSFile left, SRSFile right, CompareResult result)
     {
         if (left.FileData is { } leftFd && right.FileData is { } rightFd)
@@ -203,6 +218,11 @@ public static class FileComparer
     /// <summary>
     /// Compares two RAR files using detailed block data if available, otherwise compares archive-level properties.
     /// </summary>
+    /// <param name="left">The left RAR file data.</param>
+    /// <param name="right">The right RAR file data.</param>
+    /// <param name="result">The result to populate with differences.</param>
+    /// <param name="leftBlocks">Optional detailed blocks for the left file.</param>
+    /// <param name="rightBlocks">Optional detailed blocks for the right file.</param>
     public static void CompareRARFiles(RARFileData left, RARFileData right, CompareResult result,
         List<RARDetailedBlock>? leftBlocks, List<RARDetailedBlock>? rightBlocks)
     {
@@ -218,6 +238,9 @@ public static class FileComparer
     /// <summary>
     /// Compares two lists of detailed RAR blocks field by field, populating the result with differences.
     /// </summary>
+    /// <param name="leftBlocks">The left list of detailed RAR blocks.</param>
+    /// <param name="rightBlocks">The right list of detailed RAR blocks.</param>
+    /// <param name="result">The result to populate with differences.</param>
     public static void CompareDetailedBlocks(List<RARDetailedBlock> leftBlocks, List<RARDetailedBlock> rightBlocks, CompareResult result)
     {
         if (leftBlocks.Count != rightBlocks.Count)
@@ -257,7 +280,9 @@ public static class FileComparer
 
                 // Skip Header CRC - it's a consequence of other field changes
                 if (name is "Header CRC" or "CRC32")
+                {
                     continue;
+                }
 
                 string leftVal = lf?.Value ?? "N/A";
                 string rightVal = rf?.Value ?? "N/A";
@@ -284,16 +309,24 @@ public static class FileComparer
             }
 
             if (fileDiff != null && fileDiff.Type != DifferenceType.None)
+            {
                 result.FileDifferences.Add(fileDiff);
+            }
         }
     }
 
     /// <summary>
     /// Returns whether two RAR detailed blocks have any field value or data size differences.
     /// </summary>
+    /// <param name="left">The left detailed block.</param>
+    /// <param name="right">The right detailed block.</param>
+    /// <returns><see langword="true"/> if any field values or data sizes differ.</returns>
     public static bool HasFieldDifferences(RARDetailedBlock left, RARDetailedBlock right)
     {
-        if (left.DataSize != right.DataSize) return true;
+        if (left.DataSize != right.DataSize)
+        {
+            return true;
+        }
 
         int count = Math.Max(left.Fields.Count, right.Fields.Count);
         for (int f = 0; f < count; f++)
@@ -301,14 +334,21 @@ public static class FileComparer
             var lf = f < left.Fields.Count ? left.Fields[f] : null;
             var rf = f < right.Fields.Count ? right.Fields[f] : null;
             if ((lf?.Value ?? "") != (rf?.Value ?? ""))
+            {
                 return true;
+            }
         }
+
         return false;
     }
 
     /// <summary>
     /// Adds a property difference to the list if the left and right values differ.
     /// </summary>
+    /// <param name="diffs">The list to add the difference to.</param>
+    /// <param name="name">The property name.</param>
+    /// <param name="leftValue">The left value.</param>
+    /// <param name="rightValue">The right value.</param>
     public static void CompareProperty(List<PropertyDifference> diffs, string name, string? leftValue, string? rightValue)
     {
         if (!string.Equals(leftValue ?? "", rightValue ?? "", StringComparison.Ordinal))
@@ -325,6 +365,8 @@ public static class FileComparer
     /// <summary>
     /// Formats a RAR version number (e.g., 29) as a display string (e.g., "RAR 2.9").
     /// </summary>
+    /// <param name="version">The RAR version number.</param>
+    /// <returns>A formatted version string.</returns>
     public static string FormatRARVersion(int? version) => version switch
     {
         null => "Unknown",
@@ -335,6 +377,8 @@ public static class FileComparer
     /// <summary>
     /// Returns the display name for a RAR compression method byte (e.g., 0x33 = "Normal").
     /// </summary>
+    /// <param name="method">The compression method value.</param>
+    /// <returns>A human-readable compression method name.</returns>
     public static string GetCompressionMethodName(int? method) => method switch
     {
         null => "Unknown",
@@ -350,11 +394,15 @@ public static class FileComparer
     /// <summary>
     /// Returns the display name for a RAR compression method byte value.
     /// </summary>
+    /// <param name="method">The compression method byte.</param>
+    /// <returns>A human-readable compression method name.</returns>
     public static string GetCompressionMethodName(byte method) => GetCompressionMethodName((int?)method);
 
     /// <summary>
     /// Formats a dictionary size in KB as a display string.
     /// </summary>
+    /// <param name="size">The dictionary size in KB.</param>
+    /// <returns>A formatted dictionary size string.</returns>
     public static string FormatDictionarySize(int? size) => size switch
     {
         null => "Unknown",
@@ -364,6 +412,8 @@ public static class FileComparer
     /// <summary>
     /// Formats a nullable boolean as "Yes", "No", or "Unknown".
     /// </summary>
+    /// <param name="value">The boolean value to format.</param>
+    /// <returns>"Yes", "No", or "Unknown".</returns>
     public static string FormatBool(bool? value) => value switch
     {
         null => "Unknown",

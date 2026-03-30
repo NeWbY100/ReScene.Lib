@@ -131,13 +131,17 @@ public class SRRWriter
         try
         {
             if (rarVolumePaths.Count == 0)
+            {
                 throw new ArgumentException("At least one RAR volume path is required.", nameof(rarVolumePaths));
+            }
 
             // Validate all files exist
             foreach (string path in rarVolumePaths)
             {
                 if (!File.Exists(path))
+                {
                     throw new FileNotFoundException($"RAR volume not found: {path}", path);
+                }
             }
 
             if (storedFiles != null)
@@ -145,13 +149,17 @@ public class SRRWriter
                 foreach (var kvp in storedFiles)
                 {
                     if (!File.Exists(kvp.Value))
+                    {
                         throw new FileNotFoundException($"Stored file not found: {kvp.Value}", kvp.Value);
+                    }
                 }
             }
 
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
+            {
                 Directory.CreateDirectory(outputDir);
+            }
 
             using var outStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
             using var writer = new BinaryWriter(outStream, Encoding.UTF8, leaveOpen: true);
@@ -246,7 +254,9 @@ public class SRRWriter
         CancellationToken ct = default)
     {
         if (!File.Exists(sfvFilePath))
+        {
             return new SrrCreationResult { ErrorMessage = $"SFV file not found: {sfvFilePath}" };
+        }
 
         string sfvDir = Path.GetDirectoryName(sfvFilePath) ?? ".";
         string[] sfvLines = await File.ReadAllLinesAsync(sfvFilePath, ct);
@@ -257,23 +267,32 @@ public class SRRWriter
         {
             string trimmed = line.Trim();
             if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(';'))
+            {
                 continue;
+            }
 
             // SFV format: "filename CRC32" (CRC is last 8 chars)
             int lastSpace = trimmed.LastIndexOf(' ');
-            if (lastSpace <= 0) continue;
+            if (lastSpace <= 0)
+            {
+                continue;
+            }
 
             string fileName = trimmed[..lastSpace].Trim();
             if (IsRarVolume(fileName))
             {
                 string fullPath = Path.Combine(sfvDir, fileName);
                 if (File.Exists(fullPath))
+                {
                     rarFiles.Add(fullPath);
+                }
             }
         }
 
         if (rarFiles.Count == 0)
+        {
             return new SrrCreationResult { ErrorMessage = "No RAR volumes found in SFV file." };
+        }
 
         // Sort volumes in correct order
         rarFiles.Sort(CompareRarVolumeNames);
@@ -286,7 +305,9 @@ public class SRRWriter
             foreach (var kvp in additionalFiles)
             {
                 if (File.Exists(kvp.Value))
+                {
                     storedFiles.TryAdd(kvp.Key, kvp.Value);
+                }
             }
         }
 
@@ -409,20 +430,28 @@ public class SRRWriter
     private static bool IsRar5Volume(FileStream fs)
     {
         if (fs.Length < 8)
+        {
             return false;
+        }
 
         long pos = fs.Position;
         byte[] marker = new byte[8];
         int read = fs.Read(marker, 0, 8);
         fs.Position = pos;
 
-        if (read < 8) return false;
+        if (read < 8)
+        {
+            return false;
+        }
 
         for (int i = 0; i < 8; i++)
         {
             if (marker[i] != Rar5Marker[i])
+            {
                 return false;
+            }
         }
+
         return true;
     }
 
@@ -457,7 +486,10 @@ public class SRRWriter
         {
             ct.ThrowIfCancellationRequested();
 
-            if (fs.Position + 7 > fs.Length) break;
+            if (fs.Position + 7 > fs.Length)
+            {
+                break;
+            }
 
             long blockStart = fs.Position;
 
@@ -468,7 +500,9 @@ public class SRRWriter
             ushort headerSize = reader.ReadUInt16();
 
             if (headerSize < 7 || blockStart + headerSize > fs.Length)
+            {
                 break;
+            }
 
             var blockType = (RAR4BlockType)typeRaw;
 
@@ -513,6 +547,7 @@ public class SRRWriter
                             result.Warnings.Add($"{volumeName}: Compressed file detected ({fName}).");
                         }
                     }
+
                     srrWriter.Write(headerBytes);
                     // Skip packed file data in source
                     fs.Seek(addSize, SeekOrigin.Current);
@@ -545,6 +580,7 @@ public class SRRWriter
                             fs.Seek(addSize, SeekOrigin.Current);
                         }
                     }
+
                     break;
 
                 case RAR4BlockType.EndArchive:
@@ -562,6 +598,7 @@ public class SRRWriter
                     {
                         fs.Seek(addSize, SeekOrigin.Current);
                     }
+
                     break;
             }
         }
@@ -605,7 +642,10 @@ public class SRRWriter
             long blockStart = fs.Position;
 
             var block = rarReader.ReadBlock();
-            if (block == null) break;
+            if (block == null)
+            {
+                break;
+            }
 
             // Calculate actual header bytes on disk:
             // CRC32 (4 bytes) + header size vint + header content
@@ -614,7 +654,10 @@ public class SRRWriter
             // Read the full raw header bytes (CRC + vint + header content)
             long rawHeaderSize = headerEndPos - blockStart;
             if (rawHeaderSize <= 0 || rawHeaderSize > int.MaxValue)
+            {
                 break;
+            }
+
             fs.Position = blockStart;
             byte[] rawHeaderBytes = reader.ReadBytes((int)rawHeaderSize);
 
@@ -632,6 +675,7 @@ public class SRRWriter
                     {
                         SkipData(fs, block.DataSize);
                     }
+
                     break;
 
                 case RAR5BlockType.Service:
@@ -653,6 +697,7 @@ public class SRRWriter
                             SkipData(fs, block.DataSize);
                         }
                     }
+
                     break;
 
                 case RAR5BlockType.EndArchive:
@@ -667,6 +712,7 @@ public class SRRWriter
                     {
                         SkipData(fs, block.DataSize);
                     }
+
                     break;
             }
         }
@@ -681,11 +727,16 @@ public class SRRWriter
     private static bool IsRarVolume(string fileName)
     {
         string ext = Path.GetExtension(fileName);
-        if (string.IsNullOrEmpty(ext)) return false;
+        if (string.IsNullOrEmpty(ext))
+        {
+            return false;
+        }
 
         // .rar (including .partN.rar)
         if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         // Old-style extensions: .r00, .r01, ..., .r99, .s00, etc.
         if (ext.Length == 4 && ext[0] == '.' &&
@@ -716,7 +767,9 @@ public class SRRWriter
         int partNumB = ExtractPartNumber(nameB);
 
         if (partNumA >= 0 && partNumB >= 0)
+        {
             return partNumA.CompareTo(partNumB);
+        }
 
         // Handle old-style naming: name.rar, name.r00, name.r01, etc.
         string extA = Path.GetExtension(nameA).ToLowerInvariant();
@@ -733,10 +786,16 @@ public class SRRWriter
         // Look for .partNN.rar pattern
         string lower = fileName.ToLowerInvariant();
         int partIdx = lower.LastIndexOf(".part", StringComparison.Ordinal);
-        if (partIdx < 0) return -1;
+        if (partIdx < 0)
+        {
+            return -1;
+        }
 
         int dotRar = lower.IndexOf(".rar", partIdx + 5, StringComparison.Ordinal);
-        if (dotRar < 0) return -1;
+        if (dotRar < 0)
+        {
+            return -1;
+        }
 
         string numStr = lower[(partIdx + 5)..dotRar];
         return int.TryParse(numStr, out int num) ? num : -1;
@@ -745,19 +804,26 @@ public class SRRWriter
     private static int GetOldStyleOrder(string ext)
     {
         // .rar is always first
-        if (ext == ".rar") return -1;
+        if (ext == ".rar")
+        {
+            return -1;
+        }
 
         // .r00, .r01, ..., .s00, .s01, etc.
         if (ext.Length == 4 && ext[0] == '.' && char.IsLetter(ext[1]))
         {
             int letterOffset = (ext[1] - 'r') * 100;
             if (int.TryParse(ext[2..], out int num))
+            {
                 return letterOffset + num;
+            }
         }
 
         // .001, .002, etc.
         if (ext.Length == 4 && ext[0] == '.' && int.TryParse(ext[1..], out int numExt))
+        {
             return numExt;
+        }
 
         return int.MaxValue;
     }
@@ -795,7 +861,11 @@ public class SRRWriter
         {
             int toRead = (int)Math.Min(buffer.Length, remaining);
             int read = source.Read(buffer, 0, toRead);
-            if (read <= 0) break;
+            if (read <= 0)
+            {
+                break;
+            }
+
             destination.Write(buffer, 0, read);
             remaining -= read;
         }

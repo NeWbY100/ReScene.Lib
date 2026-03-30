@@ -26,6 +26,8 @@ public class VersionRange
     /// <summary>
     /// Initializes a new instance with the specified inclusive start and exclusive end values.
     /// </summary>
+    /// <param name="start">The inclusive start of the range.</param>
+    /// <param name="end">The exclusive end of the range.</param>
     public VersionRange(int start, int end)
     {
         Start = start;
@@ -35,7 +37,7 @@ public class VersionRange
     /// <summary>
     /// Checks whether the given value is in range of the start and end.
     /// </summary>
-    /// <param name="version"></param>
+    /// <param name="version">The version number to check.</param>
     /// <returns>True if in range; otherwise, false.</returns>
     public bool InRange(int version)
     {

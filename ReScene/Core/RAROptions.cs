@@ -213,7 +213,9 @@ public class RAROptions
         get
         {
             if (!EnableHostOSPatching || !DetectedFileHostOS.HasValue)
+            {
                 return false;
+            }
 
             bool isCurrentWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
             byte currentHostOS = isCurrentWindows ? (byte)2 : (byte)3;

@@ -14,6 +14,8 @@ public static class Mp3TagReader
     /// Returns the byte offset where audio data begins (after all header tags).
     /// Handles multiple consecutive ID3v2 tags.
     /// </summary>
+    /// <param name="stream">The MP3 file stream.</param>
+    /// <returns>The byte offset where audio data begins.</returns>
     public static long FindAudioStart(Stream stream)
     {
         long audioStart = 0;
@@ -41,6 +43,8 @@ public static class Mp3TagReader
     /// Checks for ID3v1, Lyrics3v2, Lyrics3v1, and APEv2/APEv1 tags working
     /// inward from the end of the file.
     /// </summary>
+    /// <param name="stream">The MP3 file stream.</param>
+    /// <returns>The byte offset where audio data ends.</returns>
     public static long FindAudioEnd(Stream stream)
     {
         long endOffset = stream.Length;
@@ -82,22 +86,29 @@ public static class Mp3TagReader
     /// Detects an ID3v2 tag at the current stream position.
     /// The stream position should be set before calling.
     /// </summary>
+    /// <param name="stream">The stream to check at its current position.</param>
     /// <returns>Whether found and the total tag size (header + body, excluding footer).</returns>
     public static (bool found, int size) DetectId3v2(Stream stream)
     {
         long startPos = stream.Position;
 
         if (stream.Length - startPos < 10)
+        {
             return (false, 0);
+        }
 
         Span<byte> header = stackalloc byte[10];
         int read = stream.Read(header);
         if (read < 10)
+        {
             return (false, 0);
+        }
 
         // Check "ID3" marker
         if (header[0] != 'I' || header[1] != 'D' || header[2] != '3')
+        {
             return (false, 0);
+        }
 
         // Bytes 3-4: version, byte 5: flags, bytes 6-9: syncsafe size
         int size = DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
@@ -109,19 +120,27 @@ public static class Mp3TagReader
     /// <summary>
     /// Detects an ID3v1 tag at the end of the file (last 128 bytes starting with "TAG").
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <returns>Whether found and the tag size (128 bytes).</returns>
     public static (bool found, int size) DetectId3v1(Stream stream)
     {
         if (stream.Length < 128)
+        {
             return (false, 0);
+        }
 
         stream.Position = stream.Length - 128;
         Span<byte> marker = stackalloc byte[3];
         int read = stream.Read(marker);
         if (read < 3)
+        {
             return (false, 0);
+        }
 
         if (marker[0] == 'T' && marker[1] == 'A' && marker[2] == 'G')
+        {
             return (true, 128);
+        }
 
         return (false, 0);
     }
@@ -131,6 +150,8 @@ public static class Mp3TagReader
     /// Lyrics3v2 ends with a 6-byte ASCII decimal size + "LYRICS200".
     /// The size value covers "LYRICSBEGIN" + body (not the 6-byte size field or "LYRICS200").
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <returns>Whether found and the total tag size.</returns>
     public static (bool found, int size) DetectLyrics3v2(Stream stream)
     {
         return DetectLyrics3v2(stream, stream.Length);
@@ -140,23 +161,31 @@ public static class Mp3TagReader
     {
         // Need at least 6 (size) + 9 ("LYRICS200") = 15 bytes before endOffset
         if (endOffset - 15 < 0)
+        {
             return (false, 0);
+        }
 
         stream.Position = endOffset - 15;
         Span<byte> footer = stackalloc byte[15];
         int read = stream.Read(footer);
         if (read < 15)
+        {
             return (false, 0);
+        }
 
         // Check for "LYRICS200" at the end
         ReadOnlySpan<byte> lyrics200 = "LYRICS200"u8;
         if (!footer.Slice(6, 9).SequenceEqual(lyrics200))
+        {
             return (false, 0);
+        }
 
         // Parse 6-byte ASCII decimal size
         string sizeStr = Encoding.ASCII.GetString(footer.Slice(0, 6));
         if (!int.TryParse(sizeStr, out int lyricsSize))
+        {
             return (false, 0);
+        }
 
         // Total tag size = content size + 6 (size field) + 9 ("LYRICS200")
         int totalSize = lyricsSize + 6 + 9;
@@ -168,6 +197,8 @@ public static class Mp3TagReader
     /// Lyrics3v1 ends with "LYRICSEND" and begins with "LYRICSBEGIN".
     /// Max content is ~5100 bytes.
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <returns>Whether found and the total tag size.</returns>
     public static (bool found, int size) DetectLyrics3v1(Stream stream)
     {
         return DetectLyrics3v1(stream, stream.Length);
@@ -177,16 +208,22 @@ public static class Mp3TagReader
     {
         // Need at least 9 bytes ("LYRICSEND") before endOffset
         if (endOffset - 9 < 0)
+        {
             return (false, 0);
+        }
 
         stream.Position = endOffset - 9;
         Span<byte> endMarker = stackalloc byte[9];
         int read = stream.Read(endMarker);
         if (read < 9)
+        {
             return (false, 0);
+        }
 
         if (!endMarker.SequenceEqual("LYRICSEND"u8))
+        {
             return (false, 0);
+        }
 
         // Search backward for "LYRICSBEGIN" within ~5100 bytes
         int searchSize = (int)Math.Min(5100, endOffset);
@@ -200,7 +237,9 @@ public static class Mp3TagReader
         int index = searchData.AsSpan(0, read).IndexOf(beginMarker);
 
         if (index < 0)
+        {
             return (false, 0);
+        }
 
         long absoluteStart = searchStart + index;
         int totalSize = (int)(endOffset - absoluteStart);
@@ -211,6 +250,8 @@ public static class Mp3TagReader
     /// Detects an APEv2 tag before the given end offset.
     /// APEv2 has a 32-byte footer with "APETAGEX" preamble.
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <returns>Whether found and the total tag size.</returns>
     public static (bool found, int size) DetectApeV2(Stream stream)
     {
         return DetectApeTag(stream, stream.Length);
@@ -220,6 +261,8 @@ public static class Mp3TagReader
     /// Detects an APEv1 tag. Uses the same detection as APEv2 but
     /// version 1000 means no header (only footer + items).
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <returns>Whether found and the total tag size.</returns>
     public static (bool found, int size) DetectApeV1(Stream stream)
     {
         return DetectApeTag(stream, stream.Length);
@@ -229,21 +272,30 @@ public static class Mp3TagReader
     /// Detects an APE tag (v1 or v2) before the given end offset.
     /// Reads the 32-byte footer to determine version and tag size.
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <param name="endOffset">The byte offset to search backward from.</param>
+    /// <returns>Whether found and the total tag size.</returns>
     public static (bool found, int size) DetectApeTag(Stream stream, long endOffset)
     {
         // APE footer is 32 bytes
         if (endOffset - 32 < 0)
+        {
             return (false, 0);
+        }
 
         stream.Position = endOffset - 32;
         Span<byte> footer = stackalloc byte[32];
         int read = stream.Read(footer);
         if (read < 32)
+        {
             return (false, 0);
+        }
 
         // Check "APETAGEX" preamble
         if (!footer.Slice(0, 8).SequenceEqual("APETAGEX"u8))
+        {
             return (false, 0);
+        }
 
         // Bytes 8-11: version (LE uint32) - 1000 for APEv1, 2000 for APEv2
         uint version = BinaryPrimitives.ReadUInt32LittleEndian(footer.Slice(8));
@@ -261,6 +313,11 @@ public static class Mp3TagReader
     /// <summary>
     /// Decodes a 4-byte ID3v2 syncsafe integer. Each byte uses only 7 bits (MSB always 0).
     /// </summary>
+    /// <param name="b0">First byte.</param>
+    /// <param name="b1">Second byte.</param>
+    /// <param name="b2">Third byte.</param>
+    /// <param name="b3">Fourth byte.</param>
+    /// <returns>The decoded integer value.</returns>
     public static int DecodeSyncSafeInt(byte b0, byte b1, byte b2, byte b3)
     {
         return (b0 << 21) | (b1 << 14) | (b2 << 7) | b3;
@@ -269,6 +326,8 @@ public static class Mp3TagReader
     /// <summary>
     /// Encodes an integer as a 4-byte ID3v2 syncsafe integer.
     /// </summary>
+    /// <param name="size">The integer value to encode.</param>
+    /// <returns>A 4-byte array containing the syncsafe-encoded value.</returns>
     public static byte[] EncodeSyncSafeInt(int size)
     {
         return

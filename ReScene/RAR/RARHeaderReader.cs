@@ -250,6 +250,7 @@ public class RARHeaderReader
             {
                 return null;
             }
+
             result.AddSize = _reader.ReadUInt32();
         }
 
@@ -422,6 +423,7 @@ public class RARHeaderReader
             {
                 return null;
             }
+
             highPackSize = _reader.ReadUInt32();
             highUnpSize = _reader.ReadUInt32();
         }
@@ -673,6 +675,7 @@ public class RARHeaderReader
             {
                 return null;
             }
+
             uint highPackSize = _reader.ReadUInt32();
             uint highUnpSize = _reader.ReadUInt32();
             packedSize = packSize | ((ulong)highPackSize << 32);
@@ -779,6 +782,8 @@ public class RARHeaderReader
     /// Reads the data portion of a service block.
     /// Call this after ReadBlock to get the raw data.
     /// </summary>
+    /// <param name="block">The service block to read data from.</param>
+    /// <returns>The raw service block data, or <see langword="null"/> if not a service block.</returns>
     public byte[]? ReadServiceBlockData(RARBlockReadResult block)
     {
         if (block.BlockType != RAR4BlockType.Service || block.ServiceBlockInfo == null)
@@ -795,7 +800,10 @@ public class RARHeaderReader
         }
 
         if (dataSize > int.MaxValue)
+        {
             return null;
+        }
+
         _stream.Seek(dataStart, SeekOrigin.Begin);
         return _reader.ReadBytes((int)dataSize);
     }

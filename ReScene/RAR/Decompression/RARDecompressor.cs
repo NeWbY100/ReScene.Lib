@@ -72,16 +72,22 @@ public static class RARDecompressor
     public static byte[]? Decompress(byte[] compressedData, int uncompressedSize, RARMethod method, RARVersion version = RARVersion.RAR29)
     {
         if (compressedData == null || compressedData.Length == 0)
+        {
             return null;
+        }
 
         if (uncompressedSize <= 0)
+        {
             return null;
+        }
 
         // Store method - no compression
         if (method == RARMethod.Store)
         {
             if (compressedData.Length < uncompressedSize)
+            {
                 return null;
+            }
 
             byte[] result = new byte[uncompressedSize];
             Array.Copy(compressedData, result, uncompressedSize);
@@ -169,7 +175,9 @@ public static class RARDecompressor
     {
         byte[]? decompressed = Decompress(compressedData, uncompressedSize, method, version);
         if (decompressed == null)
+        {
             return null;
+        }
 
         // Comments are typically stored as OEM or UTF-8 encoded text
         try
@@ -183,6 +191,7 @@ public static class RARDecompressor
                 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
                 text = System.Text.Encoding.GetEncoding(437).GetString(decompressed);
             }
+
             return text.TrimEnd('\0');
         }
         catch

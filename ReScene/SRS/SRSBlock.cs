@@ -3,9 +3,6 @@ namespace ReScene.SRS;
 /// <summary>
 /// Container format types for SRS files.
 /// </summary>
-/// <summary>
-/// Container format types for SRS files.
-/// </summary>
 public enum SRSContainerType
 {
     /// <summary>AVI (RIFF) container.</summary>

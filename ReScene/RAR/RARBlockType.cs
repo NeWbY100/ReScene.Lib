@@ -5,16 +5,26 @@ namespace ReScene.RAR;
 /// </summary>
 public enum RAR4BlockType : byte
 {
-    Marker = 0x72,          // HEAD3_MARK - RAR signature block
-    ArchiveHeader = 0x73,   // HEAD3_MAIN - Main archive header
-    FileHeader = 0x74,      // HEAD3_FILE - File header
-    Comment = 0x75,         // HEAD3_CMT - Comment block (old style)
-    AuthInfo = 0x76,        // HEAD3_AV - Authenticity verification (old)
-    OldService = 0x77,      // HEAD3_OLDSERVICE - Old-style subblock
-    Protect = 0x78,         // HEAD3_PROTECT - Recovery record
-    Sign = 0x79,            // HEAD3_SIGN - Digital signature
-    Service = 0x7A,         // HEAD3_SERVICE - Service header (subheader)
-    EndArchive = 0x7B       // HEAD3_ENDARC - End of archive
+    /// <summary>RAR signature block (HEAD3_MARK).</summary>
+    Marker = 0x72,
+    /// <summary>Main archive header (HEAD3_MAIN).</summary>
+    ArchiveHeader = 0x73,
+    /// <summary>File header (HEAD3_FILE).</summary>
+    FileHeader = 0x74,
+    /// <summary>Old-style comment block (HEAD3_CMT).</summary>
+    Comment = 0x75,
+    /// <summary>Old-style authenticity verification (HEAD3_AV).</summary>
+    AuthInfo = 0x76,
+    /// <summary>Old-style subblock (HEAD3_OLDSERVICE).</summary>
+    OldService = 0x77,
+    /// <summary>Recovery record (HEAD3_PROTECT).</summary>
+    Protect = 0x78,
+    /// <summary>Digital signature (HEAD3_SIGN).</summary>
+    Sign = 0x79,
+    /// <summary>Service header/subheader (HEAD3_SERVICE).</summary>
+    Service = 0x7A,
+    /// <summary>End of archive marker (HEAD3_ENDARC).</summary>
+    EndArchive = 0x7B
 }
 
 /// <summary>
@@ -22,11 +32,18 @@ public enum RAR4BlockType : byte
 /// </summary>
 public enum RAR5BlockType : byte
 {
-    Marker = 0x00,          // HEAD_MARK - RAR 5.0 signature
-    Main = 0x01,            // HEAD_MAIN - Main archive header
-    File = 0x02,            // HEAD_FILE - File header
-    Service = 0x03,         // HEAD_SERVICE - Service header
-    Crypt = 0x04,           // HEAD_CRYPT - Encryption header
-    EndArchive = 0x05,      // HEAD_ENDARC - End of archive
-    Unknown = 0xFF          // HEAD_UNKNOWN
+    /// <summary>RAR 5.0 signature (HEAD_MARK).</summary>
+    Marker = 0x00,
+    /// <summary>Main archive header (HEAD_MAIN).</summary>
+    Main = 0x01,
+    /// <summary>File header (HEAD_FILE).</summary>
+    File = 0x02,
+    /// <summary>Service header (HEAD_SERVICE).</summary>
+    Service = 0x03,
+    /// <summary>Encryption header (HEAD_CRYPT).</summary>
+    Crypt = 0x04,
+    /// <summary>End of archive marker (HEAD_ENDARC).</summary>
+    EndArchive = 0x05,
+    /// <summary>Unknown block type (HEAD_UNKNOWN).</summary>
+    Unknown = 0xFF
 }

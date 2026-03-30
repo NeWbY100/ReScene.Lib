@@ -57,7 +57,9 @@ public class Unpack20
     public byte[]? Decompress(byte[] srcData, int destSize)
     {
         if (srcData == null || srcData.Length == 0 || destSize <= 0)
+        {
             return null;
+        }
 
         // Initialize window (64KB for comments)
         _winSize = 0x10000; // 64KB
@@ -77,7 +79,9 @@ public class Unpack20
 
         // Read Huffman tables
         if (!ReadTables20())
+        {
             return null;
+        }
 
         // Decompress
         byte[] result = new byte[destSize];
@@ -86,7 +90,9 @@ public class Unpack20
         while (destPtr < destSize)
         {
             if (_inp.InAddr >= srcData.Length)
+            {
                 break;
+            }
 
             uint number = HuffmanDecoder.DecodeNumber(_inp, _tableLD);
 
@@ -124,7 +130,9 @@ public class Unpack20
                 {
                     length++;
                     if (distance >= 0x40000)
+                    {
                         length++;
+                    }
                 }
 
                 destPtr = CopyString20(result, destPtr, destSize, length, distance);
@@ -135,7 +143,10 @@ public class Unpack20
             {
                 // Read new tables
                 if (!ReadTables20())
+                {
                     break;
+                }
+
                 continue;
             }
 
@@ -167,7 +178,9 @@ public class Unpack20
                     {
                         length++;
                         if (distance >= 0x40000)
+                        {
                             length++;
+                        }
                     }
                 }
 
@@ -232,7 +245,9 @@ public class Unpack20
 
         // Check if we should reset old table (bit 14)
         if ((bitField & 0x4000) == 0)
+        {
             Array.Clear(_unpOldTable);
+        }
 
         _inp.AddBits(2);
 
@@ -266,7 +281,9 @@ public class Unpack20
                 _inp.AddBits(2);
 
                 if (i == 0)
+                {
                     return false; // Cannot repeat at first position
+                }
 
                 while (n-- > 0 && i < tableSize)
                 {
@@ -281,7 +298,9 @@ public class Unpack20
                 _inp.AddBits(3);
 
                 while (n-- > 0 && i < tableSize)
+                {
                     table[i++] = 0;
+                }
             }
             else
             {
@@ -290,7 +309,9 @@ public class Unpack20
                 _inp.AddBits(7);
 
                 while (n-- > 0 && i < tableSize)
+                {
                     table[i++] = 0;
+                }
             }
         }
 

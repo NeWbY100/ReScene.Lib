@@ -17,6 +17,8 @@ public static class FlacMetadataReader
     /// Returns the byte offset where FLAC frame data begins (after all metadata blocks).
     /// Handles optional ID3v2 wrapper before the fLaC marker.
     /// </summary>
+    /// <param name="stream">The FLAC file stream.</param>
+    /// <returns>The byte offset where frame data begins.</returns>
     public static long FindFrameDataStart(Stream stream)
     {
         stream.Position = 0;
@@ -29,10 +31,14 @@ public static class FlacMetadataReader
         stream.Position = offset;
         Span<byte> marker = stackalloc byte[4];
         if (stream.Read(marker) < 4)
+        {
             throw new InvalidDataException("Stream too short to contain fLaC marker.");
+        }
 
         if (marker[0] != 'f' || marker[1] != 'L' || marker[2] != 'a' || marker[3] != 'C')
+        {
             throw new InvalidDataException("Expected fLaC marker not found.");
+        }
 
         offset += 4; // skip fLaC marker
 
@@ -44,7 +50,9 @@ public static class FlacMetadataReader
             stream.Position += length; // skip payload
 
             if (isLast)
+            {
                 break;
+            }
         }
 
         return stream.Position;
@@ -54,20 +62,28 @@ public static class FlacMetadataReader
     /// Checks for an ID3v2 tag before the fLaC marker.
     /// Some FLAC files are wrapped with an ID3v2 header.
     /// </summary>
+    /// <param name="stream">The FLAC file stream.</param>
+    /// <returns>A tuple indicating whether an ID3v2 wrapper was found and its total size.</returns>
     public static (bool found, int size) DetectId3v2Wrapper(Stream stream)
     {
         stream.Position = 0;
 
         if (stream.Length < 10)
+        {
             return (false, 0);
+        }
 
         Span<byte> header = stackalloc byte[10];
         int read = stream.Read(header);
         if (read < 10)
+        {
             return (false, 0);
+        }
 
         if (header[0] != 'I' || header[1] != 'D' || header[2] != '3')
+        {
             return (false, 0);
+        }
 
         int size = Mp3TagReader.DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
         int totalSize = 10 + size;
@@ -80,6 +96,8 @@ public static class FlacMetadataReader
     /// Format: isLast (1 bit) + type (7 bits) + length (3 bytes big-endian).
     /// The length does not include the 4-byte header itself.
     /// </summary>
+    /// <param name="reader">The binary reader positioned at the block header.</param>
+    /// <returns>A tuple with the last-block flag, block type, and payload length.</returns>
     public static (bool isLast, byte type, int length) ReadMetadataBlockHeader(BinaryReader reader)
     {
         byte typeByte = reader.ReadByte();
@@ -88,7 +106,9 @@ public static class FlacMetadataReader
 
         byte[] sizeBytes = reader.ReadBytes(3);
         if (sizeBytes.Length < 3)
+        {
             throw new InvalidDataException("Unexpected end of stream reading metadata block header.");
+        }
 
         int length = (sizeBytes[0] << 16) | (sizeBytes[1] << 8) | sizeBytes[2];
 
@@ -98,6 +118,8 @@ public static class FlacMetadataReader
     /// <summary>
     /// Gets a human-readable name for a FLAC metadata block type.
     /// </summary>
+    /// <param name="type">The FLAC metadata block type byte.</param>
+    /// <returns>A human-readable block type name.</returns>
     public static string GetBlockTypeName(byte type) => type switch
     {
         0 => "STREAMINFO",

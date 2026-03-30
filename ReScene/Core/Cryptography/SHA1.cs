@@ -12,6 +12,8 @@ public static class SHA1
     /// <summary>
     /// Calculates the SHA-1 hash of a file, returning the result as a lowercase hex string.
     /// </summary>
+    /// <param name="filePath">The path to the file to hash.</param>
+    /// <returns>The SHA-1 hash as a lowercase hex string.</returns>
     public static string Calculate(string filePath)
     {
         if (!File.Exists(filePath))
@@ -25,6 +27,7 @@ public static class SHA1
         {
             sha1Bytes = SHA1Algorithm.ComputeHash(fileStream);
         }
+
         return Hashing.ByteArrayToHexViaLookup32(sha1Bytes, false);
     }
 }

@@ -80,18 +80,28 @@ public class SRSRebuilder
         string srsFilePath, string mediaFilePath, string outputPath, CancellationToken ct)
     {
         if (!File.Exists(srsFilePath))
+        {
             throw new FileNotFoundException("SRS file not found.", srsFilePath);
+        }
+
         if (!File.Exists(mediaFilePath))
+        {
             throw new FileNotFoundException("Media file not found.", mediaFilePath);
+        }
 
         // Step 1: Parse SRS
         ReportProgress("Loading SRS", 0, 0, 0);
         var srs = SRSFile.Load(srsFilePath);
 
         if (srs.FileData is null)
+        {
             throw new InvalidDataException("SRS file does not contain file data (SRSF block).");
+        }
+
         if (srs.Tracks.Count == 0)
+        {
             throw new InvalidDataException("SRS file does not contain any track data (SRST blocks).");
+        }
 
         var fileData = srs.FileData;
         var tracks = srs.Tracks;
@@ -113,7 +123,9 @@ public class SRSRebuilder
         ReportProgress("Rebuilding", 0, tracks.Count, 40);
         string? outputDir = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(outputDir))
+        {
             Directory.CreateDirectory(outputDir);
+        }
 
         RebuildSample(srsFilePath, srs.ContainerType, trackDict,
             mediaFilePath, trackOffsets, outputPath, ct);
@@ -178,8 +190,10 @@ public class SRSRebuilder
             long foundOffset = FindSignature(fs, track.Signature, (long)track.MatchOffset, ct);
 
             if (foundOffset < 0)
+            {
                 throw new InvalidDataException(
                     $"Unable to locate track signature for track {trackNumber} in the media file.");
+            }
 
             offsets[trackNumber] = foundOffset;
         }
@@ -191,11 +205,18 @@ public class SRSRebuilder
     /// Searches for a byte signature in a stream. Tries the hint offset first,
     /// then a nearby window, then a full file scan.
     /// </summary>
+    /// <param name="stream">The stream to search.</param>
+    /// <param name="signature">The byte signature to find.</param>
+    /// <param name="hintOffset">The expected offset to try first.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The offset where the signature was found, or -1 if not found.</returns>
     internal static long FindSignature(Stream stream, byte[] signature, long hintOffset,
         CancellationToken ct = default)
     {
         if (signature.Length == 0)
+        {
             return hintOffset;
+        }
 
         // Try exact hint offset first
         if (hintOffset >= 0 && hintOffset + signature.Length <= stream.Length)
@@ -204,7 +225,9 @@ public class SRSRebuilder
             byte[] buffer = new byte[signature.Length];
             int read = ReadFully(stream, buffer, 0, buffer.Length);
             if (read == signature.Length && buffer.AsSpan().SequenceEqual(signature))
+            {
                 return hintOffset;
+            }
         }
 
         // Search nearby: +/- 64KB around the hint offset
@@ -214,7 +237,9 @@ public class SRSRebuilder
             long searchEnd = Math.Min(stream.Length, hintOffset + SearchBufferSize + signature.Length);
             long found = ScanForSignature(stream, signature, searchStart, searchEnd, ct);
             if (found >= 0)
+            {
                 return found;
+            }
         }
 
         // Full file scan
@@ -228,7 +253,9 @@ public class SRSRebuilder
         long regionStart, long regionEnd, CancellationToken ct)
     {
         if (regionEnd - regionStart < signature.Length)
+        {
             return -1;
+        }
 
         int bufSize = Math.Max(SearchBufferSize, signature.Length * 2);
         byte[] buffer = new byte[bufSize];
@@ -243,22 +270,33 @@ public class SRSRebuilder
             int toRead = (int)Math.Min(bufSize, regionEnd - position + carry);
             int bytesRead = ReadFully(stream, buffer, 0, toRead);
             if (bytesRead < signature.Length)
+            {
                 break;
+            }
 
             // Search within the buffer
             int searchLimit = bytesRead - signature.Length;
             for (int i = 0; i <= searchLimit; i++)
             {
                 if (buffer.AsSpan(i, signature.Length).SequenceEqual(signature))
+                {
                     return position - carry + i;
+                }
             }
 
             // Advance, keeping overlap for boundary matches
             long advance = bytesRead - signature.Length + 1;
-            if (advance <= 0) advance = 1;
+            if (advance <= 0)
+            {
+                advance = 1;
+            }
+
             position = position - carry + bytesRead;
             carry = signature.Length - 1;
-            if (carry > bytesRead) carry = bytesRead;
+            if (carry > bytesRead)
+            {
+                carry = bytesRead;
+            }
         }
 
         return -1;
@@ -371,10 +409,17 @@ public class SRSRebuilder
             {
                 if (r > 0) { allDone = false; break; }
             }
-            if (allDone) break;
+
+            if (allDone)
+            {
+                break;
+            }
 
             int hdrRead = ReadFully(fs, headerBuf, 0, 8);
-            if (hdrRead < 8) break;
+            if (hdrRead < 8)
+            {
+                break;
+            }
 
             string fourcc = Encoding.ASCII.GetString(headerBuf, 0, 4);
             uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(headerBuf.AsSpan(4));
@@ -404,7 +449,9 @@ public class SRSRebuilder
 
             fs.Position += chunkSize;
             if (chunkSize % 2 != 0 && fs.Position < fs.Length)
+            {
                 fs.Position++;
+            }
         }
 
         return result;
@@ -424,7 +471,10 @@ public class SRSRebuilder
             long chunkStart = srsFs.Position;
 
             byte[] header = reader.ReadBytes(8);
-            if (header.Length < 8) break;
+            if (header.Length < 8)
+            {
+                break;
+            }
 
             string fourcc = Encoding.ASCII.GetString(header, 0, 4);
             uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4));
@@ -434,7 +484,10 @@ public class SRSRebuilder
                 // Skip SRS metadata blocks - don't copy them to output
                 srsFs.Position = chunkStart + 8 + chunkSize;
                 if (chunkSize % 2 != 0 && srsFs.Position < end)
+                {
                     srsFs.Position++;
+                }
+
                 continue;
             }
 
@@ -448,7 +501,10 @@ public class SRSRebuilder
                 outFs.Write(subType);
 
                 long childEnd = chunkStart + 8 + chunkSize;
-                if (childEnd > end) childEnd = end;
+                if (childEnd > end)
+                {
+                    childEnd = end;
+                }
 
                 RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks,
                     srsFs.Position, childEnd, ct);
@@ -576,7 +632,9 @@ public class SRSRebuilder
         finally
         {
             foreach (var ms in frameData.Values)
+            {
                 ms.Dispose();
+            }
         }
     }
 
@@ -599,15 +657,24 @@ public class SRSRebuilder
         {
             ct.ThrowIfCancellationRequested();
 
-            if (!TryReadEbmlId(fs, out ulong elemId, out int idLen)) break;
-            if (!TryReadEbmlSize(fs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadEbmlId(fs, out ulong elemId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadEbmlSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             long dataStart = fs.Position;
             bool unknownSize = IsEbmlSizeUnknown(dataSize, sizeLen);
 
             // Container elements: step into
             if (unknownSize || IsEbmlContainerElement(elemId))
+            {
                 continue;
+            }
 
             // AttachedFileName (0x466E): read and remember
             if (elemId == 0x466E && (long)dataSize > 0 && (long)dataSize < 1048576)
@@ -624,7 +691,9 @@ public class SRSRebuilder
                 byte[] data = new byte[(long)dataSize];
                 int totalRead = ReadFully(fs, data, 0, data.Length);
                 if (totalRead < data.Length)
+                {
                     Array.Resize(ref data, totalRead);
+                }
 
                 attachments.Enqueue((currentName ?? string.Empty, data));
                 currentName = null;
@@ -679,10 +748,21 @@ public class SRSRebuilder
             {
                 if (r > 0) { allDone = false; break; }
             }
-            if (allDone) break;
 
-            if (!TryReadEbmlId(fs, out ulong elemId, out int idLen)) break;
-            if (!TryReadEbmlSize(fs, out ulong dataSize, out int sizeLen)) break;
+            if (allDone)
+            {
+                break;
+            }
+
+            if (!TryReadEbmlId(fs, out ulong elemId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadEbmlSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             long dataStart = fs.Position;
             bool unknownSize = IsEbmlSizeUnknown(dataSize, sizeLen);
@@ -698,7 +778,11 @@ public class SRSRebuilder
                     // Parse lacing to find where frame data starts
                     fs.Position = blockStart + vintLen + 2;
                     int flagsByte = fs.ReadByte();
-                    if (flagsByte < 0) break;
+                    if (flagsByte < 0)
+                    {
+                        break;
+                    }
+
                     int laceType = (flagsByte >> 1) & 0x03;
 
                     int lacingHeaderSize = 0;
@@ -717,7 +801,11 @@ public class SRSRebuilder
                                     do
                                     {
                                         b = fs.ReadByte();
-                                        if (b < 0) break;
+                                        if (b < 0)
+                                        {
+                                            break;
+                                        }
+
                                         lacingHeaderSize++;
                                     } while (b == 255);
                                 }
@@ -730,7 +818,9 @@ public class SRSRebuilder
                                     for (int i = 1; i < laceCount; i++)
                                     {
                                         if (TryReadEbmlSize(fs, out _, out int deltaLen))
+                                        {
                                             lacingHeaderSize += deltaLen;
+                                        }
                                     }
                                 }
                             }
@@ -813,6 +903,7 @@ public class SRSRebuilder
                                 started.Add(tn);
                                 ReportProgress($"Track {tn} located at offset {frameDataOffset:N0}", 0, 0, 50);
                             }
+
                             blocksMatched++;
 
                             // Copy lacing + frame data to the track's MemoryStream.
@@ -827,10 +918,15 @@ public class SRSRebuilder
                             {
                                 int chunk = Math.Min(toRead, copyBuf.Length);
                                 int read = fs.Read(copyBuf, 0, chunk);
-                                if (read == 0) break;
+                                if (read == 0)
+                                {
+                                    break;
+                                }
+
                                 streams[tn].Write(copyBuf, 0, read);
                                 toRead -= read;
                             }
+
                             remaining[tn] -= Math.Max(frameDataLen, 1);
                         }
                     }
@@ -852,6 +948,7 @@ public class SRSRebuilder
                         continue;
                     }
                 }
+
                 continue; // step into children
             }
 
@@ -863,7 +960,9 @@ public class SRSRebuilder
 
         // Reset all streams to the beginning for reading
         foreach (var ms in streams.Values)
+        {
             ms.Position = 0;
+        }
 
         return streams;
     }
@@ -895,8 +994,15 @@ public class SRSRebuilder
             ct.ThrowIfCancellationRequested();
             long elemStart = srsFs.Position;
 
-            if (!TryReadEbmlId(srsFs, out ulong elemId, out int idLen)) break;
-            if (!TryReadEbmlSize(srsFs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadEbmlId(srsFs, out ulong elemId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadEbmlSize(srsFs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             long dataStart = srsFs.Position;
             bool unknownSize = IsEbmlSizeUnknown(dataSize, sizeLen);
@@ -906,7 +1012,10 @@ public class SRSRebuilder
             if (elemId is 0x1F697576 or 0x6A75 or 0x6B75)
             {
                 if (!unknownSize)
+                {
                     srsFs.Position = dataStart + (long)dataSize;
+                }
+
                 continue;
             }
 
@@ -918,7 +1027,9 @@ public class SRSRebuilder
 
             // Container elements: step into
             if (IsEbmlContainerElement(elemId))
+            {
                 continue;
+            }
 
             // AttachedFileData (0x465C): data is stripped from SRS, source from media
             if (elemId == 0x465C)
@@ -1019,19 +1130,26 @@ public class SRSRebuilder
                             {
                                 int chunk = (int)Math.Min(toWrite, copyBuf.Length);
                                 int rd = ms.Read(copyBuf, 0, chunk);
-                                if (rd == 0) break;
+                                if (rd == 0)
+                                {
+                                    break;
+                                }
+
                                 outFs.Write(copyBuf, 0, rd);
                                 toWrite -= rd;
                             }
                         }
                     }
                 }
+
                 continue;
             }
 
             // Non-container, non-block: copy data verbatim from SRS
             if (!unknownSize && (long)dataSize > 0)
+            {
                 CopyBytes(srsFs, outFs, (long)dataSize);
+            }
         }
 
         ReportProgress($"Wrote {blockCount:N0} blocks to output", 0, 0, 80);
@@ -1155,7 +1273,11 @@ public class SRSRebuilder
                 totalSize = size32;
             }
 
-            if (totalSize < headerSize) break;
+            if (totalSize < headerSize)
+            {
+                break;
+            }
+
             long payloadStart = atomStart + headerSize;
             long atomEnd = Math.Min(atomStart + totalSize, end);
 
@@ -1200,7 +1322,10 @@ public class SRSRebuilder
                 // Copy metadata atom verbatim
                 long remaining = atomEnd - srsFs.Position;
                 if (remaining > 0)
+                {
                     CopyBytes(srsFs, outFs, remaining);
+                }
+
                 srsFs.Position = atomEnd;
             }
         }
@@ -1241,7 +1366,11 @@ public class SRSRebuilder
             byte[] guid = reader.ReadBytes(16);
             ulong totalSize = reader.ReadUInt64();
 
-            if (totalSize < 24) break;
+            if (totalSize < 24)
+            {
+                break;
+            }
+
             long objEnd = objStart + (long)totalSize;
 
             // Skip SRS objects
@@ -1261,7 +1390,9 @@ public class SRSRebuilder
             // Copy body verbatim
             long bodySize = (long)totalSize - 24;
             if (bodySize > 0)
+            {
                 CopyBytes(srsFs, outFs, bodySize);
+            }
 
             srsFs.Position = objEnd;
         }
@@ -1333,7 +1464,10 @@ public class SRSRebuilder
                 CopyBytes(mediaFs, outFs, (long)track.DataLength);
             }
 
-            if (isLast) break;
+            if (isLast)
+            {
+                break;
+            }
         }
     }
 
@@ -1459,7 +1593,10 @@ public class SRSRebuilder
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         int mask = 0x80;
         length = 1;
@@ -1468,14 +1605,22 @@ public class SRSRebuilder
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         // For element IDs, keep the marker bit
         value = (ulong)first;
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
 
@@ -1487,7 +1632,10 @@ public class SRSRebuilder
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         int mask = 0x80;
         length = 1;
@@ -1496,14 +1644,22 @@ public class SRSRebuilder
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         // For sizes, mask out the marker bit
         value = (ulong)(first & (mask - 1));
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
 
@@ -1515,7 +1671,10 @@ public class SRSRebuilder
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         int mask = 0x80;
         length = 1;
@@ -1524,14 +1683,22 @@ public class SRSRebuilder
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         // Mask out the marker bit for data (track number)
         value = (ulong)(first & (mask - 1));
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
 
@@ -1544,7 +1711,11 @@ public class SRSRebuilder
 
     private static bool GuidEquals(byte[] a, byte[] b)
     {
-        if (a.Length != b.Length) return false;
+        if (a.Length != b.Length)
+        {
+            return false;
+        }
+
         return a.AsSpan().SequenceEqual(b);
     }
 
@@ -1568,8 +1739,11 @@ public class SRSRebuilder
     {
         byte[] data = reader.ReadBytes(count);
         if (data.Length < count)
+        {
             throw new EndOfStreamException(
                 $"Expected {count} bytes but got {data.Length}.");
+        }
+
         return data;
     }
 
@@ -1579,9 +1753,14 @@ public class SRSRebuilder
         while (totalRead < count)
         {
             int read = stream.Read(buffer, offset + totalRead, count - totalRead);
-            if (read == 0) break;
+            if (read == 0)
+            {
+                break;
+            }
+
             totalRead += read;
         }
+
         return totalRead;
     }
 
@@ -1593,7 +1772,11 @@ public class SRSRebuilder
         {
             int toRead = (int)Math.Min(buffer.Length, remaining);
             int read = source.Read(buffer, 0, toRead);
-            if (read == 0) break;
+            if (read == 0)
+            {
+                break;
+            }
+
             dest.Write(buffer, 0, read);
             remaining -= read;
         }

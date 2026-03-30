@@ -56,10 +56,16 @@ public class ModelPPM
     /// <summary>
     /// Initializes the PPMd decoder.
     /// </summary>
+    /// <param name="data">The compressed data buffer.</param>
+    /// <param name="offset">Current offset into the data buffer, advanced on return.</param>
+    /// <param name="escChar">The escape character, updated on return.</param>
+    /// <returns><see langword="true"/> if initialization succeeded.</returns>
     public bool DecodeInit(byte[] data, ref int offset, ref int escChar)
     {
         if (offset >= data.Length)
+        {
             return false;
+        }
 
         int maxOrder = data[offset++];
         bool reset = (maxOrder & 0x20) != 0;
@@ -68,7 +74,10 @@ public class ModelPPM
         if (reset)
         {
             if (offset >= data.Length)
+            {
                 return false;
+            }
+
             maxMB = data[offset++];
         }
         else if (_subAlloc.GetAllocatedMemory() == 0)
@@ -79,7 +88,10 @@ public class ModelPPM
         if ((maxOrder & 0x40) != 0)
         {
             if (offset >= data.Length)
+            {
                 return false;
+            }
+
             escChar = data[offset++];
         }
 
@@ -89,12 +101,16 @@ public class ModelPPM
         {
             maxOrder = (maxOrder & 0x1F) + 1;
             if (maxOrder > 16)
+            {
                 maxOrder = 16 + (maxOrder - 16) * 3;
+            }
+
             if (maxOrder == 1)
             {
                 _subAlloc.StopSubAllocator();
                 return false;
             }
+
             _subAlloc.StartSubAllocator(maxMB + 1);
             StartModelRare(maxOrder);
         }
@@ -105,19 +121,27 @@ public class ModelPPM
     /// <summary>
     /// Decodes a single character.
     /// </summary>
+    /// <returns>The decoded character value, or -1 on failure.</returns>
     public int DecodeChar()
     {
         if (_minContext <= _subAlloc.PText || _minContext > _subAlloc.HeapEnd)
+        {
             return -1;
+        }
 
         int numStats = GetContextNumStats(_minContext);
         if (numStats != 1)
         {
             int stats = GetContextStats(_minContext);
             if (stats <= _subAlloc.PText || stats > _subAlloc.HeapEnd)
+            {
                 return -1;
+            }
+
             if (!DecodeSymbol1())
+            {
                 return -1;
+            }
         }
         else
         {
@@ -134,11 +158,16 @@ public class ModelPPM
                 _orderFall++;
                 _minContext = GetContextSuffix(_minContext);
                 if (_minContext <= _subAlloc.PText || _minContext > _subAlloc.HeapEnd)
+                {
                     return -1;
+                }
             } while (GetContextNumStats(_minContext) == _numMasked);
 
             if (!DecodeSymbol2())
+            {
                 return -1;
+            }
+
             _coder.Decode();
         }
 
@@ -152,7 +181,9 @@ public class ModelPPM
         {
             UpdateModel();
             if (_escCount == 0)
+            {
                 ClearMask();
+            }
         }
 
         _coder.Normalize();
@@ -168,12 +199,20 @@ public class ModelPPM
         _ns2BSIndx[0] = 0;
         _ns2BSIndx[1] = 2;
         for (int i = 2; i < 11; i++)
+        {
             _ns2BSIndx[i] = 4;
+        }
+
         for (int i = 11; i < 256; i++)
+        {
             _ns2BSIndx[i] = 6;
+        }
 
         for (int i = 0; i < 3; i++)
+        {
             _ns2Indx[i] = (byte)i;
+        }
+
         for (int m = 3, k = 1, step = 1; m < 256; m++)
         {
             _ns2Indx[m] = (byte)(m < 3 ? m : (k < 256 ? k : 255));
@@ -182,7 +221,9 @@ public class ModelPPM
                 step++;
                 k = step;
                 if (m >= 3)
+                {
                     _ns2Indx[m] = (byte)Math.Min(_ns2Indx[m - 1] + 1, 255);
+                }
             }
         }
 
@@ -198,9 +239,14 @@ public class ModelPPM
         }
 
         for (int i = 0; i < 0x40; i++)
+        {
             _hb2Flag[i] = 0;
+        }
+
         for (int i = 0x40; i < 0x100; i++)
+        {
             _hb2Flag[i] = 0x08;
+        }
     }
 
     private void RestartModelRare()
@@ -211,7 +257,9 @@ public class ModelPPM
 
         _minContext = _maxContext = _subAlloc.AllocContext();
         if (_minContext == 0)
+        {
             return;
+        }
 
         SetContextSuffix(_minContext, 0);
         _orderFall = _maxOrder;
@@ -220,7 +268,9 @@ public class ModelPPM
 
         _foundState = _subAlloc.AllocUnits(128); // 256/2 states
         if (_foundState == 0)
+        {
             return;
+        }
 
         SetContextStats(_minContext, _foundState);
 
@@ -233,6 +283,7 @@ public class ModelPPM
                 SetStateFreq(state + i * STATE_SIZE, 1);
                 SetStateSuccessor(state + i * STATE_SIZE, 0);
             }
+
             break;
         }
 
@@ -274,7 +325,10 @@ public class ModelPPM
 
         int idx = stateFreq - 1;
         int idx2 = _prevSuccess + _ns2BSIndx[suffixNumStats - 1] + _hiBitsFlag + 2 * _hb2Flag[stateSymbol] + ((_runLength >> 26) & 0x20);
-        if (idx2 >= 64) idx2 = 63;
+        if (idx2 >= 64)
+        {
+            idx2 = 63;
+        }
 
         ushort bs = _binSumm[idx, idx2];
 
@@ -282,7 +336,10 @@ public class ModelPPM
         {
             _foundState = state;
             if (stateFreq < 128)
+            {
                 SetStateFreq(state, (byte)(stateFreq + 1));
+            }
+
             _coder.LowCount = 0;
             _coder.HighCount = bs;
             _binSumm[idx, idx2] = (ushort)(bs + INTERVAL - GetMean(bs, PERIOD_BITS, 2));
@@ -309,7 +366,9 @@ public class ModelPPM
         int count = _coder.GetCurrentCount();
 
         if (count >= (int)_coder.Scale)
+        {
             return false;
+        }
 
         int p = stats;
         int hiCnt = GetStateFreq(p);
@@ -325,13 +384,18 @@ public class ModelPPM
             int summFreq = GetContextSummFreq(_minContext) + 4;
             SetContextSummFreq(_minContext, (ushort)summFreq);
             if (hiCnt > MAX_FREQ)
+            {
                 Rescale();
+            }
+
             _coder.LowCount = 0;
             return true;
         }
 
         if (_foundState == 0)
+        {
             return false;
+        }
 
         _prevSuccess = 0;
         int numStats = GetContextNumStats(_minContext);
@@ -385,14 +449,18 @@ public class ModelPPM
 
             hiCnt += GetStateFreq(p);
             if (ppsCount < 256)
+            {
                 ps[ppsCount++] = p;
+            }
         } while (--i > 0);
 
         _coder.Scale += (uint)hiCnt;
         int count = _coder.GetCurrentCount();
 
         if (count >= (int)_coder.Scale)
+        {
             return false;
+        }
 
         p = ps[0];
         int ppsIdx = 0;
@@ -404,9 +472,13 @@ public class ModelPPM
             {
                 ppsIdx++;
                 if (ppsIdx >= ppsCount)
+                {
                     return false;
+                }
+
                 p = ps[ppsIdx];
             }
+
             _coder.LowCount = (uint)(hiCnt - GetStateFreq(p));
             _coder.HighCount = (uint)hiCnt;
             See2Update(see2Idx1, see2Idx2);
@@ -421,13 +493,17 @@ public class ModelPPM
             do
             {
                 if (ppsIdx >= ppsCount)
+                {
                     return false;
+                }
+
                 _charMask[GetStateSymbol(ps[ppsIdx])] = _escCount;
                 ppsIdx++;
             } while (--i > 0);
             _see2Cont[see2Idx1, see2Idx2] += (ushort)_coder.Scale;
             _numMasked = numStats;
         }
+
         return true;
     }
 
@@ -446,7 +522,9 @@ public class ModelPPM
             SwapStates(p, prevP);
             _foundState = prevP;
             if (GetStateFreq(prevP) > MAX_FREQ)
+            {
                 Rescale();
+            }
         }
     }
 
@@ -458,7 +536,10 @@ public class ModelPPM
         int summFreq = GetContextSummFreq(_minContext) + 4;
         SetContextSummFreq(_minContext, (ushort)summFreq);
         if (freq + 4 > MAX_FREQ)
+        {
             Rescale();
+        }
+
         _escCount++;
         _runLength = _initRL;
     }
@@ -475,7 +556,11 @@ public class ModelPPM
             int state = stats + i * STATE_SIZE;
             byte freq = GetStateFreq(state);
             freq = (byte)((freq + 1) >> 1);
-            if (freq == 0) freq = 1;
+            if (freq == 0)
+            {
+                freq = 1;
+            }
+
             SetStateFreq(state, freq);
             summFreq += freq;
         }
@@ -495,7 +580,11 @@ public class ModelPPM
                    (GetContextSummFreq(_minContext) < 11 * numStats ? 2 : 0) +
                    (_numMasked > diff ? 4 : 0) +
                    _hiBitsFlag;
-            if (idx2 >= 16) idx2 = 15;
+            if (idx2 >= 16)
+            {
+                idx2 = 15;
+            }
+
             _coder.Scale = See2GetMean(idx1, idx2);
         }
         else
@@ -526,7 +615,9 @@ public class ModelPPM
     {
         // Simplified update model - just update the current context
         if (_foundState == 0)
+        {
             return;
+        }
 
         byte symbol = GetStateSymbol(_foundState);
         _subAlloc.SetPTextByte(symbol);

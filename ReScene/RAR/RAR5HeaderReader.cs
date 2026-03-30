@@ -242,13 +242,20 @@ public class RAR5ServiceBlockInfo
 [Flags]
 public enum RAR5HeaderFlags : ulong
 {
-    ExtraArea = 0x0001,      // HFL_EXTRA - Extra area present
-    DataArea = 0x0002,       // HFL_DATA - Data area present
-    SkipIfUnknown = 0x0004,  // HFL_SKIPIFUNKNOWN - Skip this header if unknown
-    SplitBefore = 0x0008,    // HFL_SPLITBEFORE - Data continued from previous volume
-    SplitAfter = 0x0010,     // HFL_SPLITAFTER - Data continues in next volume
-    Child = 0x0020,          // HFL_CHILD - Child of preceding file header
-    Inherited = 0x0040       // HFL_INHERITED - Preserve host modification
+    /// <summary>Extra area is present (HFL_EXTRA).</summary>
+    ExtraArea = 0x0001,
+    /// <summary>Data area is present (HFL_DATA).</summary>
+    DataArea = 0x0002,
+    /// <summary>Skip this header if unknown (HFL_SKIPIFUNKNOWN).</summary>
+    SkipIfUnknown = 0x0004,
+    /// <summary>Data continued from previous volume (HFL_SPLITBEFORE).</summary>
+    SplitBefore = 0x0008,
+    /// <summary>Data continues in next volume (HFL_SPLITAFTER).</summary>
+    SplitAfter = 0x0010,
+    /// <summary>Child of preceding file header (HFL_CHILD).</summary>
+    Child = 0x0020,
+    /// <summary>Preserve host modification (HFL_INHERITED).</summary>
+    Inherited = 0x0040
 }
 
 /// <summary>
@@ -257,10 +264,14 @@ public enum RAR5HeaderFlags : ulong
 [Flags]
 public enum RAR5FileFlags : ulong
 {
-    Directory = 0x0001,     // Directory entry
-    TimePresent = 0x0002,   // Time field present
-    Crc32Present = 0x0004,  // CRC32 field present
-    UnknownSize = 0x0008    // Unpacked size unknown
+    /// <summary>Entry is a directory.</summary>
+    Directory = 0x0001,
+    /// <summary>Time field is present.</summary>
+    TimePresent = 0x0002,
+    /// <summary>CRC32 field is present.</summary>
+    Crc32Present = 0x0004,
+    /// <summary>Unpacked size is unknown.</summary>
+    UnknownSize = 0x0008
 }
 
 /// <summary>
@@ -268,7 +279,8 @@ public enum RAR5FileFlags : ulong
 /// </summary>
 public enum RAR5ServiceType : ulong
 {
-    Comment = 0x03          // CMT - Archive comment
+    /// <summary>Archive comment (CMT).</summary>
+    Comment = 0x03
 }
 
 /// <summary>
@@ -290,17 +302,22 @@ public class RAR5HeaderReader(Stream stream)
     /// <summary>
     /// Checks if the stream starts with RAR 5.0 marker.
     /// </summary>
+    /// <param name="stream">The stream to check.</param>
+    /// <returns><see langword="true"/> if the stream starts with a RAR 5.0 marker.</returns>
     public static bool IsRAR5(Stream stream) => IsRAR5(stream, 0);
 
     /// <summary>
     /// Checks if the stream contains a RAR 5.0 marker at the specified offset.
     /// </summary>
-    /// <param name="stream">Stream to check.</param>
+    /// <param name="stream">The stream to check.</param>
     /// <param name="offset">Byte offset to check at.</param>
+    /// <returns><see langword="true"/> if a RAR 5.0 marker is found at the offset.</returns>
     public static bool IsRAR5(Stream stream, long offset)
     {
         if (stream.Length - offset < 8)
+        {
             return false;
+        }
 
         long pos = stream.Position;
         stream.Position = offset;
@@ -311,8 +328,11 @@ public class RAR5HeaderReader(Stream stream)
         for (int i = 0; i < 8; i++)
         {
             if (marker[i] != RAR5Marker[i])
+            {
                 return false;
+            }
         }
+
         return true;
     }
 
@@ -325,10 +345,13 @@ public class RAR5HeaderReader(Stream stream)
     /// Peeks at the next block type without advancing the stream position.
     /// Returns null if not enough data or if it looks like an SRR block.
     /// </summary>
+    /// <returns>The block type byte, or <see langword="null"/> if insufficient data.</returns>
     public byte? PeekBlockType()
     {
         if (_stream.Position + 6 > _stream.Length)
+        {
             return null;
+        }
 
         long pos = _stream.Position;
 
@@ -350,6 +373,7 @@ public class RAR5HeaderReader(Stream stream)
     /// <summary>
     /// Reads a variable-length integer (vint) from the stream.
     /// </summary>
+    /// <returns>The decoded variable-length integer value.</returns>
     public ulong ReadVInt()
     {
         ulong result = 0;
@@ -361,11 +385,15 @@ public class RAR5HeaderReader(Stream stream)
             result |= (ulong)(b & 0x7F) << shift;
 
             if ((b & 0x80) == 0)
+            {
                 break;
+            }
 
             shift += 7;
             if (shift > 63)
+            {
                 throw new InvalidDataException("VInt too large");
+            }
         }
 
         return result;
@@ -374,10 +402,13 @@ public class RAR5HeaderReader(Stream stream)
     /// <summary>
     /// Reads a RAR 5.0 block header.
     /// </summary>
+    /// <returns>The parsed block result, or <see langword="null"/> if no more blocks.</returns>
     public RAR5BlockReadResult? ReadBlock()
     {
         if (_stream.Position + 4 > _stream.Length)
+        {
             return null;
+        }
 
         _ = _stream.Position;
         uint crc = _reader.ReadUInt32();
@@ -391,7 +422,9 @@ public class RAR5HeaderReader(Stream stream)
         long headerContentStart = _stream.Position;
 
         if (headerContentStart + (long)headerSize > _stream.Length)
+        {
             return null;
+        }
 
         // Read header type
         ulong headerType = ReadVInt();
@@ -443,7 +476,10 @@ public class RAR5HeaderReader(Stream stream)
         long currentPos = _stream.Position;
         long crcDataSize = (headerContentStart + (long)headerSize) - headerSizePosition;
         if (crcDataSize <= 0 || crcDataSize > int.MaxValue)
+        {
             return result;
+        }
+
         _stream.Position = headerSizePosition;
         byte[] headerData = _reader.ReadBytes((int)crcDataSize);
         uint calculatedCrc = Force.Crc32.Crc32Algorithm.Compute(headerData);
@@ -472,11 +508,15 @@ public class RAR5HeaderReader(Stream stream)
 
         // Skip mtime if present
         if ((info.FileFlags & (ulong)RAR5FileFlags.TimePresent) != 0)
+        {
             _reader.ReadUInt32();
+        }
 
         // Skip CRC if present
         if ((info.FileFlags & (ulong)RAR5FileFlags.Crc32Present) != 0)
+        {
             _reader.ReadUInt32();
+        }
 
         // Read compression info
         ulong compressionInfo = ReadVInt();
@@ -573,6 +613,7 @@ public class RAR5HeaderReader(Stream stream)
     /// <summary>
     /// Skips to the end of the current block.
     /// </summary>
+    /// <param name="block">The block to skip past.</param>
     public void SkipBlock(RAR5BlockReadResult block)
     {
         // Move past the header
@@ -585,7 +626,9 @@ public class RAR5HeaderReader(Stream stream)
         }
 
         if (target > _stream.Length)
+        {
             target = _stream.Length;
+        }
 
         _stream.Position = target;
     }
@@ -593,20 +636,31 @@ public class RAR5HeaderReader(Stream stream)
     /// <summary>
     /// Reads the data portion of a service block.
     /// </summary>
+    /// <param name="block">The service block to read data from.</param>
+    /// <returns>The raw service block data, or <see langword="null"/> if not a service block.</returns>
     public byte[]? ReadServiceBlockData(RAR5BlockReadResult block)
     {
         if (block.BlockType != RAR5BlockType.Service || block.ServiceBlockInfo == null)
+        {
             return null;
+        }
 
         if ((block.Flags & (ulong)RAR5HeaderFlags.DataArea) == 0 || block.DataSize == 0)
+        {
             return null;
+        }
 
         long dataStart = block.BlockPosition + (long)block.HeaderSize;
         if (dataStart + (long)block.DataSize > _stream.Length)
+        {
             return null;
+        }
 
         if (block.DataSize > int.MaxValue)
+        {
             return null;
+        }
+
         _stream.Position = dataStart;
         return _reader.ReadBytes((int)block.DataSize);
     }

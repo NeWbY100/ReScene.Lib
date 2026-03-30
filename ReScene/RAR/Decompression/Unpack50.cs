@@ -37,7 +37,9 @@ public class Unpack50
     public byte[]? Decompress(byte[] srcData, int destSize)
     {
         if (srcData == null || srcData.Length == 0 || destSize <= 0)
+        {
             return null;
+        }
 
         // Initialize window (64KB for comments)
         _winSize = 0x10000; // 64KB
@@ -55,10 +57,14 @@ public class Unpack50
 
         // Read block header and tables
         if (!ReadBlockHeader())
+        {
             return null;
+        }
 
         if (!ReadTables())
+        {
             return null;
+        }
 
         // Decompress
         byte[] result = new byte[destSize];
@@ -68,7 +74,9 @@ public class Unpack50
         {
             // Check for buffer overflow
             if (_inp.InAddr >= srcData.Length)
+            {
                 break;
+            }
 
             uint mainSlot = HuffmanDecoder.DecodeNumber(_inp, _tables.LD);
 
@@ -97,7 +105,9 @@ public class Unpack50
                     {
                         length++;
                         if (distance > 0x40000)
+                        {
                             length++;
+                        }
                     }
                 }
 
@@ -120,7 +130,10 @@ public class Unpack50
             {
                 // Repeat last match
                 if (_lastLength != 0)
+                {
                     destPtr = CopyString(result, destPtr, destSize, _lastLength, _oldDist[0]);
+                }
+
                 continue;
             }
 
@@ -132,7 +145,10 @@ public class Unpack50
 
                 // Shift old distances
                 for (int i = distNum; i > 0; i--)
+                {
                     _oldDist[i] = _oldDist[i - 1];
+                }
+
                 _oldDist[0] = distance;
 
                 uint lengthSlot = HuffmanDecoder.DecodeNumber(_inp, _tables.RD);
@@ -203,6 +219,7 @@ public class Unpack50
                     {
                         distance += ((long)_inp.GetBits32() >> (36 - dBits)) << 4;
                     }
+
                     _inp.AddBits(dBits - 4);
                 }
 
@@ -255,7 +272,9 @@ public class Unpack50
 
         int byteCount = ((blockFlags >> 3) & 3) + 1;
         if (byteCount == 4)
+        {
             return false;
+        }
 
         byte savedCheckSum = (byte)(_inp.GetBits() >> 8);
         _inp.AddBits(8);
@@ -269,7 +288,9 @@ public class Unpack50
 
         byte checkSum = (byte)(0x5A ^ blockFlags ^ blockSize ^ (blockSize >> 8) ^ (blockSize >> 16));
         if (checkSum != savedCheckSum)
+        {
             return false;
+        }
 
         // Check table present flag
         return (blockFlags & 0x80) != 0 || _tablesRead;
@@ -297,7 +318,10 @@ public class Unpack50
                 {
                     zeroCount += 2;
                     while (zeroCount-- > 0 && i < bitLength.Length)
+                    {
                         bitLength[i++] = 0;
+                    }
+
                     i--;
                 }
             }
@@ -335,7 +359,9 @@ public class Unpack50
                 }
 
                 if (i == 0)
+                {
                     return false; // Cannot repeat at position 0
+                }
 
                 while (n-- > 0 && i < PackDef.HuffTableSizeB)
                 {
@@ -358,7 +384,9 @@ public class Unpack50
                 }
 
                 while (n-- > 0 && i < PackDef.HuffTableSizeB)
+                {
                     table[i++] = 0;
+                }
             }
         }
 
@@ -411,6 +439,7 @@ public class Unpack50
             data += (uint)((_inp.GetBits() >> 8) << (i * 8));
             _inp.AddBits(8);
         }
+
         return data;
     }
 }

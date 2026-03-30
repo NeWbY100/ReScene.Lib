@@ -54,7 +54,9 @@ public static class EbmlLacing
         if (laceType != EbmlLaceType.None)
         {
             if (data.Length < 1)
+            {
                 return ([totalDataLength], 0);
+            }
 
             frameCount = data[0] + 1;
             bytesConsumed = 1;
@@ -71,7 +73,10 @@ public static class EbmlLacing
             case EbmlLaceType.Fixed:
                 int fixedSize = totalDataLength / frameCount;
                 for (int i = 0; i < frameCount; i++)
+                {
                     frameSizes[i] = fixedSize;
+                }
+
                 break;
 
             case EbmlLaceType.Xiph:
@@ -87,8 +92,11 @@ public static class EbmlLacing
                             bytesConsumed++;
                             size += b;
                             if (b != 0xFF)
+                            {
                                 break;
+                            }
                         }
+
                         frameSizes[i] = size;
                     }
                     else
@@ -96,10 +104,14 @@ public static class EbmlLacing
                         // Last frame: remaining bytes after lacing header and previous frames
                         int usedByFrames = 0;
                         for (int j = 0; j < i; j++)
+                        {
                             usedByFrames += frameSizes[j];
+                        }
+
                         frameSizes[i] = totalDataLength - bytesConsumed - usedByFrames;
                     }
                 }
+
                 break;
 
             case EbmlLaceType.Ebml:
@@ -124,10 +136,14 @@ public static class EbmlLacing
                         // Last frame: remaining bytes
                         int usedByFrames = 0;
                         for (int j = 0; j < i; j++)
+                        {
                             usedByFrames += frameSizes[j];
+                        }
+
                         frameSizes[i] = totalDataLength - bytesConsumed - usedByFrames;
                     }
                 }
+
                 break;
         }
 
@@ -149,17 +165,23 @@ public static class EbmlVInt
     public static (long value, int length) ReadUnsigned(ReadOnlySpan<byte> data)
     {
         if (data.Length < 1)
+        {
             return (0, 0);
+        }
 
         byte first = data[0];
         int vintLen = GetVintLength(first);
         if (vintLen == 0 || vintLen > data.Length)
+        {
             return (0, 0);
+        }
 
         // Mask out the marker bit from the first byte
         long value = first & (0xFF >> vintLen);
         for (int i = 1; i < vintLen; i++)
+        {
             value = (value << 8) | data[i];
+        }
 
         return (value, vintLen);
     }
@@ -175,7 +197,9 @@ public static class EbmlVInt
     {
         var (unsignedVal, vintLen) = ReadUnsigned(data);
         if (vintLen == 0)
+        {
             return (0, 0);
+        }
 
         // Bias: (2^(7*N - 1) - 1)
         // For 1-byte VINT: 2^6 - 1 = 63
@@ -196,8 +220,11 @@ public static class EbmlVInt
         for (int i = 0; i < 8; i++)
         {
             if ((firstByte & (0x80 >> i)) != 0)
+            {
                 return i + 1;
+            }
         }
+
         return 0; // Invalid: no marker bit set
     }
 }

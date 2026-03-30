@@ -49,7 +49,9 @@ public partial class RarStream : Stream
     public RarStream(string firstRarPath, string? packedFileName = null)
     {
         if (!File.Exists(firstRarPath))
+        {
             throw new FileNotFoundException("RAR archive not found.", firstRarPath);
+        }
 
         // Validate this is the first volume
         ValidateFirstVolume(firstRarPath);
@@ -67,7 +69,9 @@ public partial class RarStream : Stream
         PackedFileName = packedFileName;
 
         if (_volumes.Count == 0)
+        {
             throw new ArgumentException("File not found in the archive.", nameof(packedFileName));
+        }
 
         _currentVolume = _volumes[0];
     }
@@ -75,12 +79,16 @@ public partial class RarStream : Stream
     /// <summary>
     /// Internal constructor for testing with pre-built volumes.
     /// </summary>
+    /// <param name="volumes">The pre-built volume list.</param>
+    /// <param name="length">The total logical length of the stream.</param>
     internal RarStream(List<RarVolume> volumes, long length)
     {
         _volumes = volumes;
         _length = length;
         if (_volumes.Count > 0)
+        {
             _currentVolume = _volumes[0];
+        }
     }
 
     #region Stream Properties
@@ -112,6 +120,7 @@ public partial class RarStream : Stream
             ObjectDisposedException.ThrowIf(_disposed, this);
             return _position;
         }
+
         set
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -133,10 +142,14 @@ public partial class RarStream : Stream
         ArgumentOutOfRangeException.ThrowIfNegative(offset);
         ArgumentOutOfRangeException.ThrowIfNegative(count);
         if (offset + count > buffer.Length)
+        {
             throw new ArgumentException("The sum of offset and count is greater than the buffer length.");
+        }
 
         if (_currentVolume == null || count == 0)
+        {
             return 0;
+        }
 
         int totalBytesRead = 0;
 
@@ -154,7 +167,9 @@ public partial class RarStream : Stream
 
             int bytesRead = fs.Read(buffer, offset, toRead);
             if (bytesRead == 0)
+            {
                 break;
+            }
 
             totalBytesRead += bytesRead;
             offset += bytesRead;
@@ -163,11 +178,15 @@ public partial class RarStream : Stream
 
             // If we've moved past this volume, update to the next
             if (_position > _currentVolume.LogicalEnd)
+            {
                 UpdateCurrentVolume();
+            }
 
             // If we've reached the end of the logical file, stop
             if (_position >= _length)
+            {
                 break;
+            }
         }
 
         return totalBytesRead;
@@ -219,10 +238,13 @@ public partial class RarStream : Stream
                     try { stream.Dispose(); }
                     catch { /* ignore errors during cleanup */ }
                 }
+
                 _openStreams.Clear();
             }
+
             _disposed = true;
         }
+
         base.Dispose(disposing);
     }
 
@@ -245,12 +267,18 @@ public partial class RarStream : Stream
             while (fs.Position < fs.Length)
             {
                 var block = reader.ReadBlock();
-                if (block == null) break;
+                if (block == null)
+                {
+                    break;
+                }
 
                 if (block.BlockType == RAR5BlockType.File)
                 {
                     if (block.FileInfo?.IsSplitBefore == true)
+                    {
                         throw new ArgumentException("You must start with the first volume from a RAR set.");
+                    }
+
                     return; // first file found, not split — OK
                 }
 
@@ -263,19 +291,28 @@ public partial class RarStream : Stream
             while (fs.Position < fs.Length)
             {
                 var block = reader.ReadBlock(parseContents: true);
-                if (block == null) break;
+                if (block == null)
+                {
+                    break;
+                }
 
                 if (block.BlockType == RAR4BlockType.FileHeader)
                 {
                     if (block.FileHeader?.IsSplitBefore == true)
+                    {
                         throw new ArgumentException("You must start with the first volume from a RAR set.");
+                    }
+
                     return; // first file found, not split — OK
                 }
 
                 // Skip past the block
                 long target = block.BlockPosition + block.HeaderSize;
                 if (block.BlockType != RAR4BlockType.FileHeader)
+                {
                     target += block.AddSize;
+                }
+
                 fs.Position = Math.Min(target, fs.Length);
             }
         }
@@ -314,7 +351,10 @@ public partial class RarStream : Stream
         while (fs.Position < fs.Length)
         {
             var block = reader.ReadBlock();
-            if (block == null) break;
+            if (block == null)
+            {
+                break;
+            }
 
             if (block.BlockType == RAR5BlockType.File && block.FileInfo != null)
             {
@@ -354,7 +394,10 @@ public partial class RarStream : Stream
         while (fs.Position < fs.Length)
         {
             var block = reader.ReadBlock(parseContents: true);
-            if (block == null) break;
+            if (block == null)
+            {
+                break;
+            }
 
             if (block.BlockType == RAR4BlockType.ArchiveHeader && block.ArchiveHeader != null)
             {
@@ -388,9 +431,14 @@ public partial class RarStream : Stream
             // Skip past the block (header + data)
             long target = block.BlockPosition + block.HeaderSize;
             if (block.BlockType == RAR4BlockType.FileHeader || block.BlockType == RAR4BlockType.Service)
+            {
                 target += block.AddSize;
+            }
             else if ((block.Flags & (ushort)RARFileFlags.LongBlock) != 0)
+            {
                 target += block.AddSize;
+            }
+
             fs.Position = Math.Min(target, fs.Length);
         }
 
@@ -407,9 +455,13 @@ public partial class RarStream : Stream
     private static string? GetNextVolumePath(string currentPath, bool isOldNaming)
     {
         if (isOldNaming)
+        {
             return GetNextOldStyleVolume(currentPath);
+        }
         else
+        {
             return GetNextNewStyleVolume(currentPath);
+        }
     }
 
     /// <summary>
@@ -496,7 +548,9 @@ public partial class RarStream : Stream
     private static bool IsRar5(Stream stream)
     {
         if (stream.Length < 8)
+        {
             return false;
+        }
 
         long pos = stream.Position;
         stream.Position = 0;
@@ -542,6 +596,7 @@ public partial class RarStream : Stream
             stream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             _openStreams[archivePath] = stream;
         }
+
         return stream;
     }
 

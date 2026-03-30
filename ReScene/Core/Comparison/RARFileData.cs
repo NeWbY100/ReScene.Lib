@@ -46,6 +46,8 @@ public class RARFileData
     /// <summary>
     /// Loads and parses a RAR file, returning its header and file entry data.
     /// </summary>
+    /// <param name="filePath">The path to the RAR file.</param>
+    /// <returns>A populated <see cref="RARFileData"/> instance.</returns>
     public static RARFileData Load(string filePath)
     {
         var data = new RARFileData { FilePath = filePath };
@@ -57,9 +59,13 @@ public class RARFileData
         fs.Position = 0;
 
         if (data.IsRAR5)
+        {
             LoadRAR5Data(fs, data);
+        }
         else
+        {
             LoadRAR4Data(reader, data);
+        }
 
         return data;
     }
@@ -71,13 +77,20 @@ public class RARFileData
         while (headerReader.CanReadBaseHeader)
         {
             var block = headerReader.ReadBlock(parseContents: true);
-            if (block == null) break;
+            if (block == null)
+            {
+                break;
+            }
 
             if (block.ArchiveHeader != null)
+            {
                 data.ArchiveHeader = block.ArchiveHeader;
+            }
 
             if (block.FileHeader != null)
+            {
                 data.FileHeaders.Add(block.FileHeader);
+            }
 
             if (block.ServiceBlockInfo != null && block.ServiceBlockInfo.SubType == "CMT")
             {
@@ -106,13 +119,20 @@ public class RARFileData
         while (headerReader.CanReadBaseHeader)
         {
             var block = headerReader.ReadBlock();
-            if (block == null) break;
+            if (block == null)
+            {
+                break;
+            }
 
             if (block.ArchiveInfo != null)
+            {
                 data.RAR5ArchiveInfo = block.ArchiveInfo;
+            }
 
             if (block.FileInfo != null)
+            {
                 data.RAR5FileInfos.Add(block.FileInfo);
+            }
 
             if (block.ServiceBlockInfo != null && block.ServiceBlockInfo.SubType == "CMT")
             {

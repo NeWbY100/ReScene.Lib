@@ -192,6 +192,7 @@ public static class RARUtils
                             Put(output, lo, 0, ref pos);
                         }
                     }
+
                     break;
             }
         }
@@ -301,11 +302,15 @@ public static class RARUtils
             {
                 // Check RAR5 (byte 6 = 0x01, byte 7 = 0x00)
                 if (buffer[i + 6] == 0x01 && buffer[i + 7] == 0x00)
+                {
                     return i;
+                }
 
                 // Check RAR4 (byte 6 = 0x00)
                 if (buffer[i + 6] == 0x00)
+                {
                     return i;
+                }
             }
         }
 

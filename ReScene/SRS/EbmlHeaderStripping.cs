@@ -21,6 +21,7 @@ public static class EbmlHeaderStripping
     /// <param name="trackEntryData">
     /// The raw data of a TrackEntry element (children only, not including the TrackEntry element header itself).
     /// </param>
+    /// <returns>The stripped header bytes, or <see langword="null"/> if header stripping is not used.</returns>
     public static byte[]? DetectStrippedHeader(ReadOnlySpan<byte> trackEntryData)
     {
         // Walk top-level children of TrackEntry looking for ContentEncodings (0x6D80)
@@ -28,11 +29,19 @@ public static class EbmlHeaderStripping
         while (pos < trackEntryData.Length)
         {
             var (elemId, idLen) = ReadElementId(trackEntryData[pos..]);
-            if (idLen == 0) break;
+            if (idLen == 0)
+            {
+                break;
+            }
+
             pos += idLen;
 
             var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(trackEntryData[pos..]);
-            if (sizeLen == 0) break;
+            if (sizeLen == 0)
+            {
+                break;
+            }
+
             pos += sizeLen;
 
             int elemDataLen = (int)Math.Min(dataSize, trackEntryData.Length - pos);
@@ -70,11 +79,19 @@ public static class EbmlHeaderStripping
         while (pos < data.Length)
         {
             var (elemId, idLen) = ReadElementId(data[pos..]);
-            if (idLen == 0) break;
+            if (idLen == 0)
+            {
+                break;
+            }
+
             pos += idLen;
 
             var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
-            if (sizeLen == 0) break;
+            if (sizeLen == 0)
+            {
+                break;
+            }
+
             pos += sizeLen;
 
             int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
@@ -82,7 +99,10 @@ public static class EbmlHeaderStripping
             if (elemId == IdContentEncoding)
             {
                 var result = SearchContentEncoding(data.Slice(pos, elemDataLen));
-                if (result != null) return result;
+                if (result != null)
+                {
+                    return result;
+                }
             }
 
             pos += elemDataLen;
@@ -98,11 +118,19 @@ public static class EbmlHeaderStripping
         while (pos < data.Length)
         {
             var (elemId, idLen) = ReadElementId(data[pos..]);
-            if (idLen == 0) break;
+            if (idLen == 0)
+            {
+                break;
+            }
+
             pos += idLen;
 
             var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
-            if (sizeLen == 0) break;
+            if (sizeLen == 0)
+            {
+                break;
+            }
+
             pos += sizeLen;
 
             int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
@@ -110,7 +138,10 @@ public static class EbmlHeaderStripping
             if (elemId == IdContentCompression)
             {
                 var result = SearchContentCompression(data.Slice(pos, elemDataLen));
-                if (result != null) return result;
+                if (result != null)
+                {
+                    return result;
+                }
             }
 
             pos += elemDataLen;
@@ -129,11 +160,19 @@ public static class EbmlHeaderStripping
         while (pos < data.Length)
         {
             var (elemId, idLen) = ReadElementId(data[pos..]);
-            if (idLen == 0) break;
+            if (idLen == 0)
+            {
+                break;
+            }
+
             pos += idLen;
 
             var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
-            if (sizeLen == 0) break;
+            if (sizeLen == 0)
+            {
+                break;
+            }
+
             pos += sizeLen;
 
             int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
@@ -161,7 +200,9 @@ public static class EbmlHeaderStripping
     private static (ulong id, int length) ReadElementId(ReadOnlySpan<byte> data)
     {
         if (data.Length < 1)
+        {
             return (0, 0);
+        }
 
         byte first = data[0];
         int idLen = 0;
@@ -173,12 +214,17 @@ public static class EbmlHeaderStripping
                 break;
             }
         }
+
         if (idLen == 0 || idLen > data.Length)
+        {
             return (0, 0);
+        }
 
         ulong id = first;
         for (int i = 1; i < idLen; i++)
+        {
             id = (id << 8) | data[i];
+        }
 
         return (id, idLen);
     }
@@ -190,7 +236,10 @@ public static class EbmlHeaderStripping
     {
         long value = 0;
         for (int i = 0; i < data.Length; i++)
+        {
             value = (value << 8) | data[i];
+        }
+
         return value;
     }
 }

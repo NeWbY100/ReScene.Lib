@@ -27,6 +27,7 @@ public class SHA1File
     /// <summary>
     /// Initializes a new SHA-1 file associated with the specified file info.
     /// </summary>
+    /// <param name="fileInfo">The file info for the SHA-1 file on disk.</param>
     public SHA1File(FileInfo fileInfo)
     {
         FileInfo = fileInfo;
@@ -35,6 +36,7 @@ public class SHA1File
     /// <summary>
     /// Writes the SHA-1 entries to the specified file path.
     /// </summary>
+    /// <param name="filePath">The output file path.</param>
     public void WriteFile(string filePath)
     {
         using FileStream fs = File.OpenWrite(filePath);
@@ -49,6 +51,8 @@ public class SHA1File
     /// <summary>
     /// Reads and parses a SHA-1 hash file from disk.
     /// </summary>
+    /// <param name="filePath">The path to the SHA-1 file.</param>
+    /// <returns>A parsed <see cref="SHA1File"/> instance.</returns>
     public static SHA1File ReadFile(string filePath)
     {
         FileInfo fileInfo = new(filePath);

@@ -31,17 +31,23 @@ public class SRSFile
     /// <summary>
     /// Loads and parses an SRS file from the specified path.
     /// </summary>
+    /// <param name="filePath">The path to the SRS file.</param>
+    /// <returns>A parsed <see cref="SRSFile"/> instance.</returns>
     public static SRSFile Load(string filePath)
     {
         if (!File.Exists(filePath))
+        {
             throw new FileNotFoundException("SRS file not found.", filePath);
+        }
 
         var srs = new SRSFile();
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(fs);
 
         if (fs.Length < 4)
+        {
             throw new InvalidDataException("File too small to be a valid SRS file.");
+        }
 
         // Read first 16 bytes for container detection
         byte[] magic = new byte[Math.Min(16, fs.Length)];
@@ -81,11 +87,15 @@ public class SRSFile
     private static SRSContainerType DetectContainer(byte[] magic)
     {
         if (magic.Length < 4)
+        {
             throw new InvalidDataException("Cannot detect container format.");
+        }
 
         // RIFF (AVI)
         if (magic[0] == 'R' && magic[1] == 'I' && magic[2] == 'F' && magic[3] == 'F')
+        {
             return SRSContainerType.AVI;
+        }
 
         // STREAM/M2TS: "STRM\x08\x00\x00\x00" or "M2TS\x08\x00\x00\x00"
         if (magic.Length >= 8)
@@ -99,27 +109,43 @@ public class SRSFile
 
         // FLAC
         if (magic[0] == 'f' && magic[1] == 'L' && magic[2] == 'a' && magic[3] == 'C')
+        {
             return SRSContainerType.FLAC;
+        }
 
         // MP4: bytes[4:8] == "ftyp"
         if (magic.Length >= 8 && magic[4] == 'f' && magic[5] == 't' && magic[6] == 'y' && magic[7] == 'p')
+        {
             return SRSContainerType.MP4;
+        }
 
         // MKV/EBML
         if (magic[0] == 0x1A && magic[1] == 0x45 && magic[2] == 0xDF && magic[3] == 0xA3)
+        {
             return SRSContainerType.MKV;
+        }
 
         // WMV/ASF
         if (magic[0] == 0x30 && magic[1] == 0x26 && magic[2] == 0xB2 && magic[3] == 0x75)
+        {
             return SRSContainerType.WMV;
+        }
 
         // MP3: ID3 tag, SRSF block, or sync word
         if (magic[0] == 'I' && magic[1] == 'D' && magic[2] == '3')
+        {
             return SRSContainerType.MP3;
+        }
+
         if (magic[0] == 'S' && magic[1] == 'R' && magic[2] == 'S' && magic[3] == 'F')
+        {
             return SRSContainerType.MP3;
+        }
+
         if (magic[0] == 0xFF && (magic[1] & 0xE0) == 0xE0)
+        {
             return SRSContainerType.MP3;
+        }
 
         throw new InvalidDataException("Unknown SRS container format.");
     }
@@ -150,7 +176,10 @@ public class SRSFile
 
         block.AppNameOffset = p;
         if (block.AppNameSize > 0)
+        {
             block.AppName = Encoding.UTF8.GetString(reader.ReadBytes(block.AppNameSize));
+        }
+
         p += block.AppNameSize;
 
         block.FileNameSizeOffset = p;
@@ -159,7 +188,10 @@ public class SRSFile
 
         block.FileNameOffset = p;
         if (block.FileNameSize > 0)
+        {
             block.FileName = Encoding.UTF8.GetString(reader.ReadBytes(block.FileNameSize));
+        }
+
         p += block.FileNameSize;
 
         block.SampleSizeOffset = p;
@@ -230,7 +262,9 @@ public class SRSFile
 
         block.SignatureOffset = p;
         if (block.SignatureSize > 0)
+        {
             block.Signature = reader.ReadBytes(block.SignatureSize);
+        }
 
         return block;
     }
@@ -244,7 +278,10 @@ public class SRSFile
             long frameOffset = fs.Position;
             string tag = new(reader.ReadChars(4));
             uint totalSize = reader.ReadUInt32(); // includes 8-byte header
-            if (totalSize < 8) break;
+            if (totalSize < 8)
+            {
+                break;
+            }
 
             long payloadStart = fs.Position;
             long payloadSize = totalSize - 8;
@@ -320,7 +357,10 @@ public class SRSFile
             {
                 reader.ReadBytes(4); // skip tag
                 uint totalSize = reader.ReadUInt32();
-                if (totalSize < 8) break;
+                if (totalSize < 8)
+                {
+                    break;
+                }
 
                 long payloadStart = fs.Position;
                 int headerSize = 8;
@@ -494,7 +534,10 @@ public class SRSFile
             }
 
             fs.Position = payloadStart + payloadSize;
-            if (isLast) break;
+            if (isLast)
+            {
+                break;
+            }
         }
     }
 
@@ -537,13 +580,19 @@ public class SRSFile
                 // Recurse into sub-chunks (after the 4-byte subtype)
                 long childStart = fs.Position;
                 long childEnd = frameOffset + headerSize + payloadSize;
-                if (childEnd > end) childEnd = end;
+                if (childEnd > end)
+                {
+                    childEnd = end;
+                }
+
                 ParseRiffChunks(reader, fs, srs, childStart, childEnd);
                 fs.Position = childEnd;
 
                 // Pad to even boundary
                 if (payloadSize % 2 != 0 && fs.Position < end)
+                {
                     fs.Position++;
+                }
             }
             else if (fourcc == "SRSF")
             {
@@ -551,7 +600,9 @@ public class SRSFile
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize);
                 fs.Position = payloadStart + payloadSize;
                 if (payloadSize % 2 != 0 && fs.Position < end)
+                {
                     fs.Position++;
+                }
             }
             else if (fourcc == "SRST")
             {
@@ -559,7 +610,9 @@ public class SRSFile
                 srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
                 fs.Position = payloadStart + payloadSize;
                 if (payloadSize % 2 != 0 && fs.Position < end)
+                {
                     fs.Position++;
+                }
             }
             else
             {
@@ -575,7 +628,9 @@ public class SRSFile
 
                 fs.Position = frameOffset + headerSize + payloadSize;
                 if (payloadSize % 2 != 0 && fs.Position < end)
+                {
                     fs.Position++;
+                }
             }
         }
     }
@@ -614,7 +669,10 @@ public class SRSFile
                 byte[] extBytes = reader.ReadBytes(8);
                 totalSize = 0;
                 for (int i = 0; i < 8; i++)
+                {
                     totalSize = (totalSize << 8) | extBytes[i];
+                }
+
                 headerSize = 16;
             }
             else if (size32 == 0)
@@ -627,7 +685,11 @@ public class SRSFile
                 totalSize = size32;
             }
 
-            if (totalSize < headerSize) break;
+            if (totalSize < headerSize)
+            {
+                break;
+            }
+
             long payloadSize = totalSize - headerSize;
             long payloadStart = frameOffset + headerSize;
 
@@ -655,7 +717,11 @@ public class SRSFile
 
                 // Recurse into children
                 long childEnd = frameOffset + totalSize;
-                if (childEnd > end) childEnd = end;
+                if (childEnd > end)
+                {
+                    childEnd = end;
+                }
+
                 ParseMp4Atoms(reader, fs, srs, payloadStart, childEnd);
                 fs.Position = childEnd;
             }
@@ -691,7 +757,11 @@ public class SRSFile
             ulong totalSize = reader.ReadUInt64();
             int headerSize = 24;
 
-            if (totalSize < 24) break;
+            if (totalSize < 24)
+            {
+                break;
+            }
+
             long payloadSize = (long)totalSize - headerSize;
             long payloadStart = fs.Position;
 
@@ -724,15 +794,29 @@ public class SRSFile
 
     private static bool GuidEquals(byte[] a, byte[] b)
     {
-        if (a.Length != b.Length) return false;
+        if (a.Length != b.Length)
+        {
+            return false;
+        }
+
         for (int i = 0; i < a.Length; i++)
-            if (a[i] != b[i]) return false;
+        {
+            if (a[i] != b[i])
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 
     private static string FormatGuid(byte[] guid)
     {
-        if (guid.Length != 16) return BitConverter.ToString(guid);
+        if (guid.Length != 16)
+        {
+            return BitConverter.ToString(guid);
+        }
+
         return new Guid(guid).ToString("D").ToUpperInvariant();
     }
 
@@ -746,8 +830,15 @@ public class SRSFile
         while (fs.Position < fileLength)
         {
             long frameOffset = fs.Position;
-            if (!TryReadVint(fs, out ulong elementId, out int idLen)) break;
-            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadVint(fs, out ulong elementId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             int headerSize = idLen + sizeLen;
             long declaredTotal = headerSize + (long)dataSize;
@@ -818,8 +909,15 @@ public class SRSFile
         while (fs.Position + 2 <= end && fs.Position < fileLength)
         {
             long frameOffset = fs.Position;
-            if (!TryReadVint(fs, out ulong elementId, out int idLen)) break;
-            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadVint(fs, out ulong elementId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             int headerSize = idLen + sizeLen;
             long declaredTotal = headerSize + (long)dataSize;
@@ -868,8 +966,15 @@ public class SRSFile
         while (fs.Position + 2 < end)
         {
             long frameOffset = fs.Position;
-            if (!TryReadVint(fs, out ulong elementId, out int idLen)) break;
-            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadVint(fs, out ulong elementId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             int headerSize = idLen + sizeLen;
             long payloadStart = fs.Position;
@@ -908,7 +1013,10 @@ public class SRSFile
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         // Count leading zeros to determine VINT length
         int mask = 0x80;
@@ -918,14 +1026,22 @@ public class SRSFile
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         // For element IDs, keep the marker bit
         value = (ulong)first;
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
 
@@ -940,7 +1056,10 @@ public class SRSFile
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         int mask = 0x80;
         length = 1;
@@ -949,14 +1068,22 @@ public class SRSFile
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         // For sizes, mask out the marker bit
         value = (ulong)(first & (mask - 1));
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
 

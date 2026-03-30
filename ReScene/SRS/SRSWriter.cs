@@ -90,6 +90,11 @@ public class SRSWriter
     /// <summary>
     /// Creates an SRS file from a sample media file.
     /// </summary>
+    /// <param name="outputPath">The output path for the SRS file.</param>
+    /// <param name="sampleFilePath">The path to the sample media file.</param>
+    /// <param name="options">Optional creation options.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The creation result containing status and track information.</returns>
     public async Task<SrsCreationResult> CreateAsync(
         string outputPath,
         string sampleFilePath,
@@ -102,7 +107,9 @@ public class SRSWriter
         try
         {
             if (!File.Exists(sampleFilePath))
+            {
                 throw new FileNotFoundException("Sample file not found.", sampleFilePath);
+            }
 
             long sampleSize = new FileInfo(sampleFilePath).Length;
 
@@ -113,7 +120,9 @@ public class SRSWriter
 
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
+            {
                 Directory.CreateDirectory(outputDir);
+            }
 
             // Profile the sample to extract tracks and CRC
             ReportProgress("Profiling sample...");
@@ -121,7 +130,9 @@ public class SRSWriter
                 () => ProfileSample(sampleFilePath, containerType, ct), ct);
 
             if (tracks.Count == 0)
+            {
                 throw new InvalidDataException("No A/V track data found. The sample may be corrupted.");
+            }
 
             if (totalSize != sampleSize)
             {
@@ -168,32 +179,45 @@ public class SRSWriter
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         int read = fs.Read(magic);
         if (read < 4)
+        {
             throw new InvalidDataException("File too small to detect container format.");
+        }
 
         // RIFF (AVI)
         if (magic[0] == 'R' && magic[1] == 'I' && magic[2] == 'F' && magic[3] == 'F')
         {
             // Some old MP3s use RIFF container
             if (filePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+            {
                 return SRSContainerType.MP3;
+            }
+
             return SRSContainerType.AVI;
         }
 
         // MKV/EBML
         if (magic[0] == 0x1A && magic[1] == 0x45 && magic[2] == 0xDF && magic[3] == 0xA3)
+        {
             return SRSContainerType.MKV;
+        }
 
         // MP4 (ftyp at offset 4)
         if (read >= 8 && magic[4] == 'f' && magic[5] == 't' && magic[6] == 'y' && magic[7] == 'p')
+        {
             return SRSContainerType.MP4;
+        }
 
         // WMV/ASF
         if (magic[0] == 0x30 && magic[1] == 0x26 && magic[2] == 0xB2 && magic[3] == 0x75)
+        {
             return SRSContainerType.WMV;
+        }
 
         // FLAC
         if (magic[0] == 'f' && magic[1] == 'L' && magic[2] == 'a' && magic[3] == 'C')
+        {
             return SRSContainerType.FLAC;
+        }
 
         // ID3 tag (MP3 or FLAC with ID3v2)
         if (magic[0] == 'I' && magic[1] == 'D' && magic[2] == '3')
@@ -208,6 +232,7 @@ public class SRSWriter
                     check[0] == 'f' && check[1] == 'L' && check[2] == 'a' && check[3] == 'C')
                     return SRSContainerType.FLAC;
             }
+
             return SRSContainerType.MP3;
         }
 
@@ -215,21 +240,29 @@ public class SRSWriter
         // because VOB files can start with 0xFF bytes which falsely match the sync word.
         string ext = Path.GetExtension(filePath).ToLowerInvariant();
         if (ext is ".vob" or ".mpeg" or ".mpg" or ".m2ts" or ".ts" or ".m2v" or ".evo")
+        {
             return SRSContainerType.Stream;
+        }
 
         // MP4/QuickTime without ftyp atom (older MOV files may start with moov/mdat)
         if (ext is ".mov" or ".m4v")
+        {
             return SRSContainerType.MP4;
+        }
 
         // MP3 sync word
         if ((magic[0] & 0xFF) == 0xFF && (magic[1] & 0xE0) == 0xE0)
+        {
             return SRSContainerType.MP3;
+        }
 
         // Last attempt: ID3v1 at end of file for MP3
         fs.Position = Math.Max(0, fs.Length - 128);
         Span<byte> tail = stackalloc byte[3];
         if (fs.Read(tail) == 3 && tail[0] == 'T' && tail[1] == 'A' && tail[2] == 'G')
+        {
             return SRSContainerType.MP3;
+        }
 
         throw new InvalidDataException(
             "Could not detect a supported container format (AVI, MKV, MP4, WMV, FLAC, MP3, STREAM).");
@@ -273,7 +306,9 @@ public class SRSWriter
 
         long totalSize = otherLength;
         foreach (var t in trackMap.Values)
+        {
             totalSize += t.DataLength;
+        }
 
         Span<byte> hash = stackalloc byte[4];
         crc.GetHashAndReset(hash);
@@ -298,7 +333,10 @@ public class SRSWriter
             long chunkStart = fs.Position;
 
             byte[] headerBytes = reader.ReadBytes(8);
-            if (headerBytes.Length < 8) break;
+            if (headerBytes.Length < 8)
+            {
+                break;
+            }
 
             string fourcc = Encoding.ASCII.GetString(headerBytes, 0, 4);
             uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(4));
@@ -316,7 +354,10 @@ public class SRSWriter
                 string listType = Encoding.ASCII.GetString(subType);
 
                 long childEnd = chunkStart + 8 + chunkSize;
-                if (childEnd > end) childEnd = end;
+                if (childEnd > end)
+                {
+                    childEnd = end;
+                }
 
                 ProfileRiffChunks(reader, fs, fs.Position, childEnd, trackMap, ref otherLength, crc, ct);
 
@@ -399,7 +440,9 @@ public class SRSWriter
 
         long totalSize = otherLength;
         foreach (var t in trackMap.Values)
+        {
             totalSize += t.DataLength;
+        }
 
         Span<byte> hash = stackalloc byte[4];
         crc.GetHashAndReset(hash);
@@ -458,8 +501,15 @@ public class SRSWriter
             ct.ThrowIfCancellationRequested();
             long elemStart = fs.Position;
 
-            if (!TryReadEbmlId(fs, out ulong elemId, out int idLen)) break;
-            if (!TryReadEbmlSize(fs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadEbmlId(fs, out ulong elemId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadEbmlSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             int headerSize = idLen + sizeLen;
             long dataStart = fs.Position;
@@ -493,6 +543,7 @@ public class SRSWriter
                     fs.Position = elemEnd;
                     continue;
                 }
+
                 int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode + flags
                 if (dataStart + blockHeaderBase > elemEnd)
                 {
@@ -587,7 +638,10 @@ public class SRSWriter
                     // Parse track number (big-endian unsigned int)
                     int trackNumber = 0;
                     for (int i = 0; i < data.Length; i++)
+                    {
                         trackNumber = (trackNumber << 8) | data[i];
+                    }
+
                     state.CurrentTrackNumber = trackNumber;
 
                     if (!trackMap.ContainsKey(trackNumber))
@@ -608,12 +662,15 @@ public class SRSWriter
 
                     int algorithm = 0;
                     for (int i = 0; i < data.Length; i++)
+                    {
                         algorithm = (algorithm << 8) | data[i];
+                    }
 
                     if (trackMap.TryGetValue(state.CurrentTrackNumber, out var track))
                     {
                         track.CompressionAlgorithm = algorithm;
                     }
+
                     state.HeaderStrippingDetected = algorithm == 3;
                 }
             }
@@ -719,7 +776,10 @@ public class SRSWriter
             long atomStart = fs.Position;
 
             byte[] header = new byte[8];
-            if (fs.Read(header, 0, 8) < 8) break;
+            if (fs.Read(header, 0, 8) < 8)
+            {
+                break;
+            }
 
             uint size32 = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0, 4));
             string type = Encoding.ASCII.GetString(header, 4, 4);
@@ -731,7 +791,11 @@ public class SRSWriter
             {
                 // Extended 64-bit size
                 byte[] ext = new byte[8];
-                if (fs.Read(ext, 0, 8) < 8) break;
+                if (fs.Read(ext, 0, 8) < 8)
+                {
+                    break;
+                }
+
                 totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(ext);
                 headerSize = 16;
 
@@ -753,10 +817,17 @@ public class SRSWriter
                 crc.Append(header);
             }
 
-            if (totalSize < headerSize) break;
+            if (totalSize < headerSize)
+            {
+                break;
+            }
+
             long payloadSize = totalSize - headerSize;
             long atomEnd = atomStart + totalSize;
-            if (atomEnd > end) atomEnd = end;
+            if (atomEnd > end)
+            {
+                atomEnd = end;
+            }
 
             if (type == "mdat")
             {
@@ -774,7 +845,11 @@ public class SRSWriter
                 {
                     int toRead = (int)Math.Min(buffer.Length, dataRemaining - bytesRead);
                     int actualRead = fs.Read(buffer, 0, toRead);
-                    if (actualRead <= 0) break;
+                    if (actualRead <= 0)
+                    {
+                        break;
+                    }
+
                     crc.Append(buffer.AsSpan(0, actualRead));
 
                     // Build signature for track 1 if we haven't from stbl parsing
@@ -786,6 +861,7 @@ public class SRSWriter
                             track = new TrackInfo { TrackNumber = trackNum };
                             trackMap[trackNum] = track;
                         }
+
                         if (track.SignatureBytes.Length < SignatureSize)
                         {
                             int need = SignatureSize - track.SignatureBytes.Length;
@@ -858,17 +934,26 @@ public class SRSWriter
             long objStart = fs.Position;
 
             byte[] header = new byte[24];
-            if (fs.Read(header, 0, 24) < 24) break;
+            if (fs.Read(header, 0, 24) < 24)
+            {
+                break;
+            }
 
             ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(16));
-            if (objSize < 24) break;
+            if (objSize < 24)
+            {
+                break;
+            }
 
             totalLength += 24;
             crc.Append(header);
 
             long dataSize = (long)objSize - 24;
             long objEnd = objStart + (long)objSize;
-            if (objEnd > fs.Length) objEnd = fs.Length;
+            if (objEnd > fs.Length)
+            {
+                objEnd = fs.Length;
+            }
 
             // Check if this is the Data Object (GUID: 3626B2758E66CF11A6D900AA0062CE6C)
             bool isDataObject = header[0] == 0x36 && header[1] == 0x26 && header[2] == 0xB2 && header[3] == 0x75;
@@ -909,6 +994,7 @@ public class SRSWriter
                             track = new TrackInfo { TrackNumber = streamNum };
                             trackMap[streamNum] = track;
                         }
+
                         track.DataLength += packetSize;
 
                         if (track.SignatureBytes.Length < SignatureSize)
@@ -1034,7 +1120,11 @@ public class SRSWriter
                     {
                         int toRead = (int)Math.Min(buffer.Length, remaining - totalRead);
                         int actualRead = fs.Read(buffer, 0, toRead);
-                        if (actualRead <= 0) break;
+                        if (actualRead <= 0)
+                        {
+                            break;
+                        }
+
                         crc.Append(buffer.AsSpan(0, actualRead));
 
                         if (track.SignatureBytes.Length < SignatureSize)
@@ -1050,6 +1140,7 @@ public class SRSWriter
                         totalRead += actualRead;
                     }
                 }
+
                 break;
             }
         }
@@ -1090,7 +1181,11 @@ public class SRSWriter
             ct.ThrowIfCancellationRequested();
             int toRead = (int)Math.Min(buffer.Length, fileLen - totalRead);
             int actualRead = fs.Read(buffer, 0, toRead);
-            if (actualRead <= 0) break;
+            if (actualRead <= 0)
+            {
+                break;
+            }
+
             crc.Append(buffer.AsSpan(0, actualRead));
 
             // Build signature from audio data
@@ -1145,7 +1240,11 @@ public class SRSWriter
             ct.ThrowIfCancellationRequested();
             int toRead = (int)Math.Min(buffer.Length, fileLen - totalRead);
             int actualRead = fs.Read(buffer, 0, toRead);
-            if (actualRead <= 0) break;
+            if (actualRead <= 0)
+            {
+                break;
+            }
+
             crc.Append(buffer.AsSpan(0, actualRead));
 
             if (track.SignatureBytes.Length < SignatureSize)
@@ -1236,7 +1335,10 @@ public class SRSWriter
             long chunkStart = inFs.Position;
 
             byte[] header = reader.ReadBytes(8);
-            if (header.Length < 8) break;
+            if (header.Length < 8)
+            {
+                break;
+            }
 
             string fourcc = Encoding.ASCII.GetString(header, 0, 4);
             uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4));
@@ -1254,12 +1356,18 @@ public class SRSWriter
                 {
                     WriteSrsfRiff(outFs, samplePath, sampleSize, sampleCrc32, options);
                     foreach (var track in tracks)
+                    {
                         WriteSrstRiff(outFs, track, sampleSize >= 0x80000000);
+                    }
+
                     moviInjected = true;
                 }
 
                 long childEnd = chunkStart + 8 + chunkSize;
-                if (childEnd > end) childEnd = end;
+                if (childEnd > end)
+                {
+                    childEnd = end;
+                }
 
                 WriteRiffSrs(outFs, reader, inFs, inFs.Position, childEnd,
                     tracks, samplePath, sampleSize, sampleCrc32, options, moviInjected, ct);
@@ -1314,7 +1422,10 @@ public class SRSWriter
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);
         outFs.Write(sizeBytes);
         outFs.Write(payload);
-        if (payload.Length % 2 != 0) outFs.WriteByte(0);
+        if (payload.Length % 2 != 0)
+        {
+            outFs.WriteByte(0);
+        }
     }
 
     private static void WriteSrstRiff(Stream outFs, TrackInfo track, bool bigFile)
@@ -1325,7 +1436,10 @@ public class SRSWriter
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);
         outFs.Write(sizeBytes);
         outFs.Write(payload);
-        if (payload.Length % 2 != 0) outFs.WriteByte(0);
+        if (payload.Length % 2 != 0)
+        {
+            outFs.WriteByte(0);
+        }
     }
 
     // ==================== MKV SRS ====================
@@ -1368,8 +1482,15 @@ public class SRSWriter
             ct.ThrowIfCancellationRequested();
             long elemStart = inFs.Position;
 
-            if (!TryReadEbmlId(inFs, out ulong elemId, out int idLen)) break;
-            if (!TryReadEbmlSize(inFs, out ulong dataSize, out int sizeLen)) break;
+            if (!TryReadEbmlId(inFs, out ulong elemId, out int idLen))
+            {
+                break;
+            }
+
+            if (!TryReadEbmlSize(inFs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
 
             int headerSize = idLen + sizeLen;
             long dataStart = inFs.Position;
@@ -1491,7 +1612,9 @@ public class SRSWriter
         outFs.Write(resampleHeader);
         outFs.Write(srsfElement);
         foreach (var te in trackElements)
+        {
             outFs.Write(te);
+        }
     }
 
     // ==================== MP4 SRS ====================
@@ -1535,29 +1658,47 @@ public class SRSWriter
                 totalSize = size32;
             }
 
-            if (totalSize < headerSize) break;
+            if (totalSize < headerSize)
+            {
+                break;
+            }
+
             long atomEnd = atomStart + totalSize;
-            if (atomEnd > inFs.Length) atomEnd = inFs.Length;
+            if (atomEnd > inFs.Length)
+            {
+                atomEnd = inFs.Length;
+            }
 
             if (type == "mdat")
             {
                 // Inject SRSF/SRST before mdat
                 WriteSrsfMov(outFs, samplePath, sampleSize, sampleCrc32, options);
                 foreach (var track in tracks)
+                {
                     WriteSrstMov(outFs, track, sampleSize >= 0x80000000);
+                }
 
                 // Write mdat header only (skip stream data)
                 outFs.Write(header);
-                if (extHeader != null) outFs.Write(extHeader);
+                if (extHeader != null)
+                {
+                    outFs.Write(extHeader);
+                }
             }
             else
             {
                 // Copy atom verbatim
                 outFs.Write(header);
-                if (extHeader != null) outFs.Write(extHeader);
+                if (extHeader != null)
+                {
+                    outFs.Write(extHeader);
+                }
+
                 long payloadSize = atomEnd - inFs.Position;
                 if (payloadSize > 0)
+                {
                     CopyStream(inFs, outFs, payloadSize);
+                }
             }
 
             inFs.Position = atomEnd;
@@ -1607,10 +1748,16 @@ public class SRSWriter
             inFs.ReadExactly(header, 0, 24);
 
             ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(16));
-            if (objSize < 24) break;
+            if (objSize < 24)
+            {
+                break;
+            }
 
             long objEnd = objStart + (long)objSize;
-            if (objEnd > inFs.Length) objEnd = inFs.Length;
+            if (objEnd > inFs.Length)
+            {
+                objEnd = inFs.Length;
+            }
 
             // Check if Data Object
             bool isDataObject = header[0] == 0x36 && header[1] == 0x26 && header[2] == 0xB2 && header[3] == 0x75;
@@ -1652,14 +1799,18 @@ public class SRSWriter
                 // Inject SRSF/SRST after data object
                 WriteSrsfAsf(outFs, samplePath, sampleSize, sampleCrc32, options);
                 foreach (var track in tracks)
+                {
                     WriteSrstAsf(outFs, track, sampleSize >= 0x80000000);
+                }
             }
             else
             {
                 // Copy object verbatim
                 long remaining = objEnd - inFs.Position;
                 if (remaining > 0)
+                {
                     CopyStream(inFs, outFs, remaining);
+                }
             }
 
             inFs.Position = objEnd;
@@ -1719,7 +1870,9 @@ public class SRSWriter
         // Inject SRSF/SRST right after fLaC marker
         WriteSrsfFlac(outFs, samplePath, sampleSize, sampleCrc32, options);
         foreach (var track in tracks)
+        {
             WriteSrstFlac(outFs, track, sampleSize >= 0x80000000);
+        }
 
         // Copy metadata blocks, skip frame data
         while (inFs.Position + 4 <= inFs.Length)
@@ -1799,7 +1952,9 @@ public class SRSWriter
         // Write SRSF/SRST blocks (replaces audio data)
         WriteSrsfMp3(outFs, samplePath, sampleSize, sampleCrc32, options);
         foreach (var track in tracks)
+        {
             WriteSrstMp3(outFs, track, sampleSize >= 0x80000000);
+        }
 
         // Copy all footer tags (APE, Lyrics3, ID3v1 etc.) verbatim
         long footerSize = inFs.Length - audioEnd;
@@ -1852,7 +2007,9 @@ public class SRSWriter
 
         // Write SRST blocks
         foreach (var track in tracks)
+        {
             WriteSrstMp3(outFs, track, sampleSize >= 0x80000000);
+        }
     }
 
     #endregion
@@ -1904,8 +2061,15 @@ public class SRSWriter
         ushort flags = 0;
         bool bigTrackNumber = track.TrackNumber >= 65536;
 
-        if (bigFile) flags |= 0x4;
-        if (bigTrackNumber) flags |= 0x8;
+        if (bigFile)
+        {
+            flags |= 0x4;
+        }
+
+        if (bigTrackNumber)
+        {
+            flags |= 0x8;
+        }
 
         int trackNumSize = bigTrackNumber ? 4 : 2;
         int dataLenSize = bigFile ? 8 : 4;
@@ -1959,7 +2123,10 @@ public class SRSWriter
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         int mask = 0x80;
         length = 1;
@@ -1968,15 +2135,24 @@ public class SRSWriter
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         value = (ulong)first;
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
+
         return true;
     }
 
@@ -1985,7 +2161,10 @@ public class SRSWriter
         value = 0;
         length = 0;
         int first = stream.ReadByte();
-        if (first < 0) return false;
+        if (first < 0)
+        {
+            return false;
+        }
 
         int mask = 0x80;
         length = 1;
@@ -1994,15 +2173,24 @@ public class SRSWriter
             mask >>= 1;
             length++;
         }
-        if (length > 8) return false;
+
+        if (length > 8)
+        {
+            return false;
+        }
 
         value = (ulong)(first & (mask - 1));
         for (int i = 1; i < length; i++)
         {
             int b = stream.ReadByte();
-            if (b < 0) return false;
+            if (b < 0)
+            {
+                return false;
+            }
+
             value = (value << 8) | (uint)b;
         }
+
         return true;
     }
 
@@ -2019,10 +2207,25 @@ public class SRSWriter
     private static byte[] MakeEbmlUInt(long value)
     {
         // Encode value as EBML variable-length unsigned integer (size descriptor)
-        if (value < 0x7F) return [(byte)(0x80 | value)];
-        if (value < 0x3FFF) return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        if (value < 0x1FFFFF) return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-        if (value < 0x0FFFFFFF) return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        if (value < 0x7F)
+        {
+            return [(byte)(0x80 | value)];
+        }
+
+        if (value < 0x3FFF)
+        {
+            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
+        }
+
+        if (value < 0x1FFFFF)
+        {
+            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        }
+
+        if (value < 0x0FFFFFFF)
+        {
+            return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        }
 
         // 5+ bytes
         var result = new List<byte>();
@@ -2037,7 +2240,9 @@ public class SRSWriter
         byte marker = (byte)(1 << (8 - width));
         result.Add((byte)(marker | (byte)(value >> ((width - 1) * 8))));
         for (int i = width - 2; i >= 0; i--)
+        {
             result.Add((byte)((value >> (i * 8)) & 0xFF));
+        }
 
         return result.ToArray();
     }
@@ -2045,9 +2250,21 @@ public class SRSWriter
     private static byte[] MakeEbmlId(ulong id)
     {
         // Encode element ID as big-endian bytes (preserve marker bit)
-        if (id < 0x100) return [(byte)id];
-        if (id < 0x10000) return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        if (id < 0x1000000) return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        if (id < 0x100)
+        {
+            return [(byte)id];
+        }
+
+        if (id < 0x10000)
+        {
+            return [(byte)(id >> 8), (byte)(id & 0xFF)];
+        }
+
+        if (id < 0x1000000)
+        {
+            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        }
+
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
@@ -2078,24 +2295,40 @@ public class SRSWriter
 
     private static byte[] ReadExactly(BinaryReader reader, int count)
     {
-        if (count <= 0) return [];
+        if (count <= 0)
+        {
+            return [];
+        }
+
         byte[] data = reader.ReadBytes(count);
         return data;
     }
 
     private static byte[] ReadExactly(Stream stream, int count)
     {
-        if (count <= 0) return [];
+        if (count <= 0)
+        {
+            return [];
+        }
+
         byte[] buffer = new byte[count];
         int totalRead = 0;
         while (totalRead < count)
         {
             int read = stream.Read(buffer, totalRead, count - totalRead);
-            if (read <= 0) break;
+            if (read <= 0)
+            {
+                break;
+            }
+
             totalRead += read;
         }
+
         if (totalRead < count)
+        {
             Array.Resize(ref buffer, totalRead);
+        }
+
         return buffer;
     }
 
@@ -2107,7 +2340,11 @@ public class SRSWriter
         {
             int toRead = (int)Math.Min(buffer.Length, remaining);
             int read = source.Read(buffer, 0, toRead);
-            if (read <= 0) break;
+            if (read <= 0)
+            {
+                break;
+            }
+
             destination.Write(buffer, 0, read);
             remaining -= read;
         }

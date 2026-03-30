@@ -156,6 +156,7 @@ public class BitInput
         {
             return 0;
         }
+
         return InBuf[InAddr++];
     }
 }

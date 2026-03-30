@@ -43,7 +43,9 @@ public class Unpack29
     private static void InitStaticTables()
     {
         if (_tablesInitialized)
+        {
             return;
+        }
 
         int dist = 0, bitLength = 0, slot = 0;
         for (int i = 0; i < DBitLengthCounts.Length; i++, bitLength++)
@@ -78,7 +80,9 @@ public class Unpack29
     public byte[]? Decompress(byte[] srcData, int destSize)
     {
         if (srcData == null || srcData.Length == 0 || destSize <= 0)
+        {
             return null;
+        }
 
         // Initialize window (64KB for comments)
         _winSize = 0x10000; // 64KB
@@ -100,7 +104,9 @@ public class Unpack29
 
         // Read Huffman tables (determines LZ or PPM mode)
         if (!ReadTables30())
+        {
             return null;
+        }
 
         // Decompress
         byte[] result = new byte[destSize];
@@ -111,21 +117,27 @@ public class Unpack29
             // Check for buffer exhaustion - use actual length, not 30-byte margin
             // BitInput.GetBits() handles bounds checking and returns 0 if past end
             if (_inp.InAddr >= srcData.Length)
+            {
                 break;
+            }
 
             if (_blockType == BlockType.PPM)
             {
                 // PPM decompression
                 destPtr = DecompressPPM(result, destPtr, destSize);
                 if (destPtr < 0)
+                {
                     return null;
+                }
             }
             else
             {
                 // LZ decompression
                 destPtr = DecompressLZ(result, destPtr, destSize, srcData.Length);
                 if (destPtr < 0)
+                {
                     return null;
+                }
             }
         }
 
@@ -135,7 +147,9 @@ public class Unpack29
     private int DecompressPPM(byte[] result, int destPtr, int destSize)
     {
         if (_ppm == null)
+        {
             return -1;
+        }
 
         while (destPtr < destSize)
         {
@@ -152,25 +166,33 @@ public class Unpack29
             {
                 int nextCh = _ppm.DecodeChar();
                 if (nextCh < 0)
+                {
                     return -1;
+                }
 
                 if (nextCh == 0)
                 {
                     // End of PPM encoding - read new tables
                     if (!ReadTables30())
+                    {
                         return -1;
+                    }
+
                     break;
                 }
+
                 if (nextCh == 2)
                 {
                     // End of file
                     return destPtr;
                 }
+
                 if (nextCh == 3)
                 {
                     // VM code - skip (not needed for comments)
                     continue;
                 }
+
                 if (nextCh == 4)
                 {
                     // LZ inside PPM
@@ -178,20 +200,34 @@ public class Unpack29
                     for (int i = 0; i < 3; i++)
                     {
                         int b = _ppm.DecodeChar();
-                        if (b < 0) return -1;
+                        if (b < 0)
+                        {
+                            return -1;
+                        }
+
                         distance = (distance << 8) | b;
                     }
+
                     int lengthByte = _ppm.DecodeChar();
-                    if (lengthByte < 0) return -1;
+                    if (lengthByte < 0)
+                    {
+                        return -1;
+                    }
+
                     int length = lengthByte + 32;
                     destPtr = CopyString(result, destPtr, destSize, length, distance + 2);
                     continue;
                 }
+
                 if (nextCh == 5)
                 {
                     // RLE inside PPM
                     int length = _ppm.DecodeChar();
-                    if (length < 0) return -1;
+                    if (length < 0)
+                    {
+                        return -1;
+                    }
+
                     destPtr = CopyString(result, destPtr, destSize, length + 4, 1);
                     continue;
                 }
@@ -212,7 +248,9 @@ public class Unpack29
         {
             // Check for buffer exhaustion - BitInput handles bounds checking
             if (_inp.InAddr >= srcLength)
+            {
                 break;
+            }
 
             uint number = HuffmanDecoder.DecodeNumber(_inp, _tables.LD);
 
@@ -249,6 +287,7 @@ public class Unpack29
                             distance += (int)((_inp.GetBits() >> (20 - bits)) << 4);
                             _inp.AddBits(bits - 4);
                         }
+
                         if (_lowDistRepCount > 0)
                         {
                             _lowDistRepCount--;
@@ -281,7 +320,9 @@ public class Unpack29
                 {
                     length++;
                     if (distance >= 0x40000)
+                    {
                         length++;
+                    }
                 }
 
                 InsertOldDist(distance);
@@ -296,7 +337,10 @@ public class Unpack29
             {
                 // End of block - read new tables or end
                 if (!ReadEndOfBlock())
+                {
                     return destPtr;
+                }
+
                 continue;
             }
 
@@ -311,7 +355,10 @@ public class Unpack29
             {
                 // Repeat last match
                 if (_lastLength != 0)
+                {
                     destPtr = CopyString(result, destPtr, destSize, _lastLength, _oldDist[0]);
+                }
+
                 continue;
             }
 
@@ -323,7 +370,10 @@ public class Unpack29
 
                 // Shift old distances
                 for (int i = distNum; i > 0; i--)
+                {
                     _oldDist[i] = _oldDist[i - 1];
+                }
+
                 _oldDist[0] = distance;
 
                 uint lengthNumber = HuffmanDecoder.DecodeNumber(_inp, _tables.RD);
@@ -407,7 +457,9 @@ public class Unpack29
             int offset = 0;
             int escChar = _ppmEscChar;
             if (!_ppm.DecodeInit(remainingData, ref offset, ref escChar))
+            {
                 return false;
+            }
 
             _ppmEscChar = escChar;
             _inp.InAddr += offset;
@@ -421,7 +473,9 @@ public class Unpack29
 
         // Check if we should reset old table
         if ((bitField & 0x4000) == 0)
+        {
             Array.Clear(_unpOldTable);
+        }
 
         _inp.AddBits(2);
 
@@ -445,7 +499,10 @@ public class Unpack29
                 {
                     zeroCount += 2;
                     while (zeroCount-- > 0 && i < bitLength.Length)
+                    {
                         bitLength[i++] = 0;
+                    }
+
                     i--;
                 }
             }
@@ -483,7 +540,9 @@ public class Unpack29
                 }
 
                 if (i == 0)
+                {
                     return false; // Cannot repeat at position 0
+                }
 
                 while (n-- > 0 && i < PackDef.HuffTableSize30)
                 {
@@ -506,7 +565,9 @@ public class Unpack29
                 }
 
                 while (n-- > 0 && i < PackDef.HuffTableSize30)
+                {
                     table[i++] = 0;
+                }
             }
         }
 

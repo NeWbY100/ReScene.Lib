@@ -10,6 +10,8 @@ public class CRC32
     /// <summary>
     /// Calculates the CRC32 hash of a file, returning the result as a lowercase hex string.
     /// </summary>
+    /// <param name="filePath">The path to the file to hash.</param>
+    /// <returns>The CRC32 hash as a lowercase 8-character hex string.</returns>
     public static string Calculate(string filePath)
         => Calculate(filePath, null, CancellationToken.None);
 
@@ -28,20 +30,18 @@ public class CRC32
         }
 
         uint hash = 0;
-        byte[] buffer = new byte[1048576 * 32]; // 32MB buffer
+        byte[] buffer = new byte[32 * 1024 * 1024];
         long totalBytesRead = 0;
 
-        using (FileStream entryStream = File.OpenRead(filePath))
-        {
-            int currentBlockSize = 0;
+        using FileStream entryStream = File.OpenRead(filePath);
+        int currentBlockSize = 0;
 
-            while ((currentBlockSize = entryStream.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                hash = Crc32Algorithm.Append(hash, buffer, 0, currentBlockSize);
-                totalBytesRead += currentBlockSize;
-                onProgress?.Invoke(totalBytesRead);
-            }
+        while ((currentBlockSize = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            hash = Crc32Algorithm.Append(hash, buffer, 0, currentBlockSize);
+            totalBytesRead += currentBlockSize;
+            onProgress?.Invoke(totalBytesRead);
         }
 
         return hash.ToString("x8");

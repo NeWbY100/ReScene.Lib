@@ -31,6 +31,10 @@ public class RARCommandLineArgument(string argument, int minimumVersion, RARArch
     /// <summary>
     /// Initializes a new instance with the specified argument, version range, and optional archive version.
     /// </summary>
+    /// <param name="argument">The command-line argument string.</param>
+    /// <param name="minimumVersion">The minimum RAR version that supports this argument.</param>
+    /// <param name="maximumVersion">The maximum RAR version that supports this argument.</param>
+    /// <param name="archiveVersion">The required archive format version, if any.</param>
     public RARCommandLineArgument(string argument, int minimumVersion, int maximumVersion, RARArchiveVersion? archiveVersion = null)
         : this(argument, minimumVersion, archiveVersion)
     {

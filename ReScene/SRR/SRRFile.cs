@@ -323,7 +323,10 @@ public class SRRFile
 
         while (fs.Position < fs.Length)
         {
-            if (fs.Position + 7 > fs.Length) break;
+            if (fs.Position + 7 > fs.Length)
+            {
+                break;
+            }
 
             long startPos = fs.Position;
             ushort crc = reader.ReadUInt16();
@@ -344,14 +347,24 @@ public class SRRFile
             uint addSize = 0;
             if ((flags & (ushort)SRRBlockFlags.LongBlock) != 0 || type == SRRBlockType.StoredFile)
             {
-                if (fs.Position + 4 > fs.Length) break;
+                if (fs.Position + 4 > fs.Length)
+                {
+                    break;
+                }
+
                 addSize = reader.ReadUInt32();
             }
 
-            if (headerSize < 7) break;
+            if (headerSize < 7)
+            {
+                break;
+            }
 
             long blockEndPos = startPos + headerSize + addSize;
-            if (blockEndPos <= startPos || blockEndPos > fs.Length) break;
+            if (blockEndPos <= startPos || blockEndPos > fs.Length)
+            {
+                break;
+            }
 
             switch (type)
             {
@@ -362,7 +375,11 @@ public class SRRFile
 
                 case SRRBlockType.StoredFile:
                     var storedBlock = ParseStoredFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
-                    if (storedBlock == null) goto exitLoop;
+                    if (storedBlock == null)
+                    {
+                        goto exitLoop;
+                    }
+
                     srr.StoredFiles.Add(storedBlock);
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
@@ -370,20 +387,30 @@ public class SRRFile
                 case SRRBlockType.OsoHash:
                     var osoBlock = ParseOsoHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
                     if (osoBlock != null)
+                    {
                         srr.OsoHashBlocks.Add(osoBlock);
+                    }
+
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
 
                 case SRRBlockType.RarPadding:
                     var paddingBlock = ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (paddingBlock != null)
+                    {
                         srr.RarPaddingBlocks.Add(paddingBlock);
+                    }
+
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
 
                 case SRRBlockType.RarFile:
                     var rarBlock = ParseRarFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
-                    if (rarBlock == null) goto exitLoop;
+                    if (rarBlock == null)
+                    {
+                        goto exitLoop;
+                    }
+
                     srr.RarFiles.Add(rarBlock);
 
                     // Parse embedded RAR headers that follow
@@ -392,6 +419,7 @@ public class SRRFile
                     {
                         srr.RarVolumeSizes.Add(volumeTotalSize);
                     }
+
                     break;
 
                 default:
@@ -400,6 +428,7 @@ public class SRRFile
                     break;
             }
         }
+
     exitLoop:
 
         srr.CalculateVolumeSizeBytes();
@@ -447,14 +476,24 @@ public class SRRFile
         long headerEnd = startPos + headerSize;
 
         // OSO hash block format (pyrescene order): 8 bytes file size + 8 bytes hash + 2 bytes name length + name
-        if (fs.Position + 18 > headerEnd) return null;
+        if (fs.Position + 18 > headerEnd)
+        {
+            return null;
+        }
 
         ulong fileSize = reader.ReadUInt64();
         byte[] osoHash = reader.ReadBytes(8);
 
-        if (fs.Position + 2 > headerEnd) return null;
+        if (fs.Position + 2 > headerEnd)
+        {
+            return null;
+        }
+
         ushort nameLen = reader.ReadUInt16();
-        if (fs.Position + nameLen > headerEnd || nameLen == 0) return null;
+        if (fs.Position + nameLen > headerEnd || nameLen == 0)
+        {
+            return null;
+        }
 
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
@@ -478,10 +517,16 @@ public class SRRFile
         long headerEnd = startPos + headerSize;
 
         // RAR padding block format: 2 bytes name length + RAR filename
-        if (fs.Position + 2 > headerEnd) return null;
+        if (fs.Position + 2 > headerEnd)
+        {
+            return null;
+        }
 
         ushort nameLen = reader.ReadUInt16();
-        if (fs.Position + nameLen > headerEnd) return null;
+        if (fs.Position + nameLen > headerEnd)
+        {
+            return null;
+        }
 
         string rarFileName = string.Empty;
         if (nameLen > 0)
@@ -507,20 +552,36 @@ public class SRRFile
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         const int minStoredHeaderSize = 7 + 4 + 2;
-        if (headerSize < minStoredHeaderSize) return null;
+        if (headerSize < minStoredHeaderSize)
+        {
+            return null;
+        }
 
         long headerEnd = startPos + headerSize;
-        if (headerEnd <= startPos || headerEnd > fs.Length) return null;
+        if (headerEnd <= startPos || headerEnd > fs.Length)
+        {
+            return null;
+        }
 
-        if (fs.Position + 2 > headerEnd) return null;
+        if (fs.Position + 2 > headerEnd)
+        {
+            return null;
+        }
+
         ushort nameLen = reader.ReadUInt16();
-        if (fs.Position + nameLen > headerEnd || fs.Position + nameLen > fs.Length) return null;
+        if (fs.Position + nameLen > headerEnd || fs.Position + nameLen > fs.Length)
+        {
+            return null;
+        }
 
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
 
         long dataOffset = startPos + headerSize;
-        if (dataOffset < startPos || dataOffset > fs.Length) return null;
+        if (dataOffset < startPos || dataOffset > fs.Length)
+        {
+            return null;
+        }
 
         return new SrrStoredFileBlock
         {
@@ -540,7 +601,10 @@ public class SRRFile
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         ushort nameLen = reader.ReadUInt16();
-        if (fs.Position + nameLen > fs.Length) return null;
+        if (fs.Position + nameLen > fs.Length)
+        {
+            return null;
+        }
 
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
@@ -571,7 +635,9 @@ public class SRRFile
     private static bool IsRar5Marker(FileStream fs)
     {
         if (fs.Position + 8 > fs.Length)
+        {
             return false;
+        }
 
         long pos = fs.Position;
         byte[] marker = new byte[8];
@@ -592,8 +658,15 @@ public class SRRFile
         {
             // Check if we've hit another SRR block
             byte? peekType = rarReader.PeekBlockType();
-            if (peekType == null) break;
-            if (IsSrrBlockType(peekType.Value)) break;
+            if (peekType == null)
+            {
+                break;
+            }
+
+            if (IsSrrBlockType(peekType.Value))
+            {
+                break;
+            }
 
             // Read the RAR block
             var block = rarReader.ReadBlock(parseContents: true);
@@ -653,9 +726,15 @@ public class SRRFile
         {
             // Check if we've hit another SRR block (RAR5 block types are 0-5, SRR blocks are 0x69-0x71)
             byte? peekType = rarReader.PeekBlockType();
-            if (peekType == null) break;
+            if (peekType == null)
+            {
+                break;
+            }
             // SRR blocks have types in 0x69-0x71 range, RAR5 blocks are 0-5
-            if (peekType.Value >= 0x69 && peekType.Value <= 0x71) break;
+            if (peekType.Value >= 0x69 && peekType.Value <= 0x71)
+            {
+                break;
+            }
 
             // Read the RAR5 block
             var block = rarReader.ReadBlock();
@@ -704,7 +783,9 @@ public class SRRFile
                 // For file blocks in SRR, only skip header (data is not present)
                 long target = block.BlockPosition + (long)block.HeaderSize;
                 if (target <= fs.Length)
+                {
                     fs.Position = target;
+                }
             }
         }
 
@@ -856,7 +937,9 @@ public class SRRFile
             // Get the uncompressed size from the service block info
             int uncompressedSize = (int)serviceInfo.UnpackedSize;
             if (uncompressedSize <= 0 || uncompressedSize > 1024 * 1024) // Sanity check: max 1MB
+            {
                 return (null, null);
+            }
 
             // Use native decompressor to get raw bytes
             byte[]? rawBytes = RARDecompressor.DecompressCommentBytes(
@@ -866,7 +949,9 @@ public class SRRFile
                 isRAR5: false); // SRR files typically use RAR4 format
 
             if (rawBytes == null)
+            {
                 return (null, null);
+            }
 
             // Convert bytes to string for display (with TrimEnd for readability)
             string? comment = null;
@@ -916,8 +1001,15 @@ public class SRRFile
         {
             // RAR5 uses split before/after flags in header flags, not file flags
             var flags = RARFileFlags.None;
-            if (info.IsSplitBefore) flags |= RARFileFlags.SplitBefore;
-            if (info.IsSplitAfter) flags |= RARFileFlags.SplitAfter;
+            if (info.IsSplitBefore)
+            {
+                flags |= RARFileFlags.SplitBefore;
+            }
+
+            if (info.IsSplitAfter)
+            {
+                flags |= RARFileFlags.SplitAfter;
+            }
 
             // Convert Unix timestamp to DateTime if present
             DateTime? modifiedTime = null;
@@ -994,7 +1086,9 @@ public class SRRFile
             // Get the uncompressed size from the service block info
             int uncompressedSize = (int)serviceInfo.UnpackedSize;
             if (uncompressedSize <= 0 || uncompressedSize > 1024 * 1024) // Sanity check: max 1MB
+            {
                 return (null, null);
+            }
 
             // Map RAR5 method to RARMethod enum (RAR5 method 0=store, 1-5=compression)
             byte method = (byte)(serviceInfo.CompressionMethod == 0 ? 0x30 : 0x30 + serviceInfo.CompressionMethod);
@@ -1007,7 +1101,9 @@ public class SRRFile
                 isRAR5: true);
 
             if (rawBytes == null)
+            {
                 return (null, null);
+            }
 
             // Convert bytes to string for display (with TrimEnd for readability)
             string? comment = null;
@@ -1037,7 +1133,10 @@ public class SRRFile
         DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)
     {
         string? normalized = NormalizeArchivePath(rawName);
-        if (string.IsNullOrEmpty(normalized)) return;
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return;
+        }
 
         if (isDirectory)
         {
@@ -1079,40 +1178,66 @@ public class SRRFile
     private void SetDirectoryTimes(string path, DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)
     {
         if (modifiedTime.HasValue)
+        {
             ArchivedDirectoryTimestamps[path] = modifiedTime.Value;
+        }
+
         if (creationTime.HasValue)
+        {
             ArchivedDirectoryCreationTimes[path] = creationTime.Value;
+        }
+
         if (accessTime.HasValue)
+        {
             ArchivedDirectoryAccessTimes[path] = accessTime.Value;
+        }
     }
 
     private void SetFileTimes(string path, DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime, bool overwrite)
     {
         if (modifiedTime.HasValue && (overwrite || !ArchivedFileTimestamps.ContainsKey(path)))
+        {
             ArchivedFileTimestamps[path] = modifiedTime.Value;
+        }
+
         if (creationTime.HasValue && (overwrite || !ArchivedFileCreationTimes.ContainsKey(path)))
+        {
             ArchivedFileCreationTimes[path] = creationTime.Value;
+        }
+
         if (accessTime.HasValue && (overwrite || !ArchivedFileAccessTimes.ContainsKey(path)))
+        {
             ArchivedFileAccessTimes[path] = accessTime.Value;
+        }
     }
 
     private static string? NormalizeArchivePath(string path)
     {
         string normalized = path.Trim();
-        if (normalized.Length == 0) return null;
+        if (normalized.Length == 0)
+        {
+            return null;
+        }
 
         normalized = normalized.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
         while (normalized.StartsWith("." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
         {
             normalized = normalized[2..];
         }
+
         normalized = normalized.TrimStart(Path.DirectorySeparatorChar).TrimEnd(Path.DirectorySeparatorChar);
-        if (normalized.Length == 0) return null;
+        if (normalized.Length == 0)
+        {
+            return null;
+        }
 
         string[] parts = normalized.Split(Path.DirectorySeparatorChar);
         foreach (string part in parts)
         {
-            if (part == "." || part == "..") return null;
+            if (part == "." || part == "..")
+            {
+                return null;
+            }
         }
 
         return normalized;
@@ -1120,7 +1245,10 @@ public class SRRFile
 
     private void CalculateVolumeSizeBytes()
     {
-        if (RarVolumeSizes.Count == 0) return;
+        if (RarVolumeSizes.Count == 0)
+        {
+            return;
+        }
 
         Dictionary<long, int> counts = [];
         foreach (long size in RarVolumeSizes)
@@ -1158,9 +1286,15 @@ public class SRRFile
     public string? ExtractStoredFile(string srrFilePath, string outputDirectory, Func<string, bool> match)
     {
         if (string.IsNullOrWhiteSpace(srrFilePath))
+        {
             throw new ArgumentException("SRR file path is required.", nameof(srrFilePath));
+        }
+
         if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
             throw new ArgumentException("Output directory is required.", nameof(outputDirectory));
+        }
+
         ArgumentNullException.ThrowIfNull(match);
 
         SrrStoredFileBlock? storedFile = null;
@@ -1173,10 +1307,16 @@ public class SRRFile
             }
         }
 
-        if (storedFile == null) return null;
+        if (storedFile == null)
+        {
+            return null;
+        }
 
         string safeName = Path.GetFileName(storedFile.FileName);
-        if (string.IsNullOrEmpty(safeName)) return null;
+        if (string.IsNullOrEmpty(safeName))
+        {
+            return null;
+        }
 
         Directory.CreateDirectory(outputDirectory);
         string outputPath = Path.Combine(outputDirectory, safeName);
@@ -1186,11 +1326,15 @@ public class SRRFile
         long dataLength = storedFile.FileLength;
 
         if (dataOffset < 0 || dataOffset > fs.Length)
+        {
             throw new InvalidDataException("Stored file data offset is outside the SRR file bounds.");
+        }
 
         long dataEnd = dataOffset + dataLength;
         if (dataEnd < dataOffset || dataEnd > fs.Length)
+        {
             throw new InvalidDataException("Stored file length exceeds SRR file bounds.");
+        }
 
         fs.Seek(dataOffset, SeekOrigin.Begin);
         using FileStream output = new(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -1208,7 +1352,10 @@ public class SRRFile
         {
             int read = input.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
             if (read <= 0)
+            {
                 throw new EndOfStreamException("Unexpected end of SRR file while reading stored file data.");
+            }
+
             output.Write(buffer, 0, read);
             remaining -= read;
         }

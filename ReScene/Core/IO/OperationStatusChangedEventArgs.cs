@@ -24,6 +24,8 @@ public class OperationStatusChangedEventArgs(OperationStatus newStatus) : EventA
     /// <summary>
     /// Initializes a new instance with the specified old and new statuses.
     /// </summary>
+    /// <param name="oldStatus">The previous operation status.</param>
+    /// <param name="newStatus">The new operation status.</param>
     public OperationStatusChangedEventArgs(OperationStatus? oldStatus, OperationStatus newStatus)
         : this(newStatus)
     {
@@ -33,6 +35,8 @@ public class OperationStatusChangedEventArgs(OperationStatus newStatus) : EventA
     /// <summary>
     /// Initializes a new instance with the specified new status and completion status.
     /// </summary>
+    /// <param name="newStatus">The new operation status.</param>
+    /// <param name="completionStatus">The completion outcome, if applicable.</param>
     public OperationStatusChangedEventArgs(OperationStatus newStatus, OperationCompletionStatus? completionStatus)
         : this(newStatus)
     {
@@ -42,6 +46,9 @@ public class OperationStatusChangedEventArgs(OperationStatus newStatus) : EventA
     /// <summary>
     /// Initializes a new instance with the specified old status, new status, and completion status.
     /// </summary>
+    /// <param name="oldStatus">The previous operation status.</param>
+    /// <param name="newStatus">The new operation status.</param>
+    /// <param name="completionStatus">The completion outcome, if applicable.</param>
     public OperationStatusChangedEventArgs(OperationStatus? oldStatus, OperationStatus newStatus, OperationCompletionStatus? completionStatus)
         : this(oldStatus, newStatus)
     {

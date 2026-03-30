@@ -114,21 +114,25 @@ public class PatchOptions
     /// <summary>
     /// Gets the Host OS to use for file headers. Returns null if no patching needed.
     /// </summary>
+    /// <returns>The Host OS byte, or <see langword="null"/> if no patching needed.</returns>
     public byte? GetFileHostOS() => FileHostOS;
 
     /// <summary>
     /// Gets the Host OS to use for service blocks. Falls back to FileHostOS if not set.
     /// </summary>
+    /// <returns>The Host OS byte, or <see langword="null"/> if no patching needed.</returns>
     public byte? GetServiceBlockHostOS() => ServiceBlockHostOS ?? FileHostOS;
 
     /// <summary>
     /// Gets the file attributes to use for file headers.
     /// </summary>
+    /// <returns>The file attributes value, or <see langword="null"/> if not set.</returns>
     public uint? GetFileAttributes() => FileAttributes;
 
     /// <summary>
     /// Gets the file attributes to use for service blocks. Falls back to FileAttributes if not set.
     /// </summary>
+    /// <returns>The service block attributes value, or <see langword="null"/> if not set.</returns>
     public uint? GetServiceBlockAttributes() => ServiceBlockAttributes ?? FileAttributes;
 }
 
@@ -157,6 +161,8 @@ public static class RARPatcher
     /// <summary>
     /// Host OS name lookup.
     /// </summary>
+    /// <param name="hostOS">The Host OS byte value from the RAR header.</param>
+    /// <returns>A human-readable OS name.</returns>
     public static string GetHostOSName(byte hostOS) => hostOS switch
     {
         0 => "MS-DOS",
@@ -227,13 +233,17 @@ public static class RARPatcher
             // Read base header
             byte[] baseHeader = new byte[7];
             if (stream.Read(baseHeader, 0, 7) != 7)
+            {
                 break;
+            }
 
             byte blockType = baseHeader[OffsetType];
             ushort headerSize = BitConverter.ToUInt16(baseHeader, OffsetHeaderSize);
 
             if (headerSize < 7 || blockStart + headerSize > stream.Length)
+            {
                 break;
+            }
 
             // Check if this is a file header or service block
             bool isFileHeader = blockType == (byte)RAR4BlockType.FileHeader;
@@ -245,7 +255,9 @@ public static class RARPatcher
                 stream.Position = blockStart;
                 byte[] fullHeader = new byte[headerSize];
                 if (stream.Read(fullHeader, 0, headerSize) != headerSize)
+                {
                     break;
+                }
 
                 // Extract current values
                 ushort originalCrc = BitConverter.ToUInt16(fullHeader, OffsetCrc);
@@ -370,7 +382,9 @@ public static class RARPatcher
 
             // Safety check: prevent infinite loop
             if (stream.Position <= blockStart)
+            {
                 break;
+            }
         }
 
         // After all header patching, update End of Archive's Archive Data CRC if needed.
@@ -407,13 +421,17 @@ public static class RARPatcher
             // Read base header
             byte[] baseHeader = new byte[7];
             if (stream.Read(baseHeader, 0, 7) != 7)
+            {
                 break;
+            }
 
             byte blockType = baseHeader[OffsetType];
             ushort headerSize = BitConverter.ToUInt16(baseHeader, OffsetHeaderSize);
 
             if (headerSize < 7 || blockStart + headerSize > stream.Length)
+            {
                 break;
+            }
 
             bool isFileHeader = blockType == (byte)RAR4BlockType.FileHeader;
             bool isServiceBlock = blockType == (byte)RAR4BlockType.Service;
@@ -424,7 +442,9 @@ public static class RARPatcher
                 stream.Position = blockStart;
                 byte[] fullHeader = new byte[headerSize];
                 if (stream.Read(fullHeader, 0, headerSize) != headerSize)
+                {
                     break;
+                }
 
                 ushort originalCrc = BitConverter.ToUInt16(fullHeader, OffsetCrc);
                 byte originalHostOS = fullHeader[OffsetHostOS];
@@ -493,7 +513,9 @@ public static class RARPatcher
             }
 
             if (stream.Position <= blockStart)
+            {
                 break;
+            }
         }
 
         return results;
@@ -510,7 +532,9 @@ public static class RARPatcher
     public static bool PatchLargeFlags(Stream stream, PatchOptions options)
     {
         if (!options.SetLargeFlag.HasValue)
+        {
             return false;
+        }
 
         bool wantLarge = options.SetLargeFlag.Value;
 
@@ -521,7 +545,11 @@ public static class RARPatcher
         while (bytesRead < original.Length)
         {
             int read = stream.Read(original, bytesRead, original.Length - bytesRead);
-            if (read <= 0) break;
+            if (read <= 0)
+            {
+                break;
+            }
+
             bytesRead += read;
         }
 
@@ -529,7 +557,11 @@ public static class RARPatcher
         bool modified = false;
 
         // Copy RAR signature (7 bytes)
-        if (bytesRead < 7) return false;
+        if (bytesRead < 7)
+        {
+            return false;
+        }
+
         output.Write(original, 0, 7);
 
         int pos = 7;
@@ -544,7 +576,9 @@ public static class RARPatcher
             ushort headerSize = BitConverter.ToUInt16(original, pos + OffsetHeaderSize);
 
             if (headerSize < 7 || blockStart + headerSize > bytesRead)
+            {
                 break;
+            }
 
             bool isFileHeader = blockType == (byte)RAR4BlockType.FileHeader;
             bool isServiceBlock = blockType == (byte)RAR4BlockType.Service;
@@ -652,7 +686,10 @@ public static class RARPatcher
                 // Non-file/service block: copy unchanged (header + data)
                 int blockTotalSize = headerSize + (hasAddSize && addSize <= int.MaxValue ? (int)addSize : 0);
                 if (blockStart + blockTotalSize > bytesRead)
+                {
                     blockTotalSize = bytesRead - blockStart;
+                }
+
                 output.Write(original, blockStart, blockTotalSize);
 
                 pos = blockStart + blockTotalSize;
@@ -660,7 +697,9 @@ public static class RARPatcher
 
             // Safety check: prevent infinite loop
             if (pos <= blockStart)
+            {
                 break;
+            }
         }
 
         // Copy any trailing bytes
@@ -670,7 +709,9 @@ public static class RARPatcher
         }
 
         if (!modified)
+        {
             return false;
+        }
 
         // Write modified content back to stream
         stream.Position = 0;
@@ -698,7 +739,11 @@ public static class RARPatcher
         {
             int toRead = (int)Math.Min(buffer.Length, remaining);
             int read = stream.Read(buffer, 0, toRead);
-            if (read <= 0) break;
+            if (read <= 0)
+            {
+                break;
+            }
+
             archiveDataCrc = Crc32Algorithm.Append(archiveDataCrc, buffer, 0, read);
             remaining -= read;
         }
@@ -707,7 +752,9 @@ public static class RARPatcher
         stream.Position = endArchivePosition;
         byte[] endHeader = new byte[headerSize];
         if (stream.Read(endHeader, 0, headerSize) != headerSize)
+        {
             return;
+        }
 
         // Update Archive Data CRC at offset 7 (immediately after the 7-byte base header)
         BitConverter.GetBytes(archiveDataCrc).CopyTo(endHeader, 7);

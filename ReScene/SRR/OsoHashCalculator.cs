@@ -16,12 +16,16 @@ internal static class OsoHashCalculator
     /// Computes OSO hashes for all archived files in the given RAR volumes.
     /// Returns a list of (fileName, fileSize, hash) tuples.
     /// </summary>
+    /// <param name="rarVolumePaths">The paths to the RAR volume files.</param>
+    /// <returns>A list of tuples containing file name, file size, and OSO hash bytes.</returns>
     public static List<(string FileName, ulong FileSize, byte[] Hash)> ComputeHashes(
         IReadOnlyList<string> rarVolumePaths)
     {
         var results = new List<(string FileName, ulong FileSize, byte[] Hash)>();
         if (rarVolumePaths.Count == 0)
+        {
             return results;
+        }
 
         string firstVolume = rarVolumePaths[0];
 
@@ -35,7 +39,9 @@ internal static class OsoHashCalculator
                 using var stream = new RarStream(firstVolume, fileName);
 
                 if (stream.Length < MinFileSize)
+                {
                     continue;
+                }
 
                 byte[] hash = ComputeHash(stream);
                 results.Add((fileName, (ulong)stream.Length, hash));
@@ -93,9 +99,13 @@ internal static class OsoHashCalculator
                 using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
                 if (IsRar5(fs))
+                {
                     FindFilesRar5(fs, fileNames);
+                }
                 else
+                {
                     FindFilesRar4(fs, fileNames);
+                }
             }
             catch
             {
@@ -115,7 +125,9 @@ internal static class OsoHashCalculator
         {
             var block = reader.ReadBlock(parseContents: true);
             if (block is null)
+            {
                 break;
+            }
 
             if (block.FileHeader is { } fh && !fh.IsDirectory && !fh.IsSplitBefore
                 && !fileNames.Contains(fh.FileName))
@@ -126,9 +138,14 @@ internal static class OsoHashCalculator
             // Skip past block header and data (same pattern as RarStream)
             long target = block.BlockPosition + block.HeaderSize;
             if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
+            {
                 target += block.AddSize;
+            }
             else if ((block.Flags & (ushort)RARFileFlags.LongBlock) != 0)
+            {
                 target += block.AddSize;
+            }
+
             fs.Position = Math.Min(target, fs.Length);
         }
     }
@@ -142,7 +159,9 @@ internal static class OsoHashCalculator
         {
             var block = reader.ReadBlock();
             if (block is null)
+            {
                 break;
+            }
 
             if (block.FileInfo is { } fi && !fi.IsDirectory && !fi.IsSplitBefore
                 && !fileNames.Contains(fi.FileName))
@@ -157,14 +176,19 @@ internal static class OsoHashCalculator
     private static bool IsRar5(FileStream fs)
     {
         if (fs.Length < 8)
+        {
             return false;
+        }
 
         long pos = fs.Position;
         Span<byte> marker = stackalloc byte[8];
         int read = fs.Read(marker);
         fs.Position = pos;
 
-        if (read < 8) return false;
+        if (read < 8)
+        {
+            return false;
+        }
 
         ReadOnlySpan<byte> rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
         return marker.SequenceEqual(rar5Marker);
