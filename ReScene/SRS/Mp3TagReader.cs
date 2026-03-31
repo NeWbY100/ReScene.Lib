@@ -10,6 +10,12 @@ namespace ReScene.SRS;
 /// </summary>
 public static class Mp3TagReader
 {
+    private const int Id3v2HeaderSize = 10;
+    private const int Id3v1TagSize = 128;
+    private const int ApeTagHeaderSize = 32;
+    private const int Lyrics3v2FooterSize = 15;
+    private const int MaxLyrics3v1Size = 5100;
+
     /// <summary>
     /// Returns the byte offset where audio data begins (after all header tags).
     /// Handles multiple consecutive ID3v2 tags.
@@ -92,14 +98,14 @@ public static class Mp3TagReader
     {
         long startPos = stream.Position;
 
-        if (stream.Length - startPos < 10)
+        if (stream.Length - startPos < Id3v2HeaderSize)
         {
             return (false, 0);
         }
 
-        Span<byte> header = stackalloc byte[10];
+        Span<byte> header = stackalloc byte[Id3v2HeaderSize];
         int read = stream.Read(header);
-        if (read < 10)
+        if (read < Id3v2HeaderSize)
         {
             return (false, 0);
         }
@@ -112,7 +118,7 @@ public static class Mp3TagReader
 
         // Bytes 3-4: version, byte 5: flags, bytes 6-9: syncsafe size
         int size = DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
-        int totalSize = 10 + size; // header (10 bytes) + body
+        int totalSize = Id3v2HeaderSize + size; // header + body
 
         return (true, totalSize);
     }
@@ -124,12 +130,12 @@ public static class Mp3TagReader
     /// <returns>Whether found and the tag size (128 bytes).</returns>
     public static (bool found, int size) DetectId3v1(Stream stream)
     {
-        if (stream.Length < 128)
+        if (stream.Length < Id3v1TagSize)
         {
             return (false, 0);
         }
 
-        stream.Position = stream.Length - 128;
+        stream.Position = stream.Length - Id3v1TagSize;
         Span<byte> marker = stackalloc byte[3];
         int read = stream.Read(marker);
         if (read < 3)
@@ -139,7 +145,7 @@ public static class Mp3TagReader
 
         if (marker[0] == 'T' && marker[1] == 'A' && marker[2] == 'G')
         {
-            return (true, 128);
+            return (true, Id3v1TagSize);
         }
 
         return (false, 0);
@@ -160,15 +166,15 @@ public static class Mp3TagReader
     public static (bool found, int size) DetectLyrics3v2(Stream stream, long endOffset)
     {
         // Need at least 6 (size) + 9 ("LYRICS200") = 15 bytes before endOffset
-        if (endOffset - 15 < 0)
+        if (endOffset - Lyrics3v2FooterSize < 0)
         {
             return (false, 0);
         }
 
-        stream.Position = endOffset - 15;
-        Span<byte> footer = stackalloc byte[15];
+        stream.Position = endOffset - Lyrics3v2FooterSize;
+        Span<byte> footer = stackalloc byte[Lyrics3v2FooterSize];
         int read = stream.Read(footer);
-        if (read < 15)
+        if (read < Lyrics3v2FooterSize)
         {
             return (false, 0);
         }
@@ -226,7 +232,7 @@ public static class Mp3TagReader
         }
 
         // Search backward for "LYRICSBEGIN" within ~5100 bytes
-        int searchSize = (int)Math.Min(5100, endOffset);
+        int searchSize = (int)Math.Min(MaxLyrics3v1Size, endOffset);
         long searchStart = endOffset - searchSize;
 
         stream.Position = searchStart;
@@ -278,15 +284,15 @@ public static class Mp3TagReader
     public static (bool found, int size) DetectApeTag(Stream stream, long endOffset)
     {
         // APE footer is 32 bytes
-        if (endOffset - 32 < 0)
+        if (endOffset - ApeTagHeaderSize < 0)
         {
             return (false, 0);
         }
 
-        stream.Position = endOffset - 32;
-        Span<byte> footer = stackalloc byte[32];
+        stream.Position = endOffset - ApeTagHeaderSize;
+        Span<byte> footer = stackalloc byte[ApeTagHeaderSize];
         int read = stream.Read(footer);
-        if (read < 32)
+        if (read < ApeTagHeaderSize)
         {
             return (false, 0);
         }
@@ -304,7 +310,7 @@ public static class Mp3TagReader
         uint tagSize = BinaryPrimitives.ReadUInt32LittleEndian(footer.Slice(12));
 
         // APEv2 has a 32-byte header in addition; APEv1 has no header
-        int headerSize = version == 2000 ? 32 : 0;
+        int headerSize = version == 2000 ? ApeTagHeaderSize : 0;
 
         int totalSize = (int)tagSize + headerSize;
         return (true, totalSize);

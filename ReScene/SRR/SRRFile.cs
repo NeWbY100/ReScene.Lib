@@ -1345,7 +1345,7 @@ public class SRRFile
 
     private static void CopyBytes(Stream input, Stream output, long bytesToCopy)
     {
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long remaining = bytesToCopy;
 
         while (remaining > 0)

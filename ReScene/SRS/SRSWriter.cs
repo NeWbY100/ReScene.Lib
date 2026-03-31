@@ -302,7 +302,7 @@ public class SRSWriter
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(fs);
 
-        ProfileRiffChunks(reader, fs, 0, fs.Length, trackMap, ref otherLength, crc, ct);
+        SRSWriter.ProfileRiffChunks(reader, fs, 0, fs.Length, trackMap, ref otherLength, crc, ct);
 
         long totalSize = otherLength;
         foreach (var t in trackMap.Values)
@@ -317,7 +317,7 @@ public class SRSWriter
         return (trackMap.Values.ToList(), crc32, totalSize);
     }
 
-    private void ProfileRiffChunks(
+    private static void ProfileRiffChunks(
         BinaryReader reader, Stream fs,
         long start, long end,
         Dictionary<int, TrackInfo> trackMap,
@@ -359,7 +359,7 @@ public class SRSWriter
                     childEnd = end;
                 }
 
-                ProfileRiffChunks(reader, fs, fs.Position, childEnd, trackMap, ref otherLength, crc, ct);
+                SRSWriter.ProfileRiffChunks(reader, fs, fs.Position, childEnd, trackMap, ref otherLength, crc, ct);
 
                 fs.Position = childEnd;
                 // Pad to even boundary
@@ -436,7 +436,7 @@ public class SRSWriter
         var crc = new Crc32();
 
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ProfileEbmlElements(fs, 0, fs.Length, trackMap, ref otherLength, crc, isSegmentLevel: false, ct);
+        SRSWriter.ProfileEbmlElements(fs, 0, fs.Length, trackMap, ref otherLength, crc, isSegmentLevel: false, ct);
 
         long totalSize = otherLength;
         foreach (var t in trackMap.Values)
@@ -484,7 +484,7 @@ public class SRSWriter
         public bool HeaderStrippingDetected { get; set; }
     }
 
-    private void ProfileEbmlElements(
+    private static void ProfileEbmlElements(
         Stream fs, long start, long end,
         Dictionary<int, TrackInfo> trackMap,
         ref long otherLength,
@@ -532,7 +532,7 @@ public class SRSWriter
                 }
 
                 // Step into container element
-                ProfileEbmlElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
+                SRSWriter.ProfileEbmlElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
                     isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state);
             }
             else if (elemId == EbmlIdBlock || elemId == EbmlIdBlockGroup_Block)
@@ -720,7 +720,7 @@ public class SRSWriter
         int currentTrackId = 0;
 
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ProfileMp4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc, ct);
+        SRSWriter.ProfileMp4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc, ct);
 
         // For MP4, we need to reconstruct track data from stbl tables
         // In the simplest case, mdat is one big track
@@ -760,7 +760,7 @@ public class SRSWriter
     private static readonly HashSet<string> Mp4ContainerAtoms =
         ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta", "meta", "ilst"];
 
-    private void ProfileMp4Atoms(
+    private static void ProfileMp4Atoms(
         Stream fs, long start, long end,
         SortedDictionary<int, TrackInfo> trackMap,
         ref long metaLength, ref long mdatSize,
@@ -839,7 +839,7 @@ public class SRSWriter
                 bool signatureDone = trackMap.Values.All(t => t.SignatureBytes.Length >= SignatureSize);
 
                 // Read mdat in chunks for CRC
-                byte[] buffer = new byte[81920];
+                byte[] buffer = new byte[80 * 1024];
                 long bytesRead = 0;
                 while (bytesRead < dataRemaining)
                 {
@@ -897,7 +897,7 @@ public class SRSWriter
             else if (Mp4ContainerAtoms.Contains(type))
             {
                 // Step into children
-                ProfileMp4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
+                SRSWriter.ProfileMp4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
                     ref currentTrackId, crc, ct);
             }
             else
@@ -1114,7 +1114,7 @@ public class SRSWriter
                 if (remaining > 0)
                 {
                     track.DataLength = remaining;
-                    byte[] buffer = new byte[81920];
+                    byte[] buffer = new byte[80 * 1024];
                     long totalRead = 0;
                     while (totalRead < remaining)
                     {
@@ -1173,7 +1173,7 @@ public class SRSWriter
 
         // Read entire file for CRC
         fs.Position = 0;
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long totalRead = 0;
 
         while (totalRead < fileLen)
@@ -1230,7 +1230,7 @@ public class SRSWriter
 
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long totalRead = 0;
         long fileLen = fs.Length;
         track.DataLength = fileLen;
@@ -1287,16 +1287,16 @@ public class SRSWriter
                 WriteMkvSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
                 break;
             case SRSContainerType.MP4:
-                WriteMp4Srs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
+                SRSWriter.WriteMp4Srs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
                 break;
             case SRSContainerType.WMV:
-                WriteWmvSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
+                SRSWriter.WriteWmvSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
                 break;
             case SRSContainerType.FLAC:
-                WriteFlacSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
+                SRSWriter.WriteFlacSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
                 break;
             case SRSContainerType.MP3:
-                WriteMp3Srs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
+                SRSWriter.WriteMp3Srs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
                 break;
             case SRSContainerType.Stream:
                 WriteStreamSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
@@ -1315,11 +1315,11 @@ public class SRSWriter
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(inFs);
 
-        WriteRiffSrs(outFs, reader, inFs, 0, inFs.Length,
+        SRSWriter.WriteRiffSrs(outFs, reader, inFs, 0, inFs.Length,
             tracks, samplePath, sampleSize, sampleCrc32, options, moviInjected: false, ct);
     }
 
-    private void WriteRiffSrs(
+    private static void WriteRiffSrs(
         Stream outFs, BinaryReader reader, Stream inFs,
         long start, long end,
         List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCrc32,
@@ -1369,7 +1369,7 @@ public class SRSWriter
                     childEnd = end;
                 }
 
-                WriteRiffSrs(outFs, reader, inFs, inFs.Position, childEnd,
+                SRSWriter.WriteRiffSrs(outFs, reader, inFs, inFs.Position, childEnd,
                     tracks, samplePath, sampleSize, sampleCrc32, options, moviInjected, ct);
 
                 inFs.Position = childEnd;
@@ -1452,7 +1452,7 @@ public class SRSWriter
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        WriteMkvSrsElements(outFs, inFs, 0, inFs.Length, tracks, samplePath, sampleSize, sampleCrc32,
+        SRSWriter.WriteMkvSrsElements(outFs, inFs, 0, inFs.Length, tracks, samplePath, sampleSize, sampleCrc32,
             options, resampleInjected: false, ct);
     }
 
@@ -1467,7 +1467,7 @@ public class SRSWriter
         0x61A7,     // AttachedFile
     ];
 
-    private void WriteMkvSrsElements(
+    private static void WriteMkvSrsElements(
         Stream outFs, Stream inFs,
         long start, long end,
         List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCrc32,
@@ -1512,13 +1512,13 @@ public class SRSWriter
                     resampleInjected = true;
                 }
 
-                WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
+                SRSWriter.WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCrc32, options, resampleInjected, ct);
             }
             else if (MkvSrsContainers.Contains(elemId))
             {
                 outFs.Write(rawHeader);
-                WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
+                SRSWriter.WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCrc32, options, resampleInjected, ct);
             }
             else if (elemId == 0x465C) // AttachedFileData - skip data
@@ -1619,7 +1619,7 @@ public class SRSWriter
 
     // ==================== MP4 SRS ====================
 
-    private void WriteMp4Srs(
+    private static void WriteMp4Srs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
         SrsCreationOptions options, CancellationToken ct)
@@ -1731,7 +1731,7 @@ public class SRSWriter
     private static readonly byte[] GuidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
     private static readonly byte[] GuidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
 
-    private void WriteWmvSrs(
+    private static void WriteWmvSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
         SrsCreationOptions options, CancellationToken ct)
@@ -1840,7 +1840,7 @@ public class SRSWriter
 
     // ==================== FLAC SRS ====================
 
-    private void WriteFlacSrs(
+    private static void WriteFlacSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
         SrsCreationOptions options, CancellationToken ct)
@@ -1928,7 +1928,7 @@ public class SRSWriter
 
     // ==================== MP3 SRS ====================
 
-    private void WriteMp3Srs(
+    private static void WriteMp3Srs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
         SrsCreationOptions options, CancellationToken ct)
@@ -2334,7 +2334,7 @@ public class SRSWriter
 
     private static void CopyStream(Stream source, Stream destination, long bytes)
     {
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long remaining = bytes;
         while (remaining > 0)
         {

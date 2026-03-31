@@ -171,7 +171,7 @@ public class SRSRebuilder
         var offsets = new Dictionary<uint, long>();
 
         using var fs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
 
         int trackIndex = 0;
         foreach (var (trackNumber, track) in tracks)
@@ -331,13 +331,13 @@ public class SRSRebuilder
                 RebuildMp4(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.WMV:
-                RebuildWmv(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
+                SRSRebuilder.RebuildWmv(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.FLAC:
-                RebuildFlac(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
+                SRSRebuilder.RebuildFlac(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.MP3:
-                RebuildMp3(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
+                SRSRebuilder.RebuildMp3(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.Stream:
                 RebuildStream(tracks, mediaFilePath, trackOffsets, outputPath, ct);
@@ -369,10 +369,10 @@ public class SRSRebuilder
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(srsFs);
         using var mediaFs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks, 0, srsFs.Length, ct);
+        SRSRebuilder.RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks, 0, srsFs.Length, ct);
     }
 
     /// <summary>
@@ -395,7 +395,7 @@ public class SRSRebuilder
         }
 
         using var fs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
         fs.Position = scanStart;
 
         byte[] headerBuf = new byte[8];
@@ -457,7 +457,7 @@ public class SRSRebuilder
         return result;
     }
 
-    private void RebuildRiffChunks(
+    private static void RebuildRiffChunks(
         BinaryReader reader, Stream srsFs, Stream outFs,
         Stream mediaFs, Dictionary<uint, Queue<(long DataOffset, int Size)>> mediaChunks,
         long start, long end,
@@ -506,7 +506,7 @@ public class SRSRebuilder
                     childEnd = end;
                 }
 
-                RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks,
+                SRSRebuilder.RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks,
                     srsFs.Position, childEnd, ct);
 
                 srsFs.Position = childEnd;
@@ -573,7 +573,7 @@ public class SRSRebuilder
         ct.ThrowIfCancellationRequested();
 
         using var mediaFs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
         if (tracks.TryGetValue(1, out var track) && trackOffsets.TryGetValue(1, out long offset))
@@ -651,7 +651,7 @@ public class SRSRebuilder
         string? currentName = null;
 
         using var fs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
 
         while (fs.Position < fs.Length)
         {
@@ -734,9 +734,9 @@ public class SRSRebuilder
         ReportProgress("Collecting frame data", 0, tracks.Count, 40);
 
         using var fs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
 
-        byte[] copyBuf = new byte[81920];
+        byte[] copyBuf = new byte[80 * 1024];
         int blocksMatched = 0;
 
         while (fs.Position < fs.Length)
@@ -986,7 +986,7 @@ public class SRSRebuilder
         Queue<(string Name, byte[] Data)> attachments,
         CancellationToken ct)
     {
-        byte[] copyBuf = new byte[81920];
+        byte[] copyBuf = new byte[80 * 1024];
         int blockCount = 0;
 
         while (srsFs.Position < srsFs.Length)
@@ -1225,13 +1225,13 @@ public class SRSRebuilder
     {
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var mediaFs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets, 0, srsFs.Length, ct);
+        SRSRebuilder.RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets, 0, srsFs.Length, ct);
     }
 
-    private void RebuildMp4Atoms(
+    private static void RebuildMp4Atoms(
         Stream srsFs, Stream outFs,
         Stream mediaFs,
         Dictionary<uint, SrsTrackDataBlock> tracks,
@@ -1313,7 +1313,7 @@ public class SRSRebuilder
             else if (Mp4ContainerAtoms.Contains(type))
             {
                 // Recurse into container atoms
-                RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
+                SRSRebuilder.RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
                     payloadStart, atomEnd, ct);
                 srsFs.Position = atomEnd;
             }
@@ -1344,7 +1344,7 @@ public class SRSRebuilder
     /// Rebuilds a WMV/ASF sample by replaying the ASF object structure from the SRS file,
     /// skipping SRS GUID objects. Body data is copied verbatim from SRS.
     /// </summary>
-    private void RebuildWmv(
+    private static void RebuildWmv(
         string srsFilePath,
         Dictionary<uint, SrsTrackDataBlock> tracks,
         string mediaFilePath,
@@ -1404,7 +1404,7 @@ public class SRSRebuilder
     /// Rebuilds a FLAC sample: copies metadata blocks from SRS, then reads
     /// audio frame data directly from the media file.
     /// </summary>
-    private void RebuildFlac(
+    private static void RebuildFlac(
         string srsFilePath,
         Dictionary<uint, SrsTrackDataBlock> tracks,
         string mediaFilePath,
@@ -1415,7 +1415,7 @@ public class SRSRebuilder
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(srsFs);
         using var mediaFs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
         // Write fLaC marker
@@ -1477,7 +1477,7 @@ public class SRSRebuilder
     /// Rebuilds an MP3 sample: copies header tags from SRS, reads audio data
     /// from the media file, then copies footer tags from SRS.
     /// </summary>
-    private void RebuildMp3(
+    private static void RebuildMp3(
         string srsFilePath,
         Dictionary<uint, SrsTrackDataBlock> tracks,
         string mediaFilePath,
@@ -1488,7 +1488,7 @@ public class SRSRebuilder
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(srsFs);
         using var mediaFs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 81920);
+            bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
         bool mainDataWritten = false;
@@ -1569,7 +1569,7 @@ public class SRSRebuilder
     private static uint ComputeFileCrc32(string filePath, CancellationToken ct)
     {
         var crc = new Crc32();
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
 
         using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         int bytesRead;
@@ -1766,7 +1766,7 @@ public class SRSRebuilder
 
     private static void CopyBytes(Stream source, Stream dest, long count)
     {
-        byte[] buffer = new byte[Math.Min(81920, count)];
+        byte[] buffer = new byte[Math.Min(80 * 1024, count)];
         long remaining = count;
         while (remaining > 0)
         {

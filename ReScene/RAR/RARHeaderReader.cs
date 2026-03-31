@@ -13,37 +13,58 @@ public class RARServiceBlockInfo
     /// <summary>
     /// Packed (compressed) size of data.
     /// </summary>
-    public ulong PackedSize { get; set; }
+    public ulong PackedSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Unpacked size of data.
     /// </summary>
-    public ulong UnpackedSize { get; set; }
+    public ulong UnpackedSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Compression method (0x30=Store, 0x33=Normal, etc.).
     /// </summary>
-    public byte CompressionMethod { get; set; }
+    public byte CompressionMethod
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Data CRC.
     /// </summary>
-    public uint DataCrc { get; set; }
+    public uint DataCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Offset where the data starts (relative to block start).
     /// </summary>
-    public int DataOffset { get; set; }
+    public int DataOffset
+    {
+        get; set;
+    }
 
     /// <summary>
     /// For CMT blocks: the comment text if extracted.
     /// </summary>
-    public string? CommentText { get; set; }
+    public string? CommentText
+    {
+        get; set;
+    }
 
     /// <summary>
     /// For CMT blocks: raw comment data (may be compressed).
     /// </summary>
-    public byte[]? RawData { get; set; }
+    public byte[]? RawData
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if comment is stored (uncompressed), false if compressed.
@@ -53,22 +74,34 @@ public class RARServiceBlockInfo
     /// <summary>
     /// Host operating system (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix, etc.).
     /// </summary>
-    public byte HostOS { get; set; }
+    public byte HostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw DOS file time value (0 indicates no timestamp/zeroed).
     /// </summary>
-    public uint FileTimeDOS { get; set; }
+    public uint FileTimeDOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File attributes.
     /// </summary>
-    public uint FileAttributes { get; set; }
+    public uint FileAttributes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// RAR version needed to unpack.
     /// </summary>
-    public byte UnpackVersion { get; set; }
+    public byte UnpackVersion
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if file time is zeroed (0x00000000).
@@ -78,17 +111,26 @@ public class RARServiceBlockInfo
     /// <summary>
     /// Modification time precision level (maps to -tsm0 through -tsm4).
     /// </summary>
-    public TimestampPrecision MtimePrecision { get; set; }
+    public TimestampPrecision MtimePrecision
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Creation time precision level (maps to -tsc0 through -tsc4).
     /// </summary>
-    public TimestampPrecision CtimePrecision { get; set; }
+    public TimestampPrecision CtimePrecision
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Access time precision level (maps to -tsa0 through -tsa4).
     /// </summary>
-    public TimestampPrecision AtimePrecision { get; set; }
+    public TimestampPrecision AtimePrecision
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -99,52 +141,82 @@ public class RARBlockReadResult
     /// <summary>
     /// Block type (RAR 4.x).
     /// </summary>
-    public RAR4BlockType BlockType { get; set; }
+    public RAR4BlockType BlockType
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw flags value.
     /// </summary>
-    public ushort Flags { get; set; }
+    public ushort Flags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header size in bytes.
     /// </summary>
-    public ushort HeaderSize { get; set; }
+    public ushort HeaderSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Additional data size (from LONG_BLOCK or file headers).
     /// </summary>
-    public uint AddSize { get; set; }
+    public uint AddSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Position where the block starts.
     /// </summary>
-    public long BlockPosition { get; set; }
+    public long BlockPosition
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header CRC value.
     /// </summary>
-    public ushort HeaderCrc { get; set; }
+    public ushort HeaderCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if header CRC is valid.
     /// </summary>
-    public bool CrcValid { get; set; }
+    public bool CrcValid
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Parsed archive header (if BlockType is ArchiveHeader).
     /// </summary>
-    public RARArchiveHeader? ArchiveHeader { get; set; }
+    public RARArchiveHeader? ArchiveHeader
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Parsed file header (if BlockType is FileHeader).
     /// </summary>
-    public RARFileHeader? FileHeader { get; set; }
+    public RARFileHeader? FileHeader
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Parsed service block info (if BlockType is Service).
     /// </summary>
-    public RARServiceBlockInfo? ServiceBlockInfo { get; set; }
+    public RARServiceBlockInfo? ServiceBlockInfo
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -261,7 +333,7 @@ public class RARHeaderReader
             switch (result.BlockType)
             {
                 case RAR4BlockType.ArchiveHeader:
-                    result.ArchiveHeader = ParseArchiveHeader(result, headerEnd);
+                    result.ArchiveHeader = RARHeaderReader.ParseArchiveHeader(result, headerEnd);
                     break;
                 case RAR4BlockType.FileHeader:
                     result.FileHeader = ParseFileHeader(result, headerEnd);
@@ -299,7 +371,7 @@ public class RARHeaderReader
         }
     }
 
-    private RARArchiveHeader ParseArchiveHeader(RARBlockReadResult block, long headerEnd)
+    private static RARArchiveHeader ParseArchiveHeader(RARBlockReadResult block, long headerEnd)
     {
         return new RARArchiveHeader
         {
@@ -313,14 +385,18 @@ public class RARHeaderReader
 
     private RARFileHeader? ParseFileHeader(RARBlockReadResult block, long headerEnd)
     {
-        const int minFileHeaderSize = 7 + 4 + 4 + 1 + 4 + 4 + 1 + 1 + 2 + 4; // 32 bytes minimum
+        // UNP_SIZE(4) + HOST_OS(1) + CRC(4) + TIME(4) + VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4)
+        const int fileFieldsSize = 4 + 1 + 4 + 4 + 1 + 1 + 2 + 4;
+        const int baseHeaderSize = 7; // CRC(2) + TYPE(1) + FLAGS(2) + SIZE(2)
+        const int addSizeField = 4;
+        const int minFileHeaderSize = baseHeaderSize + addSizeField + fileFieldsSize;
 
         if (block.HeaderSize < minFileHeaderSize)
         {
             return null;
         }
 
-        if (_stream.Position + (minFileHeaderSize - 7 - 4) > headerEnd)
+        if (_stream.Position + fileFieldsSize > headerEnd)
         {
             return null;
         }
@@ -443,7 +519,7 @@ public class RARHeaderReader
 
         // Check for trailing slash indicating directory
         if (!string.IsNullOrEmpty(name) &&
-            (name.EndsWith("\\", StringComparison.Ordinal) || name.EndsWith("/", StringComparison.Ordinal)))
+            (name.EndsWith('\\') || name.EndsWith('/')))
         {
             isDirectory = true;
         }
@@ -638,14 +714,15 @@ public class RARHeaderReader
         // UNP_VER (1) + METHOD (1) + NAME_SIZE (2) + ATTR (4) = 21 bytes
         // + NAME (variable, minimum 1 byte)
 
-        const int minServiceHeaderSize = 7 + 4 + 21 + 1; // base + ADD_SIZE + fields + min name
+        const int serviceFieldsSize = 21; // UNP_SIZE(4) + HOST_OS(1) + CRC(4) + TIME(4) + VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4)
+        const int minServiceHeaderSize = 7 + 4 + serviceFieldsSize + 1; // base + ADD_SIZE + fields + min name
 
         if (block.HeaderSize < minServiceHeaderSize)
         {
             return null;
         }
 
-        if (_stream.Position + 21 > headerEnd)
+        if (_stream.Position + serviceFieldsSize > headerEnd)
         {
             return null;
         }

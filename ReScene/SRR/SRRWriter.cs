@@ -419,11 +419,11 @@ public class SRRWriter
 
         if (isRar5)
         {
-            await ProcessRar5VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
+            await SRRWriter.ProcessRar5VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
         }
         else
         {
-            await ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
+            await SRRWriter.ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
         }
     }
 
@@ -455,7 +455,7 @@ public class SRRWriter
         return true;
     }
 
-    private Task ProcessRar4VolumeAsync(
+    private static Task ProcessRar4VolumeAsync(
         BinaryWriter srrWriter,
         FileStream fs,
         BinaryReader reader,
@@ -606,7 +606,7 @@ public class SRRWriter
         return Task.CompletedTask;
     }
 
-    private Task ProcessRar5VolumeAsync(
+    private static Task ProcessRar5VolumeAsync(
         BinaryWriter srrWriter,
         FileStream fs,
         BinaryReader reader,
@@ -854,7 +854,7 @@ public class SRRWriter
 
     private static void CopyData(Stream source, Stream destination, long bytes)
     {
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long remaining = bytes;
 
         while (remaining > 0)

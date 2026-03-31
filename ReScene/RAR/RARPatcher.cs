@@ -731,7 +731,7 @@ public static class RARPatcher
     {
         // Compute CRC32 of all bytes from offset 0 to the End of Archive block
         stream.Position = 0;
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long remaining = endArchivePosition;
         uint archiveDataCrc = 0;
 

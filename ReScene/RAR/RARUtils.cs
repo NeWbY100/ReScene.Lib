@@ -68,7 +68,8 @@ public static class RARUtils
 
         int day = (int)(datePart & 0x1F);
         int month = (int)((datePart >> 5) & 0x0F);
-        int year = (int)((datePart >> 9) & 0x7F) + 1980;
+        const int dosEpochYear = 1980;
+        int year = (int)((datePart >> 9) & 0x7F) + dosEpochYear;
 
         int second = (int)((timePart & 0x1F) * 2);
         int minute = (int)((timePart >> 5) & 0x3F);
@@ -283,7 +284,9 @@ public static class RARUtils
     /// <param name="stream">The stream to scan.</param>
     /// <param name="maxScanSize">Maximum number of bytes to scan (default 1 MB).</param>
     /// <returns>The byte offset of the RAR marker, or -1 if not found.</returns>
-    public static long FindRarMarkerOffset(Stream stream, long maxScanSize = 0x100000)
+    private const long DefaultMaxScanSize = 1024 * 1024; // 1 MB
+
+    public static long FindRarMarkerOffset(Stream stream, long maxScanSize = DefaultMaxScanSize)
     {
         long savedPos = stream.Position;
         stream.Position = 0;

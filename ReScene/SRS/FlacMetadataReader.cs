@@ -13,6 +13,8 @@ namespace ReScene.SRS;
 /// </remarks>
 public static class FlacMetadataReader
 {
+    private const int Id3v2HeaderSize = 10;
+
     /// <summary>
     /// Returns the byte offset where FLAC frame data begins (after all metadata blocks).
     /// Handles optional ID3v2 wrapper before the fLaC marker.
@@ -68,14 +70,14 @@ public static class FlacMetadataReader
     {
         stream.Position = 0;
 
-        if (stream.Length < 10)
+        if (stream.Length < Id3v2HeaderSize)
         {
             return (false, 0);
         }
 
-        Span<byte> header = stackalloc byte[10];
+        Span<byte> header = stackalloc byte[Id3v2HeaderSize];
         int read = stream.Read(header);
-        if (read < 10)
+        if (read < Id3v2HeaderSize)
         {
             return (false, 0);
         }
@@ -86,7 +88,7 @@ public static class FlacMetadataReader
         }
 
         int size = Mp3TagReader.DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
-        int totalSize = 10 + size;
+        int totalSize = Id3v2HeaderSize + size;
 
         return (true, totalSize);
     }

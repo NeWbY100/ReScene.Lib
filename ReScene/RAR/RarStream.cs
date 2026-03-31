@@ -492,7 +492,8 @@ public partial class RarStream : Stream
             int num = (ext[2] - '0') * 10 + (ext[3] - '0');
             num++;
 
-            if (num > 99)
+            const int maxVolumeNumberPerLetter = 99;
+            if (num > maxVolumeNumberPerLetter)
             {
                 // Roll over to next letter: r->s, s->t, ...
                 num = 0;

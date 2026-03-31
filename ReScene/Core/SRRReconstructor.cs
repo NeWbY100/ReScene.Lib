@@ -403,7 +403,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
 
     private static async Task CopyBytesAsync(Stream source, Stream destination, long count, CancellationToken cancellationToken)
     {
-        byte[] buffer = new byte[81920];
+        byte[] buffer = new byte[80 * 1024];
         long remaining = count;
 
         while (remaining > 0)
