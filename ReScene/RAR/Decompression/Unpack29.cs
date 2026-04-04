@@ -8,12 +8,15 @@ namespace ReScene.RAR.Decompression;
 /// </summary>
 public class Unpack29
 {
-    private enum BlockType { LZ, PPM }
+    private enum BlockType
+    {
+        LZ, PPM
+    }
 
     // Distance decode tables (initialized on first use) - unique to RAR 2.9/3.x
-    private static readonly int[] DDecode = new int[PackDef.DC30];
-    private static readonly byte[] DBits = new byte[PackDef.DC30];
-    private static readonly int[] DBitLengthCounts = [4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 14, 0, 12];
+    private static readonly int[] _dDecode = new int[PackDef.DC30];
+    private static readonly byte[] _dBits = new byte[PackDef.DC30];
+    private static readonly int[] _dBitLengthCounts = [4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 14, 0, 12];
 
     private static bool _tablesInitialized;
 
@@ -21,7 +24,7 @@ public class Unpack29
     private readonly UnpackBlockTables _tables = new();
     private readonly byte[] _unpOldTable = new byte[PackDef.HuffTableSize30];
 
-    private byte[] _window = null!;
+    private byte[] _window = [];
     private int _winSize;
     private int _winMask;
     private int _unpPtr;
@@ -48,14 +51,14 @@ public class Unpack29
         }
 
         int dist = 0, bitLength = 0, slot = 0;
-        for (int i = 0; i < DBitLengthCounts.Length; i++, bitLength++)
+        for (int i = 0; i < _dBitLengthCounts.Length; i++, bitLength++)
         {
-            for (int j = 0; j < DBitLengthCounts[i]; j++, slot++, dist += (1 << bitLength))
+            for (int j = 0; j < _dBitLengthCounts[i]; j++, slot++, dist += (1 << bitLength))
             {
-                if (slot < DDecode.Length)
+                if (slot < _dDecode.Length)
                 {
-                    DDecode[slot] = dist;
-                    DBits[slot] = (byte)bitLength;
+                    _dDecode[slot] = dist;
+                    _dBits[slot] = (byte)bitLength;
                 }
             }
         }
@@ -275,8 +278,8 @@ public class Unpack29
                 }
 
                 uint distNumber = HuffmanDecoder.DecodeNumber(_inp, _tables.DD);
-                int distance = DDecode[distNumber] + 1;
-                bits = DBits[distNumber];
+                int distance = _dDecode[distNumber] + 1;
+                bits = _dBits[distNumber];
 
                 if (bits > 0)
                 {

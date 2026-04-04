@@ -18,7 +18,11 @@ public class SRRFileTests : IDisposable
     {
         GC.SuppressFinalize(this);
 
-        try { Directory.Delete(_testDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_testDir, true);
+        }
+        catch { }
     }
 
     #region Header Block Tests
@@ -117,7 +121,7 @@ public class SRRFileTests : IDisposable
         var srr = SRRFile.Load(srrPath);
         string outputDir = Path.Combine(_testDir, "extracted");
 
-        string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv"));
+        string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv", StringComparison.Ordinal));
 
         Assert.NotNull(extracted);
         Assert.True(File.Exists(extracted));
@@ -137,7 +141,7 @@ public class SRRFileTests : IDisposable
         var srr = SRRFile.Load(srrPath);
         string outputDir = Path.Combine(_testDir, "extracted");
 
-        string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".nfo"));
+        string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".nfo", StringComparison.Ordinal));
 
         Assert.Null(extracted);
     }
@@ -581,7 +585,7 @@ public class SRRFileTests : IDisposable
 
         Assert.Contains("subdir", srr.ArchivedDirectories);
         // On Windows, path separator normalizes to backslash
-        bool hasFile = srr.ArchivedFiles.Any(f => f.EndsWith("file.txt"));
+        bool hasFile = srr.ArchivedFiles.Any(f => f.EndsWith("file.txt", StringComparison.Ordinal));
         Assert.True(hasFile);
     }
 
@@ -795,12 +799,12 @@ public class SRRFileTests : IDisposable
         string outputDir = Path.Combine(_testDir, "extracted_multi");
 
         // Predicate matches both .sfv files; should extract the first one
-        string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv"));
+        string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv", StringComparison.Ordinal));
 
         Assert.NotNull(extracted);
         byte[] readBack = File.ReadAllBytes(extracted!);
         Assert.Equal(data1, readBack);
-        Assert.EndsWith("release.sfv", extracted);
+        Assert.EndsWith("release.sfv", extracted, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -97,10 +97,10 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_ArchiveHeader_ParsesCorrectly()
     {
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader());
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader());
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
@@ -111,11 +111,11 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_ArchiveHeaderWithFlags_ParsesFlagsCorrectly()
     {
-        var flags = RARArchiveFlags.Volume | RARArchiveFlags.Solid | RARArchiveFlags.Protected;
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader(flags));
+        RARArchiveFlags flags = RARArchiveFlags.Volume | RARArchiveFlags.Solid | RARArchiveFlags.Protected;
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader(flags));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ArchiveHeader);
         Assert.True(block!.ArchiveHeader!.IsVolume);
@@ -126,10 +126,10 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_FileHeader_ParsesFields()
     {
-        using var stream = BuildStreamWithBlocks(BuildFileHeader("testfile.txt", hostOS: 3, method: 0x35, unpVer: 29));
+        using MemoryStream stream = BuildStreamWithBlocks(BuildFileHeader("testfile.txt", hostOS: 3, method: 0x35, unpVer: 29));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal(3, block!.FileHeader!.HostOS);     // Unix
@@ -144,10 +144,10 @@ public class RARHeaderReaderTests
     {
         // DOS time 0x5A8E3100 encodes a specific date/time
         uint dosTime = 0x5A8E3100;
-        using var stream = BuildStreamWithBlocks(BuildFileHeader("file.txt", fileTimeDOS: dosTime));
+        using MemoryStream stream = BuildStreamWithBlocks(BuildFileHeader("file.txt", fileTimeDOS: dosTime));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal(dosTime, block!.FileHeader!.FileTimeDOS);
@@ -157,10 +157,10 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_FileHeader_ZeroDOSTime_NullModifiedTime()
     {
-        using var stream = BuildStreamWithBlocks(BuildFileHeader("file.txt", fileTimeDOS: 0));
+        using MemoryStream stream = BuildStreamWithBlocks(BuildFileHeader("file.txt", fileTimeDOS: 0));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Null(block!.FileHeader!.ModifiedTime);
@@ -170,10 +170,10 @@ public class RARHeaderReaderTests
     public void ReadBlock_FileHeader_DictionarySize()
     {
         // Default flags include no explicit dictionary, so 64KB
-        using var stream = BuildStreamWithBlocks(BuildFileHeader("file.txt", extraFlags: RARFileFlags.ExtTime));
+        using MemoryStream stream = BuildStreamWithBlocks(BuildFileHeader("file.txt", extraFlags: RARFileFlags.ExtTime));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal(64, block!.FileHeader!.DictionarySizeKB);
@@ -182,10 +182,10 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_ParseContentsDisabled_NoArchiveHeader()
     {
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader());
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader());
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: false);
 
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
@@ -198,7 +198,7 @@ public class RARHeaderReaderTests
         using var stream = new MemoryStream();
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
 
         Assert.Null(block);
     }
@@ -210,7 +210,7 @@ public class RARHeaderReaderTests
         using var stream = new MemoryStream([0x00, 0x00, 0x73, 0x00, 0x00]);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
 
         Assert.Null(block);
     }
@@ -223,10 +223,10 @@ public class RARHeaderReaderTests
         header[0] = 0xFF;
         header[1] = 0xFF;
 
-        using var stream = BuildStreamWithBlocks(header);
+        using MemoryStream stream = BuildStreamWithBlocks(header);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
         Assert.False(block!.CrcValid);
@@ -239,7 +239,7 @@ public class RARHeaderReaderTests
     [Fact]
     public void PeekBlockType_ReturnsTypeWithoutAdvancing()
     {
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader());
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader());
         var reader = new RARHeaderReader(stream);
 
         long posBefore = stream.Position;
@@ -275,7 +275,7 @@ public class RARHeaderReaderTests
     [Fact]
     public void CanReadBaseHeader_SufficientBytes_ReturnsTrue()
     {
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader());
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader());
         var reader = new RARHeaderReader(stream);
 
         Assert.True(reader.CanReadBaseHeader);
@@ -300,14 +300,14 @@ public class RARHeaderReaderTests
         byte[] archHeader = BuildArchiveHeader();
         byte[] fileHeader = BuildFileHeader("test.txt");
 
-        using var stream = BuildStreamWithBlocks(archHeader, fileHeader);
+        using MemoryStream stream = BuildStreamWithBlocks(archHeader, fileHeader);
         var reader = new RARHeaderReader(stream);
 
-        var firstBlock = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? firstBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(firstBlock);
         reader.SkipBlock(firstBlock!, includeData: false);
 
-        var secondBlock = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? secondBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(secondBlock);
         Assert.Equal(RAR4BlockType.FileHeader, secondBlock!.BlockType);
     }
@@ -323,21 +323,21 @@ public class RARHeaderReaderTests
         byte[] fileHeader = BuildFileHeader("data.bin");
         byte[] endBlock = BuildEndArchive();
 
-        using var stream = BuildStreamWithBlocks(archHeader, fileHeader, endBlock);
+        using MemoryStream stream = BuildStreamWithBlocks(archHeader, fileHeader, endBlock);
         var reader = new RARHeaderReader(stream);
 
-        var block1 = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block1 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block1);
         Assert.Equal(RAR4BlockType.ArchiveHeader, block1!.BlockType);
         reader.SkipBlock(block1, includeData: false);
 
-        var block2 = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block2 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block2);
         Assert.Equal(RAR4BlockType.FileHeader, block2!.BlockType);
         Assert.Equal("data.bin", block2.FileHeader?.FileName);
         reader.SkipBlock(block2, includeData: false);
 
-        var block3 = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block3 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block3);
         Assert.Equal(RAR4BlockType.EndArchive, block3!.BlockType);
     }
@@ -361,11 +361,11 @@ public class RARHeaderReaderTests
     [Fact]
     public void Constructor_WithBinaryReader_Works()
     {
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader());
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader());
         using var br = new BinaryReader(stream);
         var reader = new RARHeaderReader(br);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
     }
@@ -407,7 +407,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
         Assert.Equal("CMT", block!.ServiceBlockInfo!.SubType);
@@ -448,7 +448,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         byte[]? data = reader.ReadServiceBlockData(block!);
         Assert.NotNull(data);
@@ -458,10 +458,10 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadServiceBlockData_NonServiceBlock_ReturnsNull()
     {
-        using var stream = BuildStreamWithBlocks(BuildArchiveHeader());
+        using MemoryStream stream = BuildStreamWithBlocks(BuildArchiveHeader());
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
         byte[]? data = reader.ReadServiceBlockData(block!);
 
         Assert.Null(data);
@@ -516,12 +516,12 @@ public class RARHeaderReaderTests
     public void ReadBlock_LargeFileHeader_CombinesPackedSizeCorrectly()
     {
         // Pack size: high=0x00000001, low=0x00000100 → 0x0000000100000100 = 4294967552
-        using var stream = BuildStreamWithBlocks(
+        using MemoryStream stream = BuildStreamWithBlocks(
             BuildLargeFileHeader("bigfile.bin", packSizeLow: 0x00000100, packSizeHigh: 0x00000001,
                 unpSizeLow: 100, unpSizeHigh: 0));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal(0x0000000100000100UL, block!.FileHeader!.PackedSize);
@@ -531,12 +531,12 @@ public class RARHeaderReaderTests
     public void ReadBlock_LargeFileHeader_CombinesUnpackedSizeCorrectly()
     {
         // Unpack size: high=0x00000002, low=0x80000000 → 0x0000000280000000 = 10737418240
-        using var stream = BuildStreamWithBlocks(
+        using MemoryStream stream = BuildStreamWithBlocks(
             BuildLargeFileHeader("bigfile.bin", packSizeLow: 100, packSizeHigh: 0,
                 unpSizeLow: 0x80000000, unpSizeHigh: 0x00000002));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal(0x0000000280000000UL, block!.FileHeader!.UnpackedSize);
@@ -545,12 +545,12 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_LargeFileHeader_HasLargeSizeIsTrue()
     {
-        using var stream = BuildStreamWithBlocks(
+        using MemoryStream stream = BuildStreamWithBlocks(
             BuildLargeFileHeader("bigfile.bin", packSizeLow: 0, packSizeHigh: 1,
                 unpSizeLow: 0, unpSizeHigh: 1));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.True(block!.FileHeader!.HasLargeSize);
@@ -559,12 +559,12 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_LargeFileHeader_HighSizeFieldsStored()
     {
-        using var stream = BuildStreamWithBlocks(
+        using MemoryStream stream = BuildStreamWithBlocks(
             BuildLargeFileHeader("bigfile.bin", packSizeLow: 500, packSizeHigh: 3,
                 unpSizeLow: 600, unpSizeHigh: 7));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal(3u, block!.FileHeader!.HighPackSize);
@@ -575,12 +575,12 @@ public class RARHeaderReaderTests
     public void ReadBlock_LargeFileHeader_BothSizesMaxLow32()
     {
         // Both low 32 bits are max, high are non-zero
-        using var stream = BuildStreamWithBlocks(
+        using MemoryStream stream = BuildStreamWithBlocks(
             BuildLargeFileHeader("file.dat", packSizeLow: 0xFFFFFFFF, packSizeHigh: 0x00000001,
                 unpSizeLow: 0xFFFFFFFF, unpSizeHigh: 0x00000003));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         ulong expectedPack = 0xFFFFFFFF | (1UL << 32);   // 0x00000001FFFFFFFF
@@ -592,12 +592,12 @@ public class RARHeaderReaderTests
     [Fact]
     public void ReadBlock_LargeFileHeader_FileNameParsedCorrectly()
     {
-        using var stream = BuildStreamWithBlocks(
+        using MemoryStream stream = BuildStreamWithBlocks(
             BuildLargeFileHeader("largefile.rar", packSizeLow: 0, packSizeHigh: 1,
                 unpSizeLow: 0, unpSizeHigh: 0));
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
         Assert.Equal("largefile.rar", block!.FileHeader!.FileName);
@@ -615,16 +615,16 @@ public class RARHeaderReaderTests
         byte[] fileHeader = BuildFileHeader("test.txt", packedSize: 500);
         byte[] endBlock = BuildEndArchive();
 
-        using var stream = BuildStreamWithBlocks(archHeader, fileHeader, endBlock);
+        using MemoryStream stream = BuildStreamWithBlocks(archHeader, fileHeader, endBlock);
         var reader = new RARHeaderReader(stream);
 
         // Read and skip archive header
-        var block1 = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? block1 = reader.ReadBlock(parseContents: false);
         Assert.NotNull(block1);
         reader.SkipBlock(block1!, includeData: false);
 
         // Read file header
-        var block2 = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block2 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block2);
         Assert.Equal(RAR4BlockType.FileHeader, block2!.BlockType);
 
@@ -645,10 +645,10 @@ public class RARHeaderReaderTests
         byte[] fileHeader = BuildFileHeader("test.txt", packedSize: 1000);
         byte[] endBlock = BuildEndArchive();
 
-        using var stream = BuildStreamWithBlocks(fileHeader, endBlock);
+        using MemoryStream stream = BuildStreamWithBlocks(fileHeader, endBlock);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.FileHeader, block!.BlockType);
 
@@ -701,7 +701,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_RRServiceBlock_ParsesSubType()
     {
         byte[] rrData = new byte[100]; // Dummy recovery record data
-        var (header, data) = BuildServiceBlock("RR", rrData);
+        (byte[]? header, byte[]? data) = BuildServiceBlock("RR", rrData);
 
         using var stream = new MemoryStream();
         stream.Write(header);
@@ -709,7 +709,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
         Assert.Equal("RR", block!.ServiceBlockInfo!.SubType);
@@ -720,7 +720,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_AVServiceBlock_ParsesSubType()
     {
         byte[] avData = [0x01, 0x02, 0x03, 0x04];
-        var (header, data) = BuildServiceBlock("AV", avData);
+        (byte[]? header, byte[]? data) = BuildServiceBlock("AV", avData);
 
         using var stream = new MemoryStream();
         stream.Write(header);
@@ -728,7 +728,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
         Assert.Equal("AV", block!.ServiceBlockInfo!.SubType);
@@ -738,7 +738,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_RRServiceBlock_ReadsDataCorrectly()
     {
         byte[] rrData = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE];
-        var (header, data) = BuildServiceBlock("RR", rrData);
+        (byte[]? header, byte[]? data) = BuildServiceBlock("RR", rrData);
 
         using var stream = new MemoryStream();
         stream.Write(header);
@@ -746,7 +746,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         byte[]? readData = reader.ReadServiceBlockData(block!);
         Assert.NotNull(readData);
@@ -757,7 +757,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_ServiceBlock_CompressionMethodParsed()
     {
         byte[] dummyData = [0x01];
-        var (header, data) = BuildServiceBlock("CMT", dummyData, method: 0x33);
+        (byte[]? header, byte[]? data) = BuildServiceBlock("CMT", dummyData, method: 0x33);
 
         using var stream = new MemoryStream();
         stream.Write(header);
@@ -765,7 +765,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
         Assert.Equal(0x33, block!.ServiceBlockInfo!.CompressionMethod);
@@ -776,7 +776,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_ServiceBlock_StoredMethodIsStored()
     {
         byte[] dummyData = [0x01];
-        var (header, data) = BuildServiceBlock("RR", dummyData, method: 0x30);
+        (byte[]? header, byte[]? data) = BuildServiceBlock("RR", dummyData, method: 0x30);
 
         using var stream = new MemoryStream();
         stream.Write(header);
@@ -784,7 +784,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
         Assert.True(block!.ServiceBlockInfo!.IsStored);
@@ -794,7 +794,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_ServiceBlock_HostOSParsed()
     {
         byte[] dummyData = [0x01];
-        var (header, data) = BuildServiceBlock("RR", dummyData, hostOS: 3); // Unix
+        (byte[]? header, byte[]? data) = BuildServiceBlock("RR", dummyData, hostOS: 3); // Unix
 
         using var stream = new MemoryStream();
         stream.Write(header);
@@ -802,7 +802,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
         Assert.Equal(3, block!.ServiceBlockInfo!.HostOS);
@@ -819,7 +819,7 @@ public class RARHeaderReaderTests
         using var stream = new MemoryStream([0x00, 0x00, 0x74, 0x00]);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
         Assert.Null(block);
     }
 
@@ -830,7 +830,7 @@ public class RARHeaderReaderTests
         using var stream = new MemoryStream([0x00, 0x00, 0x74, 0x00, 0x00, 0x00]);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
         Assert.Null(block);
     }
 
@@ -842,7 +842,7 @@ public class RARHeaderReaderTests
         using var stream = new MemoryStream(header);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
         Assert.Null(block);
     }
 
@@ -854,7 +854,7 @@ public class RARHeaderReaderTests
         using var stream = new MemoryStream(header);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RARBlockReadResult? block = reader.ReadBlock();
         Assert.Null(block);
     }
 
@@ -870,10 +870,10 @@ public class RARHeaderReaderTests
         header[0] = 0xAA;
         header[1] = 0xBB;
 
-        using var stream = BuildStreamWithBlocks(header);
+        using MemoryStream stream = BuildStreamWithBlocks(header);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
         Assert.False(block!.CrcValid);
@@ -886,7 +886,7 @@ public class RARHeaderReaderTests
     public void ReadBlock_ServiceBlockCrcMismatch_IsValidCrcFalse()
     {
         byte[] dummyData = [0x01, 0x02, 0x03];
-        var (header, data) = BuildServiceBlock("CMT", dummyData);
+        (byte[]? header, byte[]? data) = BuildServiceBlock("CMT", dummyData);
         // Corrupt the CRC
         header[0] = 0x12;
         header[1] = 0x34;
@@ -897,7 +897,7 @@ public class RARHeaderReaderTests
         stream.Position = 0;
 
         var reader = new RARHeaderReader(stream);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
         Assert.False(block!.CrcValid);
@@ -909,10 +909,10 @@ public class RARHeaderReaderTests
         byte[] header = BuildEndArchive();
         header[0] ^= 0xFF; // Flip CRC bits
 
-        using var stream = BuildStreamWithBlocks(header);
+        using MemoryStream stream = BuildStreamWithBlocks(header);
         var reader = new RARHeaderReader(stream);
 
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.EndArchive, block!.BlockType);

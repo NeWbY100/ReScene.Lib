@@ -120,14 +120,14 @@ public static class EbmlLacing
                     if (i == 0)
                     {
                         // First frame: read as unsigned EBML VINT
-                        var (value, vintLen) = EbmlVInt.ReadUnsigned(data[bytesConsumed..]);
+                        (long value, int vintLen) = EbmlVInt.ReadUnsigned(data[bytesConsumed..]);
                         frameSizes[0] = (int)value;
                         bytesConsumed += vintLen;
                     }
                     else if (i < frameCount - 1)
                     {
                         // Subsequent frames (not last): read signed EBML VINT delta
-                        var (delta, vintLen) = EbmlVInt.ReadSigned(data[bytesConsumed..]);
+                        (long delta, int vintLen) = EbmlVInt.ReadSigned(data[bytesConsumed..]);
                         frameSizes[i] = frameSizes[i - 1] + (int)delta;
                         bytesConsumed += vintLen;
                     }
@@ -195,7 +195,7 @@ public static class EbmlVInt
     /// <returns>The signed value and the number of bytes consumed.</returns>
     public static (long signedValue, int length) ReadSigned(ReadOnlySpan<byte> data)
     {
-        var (unsignedVal, vintLen) = ReadUnsigned(data);
+        (long unsignedVal, int vintLen) = ReadUnsigned(data);
         if (vintLen == 0)
         {
             return (0, 0);

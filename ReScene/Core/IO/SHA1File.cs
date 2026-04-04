@@ -10,7 +10,10 @@ public class SHA1File
     /// <summary>
     /// Gets or sets the file info for the SHA-1 file on disk.
     /// </summary>
-    public FileInfo? FileInfo { get; set; }
+    public FileInfo? FileInfo
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the parsed SHA-1 entries.
@@ -64,7 +67,7 @@ public class SHA1File
         string[] fileLines = File.ReadAllLines(sha1File.FileInfo.FullName);
         foreach (string fileLine in fileLines)
         {
-            if (fileLine.StartsWith(":") || fileLine.StartsWith("#") || fileLine.StartsWith(";"))
+            if (fileLine.StartsWith(':') || fileLine.StartsWith('#') || fileLine.StartsWith(';'))
             {
                 continue;
             }

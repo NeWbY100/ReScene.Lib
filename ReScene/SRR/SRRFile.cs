@@ -12,7 +12,10 @@ public class SRRFile
     /// <summary>
     /// Gets the SRR file header block.
     /// </summary>
-    public SrrHeaderBlock? HeaderBlock { get; private set; }
+    public SrrHeaderBlock? HeaderBlock
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the OSO hash blocks from the SRR file.
@@ -89,82 +92,130 @@ public class SRRFile
     /// <summary>
     /// Gets the most common volume size in bytes (for multi-volume archives).
     /// </summary>
-    public long? VolumeSizeBytes { get; private set; }
+    public long? VolumeSizeBytes
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the compression method from the first file header (0x30=Store, 0x31-0x35=Fastest..Best).
     /// </summary>
-    public int? CompressionMethod { get; private set; }
+    public int? CompressionMethod
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the dictionary size in kilobytes from the first file header.
     /// </summary>
-    public int? DictionarySize { get; private set; }
+    public int? DictionarySize
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive uses solid compression.
     /// </summary>
-    public bool? IsSolidArchive { get; private set; }
+    public bool? IsSolidArchive
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive is a multi-volume archive.
     /// </summary>
-    public bool? IsVolumeArchive { get; private set; }
+    public bool? IsVolumeArchive
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive contains a recovery record.
     /// </summary>
-    public bool? HasRecoveryRecord { get; private set; }
+    public bool? HasRecoveryRecord
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the RAR format version (e.g. 29 for RAR 2.9/3.x, 50 for RAR 5.0).
     /// </summary>
-    public int? RARVersion { get; private set; }
+    public int? RARVersion
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive uses new-style volume naming (name.part01.rar).
     /// </summary>
-    public bool? HasNewVolumeNaming { get; private set; }
+    public bool? HasNewVolumeNaming
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the first volume flag is set in the archive header.
     /// </summary>
-    public bool? HasFirstVolumeFlag { get; private set; }
+    public bool? HasFirstVolumeFlag
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive has encrypted headers.
     /// </summary>
-    public bool? HasEncryptedHeaders { get; private set; }
+    public bool? HasEncryptedHeaders
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive contains files larger than 2 GB (LARGE flag).
     /// </summary>
-    public bool? HasLargeFiles { get; private set; }
+    public bool? HasLargeFiles
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive contains files with Unicode filenames.
     /// </summary>
-    public bool? HasUnicodeNames { get; private set; }
+    public bool? HasUnicodeNames
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets whether the archive file headers contain extended time fields.
     /// </summary>
-    public bool? HasExtendedTime { get; private set; }
+    public bool? HasExtendedTime
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Upper 32 bits of packed size from first LARGE file header.
     /// </summary>
-    public uint? DetectedHighPackSize { get; private set; }
+    public uint? DetectedHighPackSize
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Upper 32 bits of unpacked size from first LARGE file header.
     /// </summary>
-    public uint? DetectedHighUnpSize { get; private set; }
+    public uint? DetectedHighUnpSize
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the number of RAR header CRC mismatches detected during parsing.
     /// </summary>
-    public int HeaderCrcMismatches { get; private set; }
+    public int HeaderCrcMismatches
+    {
+        get; private set;
+    }
 
     // Custom RAR packer detection
 
@@ -172,38 +223,59 @@ public class SRRFile
     /// True if any file header has sentinel unpacked_size values indicating a custom RAR packer (not WinRAR).
     /// Known groups: RELOADED, HI2U, 0x0007, 0x0815, QCF.
     /// </summary>
-    public bool HasCustomPackerHeaders { get; private set; }
+    public bool HasCustomPackerHeaders
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// The type of custom packer anomaly detected, if any.
     /// </summary>
-    public CustomPackerType CustomPackerDetected { get; private set; }
+    public CustomPackerType CustomPackerDetected
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the decoded archive comment text extracted from the CMT sub-block.
     /// </summary>
-    public string? ArchiveComment { get; private set; }
+    public string? ArchiveComment
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Raw archive comment bytes (for exact reconstruction).
     /// </summary>
-    public byte[]? ArchiveCommentBytes { get; private set; }
+    public byte[]? ArchiveCommentBytes
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Raw CMT block compressed data (for Phase 1 brute-force comparison).
     /// </summary>
-    public byte[]? CmtCompressedData { get; private set; }
+    public byte[]? CmtCompressedData
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// CMT block compression method (0x30=Store, 0x31-0x35=Compressed).
     /// </summary>
-    public byte? CmtCompressionMethod { get; private set; }
+    public byte? CmtCompressionMethod
+    {
+        get; private set;
+    }
 
     // Host OS and timestamp settings detected from headers
     /// <summary>
     /// Host OS from file headers (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix).
     /// </summary>
-    public byte? DetectedHostOS { get; private set; }
+    public byte? DetectedHostOS
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Host OS name for display.
@@ -223,12 +295,18 @@ public class SRRFile
     /// <summary>
     /// File attributes from first file header (for patching).
     /// </summary>
-    public uint? DetectedFileAttributes { get; private set; }
+    public uint? DetectedFileAttributes
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Host OS from CMT service block (may differ from file headers).
     /// </summary>
-    public byte? CmtHostOS { get; private set; }
+    public byte? CmtHostOS
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// CMT Host OS name for display.
@@ -248,7 +326,10 @@ public class SRRFile
     /// <summary>
     /// Raw DOS file time from CMT block (0 = zeroed/no timestamp).
     /// </summary>
-    public uint? CmtFileTimeDOS { get; private set; }
+    public uint? CmtFileTimeDOS
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// True if CMT block has zeroed file time (suggests -ts- or similar option).
@@ -258,7 +339,10 @@ public class SRRFile
     /// <summary>
     /// File attributes from CMT block.
     /// </summary>
-    public uint? CmtFileAttributes { get; private set; }
+    public uint? CmtFileAttributes
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Whether CMT timestamp appears to be current time vs zeroed.
@@ -275,34 +359,52 @@ public class SRRFile
     /// <summary>
     /// Modification time precision from file headers (maps to -tsm0 through -tsm4).
     /// </summary>
-    public TimestampPrecision? FileMtimePrecision { get; private set; }
+    public TimestampPrecision? FileMtimePrecision
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Creation time precision from file headers (maps to -tsc0 through -tsc4).
     /// </summary>
-    public TimestampPrecision? FileCtimePrecision { get; private set; }
+    public TimestampPrecision? FileCtimePrecision
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Access time precision from file headers (maps to -tsa0 through -tsa4).
     /// </summary>
-    public TimestampPrecision? FileAtimePrecision { get; private set; }
+    public TimestampPrecision? FileAtimePrecision
+    {
+        get; private set;
+    }
 
     // ===== Timestamp Precision (from CMT service block) =====
 
     /// <summary>
     /// Modification time precision from CMT block (maps to -tsm0 through -tsm4).
     /// </summary>
-    public TimestampPrecision? CmtMtimePrecision { get; private set; }
+    public TimestampPrecision? CmtMtimePrecision
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Creation time precision from CMT block (maps to -tsc0 through -tsc4).
     /// </summary>
-    public TimestampPrecision? CmtCtimePrecision { get; private set; }
+    public TimestampPrecision? CmtCtimePrecision
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Access time precision from CMT block (maps to -tsa0 through -tsa4).
     /// </summary>
-    public TimestampPrecision? CmtAtimePrecision { get; private set; }
+    public TimestampPrecision? CmtAtimePrecision
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Loads and parses an SRR file from the specified path.
@@ -374,7 +476,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.StoredFile:
-                    var storedBlock = ParseStoredFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                    SrrStoredFileBlock? storedBlock = ParseStoredFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (storedBlock == null)
                     {
                         goto exitLoop;
@@ -385,7 +487,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.OsoHash:
-                    var osoBlock = ParseOsoHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
+                    SrrOsoHashBlock? osoBlock = ParseOsoHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
                     if (osoBlock != null)
                     {
                         srr.OsoHashBlocks.Add(osoBlock);
@@ -395,7 +497,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.RarPadding:
-                    var paddingBlock = ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                    SrrRarPaddingBlock? paddingBlock = ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (paddingBlock != null)
                     {
                         srr.RarPaddingBlocks.Add(paddingBlock);
@@ -405,7 +507,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.RarFile:
-                    var rarBlock = ParseRarFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                    SrrRarFileBlock? rarBlock = ParseRarFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (rarBlock == null)
                     {
                         goto exitLoop;
@@ -669,7 +771,7 @@ public class SRRFile
             }
 
             // Read the RAR block
-            var block = rarReader.ReadBlock(parseContents: true);
+            RARBlockReadResult? block = rarReader.ReadBlock(parseContents: true);
             if (block == null)
             {
                 fs.Seek(fs.Length, SeekOrigin.Begin);
@@ -737,7 +839,7 @@ public class SRRFile
             }
 
             // Read the RAR5 block
-            var block = rarReader.ReadBlock();
+            RAR5BlockReadResult? block = rarReader.ReadBlock();
             if (block == null)
             {
                 fs.Seek(fs.Length, SeekOrigin.Begin);
@@ -866,7 +968,7 @@ public class SRRFile
 
     private void ProcessServiceBlock(RARBlockReadResult block, RARHeaderReader rarReader)
     {
-        var serviceInfo = block.ServiceBlockInfo;
+        RARServiceBlockInfo? serviceInfo = block.ServiceBlockInfo;
         if (serviceInfo == null)
         {
             return;
@@ -1000,7 +1102,7 @@ public class SRRFile
         if (!string.IsNullOrEmpty(info.FileName))
         {
             // RAR5 uses split before/after flags in header flags, not file flags
-            var flags = RARFileFlags.None;
+            RARFileFlags flags = RARFileFlags.None;
             if (info.IsSplitBefore)
             {
                 flags |= RARFileFlags.SplitBefore;
@@ -1031,7 +1133,7 @@ public class SRRFile
 
     private void ProcessRar5ServiceBlock(RAR5BlockReadResult block, RAR5HeaderReader rarReader)
     {
-        var serviceInfo = block.ServiceBlockInfo;
+        RAR5ServiceBlockInfo? serviceInfo = block.ServiceBlockInfo;
         if (serviceInfo == null)
         {
             return;
@@ -1160,7 +1262,7 @@ public class SRRFile
             }
             else
             {
-                var existingFlags = ArchivedFileCrcFlags.TryGetValue(normalized, out var storedFlags) ? storedFlags : RARFileFlags.None;
+                RARFileFlags existingFlags = ArchivedFileCrcFlags.TryGetValue(normalized, out RARFileFlags storedFlags) ? storedFlags : RARFileFlags.None;
                 bool existingHasSplitAfter = (existingFlags & RARFileFlags.SplitAfter) != 0;
 
                 if (existingHasSplitAfter && !newHasSplitAfter)
@@ -1259,7 +1361,7 @@ public class SRRFile
 
         long bestSize = 0;
         int bestCount = 0;
-        foreach (var entry in counts)
+        foreach (KeyValuePair<long, int> entry in counts)
         {
             if (entry.Value > bestCount || (entry.Value == bestCount && entry.Key > bestSize))
             {
@@ -1298,7 +1400,7 @@ public class SRRFile
         ArgumentNullException.ThrowIfNull(match);
 
         SrrStoredFileBlock? storedFile = null;
-        foreach (var stored in StoredFiles)
+        foreach (SrrStoredFileBlock stored in StoredFiles)
         {
             if (match(stored.FileName))
             {

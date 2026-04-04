@@ -24,11 +24,20 @@ public class SrsReconstructionProgressEventArgs : EventArgs
     /// <summary>Gets the current phase description (e.g., "Loading SRS", "Rebuilding").</summary>
     public string Phase { get; init; } = "";
     /// <summary>Gets the current track number being processed.</summary>
-    public int TrackNumber { get; init; }
+    public int TrackNumber
+    {
+        get; init;
+    }
     /// <summary>Gets the total number of tracks to process.</summary>
-    public int TotalTracks { get; init; }
+    public int TotalTracks
+    {
+        get; init;
+    }
     /// <summary>Gets the overall progress percentage (0-100).</summary>
-    public double ProgressPercent { get; init; }
+    public double ProgressPercent
+    {
+        get; init;
+    }
 }
 
 /// <summary>
@@ -41,7 +50,6 @@ public class SrsReconstructionProgressEventArgs : EventArgs
 /// </summary>
 public class SRSRebuilder
 {
-    private const int SignatureSize = 256;
     private const int SearchBufferSize = 0x10000; // 64 KiB
 
     /// <summary>
@@ -103,21 +111,21 @@ public class SRSRebuilder
             throw new InvalidDataException("SRS file does not contain any track data (SRST blocks).");
         }
 
-        var fileData = srs.FileData;
-        var tracks = srs.Tracks;
+        SrsFileDataBlock fileData = srs.FileData;
+        List<SrsTrackDataBlock> tracks = srs.Tracks;
         long expectedSize = (long)fileData.SampleSize;
         uint expectedCrc = fileData.Crc32;
 
         // Build a dictionary keyed by track number for easy lookup
         var trackDict = new Dictionary<uint, SrsTrackDataBlock>();
-        foreach (var track in tracks)
+        foreach (SrsTrackDataBlock track in tracks)
         {
             trackDict[track.TrackNumber] = track;
         }
 
         // Step 2: Find sample streams (locate signatures in media file)
         ReportProgress("Finding tracks", 0, tracks.Count, 10);
-        var trackOffsets = FindSampleStreams(mediaFilePath, trackDict, srs.ContainerType, ct);
+        Dictionary<uint, long> trackOffsets = FindSampleStreams(mediaFilePath, trackDict, ct);
 
         // Step 3: Rebuild the sample (reads track data directly from media file)
         ReportProgress("Rebuilding", 0, tracks.Count, 40);
@@ -165,7 +173,6 @@ public class SRSRebuilder
     private Dictionary<uint, long> FindSampleStreams(
         string mediaFilePath,
         Dictionary<uint, SrsTrackDataBlock> tracks,
-        SRSContainerType containerType,
         CancellationToken ct)
     {
         var offsets = new Dictionary<uint, long>();
@@ -174,7 +181,7 @@ public class SRSRebuilder
             bufferSize: 80 * 1024);
 
         int trackIndex = 0;
-        foreach (var (trackNumber, track) in tracks)
+        foreach ((uint trackNumber, SrsTrackDataBlock? track) in tracks)
         {
             ct.ThrowIfCancellationRequested();
             trackIndex++;
@@ -285,12 +292,6 @@ public class SRSRebuilder
             }
 
             // Advance, keeping overlap for boundary matches
-            long advance = bytesRead - signature.Length + 1;
-            if (advance <= 0)
-            {
-                advance = 1;
-            }
-
             position = position - carry + bytesRead;
             carry = signature.Length - 1;
             if (carry > bytesRead)
@@ -331,7 +332,7 @@ public class SRSRebuilder
                 RebuildMp4(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.WMV:
-                SRSRebuilder.RebuildWmv(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
+                SRSRebuilder.RebuildWmv(srsFilePath, outputPath, ct);
                 break;
             case SRSContainerType.FLAC:
                 SRSRebuilder.RebuildFlac(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
@@ -352,7 +353,7 @@ public class SRSRebuilder
     /// skipping SRSF/SRST chunks and reading movi data directly from the media file.
     /// The media file is walked in parallel to locate interleaved track data chunks.
     /// </summary>
-    private void RebuildAvi(
+    private static void RebuildAvi(
         string srsFilePath,
         Dictionary<uint, SrsTrackDataBlock> tracks,
         string mediaFilePath,
@@ -364,7 +365,7 @@ public class SRSRebuilder
         // This builds a per-track queue of (dataOffset, size) for each chunk.
         long minOffset = trackOffsets.Values.Min();
         long mediaScanStart = Math.Max(0, minOffset - 8);
-        var mediaChunks = IndexMediaRiffChunks(mediaFilePath, mediaScanStart, tracks, ct);
+        Dictionary<uint, Queue<(long DataOffset, int Size)>> mediaChunks = IndexMediaRiffChunks(mediaFilePath, mediaScanStart, tracks, ct);
 
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(srsFs);
@@ -388,7 +389,7 @@ public class SRSRebuilder
         var result = new Dictionary<uint, Queue<(long, int)>>();
         var remaining = new Dictionary<uint, long>();
 
-        foreach (var (trackNumber, track) in tracks)
+        foreach ((uint trackNumber, SrsTrackDataBlock? track) in tracks)
         {
             result[trackNumber] = new Queue<(long, int)>();
             remaining[trackNumber] = (long)track.DataLength;
@@ -407,7 +408,11 @@ public class SRSRebuilder
             bool allDone = true;
             foreach (long r in remaining.Values)
             {
-                if (r > 0) { allDone = false; break; }
+                if (r > 0)
+                {
+                    allDone = false;
+                    break;
+                }
             }
 
             if (allDone)
@@ -528,9 +533,9 @@ public class SRSRebuilder
                     // Read data directly from media file at the indexed position
                     uint trackNumber = (uint)((fourcc[0] - '0') * 10 + (fourcc[1] - '0'));
 
-                    if (mediaChunks.TryGetValue(trackNumber, out var queue) && queue.Count > 0)
+                    if (mediaChunks.TryGetValue(trackNumber, out Queue<(long DataOffset, int Size)>? queue) && queue.Count > 0)
                     {
-                        var (dataOffset, size) = queue.Dequeue();
+                        (long dataOffset, int size) = queue.Dequeue();
                         mediaFs.Position = dataOffset;
                         CopyBytes(mediaFs, outFs, size);
                     }
@@ -576,7 +581,7 @@ public class SRSRebuilder
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        if (tracks.TryGetValue(1, out var track) && trackOffsets.TryGetValue(1, out long offset))
+        if (tracks.TryGetValue(1, out SrsTrackDataBlock? track) && trackOffsets.TryGetValue(1, out long offset))
         {
             mediaFs.Position = offset;
             CopyBytes(mediaFs, outFs, (long)track.DataLength);
@@ -608,12 +613,12 @@ public class SRSRebuilder
         // Extract attachment data from the media file (fonts, etc.).
         // The SRS preserves attachment headers with original sizes but strips
         // the data, so we need to source it from the media file.
-        var attachments = ExtractMediaAttachments(mediaFilePath, ct);
+        Queue<(string Name, byte[] Data)> attachments = ExtractMediaAttachments(mediaFilePath, ct);
 
         // Collect per-track frame data from the media file into MemoryStreams.
         // The SRS file preserves the original block headers (including lacing);
         // only the raw frame bytes come from the media file.
-        var frameData = CollectMediaFrameData(mediaFilePath, trackOffsets, tracks, ct);
+        Dictionary<uint, MemoryStream> frameData = CollectMediaFrameData(mediaFilePath, trackOffsets, tracks, ct);
 
         try
         {
@@ -631,7 +636,7 @@ public class SRSRebuilder
         }
         finally
         {
-            foreach (var ms in frameData.Values)
+            foreach (MemoryStream ms in frameData.Values)
             {
                 ms.Dispose();
             }
@@ -722,7 +727,7 @@ public class SRSRebuilder
         var streams = new Dictionary<uint, MemoryStream>();
         var remaining = new Dictionary<uint, long>();
 
-        foreach (var (trackNumber, track) in tracks)
+        foreach ((uint trackNumber, SrsTrackDataBlock? track) in tracks)
         {
             streams[trackNumber] = new MemoryStream((int)track.DataLength);
             remaining[trackNumber] = (long)track.DataLength;
@@ -746,7 +751,11 @@ public class SRSRebuilder
             bool allDone = true;
             foreach (long r in remaining.Values)
             {
-                if (r > 0) { allDone = false; break; }
+                if (r > 0)
+                {
+                    allDone = false;
+                    break;
+                }
             }
 
             if (allDone)
@@ -898,9 +907,8 @@ public class SRSRebuilder
 
                         if (include)
                         {
-                            if (!started.Contains(tn))
+                            if (started.Add(tn))
                             {
-                                started.Add(tn);
                                 ReportProgress($"Track {tn} located at offset {frameDataOffset:N0}", 0, 0, 50);
                             }
 
@@ -959,7 +967,7 @@ public class SRSRebuilder
         ReportProgress($"Collected {blocksMatched:N0} blocks from media file", 0, 0, 60);
 
         // Reset all streams to the beginning for reading
-        foreach (var ms in streams.Values)
+        foreach (MemoryStream ms in streams.Values)
         {
             ms.Position = 0;
         }
@@ -1036,7 +1044,7 @@ public class SRSRebuilder
             {
                 if (attachments.Count > 0)
                 {
-                    var (_, data) = attachments.Dequeue();
+                    (string _, byte[]? data) = attachments.Dequeue();
                     outFs.Write(data);
                 }
                 // SRS has no data bytes after the header — stream position is already correct
@@ -1094,7 +1102,7 @@ public class SRSRebuilder
                                     if (read > 0)
                                     {
                                         var lacingType = (EbmlLaceType)(flagsByte & 0x06);
-                                        var (_, bytesConsumed) = EbmlLacing.GetFrameLengths(
+                                        (int[] _, int bytesConsumed) = EbmlLacing.GetFrameLengths(
                                             lacingPeek.AsSpan(0, read), lacingType, dataAfterBase);
                                         srsBlockHeaderSize = blockHeaderBase + bytesConsumed;
                                         srsHasLacing = bytesConsumed > 0;
@@ -1117,7 +1125,7 @@ public class SRSRebuilder
                     if (msDataSize > 0)
                     {
                         uint tn = (uint)trackNum;
-                        if (frameData.TryGetValue(tn, out var ms))
+                        if (frameData.TryGetValue(tn, out MemoryStream? ms))
                         {
                             if (srsHasLacing)
                             {
@@ -1215,7 +1223,7 @@ public class SRSRebuilder
     /// Rebuilds an MP4 sample by replaying the atom structure from the SRS file,
     /// skipping SRSF/SRST atoms and reading mdat content from the media file.
     /// </summary>
-    private void RebuildMp4(
+    private static void RebuildMp4(
         string srsFilePath,
         Dictionary<uint, SrsTrackDataBlock> tracks,
         string mediaFilePath,
@@ -1302,7 +1310,7 @@ public class SRSRebuilder
                     .OrderBy(kv => trackOffsets[kv.Key])
                     .ToList();
 
-                foreach (var (trackNumber, track) in sortedTracks)
+                foreach ((uint trackNumber, SrsTrackDataBlock? track) in sortedTracks)
                 {
                     mediaFs.Position = trackOffsets[trackNumber];
                     CopyBytes(mediaFs, outFs, (long)track.DataLength);
@@ -1310,7 +1318,7 @@ public class SRSRebuilder
 
                 srsFs.Position = atomEnd;
             }
-            else if (Mp4ContainerAtoms.Contains(type))
+            else if (_mp4ContainerAtoms.Contains(type))
             {
                 // Recurse into container atoms
                 SRSRebuilder.RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
@@ -1331,14 +1339,14 @@ public class SRSRebuilder
         }
     }
 
-    private static readonly HashSet<string> Mp4ContainerAtoms =
+    private static readonly HashSet<string> _mp4ContainerAtoms =
         ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta"];
 
     // ==================== WMV/ASF Rebuilder ====================
 
-    private static readonly byte[] GuidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] GuidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
-    private static readonly byte[] GuidSrsPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
+    private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
+    private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    private static readonly byte[] _guidSrsPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
 
     /// <summary>
     /// Rebuilds a WMV/ASF sample by replaying the ASF object structure from the SRS file,
@@ -1346,9 +1354,6 @@ public class SRSRebuilder
     /// </summary>
     private static void RebuildWmv(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
-        string mediaFilePath,
-        Dictionary<uint, long> trackOffsets,
         string outputPath,
         CancellationToken ct)
     {
@@ -1374,9 +1379,9 @@ public class SRSRebuilder
             long objEnd = objStart + (long)totalSize;
 
             // Skip SRS objects
-            if (GuidEquals(guid, GuidSrsFile) ||
-                GuidEquals(guid, GuidSrsTrack) ||
-                GuidEquals(guid, GuidSrsPadding))
+            if (GuidEquals(guid, _guidSrsFile) ||
+                GuidEquals(guid, _guidSrsTrack) ||
+                GuidEquals(guid, _guidSrsPadding))
             {
                 srsFs.Position = objEnd;
                 continue;
@@ -1457,7 +1462,7 @@ public class SRSRebuilder
             }
 
             // After the last metadata block, write audio data from media file
-            if (isLast && tracks.TryGetValue(1, out var track) &&
+            if (isLast && tracks.TryGetValue(1, out SrsTrackDataBlock? track) &&
                 trackOffsets.TryGetValue(1, out long offset))
             {
                 mediaFs.Position = offset;
@@ -1533,7 +1538,7 @@ public class SRSRebuilder
             if (tag is "SRSF" or "SRST" or "SRSP")
             {
                 // Write audio data from media file before skipping SRS blocks
-                if (!mainDataWritten && tracks.TryGetValue(1, out var track) &&
+                if (!mainDataWritten && tracks.TryGetValue(1, out SrsTrackDataBlock? track) &&
                     trackOffsets.TryGetValue(1, out long offset))
                 {
                     mediaFs.Position = offset;
@@ -1732,7 +1737,16 @@ public class SRSRebuilder
 
     private static void TryDeleteFile(string path)
     {
-        try { if (File.Exists(path)) File.Delete(path); } catch { }
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static byte[] ReadExactly(BinaryReader reader, int count)

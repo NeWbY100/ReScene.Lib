@@ -30,7 +30,7 @@ internal static class OsoHashCalculator
         string firstVolume = rarVolumePaths[0];
 
         // Find all archived files by parsing RAR headers
-        var fileNames = FindArchivedFiles(rarVolumePaths);
+        List<string> fileNames = FindArchivedFiles(rarVolumePaths);
 
         foreach (string fileName in fileNames)
         {
@@ -123,7 +123,7 @@ internal static class OsoHashCalculator
 
         while (reader.CanReadBaseHeader)
         {
-            var block = reader.ReadBlock(parseContents: true);
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
             if (block is null)
             {
                 break;
@@ -157,7 +157,7 @@ internal static class OsoHashCalculator
 
         while (reader.CanReadBaseHeader)
         {
-            var block = reader.ReadBlock();
+            RAR5BlockReadResult? block = reader.ReadBlock();
             if (block is null)
             {
                 break;

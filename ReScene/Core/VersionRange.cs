@@ -9,12 +9,18 @@ public class VersionRange
     /// <summary>
     /// The inclusive start value.
     /// </summary>
-    public int Start { get; set; }
+    public int Start
+    {
+        get; set;
+    }
 
     /// <summary>
     /// The exclusive end value.
     /// </summary>
-    public int End { get; set; }
+    public int End
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Initializes a new instance with default start and end values.

@@ -18,7 +18,12 @@ public class RARPatcherTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_testDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_testDir, true);
+        }
+        catch { }
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -44,7 +49,7 @@ public class RARPatcherTests : IDisposable
             FileHostOS = 3 // Unix
         };
 
-        var results = RARPatcher.PatchFile(testFile, options);
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
 
         Assert.NotEmpty(results);
         Assert.All(results.Where(r => r.BlockType == RAR4BlockType.FileHeader),
@@ -61,11 +66,11 @@ public class RARPatcherTests : IDisposable
             FileHostOS = 3 // Unix (original is Windows = 2)
         };
 
-        var results = RARPatcher.PatchFile(testFile, options);
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
 
         // Verify that CRC was recalculated
         Assert.NotEmpty(results);
-        foreach (var result in results)
+        foreach (PatchResult result in results)
         {
             Assert.NotEqual(result.OriginalCrc, result.NewCrc);
         }
@@ -77,8 +82,11 @@ public class RARPatcherTests : IDisposable
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock(parseContents: true);
-            if (block == null) break;
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block is null)
+            {
+                break;
+            }
 
             if (block.BlockType == RAR4BlockType.FileHeader || block.BlockType == RAR4BlockType.Service)
             {
@@ -99,7 +107,7 @@ public class RARPatcherTests : IDisposable
             FileAttributes = 0x000081B4 // Unix file mode
         };
 
-        var results = RARPatcher.PatchFile(testFile, options);
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
 
         Assert.NotEmpty(results);
         Assert.All(results.Where(r => r.BlockType == RAR4BlockType.FileHeader),
@@ -119,8 +127,12 @@ public class RARPatcherTests : IDisposable
             var reader = new RARHeaderReader(fs);
             while (fs.Position < fs.Length)
             {
-                var block = reader.ReadBlock(parseContents: true);
-                if (block == null) break;
+                RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+                if (block is null)
+                {
+                    break;
+                }
+
                 if (block.FileHeader != null)
                 {
                     originalHostOS = block.FileHeader.HostOS;
@@ -136,7 +148,7 @@ public class RARPatcherTests : IDisposable
             FileHostOS = 2 // Windows (should be same as original)
         };
 
-        var results = RARPatcher.PatchFile(testFile, options);
+        _ = RARPatcher.PatchFile(testFile, options);
 
         // If original is already Windows, no changes should be made
         // (or all results show no actual change)
@@ -154,7 +166,7 @@ public class RARPatcherTests : IDisposable
             PatchServiceBlocks = false // Don't patch CMT blocks
         };
 
-        var results = RARPatcher.PatchFile(testFile, options);
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
 
         // Service blocks should not be in results
         Assert.DoesNotContain(results, r => r.BlockType == RAR4BlockType.Service);
@@ -172,7 +184,7 @@ public class RARPatcherTests : IDisposable
             ServiceBlockFileTime = 0 // Zero out CMT file time
         };
 
-        var results = RARPatcher.PatchFile(testFile, options);
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
 
         // Should have patched both file headers and service blocks
         Assert.NotEmpty(results);
@@ -193,7 +205,7 @@ public class RARPatcherTests : IDisposable
             FileHostOS = 3
         };
 
-        var results = RARPatcher.AnalyzeFile(testFile, options);
+        _ = RARPatcher.AnalyzeFile(testFile, options);
 
         byte[] afterBytes = File.ReadAllBytes(testFile);
         Assert.Equal(originalBytes, afterBytes);
@@ -209,7 +221,7 @@ public class RARPatcherTests : IDisposable
             FileHostOS = 3 // Unix (different from Windows original)
         };
 
-        var results = RARPatcher.AnalyzeFile(testFile, options);
+        List<PatchResult> results = RARPatcher.AnalyzeFile(testFile, options);
 
         // Should report blocks that would be modified
         Assert.NotEmpty(results);
@@ -226,7 +238,7 @@ public class RARPatcherTests : IDisposable
             FileHostOS = 3
         };
 
-        var results = RARPatcher.AnalyzeFile(testFile, options);
+        List<PatchResult> results = RARPatcher.AnalyzeFile(testFile, options);
 
         Assert.All(results, r => Assert.Equal((ushort)0, r.NewCrc));
     }
@@ -414,12 +426,12 @@ public class RARPatcherTests : IDisposable
         var reader = new RARHeaderReader(stream);
 
         // Skip archive header
-        var archBlock = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
         reader.SkipBlock(archBlock!);
 
         // Read file header
-        var fileBlock = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? fileBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(fileBlock);
         Assert.NotNull(fileBlock!.FileHeader);
         Assert.True(fileBlock.FileHeader!.HasLargeSize);
@@ -453,11 +465,11 @@ public class RARPatcherTests : IDisposable
         stream.Position = 7;
         var reader = new RARHeaderReader(stream);
 
-        var archBlock = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
         reader.SkipBlock(archBlock!);
 
-        var fileBlock = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? fileBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(fileBlock);
         Assert.NotNull(fileBlock!.FileHeader);
         Assert.False(fileBlock.FileHeader!.HasLargeSize);
@@ -503,11 +515,11 @@ public class RARPatcherTests : IDisposable
         stream.Position = 7;
         var reader = new RARHeaderReader(stream);
 
-        var archBlock = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
         reader.SkipBlock(archBlock!);
 
-        var fileBlock = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? fileBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(fileBlock);
         Assert.True(fileBlock!.CrcValid);
         Assert.False(fileBlock.FileHeader!.HasLargeSize);
@@ -575,8 +587,11 @@ public class RARPatcherTests : IDisposable
 
         while (stream.Position < stream.Length)
         {
-            var block = reader.ReadBlock(parseContents: true);
-            if (block == null) break;
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block is null)
+            {
+                break;
+            }
 
             if (block.BlockType == RAR4BlockType.FileHeader || block.BlockType == RAR4BlockType.Service)
             {
@@ -612,7 +627,7 @@ public class RARPatcherTests : IDisposable
         RARPatcher.PatchStream(stream, options, results);
 
         Assert.NotEmpty(results);
-        foreach (var result in results.Where(r => r.BlockType == RAR4BlockType.FileHeader))
+        foreach (PatchResult? result in results.Where(r => r.BlockType == RAR4BlockType.FileHeader))
         {
             Assert.Equal(3, result.NewHostOS);
             Assert.Equal(0x000081B4u, result.NewAttributes);
@@ -884,7 +899,7 @@ public class RARPatcherTests : IDisposable
         File.WriteAllBytes(testFile, rarData);
 
         var options = new PatchOptions { FileHostOS = 0 }; // Would change both from Windows(2) to MS-DOS(0)
-        var results = RARPatcher.AnalyzeFile(testFile, options);
+        List<PatchResult> results = RARPatcher.AnalyzeFile(testFile, options);
 
         // Should find both file headers
         var fileResults = results.Where(r => r.BlockType == RAR4BlockType.FileHeader).ToList();
@@ -1043,12 +1058,12 @@ public class RARPatcherTests : IDisposable
         var reader = new RARHeaderReader(stream);
 
         // Skip archive header
-        var archBlock = reader.ReadBlock(parseContents: false);
+        RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
         reader.SkipBlock(archBlock!);
 
         // First file header (LARGE)
-        var firstBlock = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? firstBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(firstBlock);
         Assert.True(firstBlock!.CrcValid, "First block CRC should be valid after patching");
         Assert.NotNull(firstBlock.FileHeader);
@@ -1073,7 +1088,7 @@ public class RARPatcherTests : IDisposable
             PatchServiceBlocks = true,
             ServiceBlockHostOS = 0
         };
-        var results = RARPatcher.AnalyzeFile(testFile, options);
+        List<PatchResult> results = RARPatcher.AnalyzeFile(testFile, options);
 
         // Should find both the service block and the file header
         Assert.Equal(2, results.Count);

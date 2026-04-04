@@ -26,7 +26,7 @@ internal static class LanguagesDizGenerator
         string firstVolume = rarVolumePaths[0];
 
         // Find all .idx files by parsing RAR headers across all volumes
-        var idxFileNames = FindIdxFiles(rarVolumePaths);
+        List<string> idxFileNames = FindIdxFiles(rarVolumePaths);
         if (idxFileNames.Count == 0)
         {
             return null;
@@ -36,7 +36,7 @@ internal static class LanguagesDizGenerator
 
         foreach (string idxName in idxFileNames)
         {
-            var languageLines = ReadLanguageLines(firstVolume, idxName);
+            List<string> languageLines = ReadLanguageLines(firstVolume, idxName);
             if (languageLines.Count == 0)
             {
                 continue;
@@ -98,7 +98,7 @@ internal static class LanguagesDizGenerator
 
         while (reader.CanReadBaseHeader)
         {
-            var block = reader.ReadBlock(parseContents: true);
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
             if (block is null)
             {
                 break;
@@ -135,7 +135,7 @@ internal static class LanguagesDizGenerator
 
         while (reader.CanReadBaseHeader)
         {
-            var block = reader.ReadBlock();
+            RAR5BlockReadResult? block = reader.ReadBlock();
             if (block is null)
             {
                 break;

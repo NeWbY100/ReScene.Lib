@@ -322,7 +322,7 @@ public class RARUtilsTests
 
         Assert.NotNull(result);
         // Should contain U+0441 (Cyrillic small letter ES)
-        Assert.Contains("\u0441", result);
+        Assert.Contains("\u0441", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -338,7 +338,7 @@ public class RARUtilsTests
         string? result = RARUtils.DecodeFileName(nameBytes, true);
 
         Assert.NotNull(result);
-        Assert.Contains("\u4E2D", result);
+        Assert.Contains("\u4E2D", result, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -350,7 +350,7 @@ public class RARUtilsTests
         string? result = RARUtils.DecodeFileName(nameBytes, false);
 
         Assert.NotNull(result);
-        Assert.StartsWith("test", result);
+        Assert.StartsWith("test", result, StringComparison.Ordinal);
         Assert.Equal(5, result!.Length); // 5 characters decoded
     }
 

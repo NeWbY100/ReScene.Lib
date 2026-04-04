@@ -15,12 +15,18 @@ public class RARHeaderField
     /// <summary>
     /// Byte offset from the start of the file.
     /// </summary>
-    public long Offset { get; set; }
+    public long Offset
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Length in bytes.
     /// </summary>
-    public int Length { get; set; }
+    public int Length
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw bytes of this field.
@@ -35,7 +41,10 @@ public class RARHeaderField
     /// <summary>
     /// Additional description or decoded meaning.
     /// </summary>
-    public string? Description { get; set; }
+    public string? Description
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Child fields (for nested structures like flags).
@@ -58,22 +67,34 @@ public class RARDetailedBlock
     /// <summary>
     /// Block type value.
     /// </summary>
-    public byte BlockTypeValue { get; set; }
+    public byte BlockTypeValue
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Start offset of this block.
     /// </summary>
-    public long StartOffset { get; set; }
+    public long StartOffset
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Total block size (header + data).
     /// </summary>
-    public long TotalSize { get; set; }
+    public long TotalSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header size only.
     /// </summary>
-    public int HeaderSize { get; set; }
+    public int HeaderSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// All fields in this block header.
@@ -83,23 +104,32 @@ public class RARDetailedBlock
     /// <summary>
     /// True if this block has associated data after the header.
     /// </summary>
-    public bool HasData { get; set; }
+    public bool HasData
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Size of data after header.
     /// </summary>
-    public long DataSize { get; set; }
+    public long DataSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// For file/service blocks: the item name.
     /// </summary>
-    public string? ItemName { get; set; }
+    public string? ItemName
+    {
+        get; set;
+    }
 }
 
 /// <summary>
 /// Parses RAR files and extracts detailed header information with byte offsets.
 /// </summary>
-public class RARDetailedParser
+public static class RARDetailedParser
 {
     /// <summary>
     /// Parses a RAR file and returns all header blocks with detailed field information.
@@ -109,7 +139,7 @@ public class RARDetailedParser
     /// <returns>A list of parsed detailed blocks.</returns>
     public static List<RARDetailedBlock> Parse(string filePath, bool enableSfx = false)
     {
-        using var fs = File.OpenRead(filePath);
+        using FileStream fs = File.OpenRead(filePath);
         return Parse(fs, enableSfx);
     }
 
@@ -187,7 +217,7 @@ public class RARDetailedParser
         return blocks;
     }
 
-    private static readonly byte[] RAR4Signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static readonly byte[] _rar4Signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
 
     /// <summary>
     /// Formats a value as a zero-padded hex string based on the field's byte length.
@@ -224,7 +254,7 @@ public class RARDetailedParser
         bool isRar4 = true;
         for (int i = 0; i < 7; i++)
         {
-            if (buf[i] != RAR4Signature[i])
+            if (buf[i] != _rar4Signature[i])
             {
                 isRar4 = false;
                 break;
@@ -279,7 +309,7 @@ public class RARDetailedParser
                 Offset = sigStart,
                 Length = 7,
                 RawBytes = sig,
-                Value = BitConverter.ToString(sig).Replace("-", " "),
+                Value = BitConverter.ToString(sig).Replace("-", " ", StringComparison.Ordinal),
                 Description = IsValidRAR4Signature(sig) ? "Valid RAR 4.x signature" : "Invalid signature"
             });
 
@@ -295,7 +325,7 @@ public class RARDetailedParser
 
             try
             {
-                var block = ParseRAR4Block(reader, stream);
+                RARDetailedBlock? block = ParseRAR4Block(reader, stream);
                 if (block == null)
                 {
                     break;
@@ -461,16 +491,16 @@ public class RARDetailedParser
         switch (headType)
         {
             case 0x73: // Archive header
-                ParseRAR4ArchiveHeader(reader, stream, block, pos, blockStart + headSize, headFlags);
+                ParseRAR4ArchiveHeader(reader, block, pos, blockStart + headSize);
                 break;
             case 0x74: // File header
-                ParseRAR4FileHeader(reader, stream, block, pos, blockStart + headSize, headFlags, addSize);
+                ParseRAR4FileHeader(reader, block, pos, blockStart + headSize, headFlags, addSize);
                 break;
             case 0x7A: // Service block (CMT, RR, etc.)
-                ParseRAR4ServiceBlock(reader, stream, block, pos, blockStart + headSize, headFlags, addSize);
+                ParseRAR4ServiceBlock(reader, block, pos, blockStart + headSize, headFlags, addSize);
                 break;
             case 0x7B: // End of archive
-                ParseRAR4EndBlock(reader, stream, block, pos, blockStart + headSize, headFlags);
+                ParseRAR4EndBlock(reader, block, pos, blockStart + headSize, headFlags);
                 break;
         }
 
@@ -478,13 +508,13 @@ public class RARDetailedParser
         if (block.HasData && block.DataSize > 0 && headType == 0x7A)
         {
             long dataStart = blockStart + headSize;
-            ParseRAR4DataArea(reader, stream, block, dataStart, headFlags);
+            ParseRAR4DataArea(reader, stream, block, dataStart);
         }
 
         return block;
     }
 
-    private static void ParseRAR4DataArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart, ushort flags)
+    private static void ParseRAR4DataArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart)
     {
         if (dataStart + block.DataSize > stream.Length)
         {
@@ -706,7 +736,7 @@ public class RARDetailedParser
         }
     }
 
-    private static void ParseRAR4ArchiveHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ushort flags)
+    private static void ParseRAR4ArchiveHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd)
     {
         // HighPosAV (2 bytes) - upper 16 bits of AV position
         if (pos + 2 <= headerEnd)
@@ -735,11 +765,10 @@ public class RARDetailedParser
                 RawBytes = BitConverter.GetBytes(posAV),
                 Value = $"0x{posAV:X8}"
             });
-            pos += 4;
         }
     }
 
-    private static void ParseRAR4FileHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
+    private static void ParseRAR4FileHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
     {
         // UNP_SIZE (4 bytes)
         uint unpSize = 0;
@@ -799,7 +828,7 @@ public class RARDetailedParser
         if (pos + 4 <= headerEnd)
         {
             uint ftime = reader.ReadUInt32();
-            var dt = RARUtils.DosDateToDateTime(ftime);
+            DateTime? dt = RARUtils.DosDateToDateTime(ftime);
             block.Fields.Add(new RARHeaderField
             {
                 Name = "File Time (DOS)",
@@ -876,10 +905,9 @@ public class RARDetailedParser
         }
 
         // HIGH_PACK_SIZE (4 bytes) - if LARGE flag set
-        uint highPack = 0;
         if ((flags & 0x0100) != 0 && pos + 4 <= headerEnd)
         {
-            highPack = reader.ReadUInt32();
+            uint highPack = reader.ReadUInt32();
             string? highPackDesc = null;
             if (highPack == 0xFFFFFFFF && unpSize == 0xFFFFFFFF)
             {
@@ -954,7 +982,7 @@ public class RARDetailedParser
                 Offset = pos,
                 Length = 8,
                 RawBytes = salt,
-                Value = BitConverter.ToString(salt).Replace("-", " ")
+                Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal)
             });
             pos += 8;
         }
@@ -962,7 +990,6 @@ public class RARDetailedParser
         // EXT_TIME (variable) - if EXTTIME flag set
         if ((flags & 0x1000) != 0 && pos + 2 <= headerEnd)
         {
-            long extTimeStart = pos;
             ushort extFlags = reader.ReadUInt16();
             var extFlagsField = new RARHeaderField
             {
@@ -1011,7 +1038,7 @@ public class RARDetailedParser
                 {
                     uint dosTime = reader.ReadUInt32();
                     string dosDesc = $"0x{dosTime:X8}";
-                    var dt = RARUtils.DosDateToDateTime(dosTime);
+                    DateTime? dt = RARUtils.DosDateToDateTime(dosTime);
                     if (dt.HasValue)
                     {
                         dosDesc += $" ({dt.Value:yyyy-MM-dd HH:mm:ss})";
@@ -1042,7 +1069,7 @@ public class RARDetailedParser
 
                     // Convert ticks (100ns units) to fractional seconds
                     double seconds = ticks / 10_000_000.0;
-                    string hexStr = BitConverter.ToString(remainder).Replace("-", " ");
+                    string hexStr = BitConverter.ToString(remainder).Replace("-", " ", StringComparison.Ordinal);
 
                     block.Fields.Add(new RARHeaderField
                     {
@@ -1058,13 +1085,13 @@ public class RARDetailedParser
         }
     }
 
-    private static void ParseRAR4ServiceBlock(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
+    private static void ParseRAR4ServiceBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
     {
         // Service blocks have same structure as file headers
-        ParseRAR4FileHeader(reader, stream, block, pos, headerEnd, flags, packSize);
+        ParseRAR4FileHeader(reader, block, pos, headerEnd, flags, packSize);
     }
 
-    private static void ParseRAR4EndBlock(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ushort flags)
+    private static void ParseRAR4EndBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags)
     {
         // Archive end flags
         if ((flags & 0x0002) != 0 && pos + 4 <= headerEnd)
@@ -1093,7 +1120,6 @@ public class RARDetailedParser
                 RawBytes = BitConverter.GetBytes(volNumber),
                 Value = volNumber.ToString()
             });
-            pos += 2;
         }
     }
 
@@ -1125,7 +1151,7 @@ public class RARDetailedParser
                 Offset = sigStart,
                 Length = 8,
                 RawBytes = sig,
-                Value = BitConverter.ToString(sig).Replace("-", " "),
+                Value = BitConverter.ToString(sig).Replace("-", " ", StringComparison.Ordinal),
                 Description = "RAR 5.x signature"
             });
 
@@ -1135,7 +1161,7 @@ public class RARDetailedParser
         // Parse remaining blocks
         while (stream.Position < stream.Length)
         {
-            var block = ParseRAR5Block(reader, stream);
+            RARDetailedBlock? block = ParseRAR5Block(reader, stream);
             if (block == null)
             {
                 break;
@@ -1225,7 +1251,7 @@ public class RARDetailedParser
             Length = vintLen,
             Value = FormatHex(headFlags, vintLen)
         };
-        AddRAR5FlagDescriptions(flagsField, (int)headType, headFlags);
+        AddRAR5FlagDescriptions(flagsField, headFlags);
         block.Fields.Add(flagsField);
         pos = stream.Position;
 
@@ -1272,17 +1298,17 @@ public class RARDetailedParser
         switch ((int)headType)
         {
             case 1: // Main archive header
-                ParseRAR5MainHeader(reader, stream, block, pos, headerEnd, headFlags);
+                ParseRAR5MainHeader(reader, stream, block, pos, headerEnd);
                 break;
             case 2: // File header
             case 3: // Service header
-                ParseRAR5FileHeader(reader, stream, block, pos, headerEnd, headFlags);
+                ParseRAR5FileHeader(reader, stream, block, pos, headerEnd);
                 break;
             case 4: // Encryption header
                 ParseRAR5EncryptionHeader(reader, stream, block, pos, headerEnd);
                 break;
             case 5: // End of archive
-                ParseRAR5EndHeader(reader, stream, block, pos, headerEnd, headFlags);
+                ParseRAR5EndHeader(reader, stream, block, pos, headerEnd);
                 break;
         }
 
@@ -1293,7 +1319,7 @@ public class RARDetailedParser
             if (extraStart >= blockStart && extraStart < headerEnd)
             {
                 stream.Position = extraStart;
-                ParseRAR5ExtraArea(reader, stream, block, extraStart, headerEnd, (int)headType);
+                ParseRAR5ExtraArea(reader, stream, block, headerEnd, (int)headType);
             }
         }
 
@@ -1317,7 +1343,7 @@ public class RARDetailedParser
         _ => $"Unknown ({type})"
     };
 
-    private static void AddRAR5FlagDescriptions(RARHeaderField flagsField, int blockType, ulong flags)
+    private static void AddRAR5FlagDescriptions(RARHeaderField flagsField, ulong flags)
     {
         if ((flags & 0x0001) != 0)
         {
@@ -1355,7 +1381,7 @@ public class RARDetailedParser
         }
     }
 
-    private static void ParseRAR5MainHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ulong headFlags)
+    private static void ParseRAR5MainHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
     {
         // Archive flags (vint)
         if (pos < headerEnd)
@@ -1417,7 +1443,7 @@ public class RARDetailedParser
         }
     }
 
-    private static void ParseRAR5FileHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ulong headFlags)
+    private static void ParseRAR5FileHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
     {
         // File flags (vint)
         if (pos < headerEnd)
@@ -1493,7 +1519,7 @@ public class RARDetailedParser
             if ((fileFlags & 0x0002) != 0 && pos + 4 <= headerEnd)
             {
                 uint mtime = reader.ReadUInt32();
-                var dt = DateTimeOffset.FromUnixTimeSeconds(mtime).LocalDateTime;
+                DateTime dt = DateTimeOffset.FromUnixTimeSeconds(mtime).LocalDateTime;
                 block.Fields.Add(new RARHeaderField
                 {
                     Name = "Modification Time",
@@ -1678,12 +1704,12 @@ public class RARDetailedParser
                 Offset = pos,
                 Length = 16,
                 RawBytes = salt,
-                Value = BitConverter.ToString(salt).Replace("-", " ")
+                Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal)
             });
         }
     }
 
-    private static void ParseRAR5EndHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd, ulong headFlags)
+    private static void ParseRAR5EndHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
     {
         // End flags (vint)
         if (pos < headerEnd)
@@ -1724,7 +1750,7 @@ public class RARDetailedParser
             // Check if stored (method=0) by finding the METHOD child of Compression Info
             bool isStored = block.Fields.Exists(f =>
                 f.Name == "Compression Info" && f.Children.Exists(c =>
-                    c.Name == "METHOD" && c.Value.StartsWith("0 ")));
+                    c.Name == "METHOD" && c.Value.StartsWith("0 ", StringComparison.Ordinal)));
 
             if (block.DataSize > int.MaxValue)
             {
@@ -1772,7 +1798,7 @@ public class RARDetailedParser
         }
     }
 
-    private static void ParseRAR5ExtraArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long extraStart, long headerEnd, int headType)
+    private static void ParseRAR5ExtraArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long headerEnd, int headType)
     {
         block.Fields.Add(new RARHeaderField { Name = "--- Extra Area ---", Value = "" });
 
@@ -1781,9 +1807,7 @@ public class RARDetailedParser
             long recordStart = stream.Position;
 
             // Record size (vint) - size of type + data (not including this size vint itself)
-            long vintStart = stream.Position;
             ulong fieldSize = ReadVInt(reader, stream);
-            int sizeVintLen = (int)(stream.Position - vintStart);
 
             if (fieldSize == 0 || stream.Position + (long)fieldSize > headerEnd)
             {
@@ -1793,10 +1817,8 @@ public class RARDetailedParser
             long nextRecord = stream.Position + (long)fieldSize;
 
             // Record type (vint)
-            vintStart = stream.Position;
             ulong fieldType = ReadVInt(reader, stream);
 
-            long dataPos = stream.Position;
             string recordName = GetExtraRecordName(headType, fieldType);
 
             var recordField = new RARHeaderField
@@ -1811,11 +1833,11 @@ public class RARDetailedParser
             // Parse type-specific sub-fields
             if (headType == 1) // Main Archive
             {
-                ParseMainExtraRecord(reader, stream, block, fieldType, dataPos, nextRecord);
+                ParseMainExtraRecord(reader, stream, block, fieldType, nextRecord);
             }
             else if (headType is 2 or 3) // File/Service
             {
-                ParseFileExtraRecord(reader, stream, block, fieldType, dataPos, nextRecord);
+                ParseFileExtraRecord(reader, stream, block, fieldType, nextRecord);
             }
 
             stream.Position = nextRecord;
@@ -1848,595 +1870,595 @@ public class RARDetailedParser
         };
     }
 
-    private static void ParseMainExtraRecord(BinaryReader reader, Stream stream, RARDetailedBlock block, ulong fieldType, long dataPos, long recordEnd)
+    private static void ParseMainExtraRecord(BinaryReader reader, Stream stream, RARDetailedBlock block, ulong fieldType, long recordEnd)
     {
         switch (fieldType)
         {
             case 1: // Locator
-            {
-                long vintStart = stream.Position;
-                ulong flags = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                var flagsField = new RARHeaderField
                 {
-                    Name = "  Locator Flags",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(flags, vintLen)
-                };
-                if ((flags & 0x01) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "QLIST", Value = "Quick open offset present" });
-                }
-
-                if ((flags & 0x02) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "RR", Value = "Recovery record offset present" });
-                }
-
-                block.Fields.Add(flagsField);
-
-                if ((flags & 0x01) != 0 && stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong qOpenOffset = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = "  Quick Open Offset",
-                        Offset = vintStart,
-                        Length = vintLen,
-                        Value = qOpenOffset == 0 ? "0 (not available)" : $"{qOpenOffset}",
-                        Description = qOpenOffset != 0 ? $"Absolute: 0x{qOpenOffset + (ulong)block.StartOffset:X8}" : null
-                    });
-                }
-
-                if ((flags & 0x02) != 0 && stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong rrOffset = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = "  Recovery Record Offset",
-                        Offset = vintStart,
-                        Length = vintLen,
-                        Value = rrOffset == 0 ? "0 (not available)" : $"{rrOffset}",
-                        Description = rrOffset != 0 ? $"Absolute: 0x{rrOffset + (ulong)block.StartOffset:X8}" : null
-                    });
-                }
-
-                break;
-            }
-
-            case 2: // Metadata
-            {
-                long vintStart = stream.Position;
-                ulong flags = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                var flagsField = new RARHeaderField
-                {
-                    Name = "  Metadata Flags",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(flags, vintLen)
-                };
-                if ((flags & 0x01) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "NAME", Value = "Archive name present" });
-                }
-
-                if ((flags & 0x02) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "CTIME", Value = "Creation time present" });
-                }
-
-                if ((flags & 0x04) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "UNIXTIME", Value = "Unix time format" });
-                }
-
-                if ((flags & 0x08) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "UNIX_NS", Value = "Nanosecond precision" });
-                }
-
-                block.Fields.Add(flagsField);
-
-                if ((flags & 0x01) != 0 && stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong nameSize = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    if (nameSize > 0 && stream.Position + (long)nameSize <= recordEnd)
-                    {
-                        byte[] nameBytes = reader.ReadBytes((int)nameSize);
-                        string name = Encoding.UTF8.GetString(nameBytes);
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  Archive Name",
-                            Offset = vintStart,
-                            Length = vintLen + (int)nameSize,
-                            Value = name
-                        });
-                    }
-                }
-
-                if ((flags & 0x02) != 0 && stream.Position < recordEnd)
-                {
-                    bool unixTime = (flags & 0x04) != 0;
-                    bool unixNs = (flags & 0x08) != 0;
-                    long timePos = stream.Position;
-
-                    if (unixTime && unixNs && stream.Position + 8 <= recordEnd)
-                    {
-                        long ns = reader.ReadInt64();
-                        var dt = DateTimeOffset.FromUnixTimeSeconds(ns / 1_000_000_000).AddTicks(ns % 1_000_000_000 / 100).LocalDateTime;
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  Creation Time",
-                            Offset = timePos,
-                            Length = 8,
-                            Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
-                        });
-                    }
-                    else if (unixTime && stream.Position + 4 <= recordEnd)
-                    {
-                        uint ts = reader.ReadUInt32();
-                        var dt = DateTimeOffset.FromUnixTimeSeconds(ts).LocalDateTime;
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  Creation Time",
-                            Offset = timePos,
-                            Length = 4,
-                            Value = dt.ToString("yyyy-MM-dd HH:mm:ss")
-                        });
-                    }
-                    else if (!unixTime && stream.Position + 8 <= recordEnd)
-                    {
-                        long ft = reader.ReadInt64();
-                        var dt = DateTime.FromFileTime(ft);
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  Creation Time",
-                            Offset = timePos,
-                            Length = 8,
-                            Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
-                        });
-                    }
-                }
-
-                break;
-            }
-        }
-    }
-
-    private static void ParseFileExtraRecord(BinaryReader reader, Stream stream, RARDetailedBlock block, ulong fieldType, long dataPos, long recordEnd)
-    {
-        switch (fieldType)
-        {
-            case 2: // File Hash
-            {
-                long vintStart = stream.Position;
-                ulong hashType = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                string hashTypeName = hashType == 0 ? "BLAKE2sp" : $"Unknown ({hashType})";
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "  Hash Type",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = hashTypeName
-                });
-
-                if (hashType == 0 && stream.Position + 32 <= recordEnd)
-                {
-                    long hashPos = stream.Position;
-                    byte[] hash = reader.ReadBytes(32);
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = "  BLAKE2sp Hash",
-                        Offset = hashPos,
-                        Length = 32,
-                        RawBytes = hash,
-                        Value = BitConverter.ToString(hash).Replace("-", "")
-                    });
-                }
-
-                break;
-            }
-
-            case 3: // File Time (HTIME)
-            {
-                long vintStart = stream.Position;
-                ulong flags = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                bool unixTime = (flags & 0x01) != 0;
-                bool unixNs = (flags & 0x10) != 0;
-
-                var flagsField = new RARHeaderField
-                {
-                    Name = "  Time Flags",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(flags, vintLen)
-                };
-                if (unixTime)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "UNIXTIME", Value = "Unix time format" });
-                }
-
-                if ((flags & 0x02) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "MTIME", Value = "Modification time present" });
-                }
-
-                if ((flags & 0x04) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "CTIME", Value = "Creation time present" });
-                }
-
-                if ((flags & 0x08) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "ATIME", Value = "Access time present" });
-                }
-
-                if (unixNs)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "UNIX_NS", Value = "Nanosecond precision" });
-                }
-
-                block.Fields.Add(flagsField);
-
-                int timeSize = unixTime ? 4 : 8;
-
-                if ((flags & 0x02) != 0 && stream.Position + timeSize <= recordEnd)
-                {
-                    AddTimeField(reader, block, "  Modification Time", stream.Position, unixTime, timeSize);
-                }
-
-                if ((flags & 0x04) != 0 && stream.Position + timeSize <= recordEnd)
-                {
-                    AddTimeField(reader, block, "  Creation Time", stream.Position, unixTime, timeSize);
-                }
-
-                if ((flags & 0x08) != 0 && stream.Position + timeSize <= recordEnd)
-                {
-                    AddTimeField(reader, block, "  Access Time", stream.Position, unixTime, timeSize);
-                }
-
-                // Nanosecond fields
-                if (unixTime && unixNs)
-                {
-                    if ((flags & 0x02) != 0 && stream.Position + 4 <= recordEnd)
-                    {
-                        long nsPos = stream.Position;
-                        uint ns = reader.ReadUInt32() & 0x3FFFFFFF;
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  MTime Nanoseconds",
-                            Offset = nsPos,
-                            Length = 4,
-                            Value = $"{ns} ns"
-                        });
-                    }
-
-                    if ((flags & 0x04) != 0 && stream.Position + 4 <= recordEnd)
-                    {
-                        long nsPos = stream.Position;
-                        uint ns = reader.ReadUInt32() & 0x3FFFFFFF;
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  CTime Nanoseconds",
-                            Offset = nsPos,
-                            Length = 4,
-                            Value = $"{ns} ns"
-                        });
-                    }
-
-                    if ((flags & 0x08) != 0 && stream.Position + 4 <= recordEnd)
-                    {
-                        long nsPos = stream.Position;
-                        uint ns = reader.ReadUInt32() & 0x3FFFFFFF;
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  ATime Nanoseconds",
-                            Offset = nsPos,
-                            Length = 4,
-                            Value = $"{ns} ns"
-                        });
-                    }
-                }
-
-                break;
-            }
-
-            case 1: // Encryption
-            {
-                long vintStart = stream.Position;
-                ulong encVersion = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "  Encryption Version",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = encVersion.ToString()
-                });
-
-                if (stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong encFlags = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    var encFlagsField = new RARHeaderField
-                    {
-                        Name = "  Encryption Flags",
-                        Offset = vintStart,
-                        Length = vintLen,
-                        Value = FormatHex(encFlags, vintLen)
-                    };
-                    if ((encFlags & 0x01) != 0)
-                    {
-                        encFlagsField.Children.Add(new RARHeaderField { Name = "PSWCHECK", Value = "Password check present" });
-                    }
-
-                    if ((encFlags & 0x02) != 0)
-                    {
-                        encFlagsField.Children.Add(new RARHeaderField { Name = "HASHMAC", Value = "Hash MAC present" });
-                    }
-
-                    block.Fields.Add(encFlagsField);
-
-                    if (stream.Position + 1 <= recordEnd)
-                    {
-                        long kdfPos = stream.Position;
-                        byte kdfCount = reader.ReadByte();
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  KDF Count",
-                            Offset = kdfPos,
-                            Length = 1,
-                            Value = kdfCount.ToString(),
-                            Description = $"Iterations = 2^{kdfCount}"
-                        });
-                    }
-
-                    if (stream.Position + 16 <= recordEnd)
-                    {
-                        long saltPos = stream.Position;
-                        byte[] salt = reader.ReadBytes(16);
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  Salt",
-                            Offset = saltPos,
-                            Length = 16,
-                            RawBytes = salt,
-                            Value = BitConverter.ToString(salt).Replace("-", " ")
-                        });
-                    }
-
-                    if (stream.Position + 16 <= recordEnd)
-                    {
-                        long ivPos = stream.Position;
-                        byte[] iv = reader.ReadBytes(16);
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  IV",
-                            Offset = ivPos,
-                            Length = 16,
-                            RawBytes = iv,
-                            Value = BitConverter.ToString(iv).Replace("-", " ")
-                        });
-                    }
-                }
-
-                break;
-            }
-
-            case 4: // File Version
-            {
-                long vintStart = stream.Position;
-                ulong flags = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "  Version Flags",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(flags, vintLen)
-                });
-
-                if (stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong version = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = "  Version Number",
-                        Offset = vintStart,
-                        Length = vintLen,
-                        Value = version.ToString()
-                    });
-                }
-
-                break;
-            }
-
-            case 5: // Redirection
-            {
-                long vintStart = stream.Position;
-                ulong redirType = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                string redirTypeName = redirType switch
-                {
-                    1 => "Unix symlink",
-                    2 => "Windows symlink",
-                    3 => "Windows junction",
-                    4 => "Hard link",
-                    5 => "File copy",
-                    _ => $"Unknown ({redirType})"
-                };
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "  Redirect Type",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = redirTypeName
-                });
-
-                if (stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
+                    long vintStart = stream.Position;
                     ulong flags = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
+                    int vintLen = (int)(stream.Position - vintStart);
                     var flagsField = new RARHeaderField
                     {
-                        Name = "  Redirect Flags",
+                        Name = "  Locator Flags",
                         Offset = vintStart,
                         Length = vintLen,
                         Value = FormatHex(flags, vintLen)
                     };
                     if ((flags & 0x01) != 0)
                     {
-                        flagsField.Children.Add(new RARHeaderField { Name = "DIRECTORY", Value = "Directory redirect" });
+                        flagsField.Children.Add(new RARHeaderField { Name = "QLIST", Value = "Quick open offset present" });
+                    }
+
+                    if ((flags & 0x02) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "RR", Value = "Recovery record offset present" });
                     }
 
                     block.Fields.Add(flagsField);
-                }
 
-                if (stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong nameLen = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    if (nameLen > 0 && stream.Position + (long)nameLen <= recordEnd)
+                    if ((flags & 0x01) != 0 && stream.Position < recordEnd)
                     {
-                        byte[] nameBytes = reader.ReadBytes((int)nameLen);
-                        string targetName = Encoding.UTF8.GetString(nameBytes);
+                        vintStart = stream.Position;
+                        ulong qOpenOffset = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
                         block.Fields.Add(new RARHeaderField
                         {
-                            Name = "  Target Name",
+                            Name = "  Quick Open Offset",
                             Offset = vintStart,
-                            Length = vintLen + (int)nameLen,
-                            Value = targetName
+                            Length = vintLen,
+                            Value = qOpenOffset == 0 ? "0 (not available)" : $"{qOpenOffset}",
+                            Description = qOpenOffset != 0 ? $"Absolute: 0x{qOpenOffset + (ulong)block.StartOffset:X8}" : null
                         });
                     }
-                }
 
-                break;
-            }
-
-            case 6: // Unix Owner
-            {
-                long vintStart = stream.Position;
-                ulong flags = ReadVInt(reader, stream);
-                int vintLen = (int)(stream.Position - vintStart);
-                var flagsField = new RARHeaderField
-                {
-                    Name = "  Owner Flags",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(flags, vintLen)
-                };
-                if ((flags & 0x01) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "UNAME", Value = "User name present" });
-                }
-
-                if ((flags & 0x02) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "GNAME", Value = "Group name present" });
-                }
-
-                if ((flags & 0x04) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "NUMUID", Value = "Numeric UID present" });
-                }
-
-                if ((flags & 0x08) != 0)
-                {
-                    flagsField.Children.Add(new RARHeaderField { Name = "NUMGID", Value = "Numeric GID present" });
-                }
-
-                block.Fields.Add(flagsField);
-
-                if ((flags & 0x01) != 0 && stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong nameLen = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    if (nameLen > 0 && stream.Position + (long)nameLen <= recordEnd)
+                    if ((flags & 0x02) != 0 && stream.Position < recordEnd)
                     {
-                        byte[] nameBytes = reader.ReadBytes((int)nameLen);
+                        vintStart = stream.Position;
+                        ulong rrOffset = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
                         block.Fields.Add(new RARHeaderField
                         {
-                            Name = "  User Name",
+                            Name = "  Recovery Record Offset",
                             Offset = vintStart,
-                            Length = vintLen + (int)nameLen,
-                            Value = Encoding.UTF8.GetString(nameBytes)
+                            Length = vintLen,
+                            Value = rrOffset == 0 ? "0 (not available)" : $"{rrOffset}",
+                            Description = rrOffset != 0 ? $"Absolute: 0x{rrOffset + (ulong)block.StartOffset:X8}" : null
                         });
                     }
+
+                    break;
                 }
 
-                if ((flags & 0x02) != 0 && stream.Position < recordEnd)
+            case 2: // Metadata
                 {
-                    vintStart = stream.Position;
-                    ulong nameLen = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    if (nameLen > 0 && stream.Position + (long)nameLen <= recordEnd)
+                    long vintStart = stream.Position;
+                    ulong flags = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    var flagsField = new RARHeaderField
                     {
-                        byte[] nameBytes = reader.ReadBytes((int)nameLen);
-                        block.Fields.Add(new RARHeaderField
-                        {
-                            Name = "  Group Name",
-                            Offset = vintStart,
-                            Length = vintLen + (int)nameLen,
-                            Value = Encoding.UTF8.GetString(nameBytes)
-                        });
-                    }
-                }
-
-                if ((flags & 0x04) != 0 && stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong uid = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = "  UID",
+                        Name = "  Metadata Flags",
                         Offset = vintStart,
                         Length = vintLen,
-                        Value = uid.ToString()
-                    });
-                }
-
-                if ((flags & 0x08) != 0 && stream.Position < recordEnd)
-                {
-                    vintStart = stream.Position;
-                    ulong gid = ReadVInt(reader, stream);
-                    vintLen = (int)(stream.Position - vintStart);
-                    block.Fields.Add(new RARHeaderField
+                        Value = FormatHex(flags, vintLen)
+                    };
+                    if ((flags & 0x01) != 0)
                     {
-                        Name = "  GID",
-                        Offset = vintStart,
-                        Length = vintLen,
-                        Value = gid.ToString()
-                    });
-                }
+                        flagsField.Children.Add(new RARHeaderField { Name = "NAME", Value = "Archive name present" });
+                    }
 
-                break;
-            }
+                    if ((flags & 0x02) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "CTIME", Value = "Creation time present" });
+                    }
+
+                    if ((flags & 0x04) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "UNIXTIME", Value = "Unix time format" });
+                    }
+
+                    if ((flags & 0x08) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "UNIX_NS", Value = "Nanosecond precision" });
+                    }
+
+                    block.Fields.Add(flagsField);
+
+                    if ((flags & 0x01) != 0 && stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong nameSize = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        if (nameSize > 0 && stream.Position + (long)nameSize <= recordEnd)
+                        {
+                            byte[] nameBytes = reader.ReadBytes((int)nameSize);
+                            string name = Encoding.UTF8.GetString(nameBytes);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Archive Name",
+                                Offset = vintStart,
+                                Length = vintLen + (int)nameSize,
+                                Value = name
+                            });
+                        }
+                    }
+
+                    if ((flags & 0x02) != 0 && stream.Position < recordEnd)
+                    {
+                        bool unixTime = (flags & 0x04) != 0;
+                        bool unixNs = (flags & 0x08) != 0;
+                        long timePos = stream.Position;
+
+                        if (unixTime && unixNs && stream.Position + 8 <= recordEnd)
+                        {
+                            long ns = reader.ReadInt64();
+                            DateTime dt = DateTimeOffset.FromUnixTimeSeconds(ns / 1_000_000_000).AddTicks(ns % 1_000_000_000 / 100).LocalDateTime;
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Creation Time",
+                                Offset = timePos,
+                                Length = 8,
+                                Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
+                            });
+                        }
+                        else if (unixTime && stream.Position + 4 <= recordEnd)
+                        {
+                            uint ts = reader.ReadUInt32();
+                            DateTime dt = DateTimeOffset.FromUnixTimeSeconds(ts).LocalDateTime;
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Creation Time",
+                                Offset = timePos,
+                                Length = 4,
+                                Value = dt.ToString("yyyy-MM-dd HH:mm:ss")
+                            });
+                        }
+                        else if (!unixTime && stream.Position + 8 <= recordEnd)
+                        {
+                            long ft = reader.ReadInt64();
+                            var dt = DateTime.FromFileTime(ft);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Creation Time",
+                                Offset = timePos,
+                                Length = 8,
+                                Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
+                            });
+                        }
+                    }
+
+                    break;
+                }
         }
     }
 
-    private static void AddTimeField(BinaryReader reader, RARDetailedBlock block, string name, long pos, bool unixTime, int size)
+    private static void ParseFileExtraRecord(BinaryReader reader, Stream stream, RARDetailedBlock block, ulong fieldType, long recordEnd)
+    {
+        switch (fieldType)
+        {
+            case 2: // File Hash
+                {
+                    long vintStart = stream.Position;
+                    ulong hashType = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    string hashTypeName = hashType == 0 ? "BLAKE2sp" : $"Unknown ({hashType})";
+                    block.Fields.Add(new RARHeaderField
+                    {
+                        Name = "  Hash Type",
+                        Offset = vintStart,
+                        Length = vintLen,
+                        Value = hashTypeName
+                    });
+
+                    if (hashType == 0 && stream.Position + 32 <= recordEnd)
+                    {
+                        long hashPos = stream.Position;
+                        byte[] hash = reader.ReadBytes(32);
+                        block.Fields.Add(new RARHeaderField
+                        {
+                            Name = "  BLAKE2sp Hash",
+                            Offset = hashPos,
+                            Length = 32,
+                            RawBytes = hash,
+                            Value = Convert.ToHexString(hash)
+                        });
+                    }
+
+                    break;
+                }
+
+            case 3: // File Time (HTIME)
+                {
+                    long vintStart = stream.Position;
+                    ulong flags = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    bool unixTime = (flags & 0x01) != 0;
+                    bool unixNs = (flags & 0x10) != 0;
+
+                    var flagsField = new RARHeaderField
+                    {
+                        Name = "  Time Flags",
+                        Offset = vintStart,
+                        Length = vintLen,
+                        Value = FormatHex(flags, vintLen)
+                    };
+                    if (unixTime)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "UNIXTIME", Value = "Unix time format" });
+                    }
+
+                    if ((flags & 0x02) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "MTIME", Value = "Modification time present" });
+                    }
+
+                    if ((flags & 0x04) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "CTIME", Value = "Creation time present" });
+                    }
+
+                    if ((flags & 0x08) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "ATIME", Value = "Access time present" });
+                    }
+
+                    if (unixNs)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "UNIX_NS", Value = "Nanosecond precision" });
+                    }
+
+                    block.Fields.Add(flagsField);
+
+                    int timeSize = unixTime ? 4 : 8;
+
+                    if ((flags & 0x02) != 0 && stream.Position + timeSize <= recordEnd)
+                    {
+                        AddTimeField(reader, block, "  Modification Time", stream.Position, unixTime);
+                    }
+
+                    if ((flags & 0x04) != 0 && stream.Position + timeSize <= recordEnd)
+                    {
+                        AddTimeField(reader, block, "  Creation Time", stream.Position, unixTime);
+                    }
+
+                    if ((flags & 0x08) != 0 && stream.Position + timeSize <= recordEnd)
+                    {
+                        AddTimeField(reader, block, "  Access Time", stream.Position, unixTime);
+                    }
+
+                    // Nanosecond fields
+                    if (unixTime && unixNs)
+                    {
+                        if ((flags & 0x02) != 0 && stream.Position + 4 <= recordEnd)
+                        {
+                            long nsPos = stream.Position;
+                            uint ns = reader.ReadUInt32() & 0x3FFFFFFF;
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  MTime Nanoseconds",
+                                Offset = nsPos,
+                                Length = 4,
+                                Value = $"{ns} ns"
+                            });
+                        }
+
+                        if ((flags & 0x04) != 0 && stream.Position + 4 <= recordEnd)
+                        {
+                            long nsPos = stream.Position;
+                            uint ns = reader.ReadUInt32() & 0x3FFFFFFF;
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  CTime Nanoseconds",
+                                Offset = nsPos,
+                                Length = 4,
+                                Value = $"{ns} ns"
+                            });
+                        }
+
+                        if ((flags & 0x08) != 0 && stream.Position + 4 <= recordEnd)
+                        {
+                            long nsPos = stream.Position;
+                            uint ns = reader.ReadUInt32() & 0x3FFFFFFF;
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  ATime Nanoseconds",
+                                Offset = nsPos,
+                                Length = 4,
+                                Value = $"{ns} ns"
+                            });
+                        }
+                    }
+
+                    break;
+                }
+
+            case 1: // Encryption
+                {
+                    long vintStart = stream.Position;
+                    ulong encVersion = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    block.Fields.Add(new RARHeaderField
+                    {
+                        Name = "  Encryption Version",
+                        Offset = vintStart,
+                        Length = vintLen,
+                        Value = encVersion.ToString()
+                    });
+
+                    if (stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong encFlags = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        var encFlagsField = new RARHeaderField
+                        {
+                            Name = "  Encryption Flags",
+                            Offset = vintStart,
+                            Length = vintLen,
+                            Value = FormatHex(encFlags, vintLen)
+                        };
+                        if ((encFlags & 0x01) != 0)
+                        {
+                            encFlagsField.Children.Add(new RARHeaderField { Name = "PSWCHECK", Value = "Password check present" });
+                        }
+
+                        if ((encFlags & 0x02) != 0)
+                        {
+                            encFlagsField.Children.Add(new RARHeaderField { Name = "HASHMAC", Value = "Hash MAC present" });
+                        }
+
+                        block.Fields.Add(encFlagsField);
+
+                        if (stream.Position + 1 <= recordEnd)
+                        {
+                            long kdfPos = stream.Position;
+                            byte kdfCount = reader.ReadByte();
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  KDF Count",
+                                Offset = kdfPos,
+                                Length = 1,
+                                Value = kdfCount.ToString(),
+                                Description = $"Iterations = 2^{kdfCount}"
+                            });
+                        }
+
+                        if (stream.Position + 16 <= recordEnd)
+                        {
+                            long saltPos = stream.Position;
+                            byte[] salt = reader.ReadBytes(16);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Salt",
+                                Offset = saltPos,
+                                Length = 16,
+                                RawBytes = salt,
+                                Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal)
+                            });
+                        }
+
+                        if (stream.Position + 16 <= recordEnd)
+                        {
+                            long ivPos = stream.Position;
+                            byte[] iv = reader.ReadBytes(16);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  IV",
+                                Offset = ivPos,
+                                Length = 16,
+                                RawBytes = iv,
+                                Value = BitConverter.ToString(iv).Replace("-", " ", StringComparison.Ordinal)
+                            });
+                        }
+                    }
+
+                    break;
+                }
+
+            case 4: // File Version
+                {
+                    long vintStart = stream.Position;
+                    ulong flags = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    block.Fields.Add(new RARHeaderField
+                    {
+                        Name = "  Version Flags",
+                        Offset = vintStart,
+                        Length = vintLen,
+                        Value = FormatHex(flags, vintLen)
+                    });
+
+                    if (stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong version = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        block.Fields.Add(new RARHeaderField
+                        {
+                            Name = "  Version Number",
+                            Offset = vintStart,
+                            Length = vintLen,
+                            Value = version.ToString()
+                        });
+                    }
+
+                    break;
+                }
+
+            case 5: // Redirection
+                {
+                    long vintStart = stream.Position;
+                    ulong redirType = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    string redirTypeName = redirType switch
+                    {
+                        1 => "Unix symlink",
+                        2 => "Windows symlink",
+                        3 => "Windows junction",
+                        4 => "Hard link",
+                        5 => "File copy",
+                        _ => $"Unknown ({redirType})"
+                    };
+                    block.Fields.Add(new RARHeaderField
+                    {
+                        Name = "  Redirect Type",
+                        Offset = vintStart,
+                        Length = vintLen,
+                        Value = redirTypeName
+                    });
+
+                    if (stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong flags = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        var flagsField = new RARHeaderField
+                        {
+                            Name = "  Redirect Flags",
+                            Offset = vintStart,
+                            Length = vintLen,
+                            Value = FormatHex(flags, vintLen)
+                        };
+                        if ((flags & 0x01) != 0)
+                        {
+                            flagsField.Children.Add(new RARHeaderField { Name = "DIRECTORY", Value = "Directory redirect" });
+                        }
+
+                        block.Fields.Add(flagsField);
+                    }
+
+                    if (stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong nameLen = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        if (nameLen > 0 && stream.Position + (long)nameLen <= recordEnd)
+                        {
+                            byte[] nameBytes = reader.ReadBytes((int)nameLen);
+                            string targetName = Encoding.UTF8.GetString(nameBytes);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Target Name",
+                                Offset = vintStart,
+                                Length = vintLen + (int)nameLen,
+                                Value = targetName
+                            });
+                        }
+                    }
+
+                    break;
+                }
+
+            case 6: // Unix Owner
+                {
+                    long vintStart = stream.Position;
+                    ulong flags = ReadVInt(reader, stream);
+                    int vintLen = (int)(stream.Position - vintStart);
+                    var flagsField = new RARHeaderField
+                    {
+                        Name = "  Owner Flags",
+                        Offset = vintStart,
+                        Length = vintLen,
+                        Value = FormatHex(flags, vintLen)
+                    };
+                    if ((flags & 0x01) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "UNAME", Value = "User name present" });
+                    }
+
+                    if ((flags & 0x02) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "GNAME", Value = "Group name present" });
+                    }
+
+                    if ((flags & 0x04) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "NUMUID", Value = "Numeric UID present" });
+                    }
+
+                    if ((flags & 0x08) != 0)
+                    {
+                        flagsField.Children.Add(new RARHeaderField { Name = "NUMGID", Value = "Numeric GID present" });
+                    }
+
+                    block.Fields.Add(flagsField);
+
+                    if ((flags & 0x01) != 0 && stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong nameLen = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        if (nameLen > 0 && stream.Position + (long)nameLen <= recordEnd)
+                        {
+                            byte[] nameBytes = reader.ReadBytes((int)nameLen);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  User Name",
+                                Offset = vintStart,
+                                Length = vintLen + (int)nameLen,
+                                Value = Encoding.UTF8.GetString(nameBytes)
+                            });
+                        }
+                    }
+
+                    if ((flags & 0x02) != 0 && stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong nameLen = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        if (nameLen > 0 && stream.Position + (long)nameLen <= recordEnd)
+                        {
+                            byte[] nameBytes = reader.ReadBytes((int)nameLen);
+                            block.Fields.Add(new RARHeaderField
+                            {
+                                Name = "  Group Name",
+                                Offset = vintStart,
+                                Length = vintLen + (int)nameLen,
+                                Value = Encoding.UTF8.GetString(nameBytes)
+                            });
+                        }
+                    }
+
+                    if ((flags & 0x04) != 0 && stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong uid = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        block.Fields.Add(new RARHeaderField
+                        {
+                            Name = "  UID",
+                            Offset = vintStart,
+                            Length = vintLen,
+                            Value = uid.ToString()
+                        });
+                    }
+
+                    if ((flags & 0x08) != 0 && stream.Position < recordEnd)
+                    {
+                        vintStart = stream.Position;
+                        ulong gid = ReadVInt(reader, stream);
+                        vintLen = (int)(stream.Position - vintStart);
+                        block.Fields.Add(new RARHeaderField
+                        {
+                            Name = "  GID",
+                            Offset = vintStart,
+                            Length = vintLen,
+                            Value = gid.ToString()
+                        });
+                    }
+
+                    break;
+                }
+        }
+    }
+
+    private static void AddTimeField(BinaryReader reader, RARDetailedBlock block, string name, long pos, bool unixTime)
     {
         if (unixTime)
         {
             uint ts = reader.ReadUInt32();
-            var dt = DateTimeOffset.FromUnixTimeSeconds(ts).LocalDateTime;
+            DateTime dt = DateTimeOffset.FromUnixTimeSeconds(ts).LocalDateTime;
             block.Fields.Add(new RARHeaderField
             {
                 Name = name,

@@ -8,5 +8,8 @@ public interface IFile
     /// <summary>
     /// Gets the full path to the file.
     /// </summary>
-    public string FilePath { get; }
+    public string FilePath
+    {
+        get;
+    }
 }

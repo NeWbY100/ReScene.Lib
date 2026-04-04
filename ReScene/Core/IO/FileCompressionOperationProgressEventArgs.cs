@@ -13,7 +13,10 @@ public class FileCompressionOperationProgressEventArgs(long operationSize, long 
     /// <summary>
     /// Gets whether cancellation has been requested via <see cref="Cancel"/>.
     /// </summary>
-    public bool Cancelled { get; private set; }
+    public bool Cancelled
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Requests cancellation of the compression operation.

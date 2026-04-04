@@ -11,12 +11,18 @@ public class SRSFile
     /// <summary>
     /// Gets the detected container format of the SRS file.
     /// </summary>
-    public SRSContainerType ContainerType { get; private set; }
+    public SRSContainerType ContainerType
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the parsed SRSF (file data) block, or null if not present.
     /// </summary>
-    public SrsFileDataBlock? FileData { get; private set; }
+    public SrsFileDataBlock? FileData
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the parsed SRST (track data) blocks.
@@ -104,7 +110,9 @@ public class SRSFile
                  && magic[4] == 0x08 && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00)
                 || (magic[0] == 'M' && magic[1] == '2' && magic[2] == 'T' && magic[3] == 'S'
                     && magic[4] == 0x08 && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00))
+            {
                 return SRSContainerType.Stream;
+            }
         }
 
         // FLAC
@@ -321,7 +329,7 @@ public class SRSFile
         while (true)
         {
             fs.Position = headerEnd;
-            var (found, size) = Mp3TagReader.DetectId3v2(fs);
+            (bool found, int size) = Mp3TagReader.DetectId3v2(fs);
             if (found)
             {
                 srs.ContainerChunks.Add(new SrsContainerChunk
@@ -399,7 +407,7 @@ public class SRSFile
         long endOffset = fs.Length;
 
         // Check for ID3v1
-        var (id3v1Found, id3v1Size) = Mp3TagReader.DetectId3v1(fs);
+        (bool id3v1Found, int id3v1Size) = Mp3TagReader.DetectId3v1(fs);
         if (id3v1Found)
         {
             srs.ContainerChunks.Add(new SrsContainerChunk
@@ -415,7 +423,7 @@ public class SRSFile
         }
 
         // Check for Lyrics3v2
-        var (lyrics3v2Found, lyrics3v2Size) = Mp3TagReader.DetectLyrics3v2(fs, endOffset);
+        (bool lyrics3v2Found, int lyrics3v2Size) = Mp3TagReader.DetectLyrics3v2(fs, endOffset);
         if (lyrics3v2Found)
         {
             srs.ContainerChunks.Add(new SrsContainerChunk
@@ -432,7 +440,7 @@ public class SRSFile
         else
         {
             // Check for Lyrics3v1
-            var (lyrics3v1Found, lyrics3v1Size) = Mp3TagReader.DetectLyrics3v1(fs, endOffset);
+            (bool lyrics3v1Found, int lyrics3v1Size) = Mp3TagReader.DetectLyrics3v1(fs, endOffset);
             if (lyrics3v1Found)
             {
                 srs.ContainerChunks.Add(new SrsContainerChunk
@@ -449,7 +457,7 @@ public class SRSFile
         }
 
         // Check for APE tag
-        var (apeFound, apeSize) = Mp3TagReader.DetectApeTag(fs, endOffset);
+        (bool apeFound, int apeSize) = Mp3TagReader.DetectApeTag(fs, endOffset);
         if (apeFound)
         {
             srs.ContainerChunks.Add(new SrsContainerChunk
@@ -469,7 +477,7 @@ public class SRSFile
     private static void ParseFlac(BinaryReader reader, FileStream fs, SRSFile srs)
     {
         // Check for ID3v2 wrapper before fLaC marker
-        var (id3Found, id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
+        (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
         if (id3Found)
         {
             srs.ContainerChunks.Add(new SrsContainerChunk
@@ -505,7 +513,7 @@ public class SRSFile
         while (fs.Position + 4 <= fs.Length)
         {
             long frameOffset = fs.Position;
-            var (isLast, type, payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+            (bool isLast, byte type, int payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
             int headerSize = 4;
 
             long payloadStart = fs.Position;
@@ -642,7 +650,7 @@ public class SRSFile
         ParseMp4Atoms(reader, fs, srs, 0, fs.Length);
     }
 
-    private static readonly HashSet<string> Mp4ContainerAtoms = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _mp4ContainerAtoms = new(StringComparer.Ordinal)
     {
         "moov", "trak", "mdia", "minf", "stbl", "edts", "udta"
     };
@@ -703,7 +711,7 @@ public class SRSFile
                 srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 fs.Position = frameOffset + totalSize;
             }
-            else if (Mp4ContainerAtoms.Contains(type))
+            else if (_mp4ContainerAtoms.Contains(type))
             {
                 srs.ContainerChunks.Add(new SrsContainerChunk
                 {
@@ -744,9 +752,9 @@ public class SRSFile
 
     // ==================== WMV/ASF Parser ====================
 
-    private static readonly byte[] GuidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] GuidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
-    private static readonly byte[] GuidSrsPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
+    private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
+    private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    private static readonly byte[] _guidSrsPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
 
     private static void ParseAsf(BinaryReader reader, FileStream fs, SRSFile srs)
     {
@@ -765,17 +773,17 @@ public class SRSFile
             long payloadSize = (long)totalSize - headerSize;
             long payloadStart = fs.Position;
 
-            if (GuidEquals(guid, GuidSrsFile))
+            if (GuidEquals(guid, _guidSrsFile))
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize);
             }
-            else if (GuidEquals(guid, GuidSrsTrack))
+            else if (GuidEquals(guid, _guidSrsTrack))
             {
                 srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
             }
             else
             {
-                string label = GuidEquals(guid, GuidSrsPadding) ? "SRS Padding" : FormatGuid(guid);
+                string label = GuidEquals(guid, _guidSrsPadding) ? "SRS Padding" : FormatGuid(guid);
 
                 srs.ContainerChunks.Add(new SrsContainerChunk
                 {

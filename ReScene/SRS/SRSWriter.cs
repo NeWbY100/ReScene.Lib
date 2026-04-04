@@ -21,21 +21,45 @@ public class SrsCreationOptions
 public class SrsCreationResult
 {
     /// <summary>Whether SRS creation completed successfully.</summary>
-    public bool Success { get; set; }
+    public bool Success
+    {
+        get; set;
+    }
     /// <summary>Path to the created SRS file.</summary>
-    public string? OutputPath { get; set; }
+    public string? OutputPath
+    {
+        get; set;
+    }
     /// <summary>Error message if creation failed.</summary>
-    public string? ErrorMessage { get; set; }
+    public string? ErrorMessage
+    {
+        get; set;
+    }
     /// <summary>Detected container type of the sample file.</summary>
-    public SRSContainerType ContainerType { get; set; }
+    public SRSContainerType ContainerType
+    {
+        get; set;
+    }
     /// <summary>Number of tracks found in the sample file.</summary>
-    public int TrackCount { get; set; }
+    public int TrackCount
+    {
+        get; set;
+    }
     /// <summary>Size of the created SRS file in bytes.</summary>
-    public long SrsFileSize { get; set; }
+    public long SrsFileSize
+    {
+        get; set;
+    }
     /// <summary>CRC32 checksum of the original sample file.</summary>
-    public uint SampleCrc32 { get; set; }
+    public uint SampleCrc32
+    {
+        get; set;
+    }
     /// <summary>Size of the original sample file in bytes.</summary>
-    public long SampleSize { get; set; }
+    public long SampleSize
+    {
+        get; set;
+    }
     /// <summary>Non-fatal warnings encountered during creation.</summary>
     public List<string> Warnings { get; set; } = [];
 }
@@ -56,16 +80,28 @@ public class SrsCreationProgressEventArgs : EventArgs
 /// </summary>
 internal class TrackInfo
 {
-    public int TrackNumber { get; set; }
-    public long DataLength { get; set; }
+    public int TrackNumber
+    {
+        get; set;
+    }
+    public long DataLength
+    {
+        get; set;
+    }
     public byte[] SignatureBytes { get; set; } = [];
-    public long MatchOffset { get; set; }
+    public long MatchOffset
+    {
+        get; set;
+    }
 
     /// <summary>
     /// For MKV tracks: the compression algorithm from ContentCompAlgo.
     /// Null means no compression element present. 3 = header stripping.
     /// </summary>
-    public int? CompressionAlgorithm { get; set; }
+    public int? CompressionAlgorithm
+    {
+        get; set;
+    }
 
     /// <summary>
     /// For MKV tracks with header stripping (CompressionAlgorithm == 3):
@@ -113,7 +149,7 @@ public class SRSWriter
 
             long sampleSize = new FileInfo(sampleFilePath).Length;
 
-            var containerType = DetectContainerType(sampleFilePath);
+            SRSContainerType containerType = DetectContainerType(sampleFilePath);
             result.ContainerType = containerType;
 
             ReportProgress($"Detected container: {containerType}");
@@ -126,7 +162,7 @@ public class SRSWriter
 
             // Profile the sample to extract tracks and CRC
             ReportProgress("Profiling sample...");
-            var (tracks, crc32, totalSize) = await Task.Run(
+            (List<TrackInfo>? tracks, uint crc32, long totalSize) = await Task.Run(
                 () => ProfileSample(sampleFilePath, containerType, ct), ct);
 
             if (tracks.Count == 0)
@@ -230,7 +266,9 @@ public class SRSWriter
                 Span<byte> check = stackalloc byte[4];
                 if (fs.Read(check) == 4 &&
                     check[0] == 'f' && check[1] == 'L' && check[2] == 'a' && check[3] == 'C')
+                {
                     return SRSContainerType.FLAC;
+                }
             }
 
             return SRSContainerType.MP3;
@@ -305,7 +343,7 @@ public class SRSWriter
         SRSWriter.ProfileRiffChunks(reader, fs, 0, fs.Length, trackMap, ref otherLength, crc, ct);
 
         long totalSize = otherLength;
-        foreach (var t in trackMap.Values)
+        foreach (TrackInfo t in trackMap.Values)
         {
             totalSize += t.DataLength;
         }
@@ -351,8 +389,6 @@ public class SRSWriter
                 otherLength += 4;
                 crc.Append(subType);
 
-                string listType = Encoding.ASCII.GetString(subType);
-
                 long childEnd = chunkStart + 8 + chunkSize;
                 if (childEnd > end)
                 {
@@ -380,7 +416,7 @@ public class SRSWriter
                 if (isMovi)
                 {
                     int trackNumber = (fourcc[0] - '0') * 10 + (fourcc[1] - '0');
-                    if (!trackMap.TryGetValue(trackNumber, out var track))
+                    if (!trackMap.TryGetValue(trackNumber, out TrackInfo? track))
                     {
                         track = new TrackInfo { TrackNumber = trackNumber };
                         trackMap[trackNumber] = track;
@@ -439,7 +475,7 @@ public class SRSWriter
         SRSWriter.ProfileEbmlElements(fs, 0, fs.Length, trackMap, ref otherLength, crc, isSegmentLevel: false, ct);
 
         long totalSize = otherLength;
-        foreach (var t in trackMap.Values)
+        foreach (TrackInfo t in trackMap.Values)
         {
             totalSize += t.DataLength;
         }
@@ -454,7 +490,7 @@ public class SRSWriter
     /// <summary>
     /// Container element IDs that we step into (no data of their own).
     /// </summary>
-    private static readonly HashSet<ulong> EbmlContainerElements =
+    private static readonly HashSet<ulong> _ebmlContainerElements =
     [
         0x18538067, // Segment
         0x1F43B675, // Cluster
@@ -468,11 +504,11 @@ public class SRSWriter
         0x61A7,     // AttachedFile
     ];
 
-    private static readonly ulong EbmlIdBlock = 0xA3;             // SimpleBlock
-    private static readonly ulong EbmlIdBlockGroup_Block = 0xA1;  // Block inside BlockGroup
-    private static readonly ulong EbmlIdTrackNumber = 0xD7;       // TrackNumber in TrackEntry
-    private static readonly ulong EbmlIdContentCompAlgo = 0x4254; // ContentCompAlgo
-    private static readonly ulong EbmlIdContentCompSettings = 0x4255; // ContentCompSettings
+    private static readonly ulong _ebmlIdBlock = 0xA3;             // SimpleBlock
+    private static readonly ulong _ebmlIdBlockGroupBlock = 0xA1;  // Block inside BlockGroup
+    private static readonly ulong _ebmlIdTrackNumber = 0xD7;       // TrackNumber in TrackEntry
+    private static readonly ulong _ebmlIdContentCompAlgo = 0x4254; // ContentCompAlgo
+    private static readonly ulong _ebmlIdContentCompSettings = 0x4255; // ContentCompSettings
 
     /// <summary>
     /// State tracked across recursive ProfileEbmlElements calls for MKV profiling.
@@ -480,8 +516,14 @@ public class SRSWriter
     /// </summary>
     private class EbmlProfileState
     {
-        public int CurrentTrackNumber { get; set; }
-        public bool HeaderStrippingDetected { get; set; }
+        public int CurrentTrackNumber
+        {
+            get; set;
+        }
+        public bool HeaderStrippingDetected
+        {
+            get; set;
+        }
     }
 
     private static void ProfileEbmlElements(
@@ -522,10 +564,10 @@ public class SRSWriter
             otherLength += headerSize;
             crc.Append(rawHeader);
 
-            if (EbmlContainerElements.Contains(elemId))
+            if (_ebmlContainerElements.Contains(elemId))
             {
                 // When entering ContentCompression (0x5034), mark that compression is present
-                if (elemId == 0x5034 && trackMap.TryGetValue(state.CurrentTrackNumber, out var compTrack))
+                if (elemId == 0x5034 && trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? compTrack))
                 {
                     // Mark that a compression element exists (exact algorithm comes from child)
                     compTrack.CompressionAlgorithm ??= -1; // placeholder until we read ContentCompAlgo
@@ -535,7 +577,7 @@ public class SRSWriter
                 SRSWriter.ProfileEbmlElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
                     isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state);
             }
-            else if (elemId == EbmlIdBlock || elemId == EbmlIdBlockGroup_Block)
+            else if (elemId == _ebmlIdBlock || elemId == _ebmlIdBlockGroupBlock)
             {
                 // Parse block: track number (EBML VINT) + timecode (2 bytes) + flags (1 byte)
                 if (!TryReadEbmlVint(fs, out ulong trackNum, out int vintLen))
@@ -569,7 +611,7 @@ public class SRSWriter
                 {
                     // Read the lacing header data to parse it
                     byte[] lacingData = ReadExactly(fs, Math.Min(dataAfterBaseHeader, 256)); // lacing headers are small
-                    var (_, bytesConsumed) = EbmlLacing.GetFrameLengths(
+                    (int[] _, int bytesConsumed) = EbmlLacing.GetFrameLengths(
                         lacingData, laceType, dataAfterBaseHeader);
                     lacingHeaderSize = bytesConsumed;
 
@@ -595,7 +637,7 @@ public class SRSWriter
                 }
 
                 int tn = (int)trackNum;
-                if (!trackMap.TryGetValue(tn, out var track))
+                if (!trackMap.TryGetValue(tn, out TrackInfo? track))
                 {
                     track = new TrackInfo { TrackNumber = tn };
                     trackMap[tn] = track;
@@ -625,7 +667,7 @@ public class SRSWriter
                     }
                 }
             }
-            else if (elemId == EbmlIdTrackNumber)
+            else if (elemId == _ebmlIdTrackNumber)
             {
                 // Read TrackNumber element to track current context
                 long remaining = elemEnd - fs.Position;
@@ -650,7 +692,7 @@ public class SRSWriter
                     }
                 }
             }
-            else if (elemId == EbmlIdContentCompAlgo)
+            else if (elemId == _ebmlIdContentCompAlgo)
             {
                 // Read compression algorithm
                 long remaining = elemEnd - fs.Position;
@@ -666,7 +708,7 @@ public class SRSWriter
                         algorithm = (algorithm << 8) | data[i];
                     }
 
-                    if (trackMap.TryGetValue(state.CurrentTrackNumber, out var track))
+                    if (trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? track))
                     {
                         track.CompressionAlgorithm = algorithm;
                     }
@@ -674,7 +716,7 @@ public class SRSWriter
                     state.HeaderStrippingDetected = algorithm == 3;
                 }
             }
-            else if (elemId == EbmlIdContentCompSettings)
+            else if (elemId == _ebmlIdContentCompSettings)
             {
                 // Read compression settings (stripped header bytes)
                 long remaining = elemEnd - fs.Position;
@@ -685,7 +727,7 @@ public class SRSWriter
                     crc.Append(data);
 
                     if (state.HeaderStrippingDetected &&
-                        trackMap.TryGetValue(state.CurrentTrackNumber, out var track))
+                        trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? track))
                     {
                         track.CompressionSettings = data;
                     }
@@ -743,7 +785,7 @@ public class SRSWriter
             if (needsTrack)
             {
                 int trackNum = trackMap.Count > 0 ? trackMap.Keys.First() : 1;
-                if (trackMap.TryGetValue(trackNum, out var existing))
+                if (trackMap.TryGetValue(trackNum, out TrackInfo? existing))
                 {
                     existing.DataLength = mdatSize;
                 }
@@ -757,7 +799,7 @@ public class SRSWriter
         return (trackMap.Values.ToList(), crc32, totalSize);
     }
 
-    private static readonly HashSet<string> Mp4ContainerAtoms =
+    private static readonly HashSet<string> _mp4ContainerAtoms =
         ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta", "meta", "ilst"];
 
     private static void ProfileMp4Atoms(
@@ -856,7 +898,7 @@ public class SRSWriter
                     if (trackMap.Count == 0 || !signatureDone)
                     {
                         int trackNum = trackMap.Count > 0 ? trackMap.Keys.First() : 1;
-                        if (!trackMap.TryGetValue(trackNum, out var track))
+                        if (!trackMap.TryGetValue(trackNum, out TrackInfo? track))
                         {
                             track = new TrackInfo { TrackNumber = trackNum };
                             trackMap[trackNum] = track;
@@ -894,7 +936,7 @@ public class SRSWriter
                     }
                 }
             }
-            else if (Mp4ContainerAtoms.Contains(type))
+            else if (_mp4ContainerAtoms.Contains(type))
             {
                 // Step into children
                 SRSWriter.ProfileMp4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
@@ -989,7 +1031,7 @@ public class SRSWriter
                             streamNum = 1;
                         }
 
-                        if (!trackMap.TryGetValue(streamNum, out var track))
+                        if (!trackMap.TryGetValue(streamNum, out TrackInfo? track))
                         {
                             track = new TrackInfo { TrackNumber = streamNum };
                             trackMap[streamNum] = track;
@@ -1051,7 +1093,7 @@ public class SRSWriter
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
 
         // Check for ID3v2 wrapper before fLaC marker
-        var (id3Found, id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
+        (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
         if (id3Found)
         {
             // CRC and account for the ID3v2 wrapper
@@ -1077,7 +1119,7 @@ public class SRSWriter
         {
             ct.ThrowIfCancellationRequested();
 
-            var (isLast, blockType, payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+            (bool isLast, byte blockType, int payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
             // Reconstruct the 4-byte header for CRC
             byte typeByte = (byte)((isLast ? 0x80 : 0) | blockType);
@@ -1296,7 +1338,7 @@ public class SRSWriter
                 SRSWriter.WriteFlacSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
                 break;
             case SRSContainerType.MP3:
-                SRSWriter.WriteMp3Srs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
+                SRSWriter.WriteMp3Srs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options);
                 break;
             case SRSContainerType.Stream:
                 WriteStreamSrs(outputPath, samplePath, tracks, sampleSize, sampleCrc32, options, ct);
@@ -1306,7 +1348,7 @@ public class SRSWriter
 
     // ==================== AVI SRS ====================
 
-    private void WriteAviSrs(
+    private static void WriteAviSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
         SrsCreationOptions options, CancellationToken ct)
@@ -1355,7 +1397,7 @@ public class SRSWriter
                 if (fourcc == "LIST" && listType == "movi" && !moviInjected)
                 {
                     WriteSrsfRiff(outFs, samplePath, sampleSize, sampleCrc32, options);
-                    foreach (var track in tracks)
+                    foreach (TrackInfo track in tracks)
                     {
                         WriteSrstRiff(outFs, track, sampleSize >= 0x80000000);
                     }
@@ -1444,7 +1486,7 @@ public class SRSWriter
 
     // ==================== MKV SRS ====================
 
-    private void WriteMkvSrs(
+    private static void WriteMkvSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
         SrsCreationOptions options, CancellationToken ct)
@@ -1459,7 +1501,7 @@ public class SRSWriter
     /// <summary>
     /// EBML element IDs that we should step into (they are containers).
     /// </summary>
-    private static readonly HashSet<ulong> MkvSrsContainers =
+    private static readonly HashSet<ulong> _mkvSrsContainers =
     [
         0x1F43B675, // Cluster
         0xA0,       // BlockGroup
@@ -1515,7 +1557,7 @@ public class SRSWriter
                 SRSWriter.WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCrc32, options, resampleInjected, ct);
             }
-            else if (MkvSrsContainers.Contains(elemId))
+            else if (_mkvSrsContainers.Contains(elemId))
             {
                 outFs.Write(rawHeader);
                 SRSWriter.WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
@@ -1526,7 +1568,7 @@ public class SRSWriter
                 outFs.Write(rawHeader);
                 // Skip attachment data
             }
-            else if (elemId == EbmlIdBlock || elemId == EbmlIdBlockGroup_Block)
+            else if (elemId == _ebmlIdBlock || elemId == _ebmlIdBlockGroupBlock)
             {
                 // Write header + block header (including lacing header), skip frame data
                 outFs.Write(rawHeader);
@@ -1555,7 +1597,7 @@ public class SRSWriter
                             if (dataAfterBase > 0)
                             {
                                 byte[] lacingPeek = ReadExactly(inFs, Math.Min(dataAfterBase, 256));
-                                var (_, bytesConsumed) = EbmlLacing.GetFrameLengths(
+                                (int[] _, int bytesConsumed) = EbmlLacing.GetFrameLengths(
                                     lacingPeek, laceType, dataAfterBase);
                                 lacingHeaderSize = bytesConsumed;
                             }
@@ -1597,7 +1639,7 @@ public class SRSWriter
 
         bool bigFile = sampleSize >= 0x80000000;
         var trackElements = new List<byte[]>();
-        foreach (var track in tracks)
+        foreach (TrackInfo track in tracks)
         {
             byte[] srstPayload = SerializeSrst(track, bigFile);
             trackElements.Add(BuildEbmlElement(0x6B75, srstPayload)); // RESAMPLE_TRACK
@@ -1605,7 +1647,10 @@ public class SRSWriter
 
         // Total child size
         long childSize = srsfElement.Length;
-        foreach (var te in trackElements) childSize += te.Length;
+        foreach (var te in trackElements)
+        {
+            childSize += te.Length;
+        }
 
         // Write the ReSample container element (ID: 0x1F697576)
         byte[] resampleHeader = BuildEbmlElementHeader(0x1F697576, childSize);
@@ -1673,7 +1718,7 @@ public class SRSWriter
             {
                 // Inject SRSF/SRST before mdat
                 WriteSrsfMov(outFs, samplePath, sampleSize, sampleCrc32, options);
-                foreach (var track in tracks)
+                foreach (TrackInfo track in tracks)
                 {
                     WriteSrstMov(outFs, track, sampleSize >= 0x80000000);
                 }
@@ -1711,7 +1756,10 @@ public class SRSWriter
         byte[] payload = SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
         Span<byte> header = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + 8));
-        header[4] = (byte)'S'; header[5] = (byte)'R'; header[6] = (byte)'S'; header[7] = (byte)'F';
+        header[4] = (byte)'S';
+        header[5] = (byte)'R';
+        header[6] = (byte)'S';
+        header[7] = (byte)'F';
         outFs.Write(header);
         outFs.Write(payload);
     }
@@ -1721,15 +1769,18 @@ public class SRSWriter
         byte[] payload = SerializeSrst(track, bigFile);
         Span<byte> header = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + 8));
-        header[4] = (byte)'S'; header[5] = (byte)'R'; header[6] = (byte)'S'; header[7] = (byte)'T';
+        header[4] = (byte)'S';
+        header[5] = (byte)'R';
+        header[6] = (byte)'S';
+        header[7] = (byte)'T';
         outFs.Write(header);
         outFs.Write(payload);
     }
 
     // ==================== WMV/ASF SRS ====================
 
-    private static readonly byte[] GuidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] GuidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
+    private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
 
     private static void WriteWmvSrs(
         string outputPath, string samplePath,
@@ -1798,7 +1849,7 @@ public class SRSWriter
 
                 // Inject SRSF/SRST after data object
                 WriteSrsfAsf(outFs, samplePath, sampleSize, sampleCrc32, options);
-                foreach (var track in tracks)
+                foreach (TrackInfo track in tracks)
                 {
                     WriteSrstAsf(outFs, track, sampleSize >= 0x80000000);
                 }
@@ -1821,7 +1872,7 @@ public class SRSWriter
         SrsCreationOptions options)
     {
         byte[] payload = SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
-        outFs.Write(GuidSrsFile);
+        outFs.Write(_guidSrsFile);
         Span<byte> sizeBytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
         outFs.Write(sizeBytes);
@@ -1831,7 +1882,7 @@ public class SRSWriter
     private static void WriteSrstAsf(Stream outFs, TrackInfo track, bool bigFile)
     {
         byte[] payload = SerializeSrst(track, bigFile);
-        outFs.Write(GuidSrsTrack);
+        outFs.Write(_guidSrsTrack);
         Span<byte> sizeBytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
         outFs.Write(sizeBytes);
@@ -1850,7 +1901,7 @@ public class SRSWriter
         using var reader = new BinaryReader(inFs);
 
         // Check for ID3v2 wrapper before fLaC marker
-        var (id3Found, id3Size) = FlacMetadataReader.DetectId3v2Wrapper(inFs);
+        (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(inFs);
         if (id3Found)
         {
             // Copy the ID3v2 wrapper verbatim
@@ -1869,7 +1920,7 @@ public class SRSWriter
 
         // Inject SRSF/SRST right after fLaC marker
         WriteSrsfFlac(outFs, samplePath, sampleSize, sampleCrc32, options);
-        foreach (var track in tracks)
+        foreach (TrackInfo track in tracks)
         {
             WriteSrstFlac(outFs, track, sampleSize >= 0x80000000);
         }
@@ -1879,7 +1930,7 @@ public class SRSWriter
         {
             ct.ThrowIfCancellationRequested();
 
-            var (isLast, blockType, payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+            (bool isLast, byte blockType, int payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
             // Write block header
             byte typeByte = (byte)((isLast ? 0x80 : 0) | blockType);
@@ -1931,7 +1982,7 @@ public class SRSWriter
     private static void WriteMp3Srs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options, CancellationToken ct)
+        SrsCreationOptions options)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -1951,7 +2002,7 @@ public class SRSWriter
 
         // Write SRSF/SRST blocks (replaces audio data)
         WriteSrsfMp3(outFs, samplePath, sampleSize, sampleCrc32, options);
-        foreach (var track in tracks)
+        foreach (TrackInfo track in tracks)
         {
             WriteSrstMp3(outFs, track, sampleSize >= 0x80000000);
         }
@@ -2006,7 +2057,7 @@ public class SRSWriter
         WriteSrsfMp3(outFs, samplePath, sampleSize, sampleCrc32, options);
 
         // Write SRST blocks
-        foreach (var track in tracks)
+        foreach (TrackInfo track in tracks)
         {
             WriteSrstMp3(outFs, track, sampleSize >= 0x80000000);
         }
@@ -2195,9 +2246,7 @@ public class SRSWriter
     }
 
     /// <summary>
-
     /// Reads a VINT value (masks out marker bit).
-
     /// </summary>
     private static bool TryReadEbmlVint(Stream stream, out ulong value, out int length)
     {
@@ -2357,7 +2406,11 @@ public class SRSWriter
 
     private static void TryDeleteFile(string path)
     {
-        try { File.Delete(path); } catch { }
+        try
+        {
+            File.Delete(path);
+        }
+        catch { }
     }
 
     #endregion

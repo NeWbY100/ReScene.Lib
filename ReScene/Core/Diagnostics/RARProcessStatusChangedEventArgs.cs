@@ -10,7 +10,10 @@ public class RARProcessStatusChangedEventArgs : OperationStatusChangedEventArgs
     /// <summary>
     /// Gets the RAR process associated with this status change.
     /// </summary>
-    public RARProcess Process { get; private set; }
+    public RARProcess Process
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified process and new status.

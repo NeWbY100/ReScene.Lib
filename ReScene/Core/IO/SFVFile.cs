@@ -8,7 +8,10 @@ public class SFVFile
     /// <summary>
     /// Gets or sets the file info for the SFV file on disk.
     /// </summary>
-    public FileInfo? FileInfo { get; set; }
+    public FileInfo? FileInfo
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the parsed SFV entries.
@@ -47,7 +50,7 @@ public class SFVFile
         string[] fileLines = File.ReadAllLines(sfvFile.FileInfo.FullName);
         foreach (string fileLine in fileLines)
         {
-            if (string.IsNullOrEmpty(fileLine) || fileLine.StartsWith(":") || fileLine.StartsWith("#") || fileLine.StartsWith(";"))
+            if (string.IsNullOrEmpty(fileLine) || fileLine.StartsWith(':') || fileLine.StartsWith('#') || fileLine.StartsWith(';'))
             {
                 continue;
             }
@@ -65,7 +68,7 @@ public class SFVFile
                 throw new InvalidDataException("Invalid SFV file format.");
             }
 
-            sfvFile.Entries.Add(new SFVFileEntry(fileName, crc32.ToLower()));
+            sfvFile.Entries.Add(new SFVFileEntry(fileName, crc32.ToLowerInvariant()));
         }
 
         return sfvFile;

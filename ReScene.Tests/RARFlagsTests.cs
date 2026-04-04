@@ -55,7 +55,7 @@ public class RARFlagsTests
     [Fact]
     public void RARArchiveFlags_CombineFlags_Works()
     {
-        var flags = RARArchiveFlags.Volume | RARArchiveFlags.Solid | RARArchiveFlags.Protected;
+        RARArchiveFlags flags = RARArchiveFlags.Volume | RARArchiveFlags.Solid | RARArchiveFlags.Protected;
         Assert.True(flags.HasFlag(RARArchiveFlags.Volume));
         Assert.True(flags.HasFlag(RARArchiveFlags.Solid));
         Assert.True(flags.HasFlag(RARArchiveFlags.Protected));

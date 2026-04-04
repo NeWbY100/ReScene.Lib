@@ -8,7 +8,10 @@ public class RARProcessDataEventArgs : ProcessDataEventArgs
     /// <summary>
     /// Gets the RAR process that produced the output.
     /// </summary>
-    public RARProcess Process { get; private set; }
+    public RARProcess Process
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified process and output data.

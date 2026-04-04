@@ -230,7 +230,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                                 if (nameOffset + nameSize <= fullHeader.Length)
                                 {
                                     archivedFileName = Encoding.ASCII.GetString(fullHeader, nameOffset, nameSize);
-                                    int nullIdx = archivedFileName.IndexOf('\0');
+                                    int nullIdx = archivedFileName.IndexOf('\0', StringComparison.Ordinal);
                                     if (nullIdx >= 0)
                                     {
                                         archivedFileName = archivedFileName[..nullIdx];
@@ -337,7 +337,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
             outputStream?.Dispose();
         }
 
-        var elapsed = DateTime.Now - startTime;
+        TimeSpan elapsed = DateTime.Now - startTime;
         if (allMatched && completedVolumes > 0)
         {
             _logger.Information(this, $"=== Reconstruction SUCCESS: {completedVolumes} volume(s) in {elapsed.TotalSeconds:F1}s ===", LogTarget.System);

@@ -117,8 +117,8 @@ public static class FileComparer
                     });
                 }
 
-                left.ArchivedFileTimestamps.TryGetValue(file, out var leftTime);
-                right.ArchivedFileTimestamps.TryGetValue(file, out var rightTime);
+                left.ArchivedFileTimestamps.TryGetValue(file, out DateTime leftTime);
+                right.ArchivedFileTimestamps.TryGetValue(file, out DateTime rightTime);
 
                 if (leftTime != rightTime)
                 {
@@ -182,8 +182,8 @@ public static class FileComparer
         int trackCount = Math.Max(left.Tracks.Count, right.Tracks.Count);
         for (int i = 0; i < trackCount; i++)
         {
-            var lt = i < left.Tracks.Count ? left.Tracks[i] : null;
-            var rt = i < right.Tracks.Count ? right.Tracks[i] : null;
+            SrsTrackDataBlock? lt = i < left.Tracks.Count ? left.Tracks[i] : null;
+            SrsTrackDataBlock? rt = i < right.Tracks.Count ? right.Tracks[i] : null;
             string trackName = $"Track {lt?.TrackNumber ?? rt?.TrackNumber ?? (uint)i}";
 
             if (lt is null || rt is null)
@@ -256,10 +256,10 @@ public static class FileComparer
         int count = Math.Min(leftBlocks.Count, rightBlocks.Count);
         for (int i = 0; i < count; i++)
         {
-            var lb = leftBlocks[i];
-            var rb = rightBlocks[i];
+            RARDetailedBlock lb = leftBlocks[i];
+            RARDetailedBlock rb = rightBlocks[i];
 
-            bool isItemBlock = lb.BlockType.Contains("File") || lb.BlockType.Contains("Service");
+            bool isItemBlock = lb.BlockType.Contains("File", StringComparison.Ordinal) || lb.BlockType.Contains("Service", StringComparison.Ordinal);
 
             FileDifference? fileDiff = null;
             if (isItemBlock)
@@ -273,8 +273,8 @@ public static class FileComparer
             int fieldCount = Math.Max(lb.Fields.Count, rb.Fields.Count);
             for (int f = 0; f < fieldCount; f++)
             {
-                var lf = f < lb.Fields.Count ? lb.Fields[f] : null;
-                var rf = f < rb.Fields.Count ? rb.Fields[f] : null;
+                RARHeaderField? lf = f < lb.Fields.Count ? lb.Fields[f] : null;
+                RARHeaderField? rf = f < rb.Fields.Count ? rb.Fields[f] : null;
 
                 string name = lf?.Name ?? rf?.Name ?? $"Field {f}";
 
@@ -331,8 +331,8 @@ public static class FileComparer
         int count = Math.Max(left.Fields.Count, right.Fields.Count);
         for (int f = 0; f < count; f++)
         {
-            var lf = f < left.Fields.Count ? left.Fields[f] : null;
-            var rf = f < right.Fields.Count ? right.Fields[f] : null;
+            RARHeaderField? lf = f < left.Fields.Count ? left.Fields[f] : null;
+            RARHeaderField? rf = f < right.Fields.Count ? right.Fields[f] : null;
             if ((lf?.Value ?? "") != (rf?.Value ?? ""))
             {
                 return true;

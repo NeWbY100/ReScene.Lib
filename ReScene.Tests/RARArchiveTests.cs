@@ -21,7 +21,9 @@ public class RARArchiveTests
         // Skip RAR 4.x marker: "Rar!\x1a\x07\x00" (7 bytes)
         byte[] marker = br.ReadBytes(7);
         if (marker.Length != 7)
+        {
             return null;
+        }
 
         // Verify RAR 4.x signature
         if (marker[0] != 0x52 || marker[1] != 0x61 || marker[2] != 0x72 || marker[3] != 0x21 ||
@@ -34,17 +36,21 @@ public class RARArchiveTests
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock(parseContents: true);
-            if (block == null)
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block is null)
+            {
                 break;
+            }
 
             // Check for archive header with embedded comment (MHD_COMMENT flag)
             if (block.BlockType == RAR4BlockType.ArchiveHeader &&
                 (block.Flags & 0x0002) != 0) // MHD_COMMENT flag
             {
                 string? comment = ExtractEmbeddedComment(fs, block);
-                if (comment != null)
+                if (comment is not null)
+                {
                     return comment;
+                }
             }
 
             // Check for old-style comment block (0x75) - used in RAR 2.x
@@ -59,8 +65,10 @@ public class RARArchiveTests
                 string.Equals(block.ServiceBlockInfo.SubType, "CMT", StringComparison.OrdinalIgnoreCase))
             {
                 byte[]? commentData = reader.ReadServiceBlockData(block);
-                if (commentData == null || commentData.Length == 0)
+                if (commentData is null || commentData.Length == 0)
+                {
                     return null;
+                }
 
                 if (block.ServiceBlockInfo.IsStored)
                 {
@@ -103,7 +111,9 @@ public class RARArchiveTests
         ushort commCrc = br.ReadUInt16();
         byte commType = br.ReadByte();
         if (commType != 0x75) // Not a comment block
+        {
             return null;
+        }
 
         ushort commFlags = br.ReadUInt16();
         ushort commSize = br.ReadUInt16();
@@ -115,11 +125,15 @@ public class RARArchiveTests
         // Comment data follows the 13-byte comment header
         int dataSize = commSize - 13;
         if (dataSize <= 0)
+        {
             return null;
+        }
 
         byte[] compressedData = br.ReadBytes(dataSize);
         if (compressedData.Length != dataSize)
+        {
             return null;
+        }
 
         return RARDecompressor.DecompressComment(compressedData, unpSize, method, isRAR5: false);
     }
@@ -138,11 +152,12 @@ public class RARArchiveTests
         // Then compressed data
 
         long headerStart = block.BlockPosition;
-        long dataStart = headerStart + 7 + 6; // Base header (7) + extension (6)
         int dataSize = block.HeaderSize - 7 - 6;
 
         if (dataSize <= 0)
+        {
             return null;
+        }
 
         // Seek to data position
         fs.Seek(headerStart + 7, SeekOrigin.Begin);
@@ -156,11 +171,15 @@ public class RARArchiveTests
         // Read compressed data
         dataSize = block.HeaderSize - 13; // Total - base header - extension fields
         if (dataSize <= 0)
+        {
             return null;
+        }
 
         byte[] compressedData = br.ReadBytes(dataSize);
         if (compressedData.Length != dataSize)
+        {
             return null;
+        }
 
         // Decompress
         return RARDecompressor.DecompressComment(compressedData, unpSize, method, isRAR5: false);
@@ -185,7 +204,7 @@ public class RARArchiveTests
         fs.Seek(7, SeekOrigin.Begin); // Skip marker
 
         var reader = new RARHeaderReader(fs);
-        var block = reader.ReadBlock(parseContents: true);
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
@@ -281,8 +300,11 @@ public class RARArchiveTests
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock(parseContents: true);
-            if (block == null) break;
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block is null)
+            {
+                break;
+            }
 
             if (block.BlockType == RAR4BlockType.Service &&
                 block.ServiceBlockInfo != null &&
@@ -297,7 +319,7 @@ public class RARArchiveTests
 
                 if (data != null && data.Length > 0)
                 {
-                    debugInfo += $", DataHex={BitConverter.ToString(data).Replace("-", "")[..Math.Min(40, data.Length * 2)]}";
+                    debugInfo += $", DataHex={Convert.ToHexString(data)[..Math.Min(40, data.Length * 2)]}";
                 }
 
                 // Try to decompress
@@ -360,7 +382,7 @@ public class RARArchiveTests
         RARServiceBlockInfo? foundServiceInfo = null;
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock(parseContents: true);
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
             if (block == null)
             {
                 blockList.Add($"null at position {fs.Position}");
@@ -405,7 +427,9 @@ public class RARArchiveTests
 
         // Check for RAR 5.0 marker
         if (!RAR5HeaderReader.IsRAR5(fs))
+        {
             return null;
+        }
 
         // Skip RAR 5.0 marker (8 bytes)
         fs.Seek(8, SeekOrigin.Begin);
@@ -414,9 +438,11 @@ public class RARArchiveTests
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock();
-            if (block == null)
+            RAR5BlockReadResult? block = reader.ReadBlock();
+            if (block is null)
+            {
                 break;
+            }
 
             // Found CMT comment service block
             if (block.BlockType == RAR5BlockType.Service &&
@@ -424,8 +450,10 @@ public class RARArchiveTests
                 string.Equals(block.ServiceBlockInfo.SubType, "CMT", StringComparison.OrdinalIgnoreCase))
             {
                 byte[]? commentData = reader.ReadServiceBlockData(block);
-                if (commentData == null || commentData.Length == 0)
+                if (commentData is null || commentData.Length == 0)
+                {
                     return null;
+                }
 
                 string? text;
                 if (block.ServiceBlockInfo.IsStored)
@@ -539,7 +567,7 @@ public class RARArchiveTests
         var reader = new RAR5HeaderReader(fs);
 
         // Read Main header
-        var mainBlock = reader.ReadBlock();
+        RAR5BlockReadResult? mainBlock = reader.ReadBlock();
         Assert.NotNull(mainBlock);
         Assert.Equal(RAR5BlockType.Main, mainBlock!.BlockType);
         Assert.Equal(10ul, mainBlock.HeaderSize); // Should be 10
@@ -550,7 +578,7 @@ public class RARArchiveTests
         long posBeforeService = fs.Position;
 
         // Read Service header
-        var serviceBlock = reader.ReadBlock();
+        RAR5BlockReadResult? serviceBlock = reader.ReadBlock();
         Assert.NotNull(serviceBlock);
         Assert.Equal(RAR5BlockType.Service, serviceBlock!.BlockType);
 
@@ -590,7 +618,7 @@ public class RARArchiveTests
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock();
+            RAR5BlockReadResult? block = reader.ReadBlock();
             if (block == null)
             {
                 blockList.Add($"null at position {fs.Position}");

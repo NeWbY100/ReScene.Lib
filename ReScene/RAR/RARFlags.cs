@@ -117,9 +117,7 @@ public static class RARFlagMasks
     public const int DictionarySizeShift = 5;
 
     /// <summary>
-
     /// Salt length in bytes
-
     /// </summary>
     public const int SaltLength = 8;
 }

@@ -23,7 +23,7 @@ public class RARDetailedParserTests
             return;
         }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
 
         Assert.NotEmpty(blocks);
 
@@ -37,9 +37,12 @@ public class RARDetailedParserTests
     public void Parse_RAR4File_ContainsArchiveHeader()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
 
         Assert.Contains(blocks, b => b.BlockType == "Archive Header");
     }
@@ -48,11 +51,14 @@ public class RARDetailedParserTests
     public void Parse_RAR4File_ContainsFileHeader()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
 
-        var fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
+        RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileBlock);
         Assert.NotNull(fileBlock!.ItemName);
     }
@@ -61,10 +67,13 @@ public class RARDetailedParserTests
     public void Parse_RAR4File_FileHeaderHasExpectedFields()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
-        var fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
+        RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileBlock);
 
         var fieldNames = fileBlock!.Fields.Select(f => f.Name).ToList();
@@ -80,10 +89,13 @@ public class RARDetailedParserTests
     public void Parse_RAR4File_ServiceBlockHasCmtName()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
-        var serviceBlock = blocks.FirstOrDefault(b => b.BlockType == "Service Block");
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
+        RARDetailedBlock? serviceBlock = blocks.FirstOrDefault(b => b.BlockType == "Service Block");
 
         if (serviceBlock != null)
         {
@@ -106,7 +118,7 @@ public class RARDetailedParserTests
             return;
         }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
 
         Assert.NotEmpty(blocks);
         Assert.Equal("Signature", blocks[0].BlockType);
@@ -117,9 +129,12 @@ public class RARDetailedParserTests
     public void Parse_RAR5File_ContainsMainHeader()
     {
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
 
         Assert.Contains(blocks, b => b.BlockType == "Main Archive Header");
     }
@@ -128,9 +143,12 @@ public class RARDetailedParserTests
     public void Parse_RAR5File_ContainsServiceHeader()
     {
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
 
         Assert.Contains(blocks, b => b.BlockType == "Service Header");
     }
@@ -143,10 +161,13 @@ public class RARDetailedParserTests
     public void Parse_Stream_WorksCorrectly()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        using var stream = File.OpenRead(rarPath);
-        var blocks = RARDetailedParser.Parse(stream);
+        using FileStream stream = File.OpenRead(rarPath);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         Assert.NotEmpty(blocks);
     }
@@ -159,11 +180,14 @@ public class RARDetailedParserTests
     public void Parse_RAR4_SignatureFieldHasCorrectDescription()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
-        var sigBlock = blocks.First(b => b.BlockType == "Signature");
-        var sigField = sigBlock.Fields.First(f => f.Name == "Signature");
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
+        RARDetailedBlock sigBlock = blocks.First(b => b.BlockType == "Signature");
+        RARHeaderField sigField = sigBlock.Fields.First(f => f.Name == "Signature");
 
         Assert.Equal("Valid RAR 4.x signature", sigField.Description);
     }
@@ -172,11 +196,14 @@ public class RARDetailedParserTests
     public void Parse_HostOSField_HasDescription()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(rarPath);
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
-        var hostOSField = fileBlock.Fields.FirstOrDefault(f => f.Name == "Host OS");
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARHeaderField? hostOSField = fileBlock.Fields.FirstOrDefault(f => f.Name == "Host OS");
 
         Assert.NotNull(hostOSField?.Description);
     }
@@ -314,7 +341,9 @@ public class RARDetailedParserTests
         var ms = new MemoryStream();
         ms.Write(RAR4Signature);
         foreach (var block in blocks)
+        {
             ms.Write(block);
+        }
         ms.Position = 0;
         return ms;
     }
@@ -335,10 +364,10 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderLarge("test.bin", packSizeLow, highPackSize);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         Assert.Equal(expectedDataSize, fileBlock.DataSize);
     }
 
@@ -352,10 +381,10 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderNoLarge("test.txt", packedSize);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         Assert.Equal(packedSize, fileBlock.DataSize);
     }
 
@@ -371,10 +400,10 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderLarge("bigfile.dat", packSizeLow, highPackSize);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         long expectedTotalSize = fileBlock.HeaderSize + expectedDataSize;
         Assert.Equal(expectedTotalSize, fileBlock.TotalSize);
     }
@@ -401,7 +430,7 @@ public class RARDetailedParserTests
         ms.Write(endBlock);
         ms.Position = 0;
 
-        var blocks = RARDetailedParser.Parse(ms);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(ms);
 
         // Should find: Signature, Archive Header, File Header, End of Archive
         // No "Unknown" blocks should appear
@@ -426,11 +455,11 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderLarge("huge.bin", packSizeLow, highPackSize);
 
         // Don't add end block - the parser should stop because nextPos > stream.Length
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         // File header DataSize should be the full 64-bit value
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         Assert.Equal(expectedDataSize, fileBlock.DataSize);
 
         // No "Unknown" blocks should be produced
@@ -445,10 +474,10 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderLarge("test.bin", 100, 5);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         var fieldNames = fileBlock.Fields.Select(f => f.Name).ToList();
 
         Assert.Contains("High Pack Size", fieldNames);
@@ -463,10 +492,10 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderNoLarge("small.txt", 100);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         var fieldNames = fileBlock.Fields.Select(f => f.Name).ToList();
 
         Assert.DoesNotContain("High Pack Size", fieldNames);
@@ -482,10 +511,10 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderLarge("test.dat", packSizeLow, 0);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         Assert.Equal(packSizeLow, fileBlock.DataSize);
     }
 
@@ -497,11 +526,11 @@ public class RARDetailedParserTests
         byte[] fileHeader = BuildFileHeaderLarge("test.bin", 100, 0);
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
-        var flagsField = fileBlock.Fields.First(f => f.Name == "Flags");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARHeaderField flagsField = fileBlock.Fields.First(f => f.Name == "Flags");
 
         Assert.Contains(flagsField.Children, c => c.Name == "LARGE");
     }
@@ -537,13 +566,13 @@ public class RARDetailedParserTests
         stream.Write(rarBytes);
         stream.Position = 256; // Position at start of RAR data
 
-        var blocks = RARDetailedParser.ParseFromPosition(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.ParseFromPosition(stream);
 
         Assert.NotEmpty(blocks);
         Assert.Equal("Signature", blocks[0].BlockType);
         Assert.Equal(256, blocks[0].StartOffset); // Offset should reflect actual position
 
-        var fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
+        RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileBlock);
         Assert.Equal("embedded.txt", fileBlock!.ItemName);
     }
@@ -558,7 +587,7 @@ public class RARDetailedParserTests
         var stream = new MemoryStream(garbage);
         stream.Position = 10;
 
-        var blocks = RARDetailedParser.ParseFromPosition(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.ParseFromPosition(stream);
 
         Assert.Empty(blocks);
     }
@@ -590,9 +619,9 @@ public class RARDetailedParserTests
         stream.Write(rarBytes);
         stream.Position = 100;
 
-        var blocks = RARDetailedParser.ParseFromPosition(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.ParseFromPosition(stream);
 
-        var fileBlock = blocks.First(b => b.BlockType == "File Header");
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
         Assert.Equal(expectedDataSize, fileBlock.DataSize);
     }
 
@@ -606,10 +635,10 @@ public class RARDetailedParserTests
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var end = blocks.FirstOrDefault(b => b.BlockType == "End of Archive");
+        RARDetailedBlock? end = blocks.FirstOrDefault(b => b.BlockType == "End of Archive");
         Assert.NotNull(end);
         Assert.Equal(0x7B, end!.BlockTypeValue);
     }
@@ -630,11 +659,11 @@ public class RARDetailedParserTests
         BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
 
         byte[] archiveHeader = BuildArchiveHeader();
-        using var stream = BuildRAR4Stream(archiveHeader, hdr);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var end = blocks.First(b => b.BlockType == "End of Archive");
-        var crcField = end.Fields.FirstOrDefault(f => f.Name == "Archive Data CRC");
+        RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
+        RARHeaderField? crcField = end.Fields.FirstOrDefault(f => f.Name == "Archive Data CRC");
         Assert.NotNull(crcField);
         Assert.Equal("0xDEADBEEF", crcField!.Value);
     }
@@ -655,11 +684,11 @@ public class RARDetailedParserTests
         BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
 
         byte[] archiveHeader = BuildArchiveHeader();
-        using var stream = BuildRAR4Stream(archiveHeader, hdr);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var end = blocks.First(b => b.BlockType == "End of Archive");
-        var volField = end.Fields.FirstOrDefault(f => f.Name == "Volume Number");
+        RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
+        RARHeaderField? volField = end.Fields.FirstOrDefault(f => f.Name == "Volume Number");
         Assert.NotNull(volField);
         Assert.Equal("42", volField!.Value);
     }
@@ -678,11 +707,11 @@ public class RARDetailedParserTests
         BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
 
         byte[] archiveHeader = BuildArchiveHeader();
-        using var stream = BuildRAR4Stream(archiveHeader, hdr);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var end = blocks.First(b => b.BlockType == "End of Archive");
-        var flagsField = end.Fields.First(f => f.Name == "Flags");
+        RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
+        RARHeaderField flagsField = end.Fields.First(f => f.Name == "Flags");
         Assert.Contains(flagsField.Children, c => c.Name == "DATA_CRC");
     }
 
@@ -738,10 +767,10 @@ public class RARDetailedParserTests
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var svc = blocks.FirstOrDefault(b => b.BlockType == "Service Block");
+        RARDetailedBlock? svc = blocks.FirstOrDefault(b => b.BlockType == "Service Block");
         Assert.NotNull(svc);
         Assert.Equal("CMT", svc!.ItemName);
     }
@@ -753,10 +782,10 @@ public class RARDetailedParserTests
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var svc = blocks.First(b => b.BlockType == "Service Block");
+        RARDetailedBlock svc = blocks.First(b => b.BlockType == "Service Block");
         Assert.Contains(svc.Fields, f => f.Name == "--- Data Area ---");
     }
 
@@ -768,11 +797,11 @@ public class RARDetailedParserTests
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var svc = blocks.First(b => b.BlockType == "Service Block");
-        var commentField = svc.Fields.FirstOrDefault(f => f.Name == "Comment Data");
+        RARDetailedBlock svc = blocks.First(b => b.BlockType == "Service Block");
+        RARHeaderField? commentField = svc.Fields.FirstOrDefault(f => f.Name == "Comment Data");
         Assert.NotNull(commentField);
         Assert.Equal(comment, commentField!.Value);
         Assert.Equal("Stored (uncompressed)", commentField.Description);
@@ -785,11 +814,11 @@ public class RARDetailedParserTests
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
 
-        using var stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, cmtBlock, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var svc = blocks.First(b => b.BlockType == "Service Block");
-        var methodField = svc.Fields.FirstOrDefault(f => f.Name == "Compression Method");
+        RARDetailedBlock svc = blocks.First(b => b.BlockType == "Service Block");
+        RARHeaderField? methodField = svc.Fields.FirstOrDefault(f => f.Name == "Compression Method");
         Assert.NotNull(methodField);
         Assert.Equal("0x30", methodField!.Value);
         Assert.Equal("Store", methodField.Description);
@@ -812,10 +841,10 @@ public class RARDetailedParserTests
 
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
-        using var stream = BuildRAR4Stream(archiveHeader, hdr, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var unknown = blocks.FirstOrDefault(b => b.BlockType == "Unknown (0x60)");
+        RARDetailedBlock? unknown = blocks.FirstOrDefault(b => b.BlockType == "Unknown (0x60)");
         Assert.NotNull(unknown);
         Assert.Equal(0x60, unknown!.BlockTypeValue);
     }
@@ -833,8 +862,8 @@ public class RARDetailedParserTests
 
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
-        using var stream = BuildRAR4Stream(archiveHeader, hdr, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         // Should have: Signature, Archive Header, Unknown, End of Archive
         Assert.Contains(blocks, b => b.BlockType == "Unknown (0x65)");
@@ -853,11 +882,11 @@ public class RARDetailedParserTests
 
         byte[] archiveHeader = BuildArchiveHeader();
         byte[] endBlock = BuildEndBlock();
-        using var stream = BuildRAR4Stream(archiveHeader, hdr, endBlock);
-        var blocks = RARDetailedParser.Parse(stream);
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr, endBlock);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var unknown = blocks.First(b => b.BlockType == "Unknown (0x5F)");
-        var typeField = unknown.Fields.First(f => f.Name == "Block Type");
+        RARDetailedBlock unknown = blocks.First(b => b.BlockType == "Unknown (0x5F)");
+        RARHeaderField typeField = unknown.Fields.First(f => f.Name == "Block Type");
         Assert.Equal("0x5F", typeField.Value);
         Assert.Equal("Unknown (0x5F)", typeField.Description);
     }
@@ -877,7 +906,9 @@ public class RARDetailedParserTests
             byte b = (byte)(value & 0x7F);
             value >>= 7;
             if (value != 0)
+            {
                 b |= 0x80;
+            }
             bytes.Add(b);
         } while (value != 0);
         return bytes.ToArray();
@@ -893,8 +924,10 @@ public class RARDetailedParserTests
 
         headerBw.Write(EncodeVInt((ulong)headType));
         headerBw.Write(EncodeVInt(headFlags));
-        if (bodyAfterFlags != null)
+        if (bodyAfterFlags is not null)
+        {
             headerBw.Write(bodyAfterFlags);
+        }
 
         headerBw.Flush();
         byte[] headerContent = headerMs.ToArray();
@@ -969,7 +1002,9 @@ public class RARDetailedParserTests
         ms.Write(mainBlock);
 
         foreach (var block in extraBlocks)
+        {
             ms.Write(block);
+        }
 
         ms.Position = 0;
         return ms;
@@ -1016,11 +1051,11 @@ public class RARDetailedParserTests
         byte[] dataArea = new byte[50]; // fake data
         byte[] fileBlock = BuildRAR5BlockWithData(2, 0, body, dataArea);
         byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0));
-        using var stream = BuildRAR5Stream(fileBlock, endBlock);
+        using MemoryStream stream = BuildRAR5Stream(fileBlock, endBlock);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileHdr = blocks.FirstOrDefault(b => b.BlockType == "File Header");
+        RARDetailedBlock? fileHdr = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileHdr);
         Assert.Equal("test.txt", fileHdr!.ItemName);
         Assert.True(fileHdr.HasData);
@@ -1033,12 +1068,12 @@ public class RARDetailedParserTests
         byte[] body = BuildRAR5FileHeaderBody("data.bin", 200);
         byte[] fileBlock = BuildRAR5BlockWithData(2, 0, body, new byte[10]);
         byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0));
-        using var stream = BuildRAR5Stream(fileBlock, endBlock);
+        using MemoryStream stream = BuildRAR5Stream(fileBlock, endBlock);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileHdr = blocks.First(b => b.BlockType == "File Header");
-        var compInfo = fileHdr.Fields.FirstOrDefault(f => f.Name == "Compression Info");
+        RARDetailedBlock fileHdr = blocks.First(b => b.BlockType == "File Header");
+        RARHeaderField? compInfo = fileHdr.Fields.FirstOrDefault(f => f.Name == "Compression Info");
         Assert.NotNull(compInfo);
         // Should have children for VERSION, SOLID, METHOD, DICT_SIZE
         Assert.Contains(compInfo!.Children, c => c.Name == "METHOD");
@@ -1051,12 +1086,12 @@ public class RARDetailedParserTests
         byte[] body = BuildRAR5FileHeaderBody("info.dat", 0);
         byte[] fileBlock = BuildRAR5BlockWithData(2, 0, body, Array.Empty<byte>());
         byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0));
-        using var stream = BuildRAR5Stream(fileBlock, endBlock);
+        using MemoryStream stream = BuildRAR5Stream(fileBlock, endBlock);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var fileHdr = blocks.First(b => b.BlockType == "File Header");
-        var hostOs = fileHdr.Fields.FirstOrDefault(f => f.Name == "Host OS");
+        RARDetailedBlock fileHdr = blocks.First(b => b.BlockType == "File Header");
+        RARHeaderField? hostOs = fileHdr.Fields.FirstOrDefault(f => f.Name == "Host OS");
         Assert.NotNull(hostOs);
         Assert.Equal("Windows", hostOs!.Description);
     }
@@ -1065,11 +1100,11 @@ public class RARDetailedParserTests
     public void Parse_RAR5EndOfArchive_DetectedCorrectly()
     {
         byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0)); // type=5, end flags=0
-        using var stream = BuildRAR5Stream(endBlock);
+        using MemoryStream stream = BuildRAR5Stream(endBlock);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var end = blocks.FirstOrDefault(b => b.BlockType == "End of Archive");
+        RARDetailedBlock? end = blocks.FirstOrDefault(b => b.BlockType == "End of Archive");
         Assert.NotNull(end);
         Assert.Equal(5, end!.BlockTypeValue);
     }
@@ -1078,12 +1113,12 @@ public class RARDetailedParserTests
     public void Parse_RAR5EndOfArchive_HasEndFlagsField()
     {
         byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0));
-        using var stream = BuildRAR5Stream(endBlock);
+        using MemoryStream stream = BuildRAR5Stream(endBlock);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
-        var end = blocks.First(b => b.BlockType == "End of Archive");
-        var endFlags = end.Fields.FirstOrDefault(f => f.Name == "End Flags");
+        RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
+        RARHeaderField? endFlags = end.Fields.FirstOrDefault(f => f.Name == "End Flags");
         Assert.NotNull(endFlags);
     }
 
@@ -1096,7 +1131,7 @@ public class RARDetailedParserTests
     {
         using var stream = new MemoryStream();
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         Assert.Empty(blocks);
     }
@@ -1107,7 +1142,7 @@ public class RARDetailedParserTests
         // 3 bytes is too short for either RAR4 (7) or RAR5 (8) signature
         using var stream = new MemoryStream([0x52, 0x61, 0x72]);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         Assert.Empty(blocks);
     }
@@ -1117,7 +1152,7 @@ public class RARDetailedParserTests
     {
         using var stream = new MemoryStream([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         Assert.Single(blocks);
         Assert.Equal("Signature", blocks[0].BlockType);
@@ -1129,7 +1164,7 @@ public class RARDetailedParserTests
     {
         using var stream = new MemoryStream([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
 
-        var blocks = RARDetailedParser.Parse(stream);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
 
         Assert.Single(blocks);
         Assert.Equal("Signature", blocks[0].BlockType);
@@ -1145,9 +1180,12 @@ public class RARDetailedParserTests
     public void Parse_SfxArchive_FindsRarBlocks()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
-        if (!File.Exists(sfxPath)) return;
+        if (!File.Exists(sfxPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
 
         Assert.True(blocks.Count >= 3, $"Expected at least 3 blocks, got {blocks.Count}");
     }
@@ -1156,9 +1194,12 @@ public class RARDetailedParserTests
     public void Parse_SfxArchive_FirstBlockIsSignature()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
-        if (!File.Exists(sfxPath)) return;
+        if (!File.Exists(sfxPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
 
         Assert.Equal("Signature", blocks[0].BlockType);
     }
@@ -1167,9 +1208,12 @@ public class RARDetailedParserTests
     public void Parse_SfxArchive_LastBlockIsEndArchive()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
-        if (!File.Exists(sfxPath)) return;
+        if (!File.Exists(sfxPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
 
         Assert.Equal("End of Archive", blocks[^1].BlockType);
     }
@@ -1178,11 +1222,14 @@ public class RARDetailedParserTests
     public void Parse_SfxArchive_ContainsFileHeader()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
-        if (!File.Exists(sfxPath)) return;
+        if (!File.Exists(sfxPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
 
-        var fileBlock = blocks.FirstOrDefault(b => b.BlockType.Contains("File"));
+        RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType.Contains("File", StringComparison.Ordinal));
         Assert.NotNull(fileBlock);
         Assert.Equal("little_file.txt", fileBlock!.ItemName);
     }
@@ -1191,9 +1238,12 @@ public class RARDetailedParserTests
     public void Parse_SfxArchive_WithoutSfxFlag_ReturnsEmpty()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
-        if (!File.Exists(sfxPath)) return;
+        if (!File.Exists(sfxPath))
+        {
+            return;
+        }
 
-        var blocks = RARDetailedParser.Parse(sfxPath, enableSfx: false);
+        List<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: false);
 
         Assert.Empty(blocks);
     }
@@ -1202,9 +1252,12 @@ public class RARDetailedParserTests
     public void FindRarMarkerOffset_SfxFile_ReturnsNonZeroOffset()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
-        if (!File.Exists(sfxPath)) return;
+        if (!File.Exists(sfxPath))
+        {
+            return;
+        }
 
-        using var fs = File.OpenRead(sfxPath);
+        using FileStream fs = File.OpenRead(sfxPath);
         long offset = RARUtils.FindRarMarkerOffset(fs);
 
         Assert.True(offset > 0, $"Expected positive offset for SFX, got {offset}");
@@ -1214,9 +1267,12 @@ public class RARDetailedParserTests
     public void FindRarMarkerOffset_RegularRar_ReturnsZero()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        using var fs = File.OpenRead(rarPath);
+        using FileStream fs = File.OpenRead(rarPath);
         long offset = RARUtils.FindRarMarkerOffset(fs);
 
         Assert.Equal(0, offset);
@@ -1226,9 +1282,12 @@ public class RARDetailedParserTests
     public void FindRarMarkerOffset_Rar5_ReturnsZero()
     {
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
-        using var fs = File.OpenRead(rarPath);
+        using FileStream fs = File.OpenRead(rarPath);
         long offset = RARUtils.FindRarMarkerOffset(fs);
 
         Assert.Equal(0, offset);

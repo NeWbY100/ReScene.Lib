@@ -5,7 +5,7 @@ namespace ReScene.Core.Cryptography;
 /// <summary>
 /// Computes CRC32 checksums for files.
 /// </summary>
-public class CRC32
+public static class CRC32
 {
     /// <summary>
     /// Calculates the CRC32 hash of a file, returning the result as a lowercase hex string.

@@ -22,11 +22,9 @@ public class ModelPPM
     private readonly byte[,] _see2Count = new byte[25, 16];
 
     private int _minContext;
-    private int _maxContext;
     private int _foundState;
 
     private int _numMasked;
-    private int _initEsc;
     private int _orderFall;
     private int _maxOrder;
     private int _runLength;
@@ -44,13 +42,11 @@ public class ModelPPM
     private readonly RangeCoder _coder = new();
     private readonly SubAllocator _subAlloc = new();
 
-    private static readonly ushort[] InitBinEsc = [0x3CDD, 0x1F3F, 0x59BF, 0x48F3, 0x64A1, 0x5ABC, 0x6632, 0x6051];
-    private static readonly byte[] ExpEscape = [25, 14, 9, 7, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2];
+    private static readonly ushort[] _initBinEsc = [0x3CDD, 0x1F3F, 0x59BF, 0x48F3, 0x64A1, 0x5ABC, 0x6632, 0x6051];
 
     public ModelPPM()
     {
         _minContext = 0;
-        _maxContext = 0;
     }
 
     /// <summary>
@@ -175,7 +171,7 @@ public class ModelPPM
 
         if (_orderFall == 0 && GetStateSuccessor(_foundState) > _subAlloc.PText)
         {
-            _minContext = _maxContext = GetStateSuccessor(_foundState);
+            _minContext = GetStateSuccessor(_foundState);
         }
         else
         {
@@ -255,7 +251,7 @@ public class ModelPPM
         _subAlloc.InitSubAllocator();
         _initRL = -(_maxOrder < 12 ? _maxOrder : 12) - 1;
 
-        _minContext = _maxContext = _subAlloc.AllocContext();
+        _minContext = _subAlloc.AllocContext();
         if (_minContext == 0)
         {
             return;
@@ -294,7 +290,7 @@ public class ModelPPM
             {
                 for (int m = 0; m < 64; m += 8)
                 {
-                    _binSumm[i, k + m] = (ushort)(BIN_SCALE - InitBinEsc[k] / (i + 2));
+                    _binSumm[i, k + m] = (ushort)(BIN_SCALE - _initBinEsc[k] / (i + 2));
                 }
             }
         }
@@ -305,7 +301,7 @@ public class ModelPPM
             for (int k = 0; k < 16; k++)
             {
                 int initVal = 5 * i + 10;
-                _see2Shift[i, k] = (byte)(PERIOD_BITS - 4);
+                _see2Shift[i, k] = PERIOD_BITS - 4;
                 _see2Cont[i, k] = (ushort)(initVal << _see2Shift[i, k]);
                 _see2Count[i, k] = 4;
             }
@@ -351,7 +347,6 @@ public class ModelPPM
             _coder.LowCount = bs;
             _binSumm[idx, idx2] = (ushort)(bs - GetMean(bs, PERIOD_BITS, 2));
             _coder.HighCount = BIN_SCALE;
-            _initEsc = ExpEscape[bs >> 10];
             _numMasked = 1;
             _charMask[stateSymbol] = _escCount;
             _prevSuccess = 0;

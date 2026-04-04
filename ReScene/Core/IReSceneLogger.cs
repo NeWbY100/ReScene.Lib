@@ -8,30 +8,30 @@ public interface IReSceneLogger
     /// <summary>
     /// Logs a debug-level message.
     /// </summary>
-    void Debug(object? sender, string message, LogTarget target = LogTarget.System);
+    public void Debug(object? sender, string message, LogTarget target = LogTarget.System);
 
     /// <summary>
     /// Logs an informational message.
     /// </summary>
-    void Information(object? sender, string message, LogTarget target = LogTarget.System);
+    public void Information(object? sender, string message, LogTarget target = LogTarget.System);
 
     /// <summary>
     /// Logs a warning message.
     /// </summary>
-    void Warning(object? sender, string message, LogTarget target = LogTarget.System);
+    public void Warning(object? sender, string message, LogTarget target = LogTarget.System);
 
     /// <summary>
     /// Logs an error message.
     /// </summary>
-    void Error(object? sender, string message, LogTarget target = LogTarget.System);
+    public void Error(object? sender, string message, LogTarget target = LogTarget.System);
 
     /// <summary>
     /// Logs an error message with an associated exception.
     /// </summary>
-    void Error(object? sender, Exception exception, string message, LogTarget target = LogTarget.System);
+    public void Error(object? sender, Exception exception, string message, LogTarget target = LogTarget.System);
 
     /// <summary>
     /// Logs a verbose-level message to the system log.
     /// </summary>
-    void Verbose(object? sender, string message);
+    public void Verbose(object? sender, string message);
 }

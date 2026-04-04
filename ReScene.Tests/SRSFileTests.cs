@@ -20,7 +20,12 @@ public class SRSFileTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_tempDir, true);
+        }
+        catch { }
+        GC.SuppressFinalize(this);
     }
 
     #region Container Type Detection
@@ -108,7 +113,7 @@ public class SRSFileTests : IDisposable
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Contains("avi_fname.avi", srs.FileData!.FileName);
+        Assert.Contains("avi_fname.avi", srs.FileData!.FileName, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -119,7 +124,7 @@ public class SRSFileTests : IDisposable
 
         var writer = new SRSWriter();
         var options = new SrsCreationOptions { AppName = "TestSRSApp" };
-        var result = await writer.CreateAsync(srsPath, samplePath, options);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath, options);
         Assert.True(result.Success, result.ErrorMessage);
 
         var srs = SRSFile.Load(srsPath);
@@ -148,7 +153,7 @@ public class SRSFileTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "avi_crc.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var srs = SRSFile.Load(srsPath);
@@ -189,7 +194,7 @@ public class SRSFileTests : IDisposable
 
         var srs = SRSFile.Load(srsPath);
 
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.True(track.DataLength > 0, $"Track {track.TrackNumber} has zero DataLength");
         }
@@ -202,7 +207,7 @@ public class SRSFileTests : IDisposable
 
         var srs = SRSFile.Load(srsPath);
 
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.Equal(256, track.SignatureSize);
             Assert.Equal(256, track.Signature.Length);
@@ -216,7 +221,7 @@ public class SRSFileTests : IDisposable
 
         var srs = SRSFile.Load(srsPath);
 
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.False(track.Signature.All(b => b == 0),
                 $"Track {track.TrackNumber} signature is all zeros");
@@ -231,7 +236,7 @@ public class SRSFileTests : IDisposable
         var srs = SRSFile.Load(srsPath);
 
         Assert.True(srs.Tracks.Count > 0);
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.Equal(256, track.SignatureSize);
             Assert.Equal(256, track.Signature.Length);
@@ -246,7 +251,7 @@ public class SRSFileTests : IDisposable
         var srs = SRSFile.Load(srsPath);
 
         Assert.True(srs.Tracks.Count > 0);
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.Equal(256, track.SignatureSize);
             Assert.Equal(256, track.Signature.Length);
@@ -274,7 +279,7 @@ public class SRSFileTests : IDisposable
 
         var srs = SRSFile.Load(srsPath);
 
-        Assert.Contains(srs.ContainerChunks, c => c.Label.Contains("RIFF"));
+        Assert.Contains(srs.ContainerChunks, c => c.Label.Contains("RIFF", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -314,7 +319,7 @@ public class SRSFileTests : IDisposable
 
         var srs = SRSFile.Load(srsPath);
 
-        foreach (var chunk in srs.ContainerChunks)
+        foreach (SrsContainerChunk chunk in srs.ContainerChunks)
         {
             Assert.True(chunk.BlockPosition >= 0, $"Chunk '{chunk.Label}' has negative BlockPosition");
             Assert.True(chunk.BlockSize > 0, $"Chunk '{chunk.Label}' has non-positive BlockSize");
@@ -341,7 +346,7 @@ public class SRSFileTests : IDisposable
         string srsPath = Path.Combine(_tempDir, $"roundtrip_{format}.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var srs = SRSFile.Load(srsPath);
@@ -366,12 +371,12 @@ public class SRSFileTests : IDisposable
         string srsPath = Path.Combine(_tempDir, $"sig_{format}.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var srs = SRSFile.Load(srsPath);
 
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.Equal(256, track.SignatureSize);
             Assert.Equal(256, track.Signature.Length);
@@ -412,7 +417,7 @@ public class SRSFileTests : IDisposable
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        var fd = srs.FileData!;
+        SrsFileDataBlock fd = srs.FileData!;
         Assert.True(fd.BlockPosition >= 0);
         Assert.True(fd.BlockSize > 0);
         Assert.True(fd.FrameHeaderSize > 0);
@@ -427,7 +432,7 @@ public class SRSFileTests : IDisposable
 
         var srs = SRSFile.Load(srsPath);
 
-        foreach (var track in srs.Tracks)
+        foreach (SrsTrackDataBlock track in srs.Tracks)
         {
             Assert.True(track.BlockPosition >= 0);
             Assert.True(track.BlockSize > 0);
@@ -466,7 +471,7 @@ public class SRSFileTests : IDisposable
     {
         string srsPath = Path.Combine(_tempDir, srsFileName);
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
         return srsPath;
     }
@@ -606,7 +611,9 @@ public class SRSFileTests : IDisposable
         byte[] streamInfo = new byte[34];
         byte header = 0x80;
         ms.WriteByte(header);
-        ms.WriteByte(0); ms.WriteByte(0); ms.WriteByte(34);
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.WriteByte(34);
         ms.Write(streamInfo);
 
         byte[] frameData = CreateTestData(512);
@@ -662,17 +669,41 @@ public class SRSFileTests : IDisposable
 
     private static byte[] EncodeEbmlId(ulong id)
     {
-        if (id < 0x100) return [(byte)id];
-        if (id < 0x10000) return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        if (id < 0x1000000) return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        if (id < 0x100)
+        {
+            return [(byte)id];
+        }
+
+        if (id < 0x10000)
+        {
+            return [(byte)(id >> 8), (byte)(id & 0xFF)];
+        }
+
+        if (id < 0x1000000)
+        {
+            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        }
+
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
     private static byte[] EncodeEbmlSize(long value)
     {
-        if (value < 0x7F) return [(byte)(0x80 | value)];
-        if (value < 0x3FFF) return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        if (value < 0x1FFFFF) return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        if (value < 0x7F)
+        {
+            return [(byte)(0x80 | value)];
+        }
+
+        if (value < 0x3FFF)
+        {
+            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
+        }
+
+        if (value < 0x1FFFFF)
+        {
+            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        }
+
         return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
     }
 

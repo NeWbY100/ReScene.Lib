@@ -10,57 +10,90 @@ public class RAR5BlockReadResult
     /// <summary>
     /// Block type (RAR 5.0).
     /// </summary>
-    public RAR5BlockType BlockType { get; set; }
+    public RAR5BlockType BlockType
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw header flags value.
     /// </summary>
-    public ulong Flags { get; set; }
+    public ulong Flags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header size in bytes (excluding CRC).
     /// </summary>
-    public ulong HeaderSize { get; set; }
+    public ulong HeaderSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Extra area size (if present).
     /// </summary>
-    public ulong ExtraAreaSize { get; set; }
+    public ulong ExtraAreaSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Data size (if present).
     /// </summary>
-    public ulong DataSize { get; set; }
+    public ulong DataSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Position where the block starts (after CRC).
     /// </summary>
-    public long BlockPosition { get; set; }
+    public long BlockPosition
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header CRC32 value.
     /// </summary>
-    public uint HeaderCrc { get; set; }
+    public uint HeaderCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if header CRC is valid.
     /// </summary>
-    public bool CrcValid { get; set; }
+    public bool CrcValid
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Parsed archive header info (if BlockType is Main).
     /// </summary>
-    public RAR5ArchiveInfo? ArchiveInfo { get; set; }
+    public RAR5ArchiveInfo? ArchiveInfo
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Parsed file header info (if BlockType is File).
     /// </summary>
-    public RAR5FileInfo? FileInfo { get; set; }
+    public RAR5FileInfo? FileInfo
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Parsed service block info (if BlockType is Service).
     /// </summary>
-    public RAR5ServiceBlockInfo? ServiceBlockInfo { get; set; }
+    public RAR5ServiceBlockInfo? ServiceBlockInfo
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -71,12 +104,18 @@ public class RAR5ArchiveInfo
     /// <summary>
     /// Archive flags.
     /// </summary>
-    public ulong ArchiveFlags { get; set; }
+    public ulong ArchiveFlags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Volume number (if present).
     /// </summary>
-    public ulong? VolumeNumber { get; set; }
+    public ulong? VolumeNumber
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if this is a multi-volume archive.
@@ -112,37 +151,58 @@ public class RAR5FileInfo
     /// <summary>
     /// File flags.
     /// </summary>
-    public ulong FileFlags { get; set; }
+    public ulong FileFlags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Unpacked size.
     /// </summary>
-    public ulong UnpackedSize { get; set; }
+    public ulong UnpackedSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File attributes.
     /// </summary>
-    public ulong Attributes { get; set; }
+    public ulong Attributes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Modification time (Unix timestamp).
     /// </summary>
-    public uint? ModificationTime { get; set; }
+    public uint? ModificationTime
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File CRC32.
     /// </summary>
-    public uint? FileCrc { get; set; }
+    public uint? FileCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Compression info (version, solid, method, dict size).
     /// </summary>
-    public ulong CompressionInfo { get; set; }
+    public ulong CompressionInfo
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Host OS.
     /// </summary>
-    public ulong HostOS { get; set; }
+    public ulong HostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File name.
@@ -177,12 +237,18 @@ public class RAR5FileInfo
     /// <summary>
     /// True if file continues from previous volume.
     /// </summary>
-    public bool IsSplitBefore { get; set; }
+    public bool IsSplitBefore
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if file continues in next volume.
     /// </summary>
-    public bool IsSplitAfter { get; set; }
+    public bool IsSplitAfter
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -193,7 +259,10 @@ public class RAR5ServiceBlockInfo
     /// <summary>
     /// Service data type (e.g., 0x03 for CMT comment).
     /// </summary>
-    public ulong ServiceDataType { get; set; }
+    public ulong ServiceDataType
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Sub-type name (e.g., "CMT").
@@ -203,37 +272,58 @@ public class RAR5ServiceBlockInfo
     /// <summary>
     /// Unpacked data size.
     /// </summary>
-    public ulong UnpackedSize { get; set; }
+    public ulong UnpackedSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File flags.
     /// </summary>
-    public ulong FileFlags { get; set; }
+    public ulong FileFlags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if data is stored uncompressed.
     /// </summary>
-    public bool IsStored { get; set; }
+    public bool IsStored
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Compression version.
     /// </summary>
-    public int CompressionVersion { get; set; }
+    public int CompressionVersion
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Compression method (0-5).
     /// </summary>
-    public int CompressionMethod { get; set; }
+    public int CompressionMethod
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Dictionary size as power of 2.
     /// </summary>
-    public int DictSize { get; set; }
+    public int DictSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// For CMT blocks: the comment text if extracted.
     /// </summary>
-    public string? CommentText { get; set; }
+    public string? CommentText
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -537,7 +627,7 @@ public class RAR5HeaderReader(Stream stream)
         }
 
         // Check for CMT type
-        if (info.SubType == "CMT" || info.SubType.StartsWith("CMT"))
+        if (info.SubType == "CMT" || info.SubType.StartsWith("CMT", StringComparison.Ordinal))
         {
             info.ServiceDataType = (ulong)RAR5ServiceType.Comment;
         }

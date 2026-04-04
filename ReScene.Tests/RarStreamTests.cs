@@ -113,8 +113,15 @@ public class RarStreamTests
         string path = Path.Combine(dir, archiveName);
 
         RARFileFlags extraFlags = RARFileFlags.ExtTime;
-        if (splitBefore) extraFlags |= RARFileFlags.SplitBefore;
-        if (splitAfter) extraFlags |= RARFileFlags.SplitAfter;
+        if (splitBefore)
+        {
+            extraFlags |= RARFileFlags.SplitBefore;
+        }
+
+        if (splitAfter)
+        {
+            extraFlags |= RARFileFlags.SplitAfter;
+        }
 
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
         fs.Write(Rar4Marker);
@@ -632,7 +639,10 @@ public class RarStreamTests
         try
         {
             byte[] data = new byte[256];
-            for (int i = 0; i < 256; i++) data[i] = (byte)i;
+            for (int i = 0; i < 256; i++)
+            {
+                data[i] = (byte)i;
+            }
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RarStream(path);
@@ -858,7 +868,7 @@ public class RarStreamTests
             byte[] part2Data = [0x06, 0x07, 0x08, 0x09, 0x0A];
             byte[] part3Data = [0x0B, 0x0C, 0x0D];
 
-            var archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
+            RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
 
             BuildSyntheticRar4Volume(dir, "test.part1.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
@@ -898,7 +908,7 @@ public class RarStreamTests
             byte[] part1Data = [0x10, 0x20, 0x30, 0x40, 0x50];
             byte[] part2Data = [0x60, 0x70, 0x80, 0x90, 0xA0];
 
-            var archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
+            RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
 
             BuildSyntheticRar4Volume(dir, "test.part1.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
@@ -937,7 +947,7 @@ public class RarStreamTests
             byte[] part1Data = [0xAA, 0xBB, 0xCC];
             byte[] part2Data = [0xDD, 0xEE, 0xFF];
 
-            var archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
+            RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
 
             BuildSyntheticRar4Volume(dir, "test.part1.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
@@ -979,7 +989,7 @@ public class RarStreamTests
             byte[] part3Data = [0x07, 0x08];
 
             // No NewNumbering flag = old style
-            var archFlags = RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume;
+            RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume;
 
             BuildSyntheticRar4Volume(dir, "test.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
@@ -1015,7 +1025,9 @@ public class RarStreamTests
         // test_wrar40_m0.rar contains testfile.txt stored (no compression)
         string path = Path.Combine(TestDataPath, "test_wrar40_m0.rar");
         if (!File.Exists(path))
+        {
             return; // Skip if test data not available
+        }
 
         using var stream = new RarStream(path, "testfile.txt");
 
@@ -1027,8 +1039,8 @@ public class RarStreamTests
         Assert.Equal(131, bytesRead);
 
         string content = Encoding.UTF8.GetString(buffer);
-        Assert.StartsWith("This is a test file for RAR compression testing.", content);
-        Assert.Contains("WinRARRed RARLib decompression test.", content);
+        Assert.StartsWith("This is a test file for RAR compression testing.", content, StringComparison.Ordinal);
+        Assert.Contains("WinRARRed RARLib decompression test.", content, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1036,7 +1048,9 @@ public class RarStreamTests
     {
         string path = Path.Combine(TestDataPath, "test_wrar40_m0.rar");
         if (!File.Exists(path))
+        {
             return;
+        }
 
         using var stream = new RarStream(path, "testfile.txt");
 
@@ -1057,7 +1071,9 @@ public class RarStreamTests
         // RAR5 archives can be opened; for compressed files we get raw compressed data
         string path = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(path))
+        {
             return;
+        }
 
         using var stream = new RarStream(path);
 
@@ -1103,7 +1119,10 @@ public class RarStreamTests
         try
         {
             byte[] data = new byte[10];
-            for (int i = 0; i < 10; i++) data[i] = (byte)(i * 10);
+            for (int i = 0; i < 10; i++)
+            {
+                data[i] = (byte)(i * 10);
+            }
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RarStream(path);
@@ -1153,7 +1172,10 @@ public class RarStreamTests
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         byte[] expected = File.ReadAllBytes(refPath);
 
@@ -1170,7 +1192,10 @@ public class RarStreamTests
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         byte[] expected = File.ReadAllBytes(refPath);
 
@@ -1196,7 +1221,10 @@ public class RarStreamTests
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         byte[] expected = File.ReadAllBytes(refPath);
 
@@ -1216,7 +1244,10 @@ public class RarStreamTests
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_mac.nfo");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         byte[] expected = File.ReadAllBytes(refPath);
 
@@ -1235,7 +1266,10 @@ public class RarStreamTests
     public void Close_WinRar280_CanReadIsFalseAfterClose()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         var rs = new RarStream(rarPath, "unicode_dos.nfo");
         Assert.True(rs.CanRead);
@@ -1254,7 +1288,10 @@ public class RarStreamTests
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "users_manual4.00.txt");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         byte[] expected = File.ReadAllBytes(refPath);
 
@@ -1270,7 +1307,10 @@ public class RarStreamTests
     public void Read_StoreSplitFolder_UsersManual_PositionAtEndAfterFullRead()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
 
@@ -1291,7 +1331,10 @@ public class RarStreamTests
     public void Read_StoreSplitFolder_UsersManual_SeekAfterPartialRead()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
 
@@ -1315,7 +1358,10 @@ public class RarStreamTests
     {
         string rarPath = Path.Combine(TestDataPath, "store_little", "store_little.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "little_file.txt");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         // Reference file has CRLF line endings; the packed file uses LF only
         byte[] refBytes = File.ReadAllBytes(refPath);

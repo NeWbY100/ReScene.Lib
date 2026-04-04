@@ -28,7 +28,7 @@ public static class EbmlHeaderStripping
         int pos = 0;
         while (pos < trackEntryData.Length)
         {
-            var (elemId, idLen) = ReadElementId(trackEntryData[pos..]);
+            (ulong elemId, int idLen) = ReadElementId(trackEntryData[pos..]);
             if (idLen == 0)
             {
                 break;
@@ -36,7 +36,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(trackEntryData[pos..]);
+            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(trackEntryData[pos..]);
             if (sizeLen == 0)
             {
                 break;
@@ -78,7 +78,7 @@ public static class EbmlHeaderStripping
         int pos = 0;
         while (pos < data.Length)
         {
-            var (elemId, idLen) = ReadElementId(data[pos..]);
+            (ulong elemId, int idLen) = ReadElementId(data[pos..]);
             if (idLen == 0)
             {
                 break;
@@ -86,7 +86,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
+            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
             if (sizeLen == 0)
             {
                 break;
@@ -117,7 +117,7 @@ public static class EbmlHeaderStripping
         int pos = 0;
         while (pos < data.Length)
         {
-            var (elemId, idLen) = ReadElementId(data[pos..]);
+            (ulong elemId, int idLen) = ReadElementId(data[pos..]);
             if (idLen == 0)
             {
                 break;
@@ -125,7 +125,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
+            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
             if (sizeLen == 0)
             {
                 break;
@@ -159,7 +159,7 @@ public static class EbmlHeaderStripping
         int pos = 0;
         while (pos < data.Length)
         {
-            var (elemId, idLen) = ReadElementId(data[pos..]);
+            (ulong elemId, int idLen) = ReadElementId(data[pos..]);
             if (idLen == 0)
             {
                 break;
@@ -167,7 +167,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            var (dataSize, sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
+            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
             if (sizeLen == 0)
             {
                 break;

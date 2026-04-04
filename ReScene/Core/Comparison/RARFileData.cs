@@ -16,17 +16,26 @@ public class RARFileData
     /// <summary>
     /// Gets or sets whether the file uses RAR 5.x format.
     /// </summary>
-    public bool IsRAR5 { get; set; }
+    public bool IsRAR5
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the RAR 4.x archive header, if present.
     /// </summary>
-    public RARArchiveHeader? ArchiveHeader { get; set; }
+    public RARArchiveHeader? ArchiveHeader
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the RAR 5.x archive info, if present.
     /// </summary>
-    public RAR5ArchiveInfo? RAR5ArchiveInfo { get; set; }
+    public RAR5ArchiveInfo? RAR5ArchiveInfo
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the RAR 4.x file headers found in the archive.
@@ -41,7 +50,10 @@ public class RARFileData
     /// <summary>
     /// Gets or sets the archive comment text, if present.
     /// </summary>
-    public string? Comment { get; set; }
+    public string? Comment
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Loads and parses a RAR file, returning its header and file entry data.
@@ -52,7 +64,7 @@ public class RARFileData
     {
         var data = new RARFileData { FilePath = filePath };
 
-        using var fs = File.OpenRead(filePath);
+        using FileStream fs = File.OpenRead(filePath);
         using var reader = new BinaryReader(fs);
 
         data.IsRAR5 = RAR5HeaderReader.IsRAR5(fs);
@@ -76,7 +88,7 @@ public class RARFileData
 
         while (headerReader.CanReadBaseHeader)
         {
-            var block = headerReader.ReadBlock(parseContents: true);
+            RARBlockReadResult? block = headerReader.ReadBlock(parseContents: true);
             if (block == null)
             {
                 break;
@@ -118,7 +130,7 @@ public class RARFileData
 
         while (headerReader.CanReadBaseHeader)
         {
-            var block = headerReader.ReadBlock();
+            RAR5BlockReadResult? block = headerReader.ReadBlock();
             if (block == null)
             {
                 break;

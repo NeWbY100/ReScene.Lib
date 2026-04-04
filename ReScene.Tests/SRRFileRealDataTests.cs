@@ -15,7 +15,12 @@ public class SRRFileRealDataTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_tempDir, true);
+        }
+        catch { }
+        GC.SuppressFinalize(this);
     }
 
     private static string TestFile(params string[] parts)
@@ -331,7 +336,7 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr"));
 
-        Assert.Contains(srr.ArchivedFiles, f => f.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF"));
+        Assert.Contains(srr.ArchivedFiles, f => f.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -400,7 +405,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("store_utf8_comment", "utf8_filename_added.srr"));
 
         Assert.Single(srr.StoredFiles);
-        Assert.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF", srr.StoredFiles[0].FileName);
+        Assert.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF", srr.StoredFiles[0].FileName, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -637,7 +642,7 @@ public class SRRFileRealDataTests : IDisposable
             "Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr"));
 
         Assert.All(srr.RarFiles, rf =>
-            Assert.StartsWith("parlamentet", rf.FileName));
+            Assert.StartsWith("parlamentet", rf.FileName, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -658,8 +663,8 @@ public class SRRFileRealDataTests : IDisposable
         var srrCaps = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
 
-        var lowerNfo = srrLower.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
-        var capsNfo = srrCaps.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
+        SrrStoredFileBlock lowerNfo = srrLower.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
+        SrrStoredFileBlock capsNfo = srrCaps.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
 
         Assert.Equal(lowerNfo.FileLength, capsNfo.FileLength);
         Assert.Equal(8249u, lowerNfo.FileLength);
@@ -876,7 +881,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(srrPath);
 
         string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
-            name => name.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF"));
+            name => name.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF", StringComparison.Ordinal));
 
         Assert.NotNull(extractedPath);
         Assert.True(File.Exists(extractedPath));

@@ -185,7 +185,7 @@ public static class RARDecompressor
             // Try UTF-8 first
             string text = System.Text.Encoding.UTF8.GetString(decompressed);
             // If it contains the replacement character, try OEM encoding
-            if (text.Contains('\uFFFD'))
+            if (text.Contains('\uFFFD', StringComparison.Ordinal))
             {
                 // Use code page 437 (OEM) as fallback
                 System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);

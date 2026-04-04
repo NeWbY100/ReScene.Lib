@@ -8,47 +8,74 @@ public class OperationProgressEventArgs : EventArgs
     /// <summary>
     /// Gets the total number of units in the operation.
     /// </summary>
-    public long OperationSize { get; private set; }
+    public long OperationSize
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the number of units completed so far.
     /// </summary>
-    public long OperationProgressed { get; private set; }
+    public long OperationProgressed
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the number of units remaining to complete.
     /// </summary>
-    public long OperationRemaining { get; private set; }
+    public long OperationRemaining
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the date and time when the operation started.
     /// </summary>
-    public DateTime StartDateTime { get; private set; }
+    public DateTime StartDateTime
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the time elapsed since the operation started.
     /// </summary>
-    public TimeSpan TimeElapsed { get; private set; }
+    public TimeSpan TimeElapsed
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the estimated time remaining to complete the operation.
     /// </summary>
-    public TimeSpan TimeRemaining { get; private set; }
+    public TimeSpan TimeRemaining
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the average operation speed in units per second.
     /// </summary>
-    public long OperationSpeed { get; private set; }
+    public long OperationSpeed
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the estimated date and time when the operation will complete.
     /// </summary>
-    public DateTime EstimatedFinishDateTime { get; private set; }
+    public DateTime EstimatedFinishDateTime
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the completion percentage (0-100).
     /// </summary>
-    public double Progress { get; private set; }
+    public double Progress
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationProgressEventArgs"/> class.
@@ -58,15 +85,8 @@ public class OperationProgressEventArgs : EventArgs
     /// <param name="startDateTime">The date and time when the operation started.</param>
     public OperationProgressEventArgs(long operationSize, long operationProgressed, DateTime startDateTime)
     {
-        if (operationSize <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(operationSize));
-        }
-
-        if (operationProgressed > operationSize)
-        {
-            throw new ArgumentOutOfRangeException(nameof(operationProgressed));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(operationSize);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(operationProgressed, operationSize);
 
         OperationSize = operationSize;
         OperationProgressed = operationProgressed;

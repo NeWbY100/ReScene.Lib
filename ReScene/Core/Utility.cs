@@ -5,7 +5,7 @@ namespace ReScene.Core;
 /// </summary>
 public static class Utility
 {
-    private static readonly string[] SizeUnits = ["b", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+    private static readonly string[] _sizeUnits = ["b", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
 
     /// <summary>
     /// Converts a byte count to a human-readable size string using binary (IEC) units.
@@ -22,6 +22,6 @@ public static class Utility
             index++;
         }
 
-        return $"{value} {SizeUnits[index]}";
+        return $"{value} {_sizeUnits[index]}";
     }
 }

@@ -8,62 +8,98 @@ public class RARFileHeader
     /// <summary>
     /// Position of the header block in the stream.
     /// </summary>
-    public long BlockPosition { get; set; }
+    public long BlockPosition
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header CRC value.
     /// </summary>
-    public ushort HeaderCrc { get; set; }
+    public ushort HeaderCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header size in bytes.
     /// </summary>
-    public ushort HeaderSize { get; set; }
+    public ushort HeaderSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw flags from the header.
     /// </summary>
-    public RARFileFlags Flags { get; set; }
+    public RARFileFlags Flags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Packed (compressed) size in bytes.
     /// </summary>
-    public ulong PackedSize { get; set; }
+    public ulong PackedSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Unpacked (original) size in bytes.
     /// </summary>
-    public ulong UnpackedSize { get; set; }
+    public ulong UnpackedSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Host operating system.
     /// </summary>
-    public byte HostOS { get; set; }
+    public byte HostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File CRC32.
     /// </summary>
-    public uint FileCrc { get; set; }
+    public uint FileCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// RAR version needed to unpack (e.g., 29 = RAR 2.9).
     /// </summary>
-    public byte UnpackVersion { get; set; }
+    public byte UnpackVersion
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Compression method (0 = store, 1-5 = compression levels).
     /// </summary>
-    public byte CompressionMethod { get; set; }
+    public byte CompressionMethod
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Dictionary size in KB (64, 128, 256, 512, 1024, 2048, 4096).
     /// </summary>
-    public int DictionarySizeKB { get; set; }
+    public int DictionarySizeKB
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File attributes.
     /// </summary>
-    public uint FileAttributes { get; set; }
+    public uint FileAttributes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File name (decoded).
@@ -73,47 +109,74 @@ public class RARFileHeader
     /// <summary>
     /// True if this entry represents a directory.
     /// </summary>
-    public bool IsDirectory { get; set; }
+    public bool IsDirectory
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File modification time.
     /// </summary>
-    public DateTime? ModifiedTime { get; set; }
+    public DateTime? ModifiedTime
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File creation time (from extended time fields).
     /// </summary>
-    public DateTime? CreationTime { get; set; }
+    public DateTime? CreationTime
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File access time (from extended time fields).
     /// </summary>
-    public DateTime? AccessTime { get; set; }
+    public DateTime? AccessTime
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw DOS file time value (4 bytes at offset 20).
     /// </summary>
-    public uint FileTimeDOS { get; set; }
+    public uint FileTimeDOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Modification time precision level (maps to -tsm0 through -tsm4).
     /// </summary>
-    public TimestampPrecision MtimePrecision { get; set; }
+    public TimestampPrecision MtimePrecision
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Creation time precision level (maps to -tsc0 through -tsc4).
     /// </summary>
-    public TimestampPrecision CtimePrecision { get; set; }
+    public TimestampPrecision CtimePrecision
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Access time precision level (maps to -tsa0 through -tsa4).
     /// </summary>
-    public TimestampPrecision AtimePrecision { get; set; }
+    public TimestampPrecision AtimePrecision
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if header CRC validation passed.
     /// </summary>
-    public bool CrcValid { get; set; }
+    public bool CrcValid
+    {
+        get; set;
+    }
 
     // Convenience properties for common flag checks
 
@@ -150,12 +213,18 @@ public class RARFileHeader
     /// <summary>
     /// Upper 32 bits of packed size (when LARGE flag set).
     /// </summary>
-    public uint HighPackSize { get; set; }
+    public uint HighPackSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Upper 32 bits of unpacked size (when LARGE flag set).
     /// </summary>
-    public uint HighUnpSize { get; set; }
+    public uint HighUnpSize
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -166,27 +235,42 @@ public class RARArchiveHeader
     /// <summary>
     /// Position of the header block in the stream.
     /// </summary>
-    public long BlockPosition { get; set; }
+    public long BlockPosition
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header CRC value.
     /// </summary>
-    public ushort HeaderCrc { get; set; }
+    public ushort HeaderCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header size in bytes.
     /// </summary>
-    public ushort HeaderSize { get; set; }
+    public ushort HeaderSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Raw flags from the header.
     /// </summary>
-    public RARArchiveFlags Flags { get; set; }
+    public RARArchiveFlags Flags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// True if header CRC validation passed.
     /// </summary>
-    public bool CrcValid { get; set; }
+    public bool CrcValid
+    {
+        get; set;
+    }
 
     // Convenience properties for common flag checks
 

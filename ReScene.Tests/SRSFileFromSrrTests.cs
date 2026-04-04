@@ -17,7 +17,12 @@ public class SRSFileFromSrrTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_tempDir, true);
+        }
+        catch { }
+        GC.SuppressFinalize(this);
     }
 
     #region SRS Extraction and Loading
@@ -35,7 +40,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_container");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -62,7 +67,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_filedata");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -88,7 +93,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_fname");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -115,7 +120,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_size");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -142,7 +147,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_crc");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -169,7 +174,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_appname");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -196,7 +201,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_tracks");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -223,7 +228,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_trklen");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -232,7 +237,7 @@ public class SRSFileFromSrrTests : IDisposable
 
             var srs = SRSFile.Load(extracted!);
 
-            foreach (var track in srs.Tracks)
+            foreach (SrsTrackDataBlock track in srs.Tracks)
             {
                 Assert.True(track.DataLength > 0,
                     $"Track {track.TrackNumber} in {stored.FileName} has zero DataLength");
@@ -253,7 +258,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_sig");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -262,7 +267,7 @@ public class SRSFileFromSrrTests : IDisposable
 
             var srs = SRSFile.Load(extracted!);
 
-            foreach (var track in srs.Tracks)
+            foreach (SrsTrackDataBlock track in srs.Tracks)
             {
                 Assert.Equal(256, track.SignatureSize);
                 Assert.Equal(256, track.Signature.Length);
@@ -304,7 +309,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (var stored in srsFiles)
+        foreach (SrrStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_all");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,

@@ -34,22 +34,34 @@ public sealed partial class RARProcess
     /// <summary>
     /// Gets the path to the RAR executable.
     /// </summary>
-    public string ProcessFilePath { get; private set; }
+    public string ProcessFilePath
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the input directory containing files to compress.
     /// </summary>
-    public string InputDirectory { get; private set; }
+    public string InputDirectory
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the output RAR file path.
     /// </summary>
-    public string OutputFilePath { get; private set; }
+    public string OutputFilePath
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the command-line options passed to the RAR process.
     /// </summary>
-    public string[] CommandLineOptions { get; private set; }
+    public string[] CommandLineOptions
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// The log target for this process (Phase1, Phase2, or System).
@@ -60,18 +72,33 @@ public sealed partial class RARProcess
 
     private struct ArchiveItem
     {
-        public string FileName { get; set; }
+        public string FileName
+        {
+            get; set;
+        }
 
-        public int Progress { get; set; }
+        public int Progress
+        {
+            get; set;
+        }
 
-        public bool Done { get; set; }
+        public bool Done
+        {
+            get; set;
+        }
     };
 
     private struct Archive
     {
-        public string ArchiveFileName { get; set; }
+        public string ArchiveFileName
+        {
+            get; set;
+        }
 
-        public List<ArchiveItem> ArchiveItems { get; set; }
+        public List<ArchiveItem> ArchiveItems
+        {
+            get; set;
+        }
 
         public Archive()
         {
@@ -80,18 +107,18 @@ public sealed partial class RARProcess
         }
     }
 
-    private Archive ArchiveFile = new();
+    private Archive _archiveFile = new();
 
-    private static readonly Encoding OutputEncoding = GetOutputEncoding();
+    private static readonly Encoding _outputEncoding = GetOutputEncoding();
 
     // Matches lines with filename and percentage, language-independent
     [GeneratedRegex(@"^\s*\S+\s+(?<filename>.+?)\s{2,}(?<progress>\d+)%", RegexOptions.Compiled)]
     private static partial Regex GeneratedProgressRegex();
-    private static readonly Regex ProgressRegex = GeneratedProgressRegex();
+    private static readonly Regex _progressRegex = GeneratedProgressRegex();
 
     [GeneratedRegex(@"^\s*\S+\s+(?<filename>.+?)\s{2,}OK\b", RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex GeneratedOkRegex();
-    private static readonly Regex OkRegex = GeneratedOkRegex();
+    private static readonly Regex _okRegex = GeneratedOkRegex();
 
     /// <summary>
     /// Initializes a new RAR process with the specified executable, directories, and command-line options.
@@ -146,13 +173,13 @@ public sealed partial class RARProcess
             FireProcessStatusChanged(new(OperationStatus.Running));
             FireCompressionStatusChanged(new(OperationStatus.Running, OutputFilePath));
 
-            var startTime = DateTime.Now;
+            DateTime startTime = DateTime.Now;
 
             // Create custom streams to capture output as it arrives (including \r updates)
-            var stdOutStream = new OutStream(data => HandleOutputData(data, startTime), OutputEncoding);
-            var stdErrStream = new OutStream(HandleErrorData, OutputEncoding);
+            var stdOutStream = new OutStream(data => HandleOutputData(data, startTime), _outputEncoding);
+            var stdErrStream = new OutStream(HandleErrorData, _outputEncoding);
 
-            var result = await Cli.Wrap(ProcessFilePath)
+            CommandResult result = await Cli.Wrap(ProcessFilePath)
                 .WithArguments(CommandLineOptions)
                 .WithWorkingDirectory(InputDirectory)
                 .WithStandardOutputPipe(PipeTarget.ToStream(stdOutStream))
@@ -161,7 +188,7 @@ public sealed partial class RARProcess
                 .ExecuteAsync(cancellationToken);
 
             int exitCode = result.ExitCode;
-            var elapsed = DateTime.Now - startTime;
+            TimeSpan elapsed = DateTime.Now - startTime;
 
             _logger.Information(this, $"RAR process completed. Exit Code: {exitCode}, Duration: {elapsed.TotalSeconds:F2}s, Output: {OutputFilePath}", LogTarget);
 
@@ -205,7 +232,9 @@ public sealed partial class RARProcess
             set => throw new NotSupportedException();
         }
 
-        public override void Flush() { }
+        public override void Flush()
+        {
+        }
 
         public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
@@ -262,12 +291,12 @@ public sealed partial class RARProcess
             return;
         }
 
-        if (string.IsNullOrEmpty(ArchiveFile.ArchiveFileName))
+        if (string.IsNullOrEmpty(_archiveFile.ArchiveFileName))
         {
-            ArchiveFile.ArchiveFileName = OutputFilePath;
+            _archiveFile.ArchiveFileName = OutputFilePath;
         }
 
-        Match lineMatch = ProgressRegex.Match(output);
+        Match lineMatch = _progressRegex.Match(output);
         if (lineMatch.Success)
         {
             string filename = NormalizeOutputFileName(lineMatch.Groups["filename"].Value);
@@ -275,18 +304,18 @@ public sealed partial class RARProcess
 
             if (!string.IsNullOrEmpty(filename) && int.TryParse(progressStr, out int progress))
             {
-                int itemIndex = ArchiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
+                int itemIndex = _archiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
 
                 if (itemIndex >= 0)
                 {
-                    var item = ArchiveFile.ArchiveItems[itemIndex];
+                    ArchiveItem item = _archiveFile.ArchiveItems[itemIndex];
                     item.Progress = progress;
                     item.Done = progress >= 100;
-                    ArchiveFile.ArchiveItems[itemIndex] = item;
+                    _archiveFile.ArchiveItems[itemIndex] = item;
                 }
                 else
                 {
-                    ArchiveFile.ArchiveItems.Add(new ArchiveItem
+                    _archiveFile.ArchiveItems.Add(new ArchiveItem
                     {
                         FileName = filename,
                         Progress = progress,
@@ -300,23 +329,23 @@ public sealed partial class RARProcess
         }
         else if (output.Contains("OK", StringComparison.OrdinalIgnoreCase))
         {
-            Match okMatch = OkRegex.Match(output);
+            Match okMatch = _okRegex.Match(output);
             if (okMatch.Success)
             {
                 string filename = NormalizeOutputFileName(okMatch.Groups["filename"].Value);
 
-                int itemIndex = ArchiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
+                int itemIndex = _archiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
 
                 if (itemIndex >= 0)
                 {
-                    var item = ArchiveFile.ArchiveItems[itemIndex];
+                    ArchiveItem item = _archiveFile.ArchiveItems[itemIndex];
                     item.Progress = 100;
                     item.Done = true;
-                    ArchiveFile.ArchiveItems[itemIndex] = item;
+                    _archiveFile.ArchiveItems[itemIndex] = item;
                 }
                 else
                 {
-                    ArchiveFile.ArchiveItems.Add(new ArchiveItem
+                    _archiveFile.ArchiveItems.Add(new ArchiveItem
                     {
                         FileName = filename,
                         Progress = 100,

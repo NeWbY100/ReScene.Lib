@@ -16,7 +16,12 @@ public class SRRWriterRealDataTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_testDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_testDir, true);
+        }
+        catch { }
+        GC.SuppressFinalize(this);
     }
 
     #region CreateAsync — Single Volume (store_little)
@@ -25,12 +30,15 @@ public class SRRWriterRealDataTests : IDisposable
     public async Task CreateAsync_StoreLittle_RoundTrip()
     {
         string rarPath = Path.Combine(_testDataDir, "store_little", "store_little.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "store_little.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath]);
+        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
@@ -47,7 +55,10 @@ public class SRRWriterRealDataTests : IDisposable
         string rarPath = Path.Combine(_testDataDir, "store_little", "store_little.rar");
         string littleTxt = Path.Combine(_testDataDir, "txt", "little_file.txt");
         string emptyTxt = Path.Combine(_testDataDir, "txt", "empty_file.txt");
-        if (!File.Exists(rarPath) || !File.Exists(littleTxt) || !File.Exists(emptyTxt)) return;
+        if (!File.Exists(rarPath) || !File.Exists(littleTxt) || !File.Exists(emptyTxt))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "store_little_stored.srr");
 
@@ -58,7 +69,7 @@ public class SRRWriterRealDataTests : IDisposable
         };
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
+        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(2, result.StoredFileCount);
@@ -95,13 +106,16 @@ public class SRRWriterRealDataTests : IDisposable
 
         foreach (string path in rarPaths)
         {
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                return;
+            }
         }
 
         string srrPath = Path.Combine(_testDir, "multi_new.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, rarPaths);
+        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -132,13 +146,16 @@ public class SRRWriterRealDataTests : IDisposable
 
         foreach (string path in rarPaths)
         {
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                return;
+            }
         }
 
         string srrPath = Path.Combine(_testDir, "multi_old.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, rarPaths);
+        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -158,12 +175,15 @@ public class SRRWriterRealDataTests : IDisposable
     public async Task CreateAsync_EmptyArchive()
     {
         string rarPath = Path.Combine(_testDataDir, "store_empty", "store_empty.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "empty.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath]);
+        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
@@ -183,12 +203,15 @@ public class SRRWriterRealDataTests : IDisposable
     public async Task CreateAsync_CompressedRar()
     {
         string rarPath = Path.Combine(_testDataDir, "best_little", "best_little.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "best_little.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath]);
+        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
@@ -207,7 +230,10 @@ public class SRRWriterRealDataTests : IDisposable
     public async Task CreateFromSfvAsync_RealSfv_NewStyle()
     {
         string sfvPath = Path.Combine(_testDataDir, "store_rr_solid_auth_unicode_new", "store_rr_solid_auth.sfv");
-        if (!File.Exists(sfvPath)) return;
+        if (!File.Exists(sfvPath))
+        {
+            return;
+        }
 
         // Verify all RAR volumes referenced by the SFV exist
         string sfvDir = Path.GetDirectoryName(sfvPath)!;
@@ -219,13 +245,16 @@ public class SRRWriterRealDataTests : IDisposable
         ];
         foreach (string rar in expectedRars)
         {
-            if (!File.Exists(Path.Combine(sfvDir, rar))) return;
+            if (!File.Exists(Path.Combine(sfvDir, rar)))
+            {
+                return;
+            }
         }
 
         string srrPath = Path.Combine(_testDir, "from_sfv_new.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -240,7 +269,10 @@ public class SRRWriterRealDataTests : IDisposable
     public async Task CreateFromSfvAsync_OldStyleSfv()
     {
         string sfvPath = Path.Combine(_testDataDir, "store_split_folder_old_srrsfv_windows", "store_split_folder.sfv");
-        if (!File.Exists(sfvPath)) return;
+        if (!File.Exists(sfvPath))
+        {
+            return;
+        }
 
         // Verify all RAR volumes referenced by the SFV exist
         string sfvDir = Path.GetDirectoryName(sfvPath)!;
@@ -252,13 +284,16 @@ public class SRRWriterRealDataTests : IDisposable
         ];
         foreach (string rar in expectedRars)
         {
-            if (!File.Exists(Path.Combine(sfvDir, rar))) return;
+            if (!File.Exists(Path.Combine(sfvDir, rar)))
+            {
+                return;
+            }
         }
 
         string srrPath = Path.Combine(_testDir, "from_sfv_old.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -283,12 +318,15 @@ public class SRRWriterRealDataTests : IDisposable
         string baseDir = Path.Combine(_testDataDir, "store_little");
         string rarPath = Path.Combine(baseDir, "store_little.rar");
         string refSrrPath = Path.Combine(baseDir, "store_little.srr");
-        if (!File.Exists(rarPath) || !File.Exists(refSrrPath)) return;
+        if (!File.Exists(rarPath) || !File.Exists(refSrrPath))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "compare_store_little.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, [rarPath],
+        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
             options: new SrrCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);
@@ -327,14 +365,20 @@ public class SRRWriterRealDataTests : IDisposable
 
         foreach (string path in rarPaths)
         {
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                return;
+            }
         }
-        if (!File.Exists(refSrrPath)) return;
+        if (!File.Exists(refSrrPath))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "compare_multi_new.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, rarPaths,
+        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
             options: new SrrCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);
@@ -373,14 +417,20 @@ public class SRRWriterRealDataTests : IDisposable
 
         foreach (string path in rarPaths)
         {
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                return;
+            }
         }
-        if (!File.Exists(refSrrPath)) return;
+        if (!File.Exists(refSrrPath))
+        {
+            return;
+        }
 
         string srrPath = Path.Combine(_testDir, "compare_multi_old.srr");
 
         var writer = new SRRWriter();
-        var result = await writer.CreateAsync(srrPath, rarPaths,
+        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
             options: new SrrCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);

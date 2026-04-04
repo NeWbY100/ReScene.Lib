@@ -19,7 +19,7 @@ public class EbmlLacingTests
     [InlineData(new byte[] { 0x41, 0x00 }, 256, 2)]  // 2-byte VINT: value = 256
     public void ReadUnsigned_ReturnsCorrectValue(byte[] data, long expectedValue, int expectedLength)
     {
-        var (value, length) = EbmlVInt.ReadUnsigned(data);
+        (long value, int length) = EbmlVInt.ReadUnsigned(data);
 
         Assert.Equal(expectedValue, value);
         Assert.Equal(expectedLength, length);
@@ -28,7 +28,7 @@ public class EbmlLacingTests
     [Fact]
     public void ReadUnsigned_EmptyData_ReturnsZero()
     {
-        var (value, length) = EbmlVInt.ReadUnsigned(ReadOnlySpan<byte>.Empty);
+        (long value, int length) = EbmlVInt.ReadUnsigned(ReadOnlySpan<byte>.Empty);
 
         Assert.Equal(0, value);
         Assert.Equal(0, length);
@@ -39,7 +39,7 @@ public class EbmlLacingTests
     {
         // 3-byte VINT: 0x20 marker, value = 0x010000 = 65536
         byte[] data = [0x21, 0x00, 0x00];
-        var (value, length) = EbmlVInt.ReadUnsigned(data);
+        (long value, int length) = EbmlVInt.ReadUnsigned(data);
 
         Assert.Equal(65536, value);
         Assert.Equal(3, length);
@@ -50,7 +50,7 @@ public class EbmlLacingTests
     {
         // 4-byte VINT: 0x10 marker, value = 0x01000000 = 16777216
         byte[] data = [0x11, 0x00, 0x00, 0x00];
-        var (value, length) = EbmlVInt.ReadUnsigned(data);
+        (long value, int length) = EbmlVInt.ReadUnsigned(data);
 
         Assert.Equal(16777216, value);
         Assert.Equal(4, length);
@@ -68,7 +68,7 @@ public class EbmlLacingTests
     [InlineData(new byte[] { 0xFE }, 63, 1)]      // 1-byte signed: value 126 - bias 63 = 63
     public void ReadSigned_OneByteVint(byte[] data, long expectedValue, int expectedLength)
     {
-        var (value, length) = EbmlVInt.ReadSigned(data);
+        (long value, int length) = EbmlVInt.ReadSigned(data);
 
         Assert.Equal(expectedValue, value);
         Assert.Equal(expectedLength, length);
@@ -80,7 +80,7 @@ public class EbmlLacingTests
     [InlineData(new byte[] { 0x5F, 0xFE }, -1, 2)]    // 2-byte signed: value 8190 - bias 8191 = -1
     public void ReadSigned_TwoByteVint(byte[] data, long expectedValue, int expectedLength)
     {
-        var (value, length) = EbmlVInt.ReadSigned(data);
+        (long value, int length) = EbmlVInt.ReadSigned(data);
 
         Assert.Equal(expectedValue, value);
         Assert.Equal(expectedLength, length);
@@ -89,7 +89,7 @@ public class EbmlLacingTests
     [Fact]
     public void ReadSigned_EmptyData_ReturnsZero()
     {
-        var (value, length) = EbmlVInt.ReadSigned(ReadOnlySpan<byte>.Empty);
+        (long value, int length) = EbmlVInt.ReadSigned(ReadOnlySpan<byte>.Empty);
 
         Assert.Equal(0, value);
         Assert.Equal(0, length);
@@ -101,7 +101,7 @@ public class EbmlLacingTests
         // 3-byte signed: bias = 2^20 - 1 = 1048575
         // Unsigned value of 1048575 = 0x0FFFFF -> 0x2F 0xFF 0xFF (with 0x20 marker)
         byte[] data = [0x2F, 0xFF, 0xFF];
-        var (value, length) = EbmlVInt.ReadSigned(data);
+        (long value, int length) = EbmlVInt.ReadSigned(data);
 
         Assert.Equal(0, value);
         Assert.Equal(3, length);
@@ -116,7 +116,7 @@ public class EbmlLacingTests
     {
         // No lacing: the entire data block is one frame
         byte[] data = [];
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.None, 1000);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.None, 1000);
 
         Assert.Single(frameSizes);
         Assert.Equal(1000, frameSizes[0]);
@@ -127,7 +127,7 @@ public class EbmlLacingTests
     public void GetFrameLengths_NoLacing_ZeroLength()
     {
         byte[] data = [];
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.None, 0);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.None, 0);
 
         Assert.Single(frameSizes);
         Assert.Equal(0, frameSizes[0]);
@@ -148,7 +148,7 @@ public class EbmlLacingTests
         // Actually totalDataLength is the data length BEFORE lacing header is parsed
         // The lacing parsing sees totalDataLength and subtracts the lacing header bytes consumed
         byte[] data = [3]; // 3+1 = 4 frames
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, 1001);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, 1001);
 
         Assert.Equal(4, frameSizes.Length);
         // Fixed size: totalDataLength / frameCount = 1001 / 4 = 250 (integer division)
@@ -163,7 +163,7 @@ public class EbmlLacingTests
     public void GetFrameLengths_FixedLacing_TwoFrames()
     {
         byte[] data = [1]; // 1+1 = 2 frames
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, 801);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, 801);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(400, frameSizes[0]); // 801 / 2 = 400
@@ -175,7 +175,7 @@ public class EbmlLacingTests
     public void GetFrameLengths_FixedLacing_SingleFrame()
     {
         byte[] data = [0]; // 0+1 = 1 frame
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, 501);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, 501);
 
         Assert.Single(frameSizes);
         Assert.Equal(501, frameSizes[0]); // 501 / 1 = 501
@@ -196,7 +196,7 @@ public class EbmlLacingTests
         // Total data = 1 + 1 + 1 + 100 + 200 + 300 = 603
         byte[] data = [2, 100, 200]; // 3 frames, sizes 100, 200
         int totalDataLength = 3 + 100 + 200 + 300; // = 603
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -213,7 +213,7 @@ public class EbmlLacingTests
         // Frame 0 size: 255 + 100 = 355 (one 0xFF byte + 100)
         byte[] data = [1, 0xFF, 100];
         int totalDataLength = 3 + 355 + 500; // = 858
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(355, frameSizes[0]); // 255 + 100
@@ -227,7 +227,7 @@ public class EbmlLacingTests
         // Frame size exactly 255: 0xFF followed by 0x00
         byte[] data = [1, 0xFF, 0x00];
         int totalDataLength = 3 + 255 + 200; // = 458
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(255, frameSizes[0]); // 255 + 0
@@ -241,7 +241,7 @@ public class EbmlLacingTests
         // Frame size 600: 0xFF + 0xFF + 90 = 255 + 255 + 90 = 600
         byte[] data = [1, 0xFF, 0xFF, 90];
         int totalDataLength = 4 + 600 + 100; // = 704
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(600, frameSizes[0]);
@@ -264,7 +264,7 @@ public class EbmlLacingTests
         byte[] data = [1, 0x41, 0x90]; // frameCount-1=1, first frame=400 (2-byte VINT)
         // totalDataLength = lacing header (3 bytes) + frame0 (400) + frame1 (remaining)
         int totalDataLength = 3 + 400 + 400;
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(400, frameSizes[0]);
@@ -281,7 +281,7 @@ public class EbmlLacingTests
         // Frame 2: last frame, remaining
         byte[] data = [2, 0xE4, 0xBF]; // 3 frames, first=100, delta=0
         int totalDataLength = 3 + 100 + 100 + 50; // = 253
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -299,7 +299,7 @@ public class EbmlLacingTests
         // Frame 2: last frame, remaining
         byte[] data = [2, 0xE4, 0xC9]; // 3 frames, first=100, delta=+10
         int totalDataLength = 3 + 100 + 110 + 200; // = 413
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -317,7 +317,7 @@ public class EbmlLacingTests
         // Frame 2: last frame, remaining
         byte[] data = [2, 0x40, 0xC8, 0x8D]; // 3 frames, first=200, delta=-50
         int totalDataLength = 4 + 200 + 150 + 100; // = 454
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(200, frameSizes[0]);
@@ -336,7 +336,7 @@ public class EbmlLacingTests
         // Frame 3: last frame = remaining
         byte[] data = [3, 0xE4, 0xD3, 0xB5]; // 4 frames
         int totalDataLength = 4 + 100 + 120 + 110 + 66; // = 400
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Equal(4, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -356,7 +356,7 @@ public class EbmlLacingTests
         // In practice, no encoder uses EBML lacing with a single frame.
         byte[] data = [0, 0x82]; // 0+1 = 1 frame, VINT size = 2
         int totalDataLength = 2 + 2; // 2 bytes header + 2 bytes frame data = 4
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Single(frameSizes);
         Assert.Equal(2, frameSizes[0]); // VINT value = 2
@@ -373,7 +373,7 @@ public class EbmlLacingTests
         // Frame 2: last frame = remaining
         byte[] data = [2, 0x43, 0xE8, 0x61, 0xF3];
         int totalDataLength = 5 + 1000 + 1500 + 500; // = 3005
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Ebml, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(1000, frameSizes[0]);
@@ -500,7 +500,7 @@ public class EbmlLacingTests
         // Xiph lacing where first frame is 0 bytes
         byte[] data = [1, 0x00]; // 2 frames, first frame = 0 bytes
         int totalDataLength = 2 + 0 + 500; // = 502
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, totalDataLength);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(0, frameSizes[0]);
@@ -514,12 +514,14 @@ public class EbmlLacingTests
         // Fixed lacing with 5 frames of 1 byte each
         byte[] data = [4]; // 5 frames
         int totalDataLength = 1 + 5; // 6
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Fixed, totalDataLength);
 
         Assert.Equal(5, frameSizes.Length);
         // 6 / 5 = 1 (integer division)
         foreach (var size in frameSizes)
+        {
             Assert.Equal(1, size);
+        }
         Assert.Equal(1, bytesConsumed);
     }
 
@@ -528,7 +530,7 @@ public class EbmlLacingTests
     {
         // Edge case: empty data with non-None lacing
         byte[] data = [];
-        var (frameSizes, bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, 0);
+        (int[]? frameSizes, int bytesConsumed) = EbmlLacing.GetFrameLengths(data, EbmlLaceType.Xiph, 0);
 
         // Should return totalDataLength as single frame when data is too short
         Assert.Single(frameSizes);
@@ -556,17 +558,41 @@ public class EbmlLacingTests
 
     private static byte[] EncodeEbmlId(ulong id)
     {
-        if (id < 0x100) return [(byte)id];
-        if (id < 0x10000) return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        if (id < 0x1000000) return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        if (id < 0x100)
+        {
+            return [(byte)id];
+        }
+
+        if (id < 0x10000)
+        {
+            return [(byte)(id >> 8), (byte)(id & 0xFF)];
+        }
+
+        if (id < 0x1000000)
+        {
+            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        }
+
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
     private static byte[] EncodeEbmlSize(long value)
     {
-        if (value < 0x7F) return [(byte)(0x80 | value)];
-        if (value < 0x3FFF) return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        if (value < 0x1FFFFF) return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        if (value < 0x7F)
+        {
+            return [(byte)(0x80 | value)];
+        }
+
+        if (value < 0x3FFF)
+        {
+            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
+        }
+
+        if (value < 0x1FFFFF)
+        {
+            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        }
+
         return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
     }
 

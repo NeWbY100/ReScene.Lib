@@ -9,7 +9,10 @@ public class DecodeTable
     /// <summary>
     /// Real size of DecodeNum table (alphabet size).
     /// </summary>
-    public int MaxNum { get; set; }
+    public int MaxNum
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Left aligned start and upper limit codes defining code space ranges for bit lengths.
@@ -28,7 +31,10 @@ public class DecodeTable
     /// Number of compressed bits processed in quick mode.
     /// Must not exceed MaxQuickDecodeBits (9).
     /// </summary>
-    public int QuickBits { get; set; }
+    public int QuickBits
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Translates compressed bits (up to QuickBits length) to bit length in quick mode.

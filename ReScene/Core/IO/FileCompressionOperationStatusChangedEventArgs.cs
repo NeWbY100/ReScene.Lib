@@ -8,7 +8,10 @@ public class FileCompressionOperationStatusChangedEventArgs : OperationStatusCha
     /// <summary>
     /// Gets the path to the compressed file associated with this status change.
     /// </summary>
-    public string CompressedFilePath { get; }
+    public string CompressedFilePath
+    {
+        get;
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified new status and compressed file path.

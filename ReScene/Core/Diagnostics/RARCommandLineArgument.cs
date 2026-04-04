@@ -21,7 +21,10 @@ public class RARCommandLineArgument(string argument, int minimumVersion, RARArch
     /// <summary>
     /// Gets or sets the maximum RAR version that supports this argument, or <c>null</c> if supported indefinitely.
     /// </summary>
-    public int? MaximumVersion { get; set; }
+    public int? MaximumVersion
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the archive format version required for this argument, or <c>null</c> if format-agnostic.

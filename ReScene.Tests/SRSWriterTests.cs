@@ -20,7 +20,12 @@ public class SRSWriterTests : IDisposable
 
     public void Dispose()
     {
-        try { Directory.Delete(_tempDir, true); } catch { }
+        try
+        {
+            Directory.Delete(_tempDir, true);
+        }
+        catch { }
+        GC.SuppressFinalize(this);
     }
 
     #region AVI Tests
@@ -32,7 +37,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(SRSContainerType.AVI, result.ContainerType);
@@ -48,19 +53,19 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.AVI, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
         Assert.Equal("ReScene.NET", parsed.FileData!.AppName);
-        Assert.Contains("test_sample.avi", parsed.FileData.FileName);
+        Assert.Contains("test_sample.avi", parsed.FileData.FileName, StringComparison.Ordinal);
         Assert.Equal(result.SampleCrc32, parsed.FileData.Crc32);
         Assert.Equal((ulong)result.SampleSize, parsed.FileData.SampleSize);
         Assert.True(parsed.Tracks.Count > 0);
 
-        foreach (var track in parsed.Tracks)
+        foreach (SrsTrackDataBlock track in parsed.Tracks)
         {
             Assert.True(track.DataLength > 0);
             Assert.True(track.SignatureSize > 0);
@@ -79,7 +84,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(SRSContainerType.MKV, result.ContainerType);
@@ -93,7 +98,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
@@ -114,7 +119,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(SRSContainerType.MP4, result.ContainerType);
@@ -128,7 +133,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
@@ -148,7 +153,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(SRSContainerType.FLAC, result.ContainerType);
@@ -162,7 +167,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
@@ -183,7 +188,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(SRSContainerType.MP3, result.ContainerType);
@@ -197,7 +202,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
@@ -217,7 +222,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(SRSContainerType.Stream, result.ContainerType);
@@ -231,7 +236,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
@@ -250,7 +255,7 @@ public class SRSWriterTests : IDisposable
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, "/nonexistent/file.avi");
+        SrsCreationResult result = await writer.CreateAsync(srsPath, "/nonexistent/file.avi");
 
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
@@ -266,7 +271,7 @@ public class SRSWriterTests : IDisposable
         cts.Cancel(); // Cancel immediately
 
         var writer = new SRSWriter();
-        var result = await writer.CreateAsync(srsPath, samplePath, ct: cts.Token);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath, ct: cts.Token);
 
         Assert.False(result.Success);
         Assert.Contains("cancelled", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
@@ -280,7 +285,7 @@ public class SRSWriterTests : IDisposable
 
         var writer = new SRSWriter();
         var options = new SrsCreationOptions { AppName = "TestApp 1.0" };
-        var result = await writer.CreateAsync(srsPath, samplePath, options);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath, options);
         Assert.True(result.Success, result.ErrorMessage);
 
         var parsed = SRSFile.Load(srsPath);
@@ -291,7 +296,7 @@ public class SRSWriterTests : IDisposable
     public void DetectContainerType_Avi_DetectsCorrectly()
     {
         string path = BuildSyntheticAvi();
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.AVI, type);
     }
 
@@ -299,7 +304,7 @@ public class SRSWriterTests : IDisposable
     public void DetectContainerType_Mkv_DetectsCorrectly()
     {
         string path = BuildSyntheticMkv();
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MKV, type);
     }
 
@@ -307,7 +312,7 @@ public class SRSWriterTests : IDisposable
     public void DetectContainerType_Mp4_DetectsCorrectly()
     {
         string path = BuildSyntheticMp4();
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MP4, type);
     }
 
@@ -315,7 +320,7 @@ public class SRSWriterTests : IDisposable
     public void DetectContainerType_Flac_DetectsCorrectly()
     {
         string path = BuildSyntheticFlac();
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.FLAC, type);
     }
 
@@ -323,7 +328,7 @@ public class SRSWriterTests : IDisposable
     public void DetectContainerType_Mp3_DetectsCorrectly()
     {
         string path = BuildSyntheticMp3();
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MP3, type);
     }
 
@@ -331,7 +336,7 @@ public class SRSWriterTests : IDisposable
     public void DetectContainerType_Stream_DetectsCorrectly()
     {
         string path = BuildSyntheticStream();
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.Stream, type);
     }
 
@@ -346,7 +351,7 @@ public class SRSWriterTests : IDisposable
         data[1] = 0xFB; // would match MP3 sync word
         File.WriteAllBytes(path, data);
 
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.Stream, type);
     }
 
@@ -362,7 +367,7 @@ public class SRSWriterTests : IDisposable
     {
         string path = Path.Combine(_tempDir, $"test_sample{extension}");
         File.WriteAllBytes(path, new byte[256]);
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.Stream, type);
     }
 
@@ -374,9 +379,10 @@ public class SRSWriterTests : IDisposable
         // MOV/M4V files without ftyp atom fall back to extension-based detection
         string path = Path.Combine(_tempDir, $"test_sample{extension}");
         byte[] data = new byte[256];
-        data[0] = 0x00; data[1] = 0x00; // not ftyp
+        data[0] = 0x00;
+        data[1] = 0x00; // not ftyp
         File.WriteAllBytes(path, data);
-        var type = SRSWriter.DetectContainerType(path);
+        SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MP4, type);
     }
 
@@ -390,10 +396,10 @@ public class SRSWriterTests : IDisposable
         var messages = new List<string>();
         writer.Progress += (_, e) => messages.Add(e.Message);
 
-        var result = await writer.CreateAsync(srsPath, samplePath);
+        SrsCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(messages.Count > 0);
-        Assert.Contains(messages, m => m.Contains("Detected"));
+        Assert.Contains(messages, m => m.Contains("Detected", StringComparison.Ordinal));
         Assert.Contains(messages, m => m.Contains("complete", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -550,7 +556,9 @@ public class SRSWriterTests : IDisposable
         byte[] streamInfo = new byte[34]; // Standard STREAMINFO size
         byte header = 0x80; // is_last=1, type=0
         ms.WriteByte(header);
-        ms.WriteByte(0); ms.WriteByte(0); ms.WriteByte(34); // BE24 size
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.WriteByte(34); // BE24 size
 
         ms.Write(streamInfo);
 
@@ -635,17 +643,41 @@ public class SRSWriterTests : IDisposable
 
     private static byte[] EncodeEbmlId(ulong id)
     {
-        if (id < 0x100) return [(byte)id];
-        if (id < 0x10000) return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        if (id < 0x1000000) return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        if (id < 0x100)
+        {
+            return [(byte)id];
+        }
+
+        if (id < 0x10000)
+        {
+            return [(byte)(id >> 8), (byte)(id & 0xFF)];
+        }
+
+        if (id < 0x1000000)
+        {
+            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
+        }
+
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
     private static byte[] EncodeEbmlSize(long value)
     {
-        if (value < 0x7F) return [(byte)(0x80 | value)];
-        if (value < 0x3FFF) return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        if (value < 0x1FFFFF) return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        if (value < 0x7F)
+        {
+            return [(byte)(0x80 | value)];
+        }
+
+        if (value < 0x3FFF)
+        {
+            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
+        }
+
+        if (value < 0x1FFFFF)
+        {
+            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+        }
+
         return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
     }
 

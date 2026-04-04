@@ -7,7 +7,7 @@ namespace ReScene.Core.Cryptography;
 /// </summary>
 public static class SHA1
 {
-    private static readonly HashAlgorithm SHA1Algorithm = System.Security.Cryptography.SHA1.Create() ?? throw new InvalidProgramException("Could not create a SHA1 hash algorithm instance.");
+    private static readonly HashAlgorithm _sha1Algorithm = System.Security.Cryptography.SHA1.Create();
 
     /// <summary>
     /// Calculates the SHA-1 hash of a file, returning the result as a lowercase hex string.
@@ -23,9 +23,9 @@ public static class SHA1
 
         using FileStream fileStream = File.OpenRead(filePath);
         byte[] sha1Bytes;
-        lock (SHA1Algorithm)
+        lock (_sha1Algorithm)
         {
-            sha1Bytes = SHA1Algorithm.ComputeHash(fileStream);
+            sha1Bytes = _sha1Algorithm.ComputeHash(fileStream);
         }
 
         return Hashing.ByteArrayToHexViaLookup32(sha1Bytes, false);

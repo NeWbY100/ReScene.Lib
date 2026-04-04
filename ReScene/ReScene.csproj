@@ -5,6 +5,10 @@
     <Version>1.1.0</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-All</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +18,8 @@
   <ItemGroup>
     <PackageReference Include="CliWrap" Version="3.10.0" />
     <PackageReference Include="Crc32.NET" Version="1.2.0" />
+    <PackageReference Include="DiscUtils.Iso9660" Version="0.16.13" />
+    <PackageReference Include="DiscUtils.Udf" Version="0.16.13" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.4" />
   </ItemGroup>
 

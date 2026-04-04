@@ -14,17 +14,26 @@ public class BitInput
     /// <summary>
     /// Input buffer containing compressed data.
     /// </summary>
-    public byte[] InBuf { get; private set; }
+    public byte[] InBuf
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Current byte position in the buffer.
     /// </summary>
-    public int InAddr { get; set; }
+    public int InAddr
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Current bit position within the current byte (0-7).
     /// </summary>
-    public int InBit { get; set; }
+    public int InBit
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Creates a new BitInput with an allocated buffer.

@@ -9,7 +9,7 @@ namespace ReScene.RAR;
 /// </summary>
 public static class RARUtils
 {
-    private static readonly Encoding RarNameEncoding = GetRarNameEncoding();
+    private static readonly Encoding _rarNameEncoding = GetRarNameEncoding();
 
     /// <summary>
     /// Dictionary sizes in KB indexed by the 3-bit flag value.
@@ -116,7 +116,7 @@ public static class RARUtils
 
                 if (stdName.Length > 0)
                 {
-                    return RarNameEncoding.GetString(stdName);
+                    return _rarNameEncoding.GetString(stdName);
                 }
             }
 
@@ -126,11 +126,11 @@ public static class RARUtils
             }
             catch (DecoderFallbackException)
             {
-                return RarNameEncoding.GetString(nameBytes);
+                return _rarNameEncoding.GetString(nameBytes);
             }
         }
 
-        return RarNameEncoding.GetString(nameBytes);
+        return _rarNameEncoding.GetString(nameBytes);
     }
 
     /// <summary>
@@ -140,7 +140,7 @@ public static class RARUtils
     {
         if (encData.Length == 0)
         {
-            return RarNameEncoding.GetString(stdName);
+            return _rarNameEncoding.GetString(stdName);
         }
 
         List<byte> output = new(encData.Length * 2);
@@ -274,15 +274,10 @@ public static class RARUtils
 
     #region SFX Support
 
-    private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
-    private static readonly byte[] Rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
-
     /// <summary>
     /// Scans a stream for the RAR marker signature (RAR4 or RAR5).
     /// Used for finding the RAR archive within SFX (self-extracting) executables.
     /// </summary>
-    /// <param name="stream">The stream to scan.</param>
-    /// <param name="maxScanSize">Maximum number of bytes to scan (default 1 MB).</param>
     /// <returns>The byte offset of the RAR marker, or -1 if not found.</returns>
     private const long DefaultMaxScanSize = 1024 * 1024; // 1 MB
 
@@ -325,7 +320,9 @@ public static class RARUtils
                 buffer[i + 2] == 0x72 && buffer[i + 3] == 0x21 &&
                 buffer[i + 4] == 0x1A && buffer[i + 5] == 0x07 &&
                 buffer[i + 6] == 0x00)
+            {
                 return i;
+            }
         }
 
         return -1;

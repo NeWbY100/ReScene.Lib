@@ -7,7 +7,7 @@ namespace ReScene.RAR.Decompression;
 public class Unpack20
 {
     // Distance decode tables for RAR 2.0 (48 entries) - unique to RAR 2.0
-    private static readonly int[] DDecode =
+    private static readonly int[] _dDecode =
     [
         0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192,
         256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288,
@@ -15,7 +15,7 @@ public class Unpack20
         393216, 458752, 524288, 589824, 655360, 720896, 786432, 851968, 917504, 983040
     ];
 
-    private static readonly byte[] DBits =
+    private static readonly byte[] _dBits =
     [
         0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
         7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14,
@@ -30,7 +30,7 @@ public class Unpack20
 
     private readonly byte[] _unpOldTable = new byte[PackDef.NC20 + PackDef.DC20 + PackDef.RC20];
 
-    private byte[] _window = null!;
+    private byte[] _window = [];
     private int _winSize;
     private int _winMask;
     private int _unpPtr;
@@ -117,8 +117,8 @@ public class Unpack20
                 }
 
                 uint distNumber = HuffmanDecoder.DecodeNumber(_inp, _tableDD);
-                int distance = DDecode[distNumber] + 1;
-                bits = DBits[distNumber];
+                int distance = _dDecode[distNumber] + 1;
+                bits = _dBits[distNumber];
                 if (bits > 0)
                 {
                     distance += (int)(_inp.GetBits() >> (16 - bits));

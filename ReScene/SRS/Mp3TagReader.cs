@@ -30,7 +30,7 @@ public static class Mp3TagReader
         while (true)
         {
             stream.Position = audioStart;
-            var (found, size) = DetectId3v2(stream);
+            (bool found, int size) = DetectId3v2(stream);
             if (found)
             {
                 audioStart += size;
@@ -56,14 +56,14 @@ public static class Mp3TagReader
         long endOffset = stream.Length;
 
         // 1) Check for ID3v1 (last 128 bytes)
-        var (id3v1Found, id3v1Size) = DetectId3v1(stream);
+        (bool id3v1Found, int id3v1Size) = DetectId3v1(stream);
         if (id3v1Found)
         {
             endOffset -= id3v1Size;
         }
 
         // 2) Check for Lyrics3v2 (before ID3v1)
-        var (lyrics3v2Found, lyrics3v2Size) = DetectLyrics3v2(stream, endOffset);
+        (bool lyrics3v2Found, int lyrics3v2Size) = DetectLyrics3v2(stream, endOffset);
         if (lyrics3v2Found)
         {
             endOffset -= lyrics3v2Size;
@@ -71,7 +71,7 @@ public static class Mp3TagReader
         else
         {
             // 3) Check for Lyrics3v1 (before ID3v1, only if no Lyrics3v2)
-            var (lyrics3v1Found, lyrics3v1Size) = DetectLyrics3v1(stream, endOffset);
+            (bool lyrics3v1Found, int lyrics3v1Size) = DetectLyrics3v1(stream, endOffset);
             if (lyrics3v1Found)
             {
                 endOffset -= lyrics3v1Size;
@@ -79,7 +79,7 @@ public static class Mp3TagReader
         }
 
         // 4) Check for APEv2/APEv1 (before ID3v1/Lyrics3)
-        var (apeFound, apeSize) = DetectApeTag(stream, endOffset);
+        (bool apeFound, int apeSize) = DetectApeTag(stream, endOffset);
         if (apeFound)
         {
             endOffset -= apeSize;
@@ -187,7 +187,7 @@ public static class Mp3TagReader
         }
 
         // Parse 6-byte ASCII decimal size
-        string sizeStr = Encoding.ASCII.GetString(footer.Slice(0, 6));
+        string sizeStr = Encoding.ASCII.GetString(footer[..6]);
         if (!int.TryParse(sizeStr, out int lyricsSize))
         {
             return (false, 0);
@@ -298,16 +298,16 @@ public static class Mp3TagReader
         }
 
         // Check "APETAGEX" preamble
-        if (!footer.Slice(0, 8).SequenceEqual("APETAGEX"u8))
+        if (!footer[..8].SequenceEqual("APETAGEX"u8))
         {
             return (false, 0);
         }
 
         // Bytes 8-11: version (LE uint32) - 1000 for APEv1, 2000 for APEv2
-        uint version = BinaryPrimitives.ReadUInt32LittleEndian(footer.Slice(8));
+        uint version = BinaryPrimitives.ReadUInt32LittleEndian(footer[8..]);
 
         // Bytes 12-15: tag size including footer and all items, but NOT the header
-        uint tagSize = BinaryPrimitives.ReadUInt32LittleEndian(footer.Slice(12));
+        uint tagSize = BinaryPrimitives.ReadUInt32LittleEndian(footer[12..]);
 
         // APEv2 has a 32-byte header in addition; APEv1 has no header
         int headerSize = version == 2000 ? ApeTagHeaderSize : 0;

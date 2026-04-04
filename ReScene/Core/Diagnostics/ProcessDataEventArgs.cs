@@ -13,7 +13,10 @@ public class ProcessDataEventArgs(string? data) : EventArgs
     /// <summary>
     /// Gets whether this data came from the error stream.
     /// </summary>
-    public bool Error { get; private set; }
+    public bool Error
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified data and error flag.

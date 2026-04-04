@@ -74,32 +74,50 @@ public class SRRBlock
     /// <summary>
     /// Gets or sets the block CRC value.
     /// </summary>
-    public ushort Crc { get; set; }
+    public ushort Crc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the block type.
     /// </summary>
-    public SRRBlockType BlockType { get; set; }
+    public SRRBlockType BlockType
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the block flags.
     /// </summary>
-    public ushort Flags { get; set; }
+    public ushort Flags
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the header size in bytes.
     /// </summary>
-    public ushort HeaderSize { get; set; }
+    public ushort HeaderSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the block position in the stream.
     /// </summary>
-    public long BlockPosition { get; set; }
+    public long BlockPosition
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the additional data size following the header.
     /// </summary>
-    public uint AddSize { get; set; }
+    public uint AddSize
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -128,12 +146,18 @@ public class SrrStoredFileBlock : SRRBlock
     /// <summary>
     /// Gets or sets the length of the stored file data in bytes.
     /// </summary>
-    public uint FileLength { get; set; }
+    public uint FileLength
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the offset in the stream where file data begins.
     /// </summary>
-    public long DataOffset { get; set; }
+    public long DataOffset
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -145,7 +169,10 @@ public class SrrHeaderBlock : SRRBlock
     /// <summary>
     /// Gets or sets the application name that created this SRR file.
     /// </summary>
-    public string? AppName { get; set; }
+    public string? AppName
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets a value indicating whether the app name is present in the header.
@@ -167,7 +194,10 @@ public class SrrOsoHashBlock : SRRBlock
     /// <summary>
     /// Gets or sets the file size in bytes.
     /// </summary>
-    public ulong FileSize { get; set; }
+    public ulong FileSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the 8-byte OSO hash value.
@@ -189,5 +219,8 @@ public class SrrRarPaddingBlock : SRRBlock
     /// <summary>
     /// Gets or sets the padding size in bytes.
     /// </summary>
-    public uint PaddingSize { get; set; }
+    public uint PaddingSize
+    {
+        get; set;
+    }
 }

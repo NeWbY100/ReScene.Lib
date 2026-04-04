@@ -26,7 +26,7 @@ public static class FlacMetadataReader
         stream.Position = 0;
 
         // Check for ID3v2 wrapper
-        var (id3Found, id3Size) = DetectId3v2Wrapper(stream);
+        (bool id3Found, int id3Size) = DetectId3v2Wrapper(stream);
         long offset = id3Found ? id3Size : 0;
 
         // Expect fLaC marker
@@ -48,7 +48,7 @@ public static class FlacMetadataReader
         using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         while (stream.Position + 4 <= stream.Length)
         {
-            var (isLast, _, length) = ReadMetadataBlockHeader(reader);
+            (bool isLast, byte _, int length) = ReadMetadataBlockHeader(reader);
             stream.Position += length; // skip payload
 
             if (isLast)

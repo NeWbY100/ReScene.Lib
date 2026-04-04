@@ -136,7 +136,7 @@ public class RAR5HeaderReaderTests
         fs.Seek(8, SeekOrigin.Begin); // Skip marker
 
         var reader = new RAR5HeaderReader(fs);
-        var block = reader.ReadBlock();
+        RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
         Assert.Equal(RAR5BlockType.Main, block!.BlockType);
@@ -161,8 +161,11 @@ public class RAR5HeaderReaderTests
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock();
-            if (block == null) break;
+            RAR5BlockReadResult? block = reader.ReadBlock();
+            if (block is null)
+            {
+                break;
+            }
 
             blockTypes.Add(block.BlockType);
             reader.SkipBlock(block);
@@ -190,8 +193,11 @@ public class RAR5HeaderReaderTests
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock();
-            if (block == null) break;
+            RAR5BlockReadResult? block = reader.ReadBlock();
+            if (block is null)
+            {
+                break;
+            }
 
             if (block.BlockType == RAR5BlockType.Service && block.ServiceBlockInfo?.SubType == "CMT")
             {
@@ -253,7 +259,10 @@ public class RAR5HeaderReaderTests
     public void PeekBlockType_DoesNotAdvancePosition()
     {
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
-        if (!File.Exists(rarPath)) return;
+        if (!File.Exists(rarPath))
+        {
+            return;
+        }
 
         using var fs = new FileStream(rarPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         fs.Seek(8, SeekOrigin.Begin);
@@ -341,7 +350,9 @@ public class RAR5HeaderReaderTests
             byte b = (byte)(value & 0x7F);
             value >>= 7;
             if (value > 0)
+            {
                 b |= 0x80; // continuation bit
+            }
             bytes.Add(b);
         } while (value > 0);
         return bytes.ToArray();
@@ -364,11 +375,19 @@ public class RAR5HeaderReaderTests
         headerContent.Write(EncodeVInt((ulong)blockType));
         headerContent.Write(EncodeVInt(flags));
         if (extraAreaSize.HasValue)
+        {
             headerContent.Write(EncodeVInt(extraAreaSize.Value));
+        }
+
         if (dataSize.HasValue)
+        {
             headerContent.Write(EncodeVInt(dataSize.Value));
-        if (additionalHeaderContent != null)
+        }
+
+        if (additionalHeaderContent is not null)
+        {
             headerContent.Write(additionalHeaderContent);
+        }
 
         byte[] headerBytes = headerContent.ToArray();
 
@@ -452,13 +471,13 @@ public class RAR5HeaderReaderTests
         ulong largeDataSize = 5_000_000_000ul; // ~4.66 GB
         ulong flags = (ulong)RAR5HeaderFlags.DataArea;
 
-        using var stream = BuildRAR5Block(
+        using MemoryStream stream = BuildRAR5Block(
             RAR5BlockType.EndArchive,
             flags,
             dataSize: largeDataSize);
 
         var reader = new RAR5HeaderReader(stream);
-        var block = reader.ReadBlock();
+        RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
         Assert.Equal(RAR5BlockType.EndArchive, block!.BlockType);
@@ -490,13 +509,13 @@ public class RAR5HeaderReaderTests
         byte[] additionalContent = fileContent.ToArray();
         ulong flags = 0; // No extra area, no data area (just header)
 
-        using var stream = BuildRAR5Block(
+        using MemoryStream stream = BuildRAR5Block(
             RAR5BlockType.File,
             flags,
             additionalHeaderContent: additionalContent);
 
         var reader = new RAR5HeaderReader(stream);
-        var block = reader.ReadBlock();
+        RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
         Assert.Equal(RAR5BlockType.File, block!.BlockType);
@@ -516,7 +535,7 @@ public class RAR5HeaderReaderTests
     public void PeekBlockType_ValidBlock_ReturnsCorrectTypeAndRestoresPosition()
     {
         // Build a Main archive block (type = 0x01)
-        using var stream = BuildRAR5Block(RAR5BlockType.Main, flags: 0,
+        using MemoryStream stream = BuildRAR5Block(RAR5BlockType.Main, flags: 0,
             additionalHeaderContent: EncodeVInt(0)); // archive flags = 0
 
         var reader = new RAR5HeaderReader(stream);
@@ -546,14 +565,14 @@ public class RAR5HeaderReaderTests
         ulong dataSize = 1024ul;
         ulong flags = (ulong)RAR5HeaderFlags.ExtraArea | (ulong)RAR5HeaderFlags.DataArea;
 
-        using var stream = BuildRAR5Block(
+        using MemoryStream stream = BuildRAR5Block(
             RAR5BlockType.EndArchive,
             flags,
             extraAreaSize: extraSize,
             dataSize: dataSize);
 
         var reader = new RAR5HeaderReader(stream);
-        var block = reader.ReadBlock();
+        RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
         Assert.Equal(extraSize, block!.ExtraAreaSize);
@@ -566,7 +585,7 @@ public class RAR5HeaderReaderTests
         using var stream = new MemoryStream();
         var reader = new RAR5HeaderReader(stream);
 
-        var block = reader.ReadBlock();
+        RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.Null(block);
     }

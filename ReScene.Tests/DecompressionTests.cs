@@ -51,7 +51,7 @@ public class DecompressionTests
         byte[] invalidData = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
 
         // Act & Assert - should not throw
-        var exception = Record.Exception(() => unpacker.Decompress(invalidData, 100));
+        Exception exception = Record.Exception(() => unpacker.Decompress(invalidData, 100));
         Assert.Null(exception);
     }
 
@@ -63,7 +63,7 @@ public class DecompressionTests
         byte[] invalidData = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
 
         // Act & Assert - should not throw
-        var exception = Record.Exception(() => unpacker.Decompress(invalidData, 100));
+        Exception exception = Record.Exception(() => unpacker.Decompress(invalidData, 100));
         Assert.Null(exception);
     }
 

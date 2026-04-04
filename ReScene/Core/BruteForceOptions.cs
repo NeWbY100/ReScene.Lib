@@ -34,7 +34,10 @@ public class BruteForceOptions(string rarInstallationsDirectoryPath, string rele
     /// <summary>
     /// Gets or sets the type of the hash in the <see cref="Hashes"/> set.
     /// </summary>
-    public HashType HashType { get; set; }
+    public HashType HashType
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Gets or sets the RAR options.

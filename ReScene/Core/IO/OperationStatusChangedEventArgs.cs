@@ -9,7 +9,10 @@ public class OperationStatusChangedEventArgs(OperationStatus newStatus) : EventA
     /// <summary>
     /// Gets the previous operation status, or <c>null</c> if this is the initial status.
     /// </summary>
-    public OperationStatus? OldStatus { get; private set; }
+    public OperationStatus? OldStatus
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Gets the current operation status.
@@ -19,7 +22,10 @@ public class OperationStatusChangedEventArgs(OperationStatus newStatus) : EventA
     /// <summary>
     /// Gets the completion status if the operation has completed, or <c>null</c> if still in progress.
     /// </summary>
-    public OperationCompletionStatus? CompletionStatus { get; private set; }
+    public OperationCompletionStatus? CompletionStatus
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Initializes a new instance with the specified old and new statuses.

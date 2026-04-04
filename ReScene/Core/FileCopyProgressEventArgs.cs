@@ -13,22 +13,34 @@ public class FileCopyProgressEventArgs : EventArgs
     /// <summary>
     /// Number of files copied so far.
     /// </summary>
-    public int FilesCopied { get; init; }
+    public int FilesCopied
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Total number of files to copy.
     /// </summary>
-    public int TotalFiles { get; init; }
+    public int TotalFiles
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Total bytes copied so far.
     /// </summary>
-    public long BytesCopied { get; init; }
+    public long BytesCopied
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Total bytes to copy.
     /// </summary>
-    public long TotalBytes { get; init; }
+    public long TotalBytes
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Source directory path.

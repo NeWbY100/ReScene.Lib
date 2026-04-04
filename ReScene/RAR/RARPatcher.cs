@@ -10,47 +10,74 @@ public class PatchResult
     /// <summary>
     /// Byte offset of the block within the RAR file.
     /// </summary>
-    public long BlockPosition { get; set; }
+    public long BlockPosition
+    {
+        get; set;
+    }
 
     /// <summary>
     /// RAR 4.x block type (FileHeader or Service).
     /// </summary>
-    public RAR4BlockType BlockType { get; set; }
+    public RAR4BlockType BlockType
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File name from the block header, if available.
     /// </summary>
-    public string? FileName { get; set; }
+    public string? FileName
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Host OS value before patching.
     /// </summary>
-    public byte OriginalHostOS { get; set; }
+    public byte OriginalHostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Host OS value after patching.
     /// </summary>
-    public byte NewHostOS { get; set; }
+    public byte NewHostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File attributes value before patching.
     /// </summary>
-    public uint OriginalAttributes { get; set; }
+    public uint OriginalAttributes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// File attributes value after patching.
     /// </summary>
-    public uint NewAttributes { get; set; }
+    public uint NewAttributes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header CRC before patching.
     /// </summary>
-    public ushort OriginalCrc { get; set; }
+    public ushort OriginalCrc
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Header CRC after patching (0 in analysis mode).
     /// </summary>
-    public ushort NewCrc { get; set; }
+    public ushort NewCrc
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -63,12 +90,18 @@ public class PatchOptions
     /// <summary>
     /// Target Host OS value for file headers (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix, 4=Mac OS, 5=BeOS).
     /// </summary>
-    public byte? FileHostOS { get; set; }
+    public byte? FileHostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Target file attributes for file headers.
     /// </summary>
-    public uint? FileAttributes { get; set; }
+    public uint? FileAttributes
+    {
+        get; set;
+    }
 
     // ===== Service Block (CMT) Options =====
 
@@ -80,34 +113,52 @@ public class PatchOptions
     /// <summary>
     /// Target Host OS value for service blocks (CMT). If null, uses FileHostOS.
     /// </summary>
-    public byte? ServiceBlockHostOS { get; set; }
+    public byte? ServiceBlockHostOS
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Target file attributes for service blocks (CMT). If null, uses FileAttributes.
     /// </summary>
-    public uint? ServiceBlockAttributes { get; set; }
+    public uint? ServiceBlockAttributes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Target file time (DOS format) for service blocks. If null, time is not patched.
     /// </summary>
-    public uint? ServiceBlockFileTime { get; set; }
+    public uint? ServiceBlockFileTime
+    {
+        get; set;
+    }
 
     // ===== LARGE Flag Options =====
 
     /// <summary>
     /// If true, add LARGE flag + HIGH fields. If false, remove them. If null, no change.
     /// </summary>
-    public bool? SetLargeFlag { get; set; }
+    public bool? SetLargeFlag
+    {
+        get; set;
+    }
 
     /// <summary>
     /// HIGH_PACK_SIZE value to insert when adding LARGE (typically 0).
     /// </summary>
-    public uint HighPackSize { get; set; }
+    public uint HighPackSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// HIGH_UNP_SIZE value to insert when adding LARGE.
     /// </summary>
-    public uint HighUnpSize { get; set; }
+    public uint HighUnpSize
+    {
+        get; set;
+    }
 
     // ===== Computed Properties =====
 
@@ -149,12 +200,8 @@ public static class RARPatcher
     private const int OffsetHeaderSize = 5;
     private const int OffsetAddSize = 7;       // For file headers and service blocks
     private const int OffsetHighPackSize = 32;  // HIGH_PACK_SIZE (only when LARGE flag set)
-    private const int OffsetUnpSize = 11;
     private const int OffsetHostOS = 15;
-    private const int OffsetFileCrc = 16;
     private const int OffsetFileTime = 20;
-    private const int OffsetUnpVer = 24;
-    private const int OffsetMethod = 25;
     private const int OffsetNameSize = 26;
     private const int OffsetAttr = 28;
 
@@ -300,11 +347,9 @@ public static class RARPatcher
                 }
 
                 // Patch service block file time if target value is set
-                uint newFileTime = originalFileTime;
                 if (targetFileTime.HasValue && originalFileTime != targetFileTime.Value)
                 {
-                    newFileTime = targetFileTime.Value;
-                    byte[] timeBytes = BitConverter.GetBytes(newFileTime);
+                    byte[] timeBytes = BitConverter.GetBytes(targetFileTime.Value);
                     Array.Copy(timeBytes, 0, fullHeader, OffsetFileTime, 4);
                     modified = true;
                 }

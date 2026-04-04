@@ -24,7 +24,7 @@ public class FlacMetadataReaderTests
         ms.Position = 0;
 
         using var reader = new BinaryReader(ms);
-        var (isLast, type, length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+        (bool isLast, byte type, int length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
         Assert.False(isLast);
         Assert.Equal(0, type);
@@ -44,7 +44,7 @@ public class FlacMetadataReaderTests
         ms.Position = 0;
 
         using var reader = new BinaryReader(ms);
-        var (isLast, type, length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+        (bool isLast, byte type, int length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
         Assert.True(isLast);
         Assert.Equal(4, type);
@@ -70,7 +70,7 @@ public class FlacMetadataReaderTests
         ms.Position = 0;
 
         using var reader = new BinaryReader(ms);
-        var (isLast, type, length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+        (bool isLast, byte type, int length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
         Assert.Equal(expectedLast, isLast);
         Assert.Equal(expectedType, type);
@@ -87,7 +87,7 @@ public class FlacMetadataReaderTests
         ms.Position = 0;
 
         using var reader = new BinaryReader(ms);
-        var (_, _, length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
+        (bool _, byte _, int length) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
         Assert.Equal(0x123456, length);
     }
@@ -110,18 +110,18 @@ public class FlacMetadataReaderTests
     public void DetectId3v2Wrapper_NoWrapper_ReturnsFalse()
     {
         // Starts with fLaC directly
-        var ms = BuildSimpleFlac(hasId3Wrapper: false);
+        MemoryStream ms = BuildSimpleFlac(hasId3Wrapper: false);
 
-        var (found, _) = FlacMetadataReader.DetectId3v2Wrapper(ms);
+        (bool found, int _) = FlacMetadataReader.DetectId3v2Wrapper(ms);
         Assert.False(found);
     }
 
     [Fact]
     public void DetectId3v2Wrapper_WithWrapper_ReturnsCorrectSize()
     {
-        var ms = BuildSimpleFlac(hasId3Wrapper: true, id3BodySize: 128);
+        MemoryStream ms = BuildSimpleFlac(hasId3Wrapper: true, id3BodySize: 128);
 
-        var (found, size) = FlacMetadataReader.DetectId3v2Wrapper(ms);
+        (bool found, int size) = FlacMetadataReader.DetectId3v2Wrapper(ms);
 
         Assert.True(found);
         Assert.Equal(138, size); // 10 header + 128 body
@@ -132,7 +132,7 @@ public class FlacMetadataReaderTests
     {
         var ms = new MemoryStream();
 
-        var (found, _) = FlacMetadataReader.DetectId3v2Wrapper(ms);
+        (bool found, int _) = FlacMetadataReader.DetectId3v2Wrapper(ms);
         Assert.False(found);
     }
 

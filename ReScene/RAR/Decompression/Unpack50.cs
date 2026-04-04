@@ -10,7 +10,7 @@ public class Unpack50
     private readonly BitInput _inp;
     private readonly UnpackBlockTables _tables = new();
 
-    private byte[] _window = null!;
+    private byte[] _window = [];
     private int _winSize;
     private int _winMask;
     private int _unpPtr;
@@ -436,7 +436,7 @@ public class Unpack50
         uint data = 0;
         for (int i = 0; i < byteCount; i++)
         {
-            data += (uint)((_inp.GetBits() >> 8) << (i * 8));
+            data += (_inp.GetBits() >> 8) << (i * 8);
             _inp.AddBits(8);
         }
 

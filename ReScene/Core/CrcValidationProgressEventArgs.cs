@@ -13,20 +13,32 @@ public class CrcValidationProgressEventArgs : EventArgs
     /// <summary>
     /// Number of files fully verified so far.
     /// </summary>
-    public int FilesVerified { get; init; }
+    public int FilesVerified
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Total number of files to verify.
     /// </summary>
-    public int TotalFiles { get; init; }
+    public int TotalFiles
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Total bytes hashed so far (across all completed files + current file progress).
     /// </summary>
-    public long BytesVerified { get; init; }
+    public long BytesVerified
+    {
+        get; init;
+    }
 
     /// <summary>
     /// Total bytes across all files to verify.
     /// </summary>
-    public long TotalBytes { get; init; }
+    public long TotalBytes
+    {
+        get; init;
+    }
 }

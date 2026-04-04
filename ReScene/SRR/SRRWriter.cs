@@ -21,12 +21,18 @@ public class SrrCreationOptions
     /// <summary>
     /// Whether to compute and store OSO hashes for archived files.
     /// </summary>
-    public bool ComputeOsoHashes { get; set; }
+    public bool ComputeOsoHashes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Whether to generate a languages.diz stored file from VobSub .idx files in the archive.
     /// </summary>
-    public bool GenerateLanguagesDiz { get; set; }
+    public bool GenerateLanguagesDiz
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -37,32 +43,50 @@ public class SrrCreationResult
     /// <summary>
     /// Whether creation succeeded.
     /// </summary>
-    public bool Success { get; set; }
+    public bool Success
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Path to the created SRR file.
     /// </summary>
-    public string? OutputPath { get; set; }
+    public string? OutputPath
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Error message if creation failed.
     /// </summary>
-    public string? ErrorMessage { get; set; }
+    public string? ErrorMessage
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Number of RAR volumes processed.
     /// </summary>
-    public int VolumeCount { get; set; }
+    public int VolumeCount
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Number of stored files embedded.
     /// </summary>
-    public int StoredFileCount { get; set; }
+    public int StoredFileCount
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Size of the created SRR file in bytes.
     /// </summary>
-    public long SrrFileSize { get; set; }
+    public long SrrFileSize
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Non-fatal warnings encountered during creation.
@@ -78,17 +102,26 @@ public class SrrCreationProgressEventArgs : EventArgs
     /// <summary>
     /// Overall progress percentage (0-100).
     /// </summary>
-    public int ProgressPercent { get; set; }
+    public int ProgressPercent
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Current volume being processed (1-based).
     /// </summary>
-    public int CurrentVolume { get; set; }
+    public int CurrentVolume
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Total number of volumes to process.
     /// </summary>
-    public int TotalVolumes { get; set; }
+    public int TotalVolumes
+    {
+        get; set;
+    }
 
     /// <summary>
     /// Status message describing current operation.
@@ -101,8 +134,8 @@ public class SrrCreationProgressEventArgs : EventArgs
 /// </summary>
 public class SRRWriter
 {
-    private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
-    private static readonly byte[] Rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    private static readonly byte[] _rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static readonly byte[] _rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
     /// <summary>
     /// Raised to report progress during SRR creation.
@@ -146,7 +179,7 @@ public class SRRWriter
 
             if (storedFiles != null)
             {
-                foreach (var kvp in storedFiles)
+                foreach (KeyValuePair<string, string> kvp in storedFiles)
                 {
                     if (!File.Exists(kvp.Value))
                     {
@@ -170,7 +203,7 @@ public class SRRWriter
             // 2. Write stored file blocks
             if (storedFiles != null)
             {
-                foreach (var kvp in storedFiles)
+                foreach (KeyValuePair<string, string> kvp in storedFiles)
                 {
                     ct.ThrowIfCancellationRequested();
                     string storedName = kvp.Key.Replace('\\', '/');
@@ -198,8 +231,8 @@ public class SRRWriter
             // 4. Optionally compute and write OSO hash blocks
             if (options.ComputeOsoHashes)
             {
-                var hashes = OsoHashCalculator.ComputeHashes(rarVolumePaths);
-                foreach (var (fileName, fileSize, hash) in hashes)
+                List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OsoHashCalculator.ComputeHashes(rarVolumePaths);
+                foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
                 {
                     WriteOsoHashBlock(writer, fileName, fileSize, hash);
                 }
@@ -302,7 +335,7 @@ public class SRRWriter
 
         if (additionalFiles != null)
         {
-            foreach (var kvp in additionalFiles)
+            foreach (KeyValuePair<string, string> kvp in additionalFiles)
             {
                 if (File.Exists(kvp.Value))
                 {
@@ -399,7 +432,7 @@ public class SRRWriter
 
     #region RAR Volume Processing
 
-    private async Task ProcessRarVolumeAsync(
+    private static async Task ProcessRarVolumeAsync(
         BinaryWriter writer,
         string volumePath,
         string volumeName,
@@ -419,7 +452,7 @@ public class SRRWriter
 
         if (isRar5)
         {
-            await SRRWriter.ProcessRar5VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
+            await SRRWriter.ProcessRar5VolumeAsync(writer, fs, reader, volumeName, result, ct);
         }
         else
         {
@@ -446,7 +479,7 @@ public class SRRWriter
 
         for (int i = 0; i < 8; i++)
         {
-            if (marker[i] != Rar5Marker[i])
+            if (marker[i] != _rar5Marker[i])
             {
                 return false;
             }
@@ -472,7 +505,7 @@ public class SRRWriter
         }
 
         byte[] marker = reader.ReadBytes(7);
-        if (!marker.AsSpan().SequenceEqual(Rar4Marker))
+        if (!marker.AsSpan().SequenceEqual(_rar4Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR4 marker.");
             return Task.CompletedTask;
@@ -494,7 +527,7 @@ public class SRRWriter
             long blockStart = fs.Position;
 
             // Read base header (7 bytes) to determine block type and size
-            ushort crc = reader.ReadUInt16();
+            _ = reader.ReadUInt16(); // CRC (not needed, consumed to advance past header)
             byte typeRaw = reader.ReadByte();
             ushort flags = reader.ReadUInt16();
             ushort headerSize = reader.ReadUInt16();
@@ -611,7 +644,6 @@ public class SRRWriter
         FileStream fs,
         BinaryReader reader,
         string volumeName,
-        SrrCreationOptions options,
         SrrCreationResult result,
         CancellationToken ct)
     {
@@ -623,7 +655,7 @@ public class SRRWriter
         }
 
         byte[] marker = reader.ReadBytes(8);
-        if (!marker.AsSpan().SequenceEqual(Rar5Marker))
+        if (!marker.AsSpan().SequenceEqual(_rar5Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR5 marker.");
             return Task.CompletedTask;
@@ -641,7 +673,7 @@ public class SRRWriter
             // Read the block start position
             long blockStart = fs.Position;
 
-            var block = rarReader.ReadBlock();
+            RAR5BlockReadResult? block = rarReader.ReadBlock();
             if (block == null)
             {
                 break;
@@ -741,12 +773,16 @@ public class SRRWriter
         // Old-style extensions: .r00, .r01, ..., .r99, .s00, etc.
         if (ext.Length == 4 && ext[0] == '.' &&
             char.IsLetter(ext[1]) && char.IsDigit(ext[2]) && char.IsDigit(ext[3]))
+        {
             return true;
+        }
 
         // Extensions like .001, .002 (numbered volumes)
         if (ext.Length == 4 && ext[0] == '.' &&
             char.IsDigit(ext[1]) && char.IsDigit(ext[2]) && char.IsDigit(ext[3]))
+        {
             return true;
+        }
 
         return false;
     }
@@ -832,11 +868,6 @@ public class SRRWriter
 
     #region Helpers
 
-    private static void SkipData(Stream stream, uint bytes)
-    {
-        stream.Seek(bytes, SeekOrigin.Current);
-    }
-
     private static void SkipData(Stream stream, ulong bytes)
     {
         stream.Seek((long)bytes, SeekOrigin.Current);
@@ -885,7 +916,11 @@ public class SRRWriter
 
     private static void TryDeleteFile(string path)
     {
-        try { File.Delete(path); } catch { }
+        try
+        {
+            File.Delete(path);
+        }
+        catch { }
     }
 
     #endregion

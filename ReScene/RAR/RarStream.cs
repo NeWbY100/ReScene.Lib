@@ -20,7 +20,7 @@ internal record RarVolume(string ArchivePath, long LogicalStart, long LogicalEnd
 /// </summary>
 public partial class RarStream : Stream
 {
-    private static readonly byte[] Rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    private static readonly byte[] _rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
     private readonly List<RarVolume> _volumes = [];
     private readonly Dictionary<string, FileStream> _openStreams = new(StringComparer.OrdinalIgnoreCase);
@@ -32,7 +32,10 @@ public partial class RarStream : Stream
     /// <summary>
     /// The name of the packed file being streamed.
     /// </summary>
-    public string? PackedFileName { get; private set; }
+    public string? PackedFileName
+    {
+        get; private set;
+    }
 
     /// <summary>
     /// Opens a packed file from a RAR archive set for streaming.
@@ -233,9 +236,12 @@ public partial class RarStream : Stream
         {
             if (disposing)
             {
-                foreach (var stream in _openStreams.Values)
+                foreach (FileStream stream in _openStreams.Values)
                 {
-                    try { stream.Dispose(); }
+                    try
+                    {
+                        stream.Dispose();
+                    }
                     catch { /* ignore errors during cleanup */ }
                 }
 
@@ -266,7 +272,7 @@ public partial class RarStream : Stream
             var reader = new RAR5HeaderReader(fs);
             while (fs.Position < fs.Length)
             {
-                var block = reader.ReadBlock();
+                RAR5BlockReadResult? block = reader.ReadBlock();
                 if (block == null)
                 {
                     break;
@@ -290,7 +296,7 @@ public partial class RarStream : Stream
             var reader = new RARHeaderReader(fs);
             while (fs.Position < fs.Length)
             {
-                var block = reader.ReadBlock(parseContents: true);
+                RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
                 if (block == null)
                 {
                     break;
@@ -324,8 +330,6 @@ public partial class RarStream : Stream
     /// </summary>
     private bool ProcessVolume(string volumePath, ref string? packedFileName, bool? previousNamingStyle)
     {
-        bool isOldNaming = previousNamingStyle ?? false;
-
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         bool isRar5 = IsRar5(fs);
         fs.Position = isRar5 ? 8 : 7; // skip marker
@@ -334,14 +338,10 @@ public partial class RarStream : Stream
         {
             ProcessRar5Volume(fs, volumePath, ref packedFileName);
             // RAR5 always uses new-style naming
-            isOldNaming = false;
-        }
-        else
-        {
-            isOldNaming = ProcessRar4Volume(fs, volumePath, ref packedFileName, previousNamingStyle);
+            return false;
         }
 
-        return isOldNaming;
+        return ProcessRar4Volume(fs, volumePath, ref packedFileName, previousNamingStyle);
     }
 
     private void ProcessRar5Volume(FileStream fs, string volumePath, ref string? packedFileName)
@@ -350,7 +350,7 @@ public partial class RarStream : Stream
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock();
+            RAR5BlockReadResult? block = reader.ReadBlock();
             if (block == null)
             {
                 break;
@@ -358,7 +358,7 @@ public partial class RarStream : Stream
 
             if (block.BlockType == RAR5BlockType.File && block.FileInfo != null)
             {
-                var fileInfo = block.FileInfo;
+                RAR5FileInfo fileInfo = block.FileInfo;
                 string fileName = NormalizePathSeparator(fileInfo.FileName);
 
                 packedFileName ??= fileName;
@@ -393,7 +393,7 @@ public partial class RarStream : Stream
 
         while (fs.Position < fs.Length)
         {
-            var block = reader.ReadBlock(parseContents: true);
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
             if (block == null)
             {
                 break;
@@ -406,7 +406,7 @@ public partial class RarStream : Stream
 
             if (block.BlockType == RAR4BlockType.FileHeader && block.FileHeader != null)
             {
-                var fileHeader = block.FileHeader;
+                RARFileHeader fileHeader = block.FileHeader;
                 string fileName = NormalizePathSeparator(fileHeader.FileName);
 
                 packedFileName ??= fileName;
@@ -522,7 +522,7 @@ public partial class RarStream : Stream
     private static string? GetNextNewStyleVolume(string currentPath)
     {
         // Match patterns like .part1.rar, .part01.rar, .part001.rar
-        var match = NewStylePartRegex().Match(currentPath);
+        Match match = NewStylePartRegex().Match(currentPath);
         if (match.Success)
         {
             string numStr = match.Groups[1].Value;
@@ -559,7 +559,7 @@ public partial class RarStream : Stream
         stream.ReadExactly(marker);
         stream.Position = pos;
 
-        return marker.SequenceEqual(Rar5Marker);
+        return marker.SequenceEqual(_rar5Marker);
     }
 
     /// <summary>
@@ -577,7 +577,7 @@ public partial class RarStream : Stream
 
         _currentVolume = null;
 
-        foreach (var vol in _volumes)
+        foreach (RarVolume vol in _volumes)
         {
             if (_position >= vol.LogicalStart && _position <= vol.LogicalEnd)
             {
@@ -592,7 +592,7 @@ public partial class RarStream : Stream
     /// </summary>
     private FileStream GetOrOpenStream(string archivePath)
     {
-        if (!_openStreams.TryGetValue(archivePath, out var stream))
+        if (!_openStreams.TryGetValue(archivePath, out FileStream? stream))
         {
             stream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             _openStreams[archivePath] = stream;
