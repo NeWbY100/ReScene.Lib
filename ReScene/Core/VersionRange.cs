@@ -45,8 +45,5 @@ public class VersionRange
     /// </summary>
     /// <param name="version">The version number to check.</param>
     /// <returns>True if in range; otherwise, false.</returns>
-    public bool InRange(int version)
-    {
-        return version >= Start && version < End;
-    }
+    public bool InRange(int version) => version >= Start && version < End;
 }

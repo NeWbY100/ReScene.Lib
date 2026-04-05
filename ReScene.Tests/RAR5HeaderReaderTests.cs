@@ -55,10 +55,7 @@ public class RAR5HeaderReaderTests
     #region RAR5Marker Tests
 
     [Fact]
-    public void RAR5Marker_HasCorrectLength()
-    {
-        Assert.Equal(8, RAR5HeaderReader.RAR5Marker.Length);
-    }
+    public void RAR5Marker_HasCorrectLength() => Assert.Equal(8, RAR5HeaderReader.RAR5Marker.Length);
 
     [Fact]
     public void RAR5Marker_HasCorrectBytes()
@@ -526,10 +523,7 @@ public class RAR5HeaderReaderTests
     }
 
     [Fact]
-    public void Constructor_NullStream_ThrowsArgumentNullException()
-    {
-        Assert.Throws<ArgumentNullException>(() => new RAR5HeaderReader(null!));
-    }
+    public void Constructor_NullStream_ThrowsArgumentNullException() => Assert.Throws<ArgumentNullException>(() => new RAR5HeaderReader(null!));
 
     [Fact]
     public void PeekBlockType_ValidBlock_ReturnsCorrectTypeAndRestoresPosition()

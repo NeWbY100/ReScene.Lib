@@ -42,10 +42,7 @@ public static class RARUtils
     /// <param name="storedCrc">CRC value stored in the header</param>
     /// <param name="headerBytes">Complete header bytes including CRC field</param>
     /// <returns>True if CRC matches, false otherwise</returns>
-    public static bool ValidateHeaderCrc(ushort storedCrc, byte[] headerBytes)
-    {
-        return storedCrc == CalculateHeaderCrc(headerBytes);
-    }
+    public static bool ValidateHeaderCrc(ushort storedCrc, byte[] headerBytes) => storedCrc == CalculateHeaderCrc(headerBytes);
 
     #endregion
 
@@ -265,10 +262,7 @@ public static class RARUtils
     /// </summary>
     /// <param name="flags">File header flags</param>
     /// <returns>True if directory</returns>
-    public static bool IsDirectory(RARFileFlags flags)
-    {
-        return ((ushort)flags & RARFlagMasks.DictionarySizeMask) == (ushort)RARFileFlags.Directory;
-    }
+    public static bool IsDirectory(RARFileFlags flags) => ((ushort)flags & RARFlagMasks.DictionarySizeMask) == (ushort)RARFileFlags.Directory;
 
     #endregion
 

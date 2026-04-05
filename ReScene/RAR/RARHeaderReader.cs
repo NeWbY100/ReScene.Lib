@@ -333,7 +333,7 @@ public class RARHeaderReader
             switch (result.BlockType)
             {
                 case RAR4BlockType.ArchiveHeader:
-                    result.ArchiveHeader = RARHeaderReader.ParseArchiveHeader(result);
+                    result.ArchiveHeader = ParseArchiveHeader(result);
                     break;
                 case RAR4BlockType.FileHeader:
                     result.FileHeader = ParseFileHeader(result, headerEnd);

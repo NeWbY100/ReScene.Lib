@@ -347,16 +347,10 @@ public class RARHeaderReaderTests
     #region Constructor Tests
 
     [Fact]
-    public void Constructor_NullStream_ThrowsArgumentNullException()
-    {
-        Assert.Throws<ArgumentNullException>(() => new RARHeaderReader((Stream)null!));
-    }
+    public void Constructor_NullStream_ThrowsArgumentNullException() => Assert.Throws<ArgumentNullException>(() => new RARHeaderReader((Stream)null!));
 
     [Fact]
-    public void Constructor_NullBinaryReader_ThrowsArgumentNullException()
-    {
-        Assert.Throws<ArgumentNullException>(() => new RARHeaderReader((BinaryReader)null!));
-    }
+    public void Constructor_NullBinaryReader_ThrowsArgumentNullException() => Assert.Throws<ArgumentNullException>(() => new RARHeaderReader((BinaryReader)null!));
 
     [Fact]
     public void Constructor_WithBinaryReader_Works()

@@ -279,10 +279,7 @@ public sealed partial class RARProcess
         }
     }
 
-    private void HandleErrorData(string data)
-    {
-        ProcessOutput?.Invoke(this, new(data, true));
-    }
+    private void HandleErrorData(string data) => ProcessOutput?.Invoke(this, new(data, true));
 
     private void ParseProcessOutputData(string output, DateTime startDateTime)
     {
@@ -386,18 +383,9 @@ public sealed partial class RARProcess
         }
     }
 
-    private void FireProcessStatusChanged(OperationStatusChangedEventArgs e)
-    {
-        ProcessStatusChanged?.Invoke(this, e);
-    }
+    private void FireProcessStatusChanged(OperationStatusChangedEventArgs e) => ProcessStatusChanged?.Invoke(this, e);
 
-    private void FireCompressionStatusChanged(FileCompressionOperationStatusChangedEventArgs e)
-    {
-        CompressionStatusChanged?.Invoke(this, e);
-    }
+    private void FireCompressionStatusChanged(FileCompressionOperationStatusChangedEventArgs e) => CompressionStatusChanged?.Invoke(this, e);
 
-    private void FireCompressionProgress(FileCompressionOperationProgressEventArgs e)
-    {
-        CompressionProgress?.Invoke(this, e);
-    }
+    private void FireCompressionProgress(FileCompressionOperationProgressEventArgs e) => CompressionProgress?.Invoke(this, e);
 }

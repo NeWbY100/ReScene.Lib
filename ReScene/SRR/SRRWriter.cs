@@ -452,11 +452,11 @@ public class SRRWriter
 
         if (isRar5)
         {
-            await SRRWriter.ProcessRar5VolumeAsync(writer, fs, reader, volumeName, result, ct);
+            await ProcessRar5VolumeAsync(writer, fs, reader, volumeName, result, ct);
         }
         else
         {
-            await SRRWriter.ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
+            await ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
         }
     }
 
@@ -868,20 +868,11 @@ public class SRRWriter
 
     #region Helpers
 
-    private static void SkipData(Stream stream, ulong bytes)
-    {
-        stream.Seek((long)bytes, SeekOrigin.Current);
-    }
+    private static void SkipData(Stream stream, ulong bytes) => stream.Seek((long)bytes, SeekOrigin.Current);
 
-    private static void CopyData(Stream source, Stream destination, uint bytes)
-    {
-        CopyData(source, destination, (long)bytes);
-    }
+    private static void CopyData(Stream source, Stream destination, uint bytes) => CopyData(source, destination, (long)bytes);
 
-    private static void CopyData(Stream source, Stream destination, ulong bytes)
-    {
-        CopyData(source, destination, (long)bytes);
-    }
+    private static void CopyData(Stream source, Stream destination, ulong bytes) => CopyData(source, destination, (long)bytes);
 
     private static void CopyData(Stream source, Stream destination, long bytes)
     {

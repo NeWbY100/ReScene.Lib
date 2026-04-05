@@ -21,8 +21,5 @@ public class FileCompressionOperationProgressEventArgs(long operationSize, long 
     /// <summary>
     /// Requests cancellation of the compression operation.
     /// </summary>
-    public void Cancel()
-    {
-        Cancelled = true;
-    }
+    public void Cancel() => Cancelled = true;
 }

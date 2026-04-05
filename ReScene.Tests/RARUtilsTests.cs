@@ -440,16 +440,10 @@ public class RARUtilsTests
     }
 
     [Fact]
-    public void DictionarySizes_HasCorrectLength()
-    {
-        Assert.Equal(8, RARUtils.DictionarySizes.Length);
-    }
+    public void DictionarySizes_HasCorrectLength() => Assert.Equal(8, RARUtils.DictionarySizes.Length);
 
     [Fact]
-    public void DictionarySizes_ContainsExpectedValues()
-    {
-        Assert.Equal([64, 128, 256, 512, 1024, 2048, 4096, 0], RARUtils.DictionarySizes);
-    }
+    public void DictionarySizes_ContainsExpectedValues() => Assert.Equal([64, 128, 256, 512, 1024, 2048, 4096, 0], RARUtils.DictionarySizes);
 
     #endregion
 }

@@ -629,87 +629,39 @@ public class ModelPPM
         Array.Clear(_charMask);
     }
 
-    private static int GetMean(int summ, int shift, int round)
-    {
-        return (summ + (1 << (shift - round))) >> shift;
-    }
+    private static int GetMean(int summ, int shift, int round) => (summ + (1 << (shift - round))) >> shift;
 
     // Context accessors
-    private int GetContextNumStats(int ctx)
-    {
-        return _subAlloc.GetUShort(ctx);
-    }
+    private int GetContextNumStats(int ctx) => _subAlloc.GetUShort(ctx);
 
-    private void SetContextNumStats(int ctx, int value)
-    {
-        _subAlloc.SetUShort(ctx, (ushort)value);
-    }
+    private void SetContextNumStats(int ctx, int value) => _subAlloc.SetUShort(ctx, (ushort)value);
 
-    private int GetContextSummFreq(int ctx)
-    {
-        return _subAlloc.GetUShort(ctx + 2);
-    }
+    private int GetContextSummFreq(int ctx) => _subAlloc.GetUShort(ctx + 2);
 
-    private void SetContextSummFreq(int ctx, ushort value)
-    {
-        _subAlloc.SetUShort(ctx + 2, value);
-    }
+    private void SetContextSummFreq(int ctx, ushort value) => _subAlloc.SetUShort(ctx + 2, value);
 
-    private int GetContextStats(int ctx)
-    {
-        return _subAlloc.GetInt(ctx + 4);
-    }
+    private int GetContextStats(int ctx) => _subAlloc.GetInt(ctx + 4);
 
-    private void SetContextStats(int ctx, int value)
-    {
-        _subAlloc.SetInt(ctx + 4, value);
-    }
+    private void SetContextStats(int ctx, int value) => _subAlloc.SetInt(ctx + 4, value);
 
-    private static int GetContextOneState(int ctx)
-    {
-        return ctx + 2; // OneState starts at offset 2 in the union
-    }
+    private static int GetContextOneState(int ctx) => ctx + 2; // OneState starts at offset 2 in the union
 
-    private int GetContextSuffix(int ctx)
-    {
-        return _subAlloc.GetInt(ctx + 8);
-    }
+    private int GetContextSuffix(int ctx) => _subAlloc.GetInt(ctx + 8);
 
-    private void SetContextSuffix(int ctx, int value)
-    {
-        _subAlloc.SetInt(ctx + 8, value);
-    }
+    private void SetContextSuffix(int ctx, int value) => _subAlloc.SetInt(ctx + 8, value);
 
     // State accessors
-    private byte GetStateSymbol(int state)
-    {
-        return _subAlloc.GetByte(state);
-    }
+    private byte GetStateSymbol(int state) => _subAlloc.GetByte(state);
 
-    private void SetStateSymbol(int state, byte value)
-    {
-        _subAlloc.SetByte(state, value);
-    }
+    private void SetStateSymbol(int state, byte value) => _subAlloc.SetByte(state, value);
 
-    private byte GetStateFreq(int state)
-    {
-        return _subAlloc.GetByte(state + 1);
-    }
+    private byte GetStateFreq(int state) => _subAlloc.GetByte(state + 1);
 
-    private void SetStateFreq(int state, byte value)
-    {
-        _subAlloc.SetByte(state + 1, value);
-    }
+    private void SetStateFreq(int state, byte value) => _subAlloc.SetByte(state + 1, value);
 
-    private int GetStateSuccessor(int state)
-    {
-        return _subAlloc.GetInt(state + 2);
-    }
+    private int GetStateSuccessor(int state) => _subAlloc.GetInt(state + 2);
 
-    private void SetStateSuccessor(int state, int value)
-    {
-        _subAlloc.SetInt(state + 2, value);
-    }
+    private void SetStateSuccessor(int state, int value) => _subAlloc.SetInt(state + 2, value);
 
     private void SwapStates(int s1, int s2)
     {

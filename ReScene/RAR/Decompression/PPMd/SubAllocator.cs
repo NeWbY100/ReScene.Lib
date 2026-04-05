@@ -143,13 +143,13 @@ public class SubAllocator
         }
 
         int retVal = _loUnit;
-        _loUnit += SubAllocator.U2B(_indx2Units[indx]);
+        _loUnit += U2B(_indx2Units[indx]);
         if (_loUnit <= _hiUnit)
         {
             return retVal;
         }
 
-        _loUnit -= SubAllocator.U2B(_indx2Units[indx]);
+        _loUnit -= U2B(_indx2Units[indx]);
         return AllocUnitsRare(indx);
     }
 
@@ -165,7 +165,7 @@ public class SubAllocator
         int ptr = AllocUnits(oldNU + 1);
         if (ptr != 0 && _heap != null)
         {
-            Array.Copy(_heap, oldPtr, _heap, ptr, SubAllocator.U2B(oldNU));
+            Array.Copy(_heap, oldPtr, _heap, ptr, U2B(oldNU));
             InsertNode(oldPtr, i0);
         }
 
@@ -186,7 +186,7 @@ public class SubAllocator
             int ptr = RemoveNode(i1);
             if (_heap != null)
             {
-                Array.Copy(_heap, oldPtr, _heap, ptr, SubAllocator.U2B(newNU));
+                Array.Copy(_heap, oldPtr, _heap, ptr, U2B(newNU));
             }
 
             InsertNode(oldPtr, i0);
@@ -199,10 +199,7 @@ public class SubAllocator
         }
     }
 
-    public void FreeUnits(int ptr, int oldNU)
-    {
-        InsertNode(ptr, _units2Indx[oldNU - 1]);
-    }
+    public void FreeUnits(int ptr, int oldNU) => InsertNode(ptr, _units2Indx[oldNU - 1]);
 
     private void InsertNode(int p, int indx)
     {
@@ -230,13 +227,13 @@ public class SubAllocator
     private void SplitBlock(int pv, int oldIndx, int newIndx)
     {
         int uDiff = _indx2Units[oldIndx] - _indx2Units[newIndx];
-        int p = pv + SubAllocator.U2B(_indx2Units[newIndx]);
+        int p = pv + U2B(_indx2Units[newIndx]);
         int i = _units2Indx[uDiff - 1];
         if (_indx2Units[i] != uDiff)
         {
             i--;
             InsertNode(p, i);
-            p += SubAllocator.U2B(_indx2Units[i]);
+            p += U2B(_indx2Units[i]);
             uDiff -= _indx2Units[i];
         }
 
@@ -261,7 +258,7 @@ public class SubAllocator
             if (++i == N_INDEXES)
             {
                 _glueCount--;
-                int size = SubAllocator.U2B(_indx2Units[indx]);
+                int size = U2B(_indx2Units[indx]);
                 int j = FIXED_UNIT_SIZE * _indx2Units[indx];
                 if (_fakeUnitsStart - _pText > j)
                 {

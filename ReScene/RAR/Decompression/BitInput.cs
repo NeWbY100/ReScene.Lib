@@ -132,10 +132,7 @@ public class BitInput
     /// </summary>
     /// <param name="incPtr">Number of bytes to check</param>
     /// <returns>True if would overflow</returns>
-    public bool Overflow(int incPtr)
-    {
-        return InAddr + incPtr >= MaxSize;
-    }
+    public bool Overflow(int incPtr) => InAddr + incPtr >= MaxSize;
 
     /// <summary>
     /// Sets the buffer from external data.

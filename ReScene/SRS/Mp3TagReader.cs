@@ -158,10 +158,7 @@ public static class Mp3TagReader
     /// </summary>
     /// <param name="stream">The stream to check.</param>
     /// <returns>Whether found and the total tag size.</returns>
-    public static (bool found, int size) DetectLyrics3v2(Stream stream)
-    {
-        return DetectLyrics3v2(stream, stream.Length);
-    }
+    public static (bool found, int size) DetectLyrics3v2(Stream stream) => DetectLyrics3v2(stream, stream.Length);
 
     public static (bool found, int size) DetectLyrics3v2(Stream stream, long endOffset)
     {
@@ -205,10 +202,7 @@ public static class Mp3TagReader
     /// </summary>
     /// <param name="stream">The stream to check.</param>
     /// <returns>Whether found and the total tag size.</returns>
-    public static (bool found, int size) DetectLyrics3v1(Stream stream)
-    {
-        return DetectLyrics3v1(stream, stream.Length);
-    }
+    public static (bool found, int size) DetectLyrics3v1(Stream stream) => DetectLyrics3v1(stream, stream.Length);
 
     public static (bool found, int size) DetectLyrics3v1(Stream stream, long endOffset)
     {
@@ -258,10 +252,7 @@ public static class Mp3TagReader
     /// </summary>
     /// <param name="stream">The stream to check.</param>
     /// <returns>Whether found and the total tag size.</returns>
-    public static (bool found, int size) DetectApeV2(Stream stream)
-    {
-        return DetectApeTag(stream, stream.Length);
-    }
+    public static (bool found, int size) DetectApeV2(Stream stream) => DetectApeTag(stream, stream.Length);
 
     /// <summary>
     /// Detects an APEv1 tag. Uses the same detection as APEv2 but
@@ -269,10 +260,7 @@ public static class Mp3TagReader
     /// </summary>
     /// <param name="stream">The stream to check.</param>
     /// <returns>Whether found and the total tag size.</returns>
-    public static (bool found, int size) DetectApeV1(Stream stream)
-    {
-        return DetectApeTag(stream, stream.Length);
-    }
+    public static (bool found, int size) DetectApeV1(Stream stream) => DetectApeTag(stream, stream.Length);
 
     /// <summary>
     /// Detects an APE tag (v1 or v2) before the given end offset.
@@ -324,10 +312,7 @@ public static class Mp3TagReader
     /// <param name="b2">Third byte.</param>
     /// <param name="b3">Fourth byte.</param>
     /// <returns>The decoded integer value.</returns>
-    public static int DecodeSyncSafeInt(byte b0, byte b1, byte b2, byte b3)
-    {
-        return (b0 << 21) | (b1 << 14) | (b2 << 7) | b3;
-    }
+    public static int DecodeSyncSafeInt(byte b0, byte b1, byte b2, byte b3) => (b0 << 21) | (b1 << 14) | (b2 << 7) | b3;
 
     /// <summary>
     /// Encodes an integer as a 4-byte ID3v2 syncsafe integer.

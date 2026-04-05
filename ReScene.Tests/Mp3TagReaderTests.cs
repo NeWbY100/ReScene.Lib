@@ -1,6 +1,6 @@
-using ReScene.SRS;
 using System.Buffers.Binary;
 using System.Text;
+using ReScene.SRS;
 
 namespace ReScene.Tests;
 

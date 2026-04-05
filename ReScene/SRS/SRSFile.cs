@@ -551,10 +551,7 @@ public class SRSFile
 
     // ==================== AVI/RIFF Parser ====================
 
-    private static void ParseRiff(BinaryReader reader, FileStream fs, SRSFile srs)
-    {
-        ParseRiffChunks(reader, fs, srs, 0, fs.Length);
-    }
+    private static void ParseRiff(BinaryReader reader, FileStream fs, SRSFile srs) => ParseRiffChunks(reader, fs, srs, 0, fs.Length);
 
     private static void ParseRiffChunks(BinaryReader reader, FileStream fs, SRSFile srs,
         long start, long end)
@@ -645,10 +642,7 @@ public class SRSFile
 
     // ==================== MP4 Parser ====================
 
-    private static void ParseMp4(BinaryReader reader, FileStream fs, SRSFile srs)
-    {
-        ParseMp4Atoms(reader, fs, srs, 0, fs.Length);
-    }
+    private static void ParseMp4(BinaryReader reader, FileStream fs, SRSFile srs) => ParseMp4Atoms(reader, fs, srs, 0, fs.Length);
 
     private static readonly HashSet<string> _mp4ContainerAtoms = new(StringComparer.Ordinal)
     {

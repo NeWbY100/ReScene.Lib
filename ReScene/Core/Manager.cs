@@ -1,9 +1,9 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using ReScene.RAR;
 using ReScene.Core.Cryptography;
 using ReScene.Core.Diagnostics;
 using ReScene.Core.IO;
+using ReScene.RAR;
 
 namespace ReScene.Core;
 

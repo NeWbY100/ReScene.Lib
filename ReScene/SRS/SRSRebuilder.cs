@@ -41,6 +41,24 @@ public class SrsReconstructionProgressEventArgs : EventArgs
 }
 
 /// <summary>
+/// Progress data for signature scanning operations.
+/// </summary>
+public class SrsScanProgressEventArgs : EventArgs
+{
+    /// <summary>Gets the current phase description.</summary>
+    public string Phase { get; init; } = string.Empty;
+
+    /// <summary>Gets the bytes scanned so far.</summary>
+    public long BytesScanned { get; init; }
+
+    /// <summary>Gets the total bytes to scan.</summary>
+    public long BytesTotal { get; init; }
+
+    /// <summary>Gets the scan progress percentage (0-100).</summary>
+    public int Percent { get; init; }
+}
+
+/// <summary>
 /// Rebuilds original sample files from an SRS file and the full original media file.
 /// Supports AVI, MKV, MP4, WMV, FLAC, MP3, and STREAM container formats.
 ///
@@ -56,6 +74,11 @@ public class SRSRebuilder
     /// Occurs when reconstruction progress updates.
     /// </summary>
     public event EventHandler<SrsReconstructionProgressEventArgs>? Progress;
+
+    /// <summary>
+    /// Occurs during signature scanning to report scan progress (bytes scanned / total).
+    /// </summary>
+    public event EventHandler<SrsScanProgressEventArgs>? ScanProgress;
 
     /// <summary>
     /// Rebuilds the original sample file from an SRS file and the full media file.
@@ -217,7 +240,7 @@ public class SRSRebuilder
     /// <param name="hintOffset">The expected offset to try first.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The offset where the signature was found, or -1 if not found.</returns>
-    internal static long FindSignature(Stream stream, byte[] signature, long hintOffset,
+    internal long FindSignature(Stream stream, byte[] signature, long hintOffset,
         CancellationToken ct = default)
     {
         if (signature.Length == 0)
@@ -228,6 +251,7 @@ public class SRSRebuilder
         // Try exact hint offset first
         if (hintOffset >= 0 && hintOffset + signature.Length <= stream.Length)
         {
+            ReportScanProgress("Checking hint offset...", 0, stream.Length, 0);
             stream.Position = hintOffset;
             byte[] buffer = new byte[signature.Length];
             int read = ReadFully(stream, buffer, 0, buffer.Length);
@@ -240,9 +264,10 @@ public class SRSRebuilder
         // Search nearby: +/- 64KB around the hint offset
         if (hintOffset >= 0)
         {
+            ReportScanProgress("Searching near hint offset...", 0, stream.Length, 0);
             long searchStart = Math.Max(0, hintOffset - SearchBufferSize);
             long searchEnd = Math.Min(stream.Length, hintOffset + SearchBufferSize + signature.Length);
-            long found = ScanForSignature(stream, signature, searchStart, searchEnd, ct);
+            long found = ScanForSignature(stream, signature, searchStart, searchEnd, "Searching near hint...", ct);
             if (found >= 0)
             {
                 return found;
@@ -250,14 +275,15 @@ public class SRSRebuilder
         }
 
         // Full file scan
-        return ScanForSignature(stream, signature, 0, stream.Length, ct);
+        ReportScanProgress("Full file scan...", 0, stream.Length, 0);
+        return ScanForSignature(stream, signature, 0, stream.Length, "Scanning media file...", ct);
     }
 
     /// <summary>
     /// Scans a region of the stream for the given signature using a sliding window.
     /// </summary>
-    private static long ScanForSignature(Stream stream, byte[] signature,
-        long regionStart, long regionEnd, CancellationToken ct)
+    private long ScanForSignature(Stream stream, byte[] signature,
+        long regionStart, long regionEnd, string phase, CancellationToken ct)
     {
         if (regionEnd - regionStart < signature.Length)
         {
@@ -268,6 +294,8 @@ public class SRSRebuilder
         byte[] buffer = new byte[bufSize];
         long position = regionStart;
         int carry = 0;
+        long totalRegion = regionEnd - regionStart;
+        int lastPercent = -1;
 
         while (position < regionEnd)
         {
@@ -279,6 +307,18 @@ public class SRSRebuilder
             if (bytesRead < signature.Length)
             {
                 break;
+            }
+
+            // Report scan progress
+            long scanned = position - regionStart;
+            if (totalRegion > 0)
+            {
+                int percent = (int)(scanned * 100 / totalRegion);
+                if (percent != lastPercent)
+                {
+                    lastPercent = percent;
+                    ReportScanProgress(phase, scanned, totalRegion, percent);
+                }
             }
 
             // Search within the buffer
@@ -301,6 +341,17 @@ public class SRSRebuilder
         }
 
         return -1;
+    }
+
+    private void ReportScanProgress(string phase, long bytesScanned, long bytesTotal, int percent)
+    {
+        ScanProgress?.Invoke(this, new SrsScanProgressEventArgs
+        {
+            Phase = phase,
+            BytesScanned = bytesScanned,
+            BytesTotal = bytesTotal,
+            Percent = percent
+        });
     }
 
     #endregion
@@ -332,13 +383,13 @@ public class SRSRebuilder
                 RebuildMp4(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.WMV:
-                SRSRebuilder.RebuildWmv(srsFilePath, outputPath, ct);
+                RebuildWmv(srsFilePath, outputPath, ct);
                 break;
             case SRSContainerType.FLAC:
-                SRSRebuilder.RebuildFlac(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
+                RebuildFlac(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.MP3:
-                SRSRebuilder.RebuildMp3(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
+                RebuildMp3(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath, ct);
                 break;
             case SRSContainerType.Stream:
                 RebuildStream(tracks, mediaFilePath, trackOffsets, outputPath, ct);
@@ -373,7 +424,7 @@ public class SRSRebuilder
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        SRSRebuilder.RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks, 0, srsFs.Length, ct);
+        RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks, 0, srsFs.Length, ct);
     }
 
     /// <summary>
@@ -511,7 +562,7 @@ public class SRSRebuilder
                     childEnd = end;
                 }
 
-                SRSRebuilder.RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks,
+                RebuildRiffChunks(reader, srsFs, outFs, mediaFs, mediaChunks,
                     srsFs.Position, childEnd, ct);
 
                 srsFs.Position = childEnd;
@@ -1236,7 +1287,7 @@ public class SRSRebuilder
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        SRSRebuilder.RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets, 0, srsFs.Length, ct);
+        RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets, 0, srsFs.Length, ct);
     }
 
     private static void RebuildMp4Atoms(
@@ -1321,7 +1372,7 @@ public class SRSRebuilder
             else if (_mp4ContainerAtoms.Contains(type))
             {
                 // Recurse into container atoms
-                SRSRebuilder.RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
+                RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
                     payloadStart, atomEnd, ct);
                 srsFs.Position = atomEnd;
             }

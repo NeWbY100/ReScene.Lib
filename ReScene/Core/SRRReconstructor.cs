@@ -355,10 +355,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
         return allMatched;
     }
 
-    private static bool IsSrrBlockType(byte type)
-    {
-        return type is SrrHeaderType or SrrStoredFileType or SrrOsoHashType or SrrRarPaddingType or SrrRarFileType;
-    }
+    private static bool IsSrrBlockType(byte type) => type is SrrHeaderType or SrrStoredFileType or SrrOsoHashType or SrrRarPaddingType or SrrRarFileType;
 
     private static string FindSourceFile(string inputDirectory, string archivedFileName)
     {

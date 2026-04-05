@@ -636,10 +636,7 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_NonExistentFile_ThrowsFileNotFoundException()
-    {
-        Assert.Throws<FileNotFoundException>(() => SRRFile.Load("nonexistent.srr"));
-    }
+    public void Load_NonExistentFile_ThrowsFileNotFoundException() => Assert.Throws<FileNotFoundException>(() => SRRFile.Load("nonexistent.srr"));
 
     [Fact]
     public void Load_CaseInsensitivePaths_WorkCorrectly()

@@ -1,6 +1,6 @@
-using ReScene.SRS;
 using System.Buffers.Binary;
 using System.Text;
+using ReScene.SRS;
 
 namespace ReScene.Tests;
 
@@ -39,7 +39,7 @@ public class SRSRebuilderTests : IDisposable
         Array.Copy(data, 1000, signature, 0, 256);
 
         using var ms = new MemoryStream(data);
-        long found = SRSRebuilder.FindSignature(ms, signature, 1000);
+        long found = new SRSRebuilder().FindSignature(ms, signature, 1000);
         Assert.Equal(1000, found);
     }
 
@@ -53,7 +53,7 @@ public class SRSRebuilderTests : IDisposable
 
         using var ms = new MemoryStream(data);
         // Give a wrong hint offset (nearby)
-        long found = SRSRebuilder.FindSignature(ms, signature, 1800);
+        long found = new SRSRebuilder().FindSignature(ms, signature, 1800);
         Assert.Equal(2000, found);
     }
 
@@ -67,7 +67,7 @@ public class SRSRebuilderTests : IDisposable
 
         using var ms = new MemoryStream(data);
         // Give a completely wrong hint offset
-        long found = SRSRebuilder.FindSignature(ms, signature, 500);
+        long found = new SRSRebuilder().FindSignature(ms, signature, 500);
         Assert.Equal(200000, found);
     }
 
@@ -79,7 +79,7 @@ public class SRSRebuilderTests : IDisposable
         byte[] signature = [0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE];
 
         using var ms = new MemoryStream(data);
-        long found = SRSRebuilder.FindSignature(ms, signature, 0);
+        long found = new SRSRebuilder().FindSignature(ms, signature, 0);
         Assert.Equal(-1, found);
     }
 
@@ -92,7 +92,7 @@ public class SRSRebuilderTests : IDisposable
         Array.Copy(data, 0, signature, 0, 256);
 
         using var ms = new MemoryStream(data);
-        long found = SRSRebuilder.FindSignature(ms, signature, 0);
+        long found = new SRSRebuilder().FindSignature(ms, signature, 0);
         Assert.Equal(0, found);
     }
 
@@ -101,7 +101,7 @@ public class SRSRebuilderTests : IDisposable
     {
         byte[] data = new byte[100];
         using var ms = new MemoryStream(data);
-        long found = SRSRebuilder.FindSignature(ms, [], 42);
+        long found = new SRSRebuilder().FindSignature(ms, [], 42);
         Assert.Equal(42, found);
     }
 

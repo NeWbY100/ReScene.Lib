@@ -13,44 +13,26 @@ public class RARFlagsTests
     [InlineData(RAR4BlockType.Comment, 0x75)]
     [InlineData(RAR4BlockType.Service, 0x7A)]
     [InlineData(RAR4BlockType.EndArchive, 0x7B)]
-    public void RAR4BlockType_HasExpectedValues(RAR4BlockType type, byte expectedValue)
-    {
-        Assert.Equal(expectedValue, (byte)type);
-    }
+    public void RAR4BlockType_HasExpectedValues(RAR4BlockType type, byte expectedValue) => Assert.Equal(expectedValue, (byte)type);
 
     #endregion
 
     #region RARArchiveFlags Tests
 
     [Fact]
-    public void RARArchiveFlags_Volume_CorrectValue()
-    {
-        Assert.Equal(0x0001, (ushort)RARArchiveFlags.Volume);
-    }
+    public void RARArchiveFlags_Volume_CorrectValue() => Assert.Equal(0x0001, (ushort)RARArchiveFlags.Volume);
 
     [Fact]
-    public void RARArchiveFlags_Solid_CorrectValue()
-    {
-        Assert.Equal(0x0008, (ushort)RARArchiveFlags.Solid);
-    }
+    public void RARArchiveFlags_Solid_CorrectValue() => Assert.Equal(0x0008, (ushort)RARArchiveFlags.Solid);
 
     [Fact]
-    public void RARArchiveFlags_Protected_CorrectValue()
-    {
-        Assert.Equal(0x0040, (ushort)RARArchiveFlags.Protected);
-    }
+    public void RARArchiveFlags_Protected_CorrectValue() => Assert.Equal(0x0040, (ushort)RARArchiveFlags.Protected);
 
     [Fact]
-    public void RARArchiveFlags_Password_CorrectValue()
-    {
-        Assert.Equal(0x0080, (ushort)RARArchiveFlags.Password);
-    }
+    public void RARArchiveFlags_Password_CorrectValue() => Assert.Equal(0x0080, (ushort)RARArchiveFlags.Password);
 
     [Fact]
-    public void RARArchiveFlags_FirstVolume_CorrectValue()
-    {
-        Assert.Equal(0x0100, (ushort)RARArchiveFlags.FirstVolume);
-    }
+    public void RARArchiveFlags_FirstVolume_CorrectValue() => Assert.Equal(0x0100, (ushort)RARArchiveFlags.FirstVolume);
 
     [Fact]
     public void RARArchiveFlags_CombineFlags_Works()
@@ -67,28 +49,16 @@ public class RARFlagsTests
     #region RARFileFlags Tests
 
     [Fact]
-    public void RARFileFlags_SplitBefore_CorrectValue()
-    {
-        Assert.Equal(0x0001, (ushort)RARFileFlags.SplitBefore);
-    }
+    public void RARFileFlags_SplitBefore_CorrectValue() => Assert.Equal(0x0001, (ushort)RARFileFlags.SplitBefore);
 
     [Fact]
-    public void RARFileFlags_SplitAfter_CorrectValue()
-    {
-        Assert.Equal(0x0002, (ushort)RARFileFlags.SplitAfter);
-    }
+    public void RARFileFlags_SplitAfter_CorrectValue() => Assert.Equal(0x0002, (ushort)RARFileFlags.SplitAfter);
 
     [Fact]
-    public void RARFileFlags_ExtTime_CorrectValue()
-    {
-        Assert.Equal(0x1000, (ushort)RARFileFlags.ExtTime);
-    }
+    public void RARFileFlags_ExtTime_CorrectValue() => Assert.Equal(0x1000, (ushort)RARFileFlags.ExtTime);
 
     [Fact]
-    public void RARFileFlags_LongBlock_CorrectValue()
-    {
-        Assert.Equal(0x8000, (ushort)RARFileFlags.LongBlock);
-    }
+    public void RARFileFlags_LongBlock_CorrectValue() => Assert.Equal(0x8000, (ushort)RARFileFlags.LongBlock);
 
     [Fact]
     public void RARFileFlags_DictionaryMask_ExtractsCorrectly()
@@ -114,32 +84,20 @@ public class RARFlagsTests
     [InlineData(TimestampPrecision.HighPrecision1, 2)]
     [InlineData(TimestampPrecision.HighPrecision2, 3)]
     [InlineData(TimestampPrecision.NtfsPrecision, 4)]
-    public void TimestampPrecision_HasExpectedValues(TimestampPrecision precision, byte expectedValue)
-    {
-        Assert.Equal(expectedValue, (byte)precision);
-    }
+    public void TimestampPrecision_HasExpectedValues(TimestampPrecision precision, byte expectedValue) => Assert.Equal(expectedValue, (byte)precision);
 
     #endregion
 
     #region RARFlagMasks Tests
 
     [Fact]
-    public void RARFlagMasks_DictionarySizeMask_IsCorrect()
-    {
-        Assert.Equal(0x00E0, RARFlagMasks.DictionarySizeMask);
-    }
+    public void RARFlagMasks_DictionarySizeMask_IsCorrect() => Assert.Equal(0x00E0, RARFlagMasks.DictionarySizeMask);
 
     [Fact]
-    public void RARFlagMasks_DictionarySizeShift_IsCorrect()
-    {
-        Assert.Equal(5, RARFlagMasks.DictionarySizeShift);
-    }
+    public void RARFlagMasks_DictionarySizeShift_IsCorrect() => Assert.Equal(5, RARFlagMasks.DictionarySizeShift);
 
     [Fact]
-    public void RARFlagMasks_SaltLength_IsCorrect()
-    {
-        Assert.Equal(8, RARFlagMasks.SaltLength);
-    }
+    public void RARFlagMasks_SaltLength_IsCorrect() => Assert.Equal(8, RARFlagMasks.SaltLength);
 
     #endregion
 

@@ -1085,11 +1085,9 @@ public static class RARDetailedParser
         }
     }
 
-    private static void ParseRAR4ServiceBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
-    {
+    private static void ParseRAR4ServiceBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize) =>
         // Service blocks have same structure as file headers
         ParseRAR4FileHeader(reader, block, pos, headerEnd, flags, packSize);
-    }
 
     private static void ParseRAR4EndBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags)
     {
