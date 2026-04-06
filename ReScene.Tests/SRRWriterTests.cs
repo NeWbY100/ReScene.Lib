@@ -365,7 +365,7 @@ public class SRRWriterTests : IDisposable
             "release.r02", "release.rar", "release.r00", "release.r01"
         };
 
-        files.Sort(SRRWriter.CompareRarVolumeNames);
+        files.Sort(RarVolumeNameComparer.Instance);
 
         Assert.Equal("release.rar", files[0]);
         Assert.Equal("release.r00", files[1]);
@@ -381,7 +381,7 @@ public class SRRWriterTests : IDisposable
             "release.part03.rar", "release.part01.rar", "release.part02.rar"
         };
 
-        files.Sort(SRRWriter.CompareRarVolumeNames);
+        files.Sort(RarVolumeNameComparer.Instance);
 
         Assert.Equal("release.part01.rar", files[0]);
         Assert.Equal("release.part02.rar", files[1]);

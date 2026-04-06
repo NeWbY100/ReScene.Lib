@@ -322,5 +322,30 @@ public static class RARUtils
         return -1;
     }
 
+    /// <summary>
+    /// Checks whether the stream is positioned at a RAR5 marker signature.
+    /// The stream position is preserved after the check.
+    /// </summary>
+    public static bool IsRar5Marker(Stream stream)
+    {
+        if (stream.Position + 8 > stream.Length)
+        {
+            return false;
+        }
+
+        long pos = stream.Position;
+        Span<byte> marker = stackalloc byte[8];
+        int read = stream.Read(marker);
+        stream.Position = pos;
+
+        if (read < 8)
+        {
+            return false;
+        }
+
+        return marker[0] == 0x52 && marker[1] == 0x61 && marker[2] == 0x72 && marker[3] == 0x21 &&
+               marker[4] == 0x1A && marker[5] == 0x07 && marker[6] == 0x01 && marker[7] == 0x00;
+    }
+
     #endregion
 }

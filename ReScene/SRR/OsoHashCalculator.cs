@@ -98,7 +98,7 @@ internal static class OsoHashCalculator
             {
                 using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-                if (IsRar5(fs))
+                if (RARUtils.IsRar5Marker(fs))
                 {
                     FindFilesRar5(fs, fileNames);
                 }
@@ -173,24 +173,4 @@ internal static class OsoHashCalculator
         }
     }
 
-    private static bool IsRar5(FileStream fs)
-    {
-        if (fs.Length < 8)
-        {
-            return false;
-        }
-
-        long pos = fs.Position;
-        Span<byte> marker = stackalloc byte[8];
-        int read = fs.Read(marker);
-        fs.Position = pos;
-
-        if (read < 8)
-        {
-            return false;
-        }
-
-        ReadOnlySpan<byte> rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
-        return marker.SequenceEqual(rar5Marker);
-    }
 }

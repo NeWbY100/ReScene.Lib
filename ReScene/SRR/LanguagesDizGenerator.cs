@@ -71,7 +71,7 @@ internal static class LanguagesDizGenerator
             {
                 using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-                bool isRar5 = IsRar5(fs);
+                bool isRar5 = RARUtils.IsRar5Marker(fs);
 
                 if (isRar5)
                 {
@@ -190,24 +190,4 @@ internal static class LanguagesDizGenerator
         return lines;
     }
 
-    private static bool IsRar5(FileStream fs)
-    {
-        if (fs.Length < 8)
-        {
-            return false;
-        }
-
-        long pos = fs.Position;
-        Span<byte> marker = stackalloc byte[8];
-        int read = fs.Read(marker);
-        fs.Position = pos;
-
-        if (read < 8)
-        {
-            return false;
-        }
-
-        ReadOnlySpan<byte> rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
-        return marker.SequenceEqual(rar5Marker);
-    }
 }

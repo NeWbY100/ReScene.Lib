@@ -582,69 +582,11 @@ public partial class Manager(IReSceneLogger? logger = null)
     private void FireFileCopyProgress(FileCopyProgressEventArgs e)
         => FileCopyProgress?.Invoke(this, e);
 
-    private void CopyFileWithProgress(string sourcePath, string destPath, string displayName,
-        ref long bytesCopied, ref int filesCopied, int totalFiles, long totalBytes,
-        string sourceDir, string destDir)
-    {
-        byte[] buffer = new byte[32 * 1024 * 1024];
-
-        using (FileStream sourceStream = File.OpenRead(sourcePath))
-        using (FileStream destStream = new(destPath, FileMode.Create, FileAccess.Write))
-        {
-            int bytesRead;
-            while ((bytesRead = sourceStream.Read(buffer, 0, buffer.Length)) > 0)
-            {
-                _cts.Token.ThrowIfCancellationRequested();
-                destStream.Write(buffer, 0, bytesRead);
-                bytesCopied += bytesRead;
-
-                FireFileCopyProgress(new FileCopyProgressEventArgs
-                {
-                    FileName = displayName,
-                    FilesCopied = filesCopied,
-                    TotalFiles = totalFiles,
-                    BytesCopied = bytesCopied,
-                    TotalBytes = totalBytes,
-                    SourceDirectory = sourceDir,
-                    DestinationDirectory = destDir,
-                });
-            }
-        }
-
-        filesCopied++;
-
-        // Fire final event for this file with updated count
-        FireFileCopyProgress(new FileCopyProgressEventArgs
-        {
-            FileName = displayName,
-            FilesCopied = filesCopied,
-            TotalFiles = totalFiles,
-            BytesCopied = bytesCopied,
-            TotalBytes = totalBytes,
-            SourceDirectory = sourceDir,
-            DestinationDirectory = destDir,
-        });
-    }
-
     private void FireCrcValidationProgress(CrcValidationProgressEventArgs e)
         => CrcValidationProgress?.Invoke(this, e);
 
     private void SetFileAttributes(IEnumerable<FileInfo> files, FileAttributes attribute, bool add)
-    {
-        foreach (FileInfo fileInfo in files)
-        {
-            if (add)
-            {
-                fileInfo.Attributes |= attribute;
-                _logger.Information(this, $"Added {attribute} attribute to {fileInfo}", LogTarget.Phase2);
-            }
-            else
-            {
-                fileInfo.Attributes &= ~attribute;
-                _logger.Information(this, $"Removed {attribute} attribute from {fileInfo}", LogTarget.Phase2);
-            }
-        }
-    }
+        => FileOperations.SetFileAttributes(files, attribute, add, _logger);
 
     private List<(string Path, int Version)> GetValidRarDirectories(string[] directories, BruteForceOptions options)
     {
@@ -1057,237 +999,13 @@ public partial class Manager(IReSceneLogger? logger = null)
     }
 
     private void DeleteRARFileAndVolumes(string rarFilePath)
-    {
-        try
-        {
-            string directory = Path.GetDirectoryName(rarFilePath) ?? string.Empty;
-            string fileName = Path.GetFileName(rarFilePath);
-            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(rarFilePath);
-
-            // Determine the base name (remove .partXX.rar or .rXX suffix if present)
-            string baseName = fileNameWithoutExtension;
-
-            // Check if this is a volume file and extract base name
-            if (fileName.Contains(".part", StringComparison.Ordinal) && fileName.EndsWith(".rar", StringComparison.Ordinal))
-            {
-                // Format: filename.part01.rar - remove .part01
-                int partIndex = fileName.IndexOf(".part", StringComparison.Ordinal);
-                if (partIndex > 0)
-                {
-                    baseName = fileName[..partIndex];
-                }
-            }
-
-            // Delete all related volume files using pattern matching
-            // Pattern 1: filename.partXX.rar (zero-padded)
-            string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
-            foreach (string file in partFiles)
-            {
-                try
-                {
-                    File.Delete(file);
-                    _logger.Debug(this, $"Deleted volume file: {file}", LogTarget.Phase2);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Information(this, $"Failed to delete volume file {file}: {ex.Message}", LogTarget.Phase2);
-                }
-            }
-
-            // Pattern 2: filename.rXX (old format - r00, r01, r02, etc.)
-            string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
-            foreach (string file in rxxFiles)
-            {
-                try
-                {
-                    File.Delete(file);
-                    _logger.Debug(this, $"Deleted volume file: {file}", LogTarget.Phase2);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Information(this, $"Failed to delete volume file {file}: {ex.Message}", LogTarget.Phase2);
-                }
-            }
-
-            // Also delete the main .rar file if it exists (old format first volume)
-            string mainRarFile = Path.Combine(directory, $"{baseName}.rar");
-            if (File.Exists(mainRarFile))
-            {
-                try
-                {
-                    File.Delete(mainRarFile);
-                    _logger.Debug(this, $"Deleted main RAR file: {mainRarFile}", LogTarget.Phase2);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Information(this, $"Failed to delete main RAR file {mainRarFile}: {ex.Message}", LogTarget.Phase2);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.Information(this, $"Failed to delete RAR file and volumes: {rarFilePath}{Environment.NewLine}{ex.Message}", LogTarget.Phase2);
-        }
-    }
+        => FileOperations.DeleteRARFileAndVolumes(rarFilePath, _logger);
 
     private void CopyDirectory(string sourceDir, string destDir)
-    {
-        // Enumerate all files upfront for progress tracking
-        string[] allFiles = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
-        long totalBytes = 0;
-        foreach (string file in allFiles)
-        {
-            totalBytes += new FileInfo(file).Length;
-        }
-
-        int filesCopied = 0;
-        long bytesCopied = 0;
-
-        // Create all directories first
-        foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
-        {
-            string relative = Path.GetRelativePath(sourceDir, dir);
-            Directory.CreateDirectory(Path.Combine(destDir, relative));
-        }
-
-        Directory.CreateDirectory(destDir);
-
-        // Copy files with progress
-        foreach (string file in allFiles)
-        {
-            _cts.Token.ThrowIfCancellationRequested();
-
-            string relative = Path.GetRelativePath(sourceDir, file);
-            string destFile = Path.Combine(destDir, relative);
-
-            // Ensure parent directory exists (for top-level files)
-            string? destParent = Path.GetDirectoryName(destFile);
-            if (!string.IsNullOrEmpty(destParent))
-            {
-                Directory.CreateDirectory(destParent);
-            }
-
-            CopyFileWithProgress(file, destFile, Path.GetFileName(file), ref bytesCopied, ref filesCopied,
-                allFiles.Length, totalBytes, sourceDir, destDir);
-        }
-    }
+        => FileOperations.CopyDirectory(sourceDir, destDir, _cts.Token, FireFileCopyProgress);
 
     private void CopySelectedEntries(string sourceDir, string destDir, HashSet<string> filePaths, HashSet<string> directoryPaths)
-    {
-        string sourceRoot = Path.GetFullPath(sourceDir);
-        string destRoot = Path.GetFullPath(destDir);
-        int missingFiles = 0;
-        int skippedEntries = 0;
-
-        foreach (string directory in directoryPaths)
-        {
-            if (!TryResolveRelativePath(sourceRoot, directory, out string relativeDir))
-            {
-                skippedEntries++;
-                continue;
-            }
-
-            string destPath = Path.Combine(destRoot, relativeDir);
-            Directory.CreateDirectory(destPath);
-        }
-
-        // Pre-calculate totals for progress
-        int totalFiles = 0;
-        long totalBytes = 0;
-        foreach (string file in filePaths)
-        {
-            if (!TryResolveRelativePath(sourceRoot, file, out string relativeFile))
-            {
-                continue;
-            }
-
-            string sourcePath = Path.Combine(sourceRoot, relativeFile);
-            if (File.Exists(sourcePath))
-            {
-                totalFiles++;
-                totalBytes += new FileInfo(sourcePath).Length;
-            }
-        }
-
-        int filesCopied = 0;
-        long bytesCopied = 0;
-
-        foreach (string file in filePaths)
-        {
-            _cts.Token.ThrowIfCancellationRequested();
-
-            if (!TryResolveRelativePath(sourceRoot, file, out string relativeFile))
-            {
-                skippedEntries++;
-                continue;
-            }
-
-            string sourcePath = Path.Combine(sourceRoot, relativeFile);
-            if (!File.Exists(sourcePath))
-            {
-                missingFiles++;
-                _logger.Warning(this, $"SRR entry not found on disk: {relativeFile}");
-                continue;
-            }
-
-            string destPath = Path.Combine(destRoot, relativeFile);
-            string? destDirectory = Path.GetDirectoryName(destPath);
-            if (!string.IsNullOrEmpty(destDirectory))
-            {
-                Directory.CreateDirectory(destDirectory);
-            }
-
-            CopyFileWithProgress(sourcePath, destPath, Path.GetFileName(relativeFile), ref bytesCopied, ref filesCopied,
-                totalFiles, totalBytes, sourceDir, destDir);
-        }
-
-        if (skippedEntries > 0)
-        {
-            _logger.Warning(this, $"Skipped {skippedEntries} SRR entries due to invalid paths.");
-        }
-
-        if (missingFiles > 0)
-        {
-            throw new FileNotFoundException($"{missingFiles} file(s) from the SRR archive list are missing in the release directory.");
-        }
-    }
-
-    private static bool TryResolveRelativePath(string baseFullPath, string entryPath, out string relativePath)
-    {
-        relativePath = string.Empty;
-        if (string.IsNullOrWhiteSpace(entryPath))
-        {
-            return false;
-        }
-
-        string normalized = entryPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-        while (normalized.StartsWith("." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-        {
-            normalized = normalized[2..];
-        }
-
-        normalized = normalized.TrimStart(Path.DirectorySeparatorChar);
-
-        if (normalized.Length == 0)
-        {
-            return false;
-        }
-
-        string basePath = Path.GetFullPath(baseFullPath);
-        string fullPath = Path.GetFullPath(Path.Combine(basePath, normalized));
-
-        string basePrefix = basePath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-            ? basePath
-            : basePath + Path.DirectorySeparatorChar;
-
-        if (!fullPath.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        relativePath = Path.GetRelativePath(basePath, fullPath);
-        return !string.IsNullOrWhiteSpace(relativePath) && relativePath != ".";
-    }
+        => FileOperations.CopySelectedEntries(sourceDir, destDir, filePaths, directoryPaths, _cts.Token, FireFileCopyProgress, _logger);
 
     /// <summary>
     /// Validates that all required input files from the SRR exist in the release directory
@@ -1517,64 +1235,10 @@ public partial class Manager(IReSceneLogger? logger = null)
     }
 
     private void ApplyFileTimestamps(string inputDirectory, Dictionary<string, DateTime> modifiedTimes, Dictionary<string, DateTime> creationTimes, Dictionary<string, DateTime> accessTimes)
-    {
-        // Order matters: set creation/access first so modified time ends up as the final write.
-        ApplyFileTimestampEntries(inputDirectory, creationTimes, File.SetCreationTime, "creation");
-        ApplyFileTimestampEntries(inputDirectory, accessTimes, File.SetLastAccessTime, "access");
-        ApplyFileTimestampEntries(inputDirectory, modifiedTimes, File.SetLastWriteTime, "modified");
-    }
-
-    private void ApplyFileTimestampEntries(string inputDirectory, Dictionary<string, DateTime> timestamps, Action<string, DateTime> setter, string label)
-    {
-        foreach (KeyValuePair<string, DateTime> entry in timestamps)
-        {
-            string relativePath = entry.Key;
-            string filePath = Path.Combine(inputDirectory, relativePath);
-            if (!File.Exists(filePath))
-            {
-                continue;
-            }
-
-            try
-            {
-                setter(filePath, entry.Value);
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(this, $"Failed to set {label} timestamp for file {relativePath}: {ex.Message}");
-            }
-        }
-    }
+        => FileOperations.ApplyFileTimestamps(inputDirectory, modifiedTimes, creationTimes, accessTimes, _logger);
 
     private void ApplyDirectoryTimestamps(string inputDirectory, Dictionary<string, DateTime> modifiedTimes, Dictionary<string, DateTime> creationTimes, Dictionary<string, DateTime> accessTimes)
-    {
-        // Order matters: set creation/access first so modified time ends up as the final write.
-        ApplyDirectoryTimestampEntries(inputDirectory, creationTimes, Directory.SetCreationTime, "creation");
-        ApplyDirectoryTimestampEntries(inputDirectory, accessTimes, Directory.SetLastAccessTime, "access");
-        ApplyDirectoryTimestampEntries(inputDirectory, modifiedTimes, Directory.SetLastWriteTime, "modified");
-    }
-
-    private void ApplyDirectoryTimestampEntries(string inputDirectory, Dictionary<string, DateTime> timestamps, Action<string, DateTime> setter, string label)
-    {
-        foreach (KeyValuePair<string, DateTime> entry in timestamps)
-        {
-            string relativePath = entry.Key;
-            string dirPath = Path.Combine(inputDirectory, relativePath);
-            if (!Directory.Exists(dirPath))
-            {
-                continue;
-            }
-
-            try
-            {
-                setter(dirPath, entry.Value);
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(this, $"Failed to set {label} timestamp for directory {relativePath}: {ex.Message}");
-            }
-        }
-    }
+        => FileOperations.ApplyDirectoryTimestamps(inputDirectory, modifiedTimes, creationTimes, accessTimes, _logger);
 
     private void PatchRARFilesHostOS(string rarFilePath, RAROptions rarOptions, bool allVolumes = true)
     {
@@ -1668,55 +1332,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     }
 
     private static List<string> GetAllVolumeFiles(string firstVolumePath)
-    {
-        var files = new List<string>();
-        string directory = Path.GetDirectoryName(firstVolumePath) ?? string.Empty;
-        string fileName = Path.GetFileName(firstVolumePath);
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(firstVolumePath);
-
-        // Determine the base name (remove .partXX if present)
-        string baseName = fileNameWithoutExtension;
-        if (fileName.Contains(".part", StringComparison.OrdinalIgnoreCase) && fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
-        {
-            int partIndex = fileName.IndexOf(".part", StringComparison.OrdinalIgnoreCase);
-            if (partIndex > 0)
-            {
-                baseName = fileName[..partIndex];
-            }
-        }
-
-        // Check for partXX.rar format volumes
-        string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
-        if (partFiles.Length > 0)
-        {
-            files.AddRange(partFiles.OrderBy(f => f));
-            return files;
-        }
-
-        // Check for .rar + .rXX format volumes
-        string mainRar = Path.Combine(directory, $"{baseName}.rar");
-        if (File.Exists(mainRar))
-        {
-            files.Add(mainRar);
-        }
-
-        // .r?? matches .r00-.r99 but also .rar - exclude .rar to avoid duplicates
-        string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
-        if (rxxFiles.Length > 0)
-        {
-            files.AddRange(rxxFiles
-                .Where(f => !f.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f));
-        }
-
-        // If no volumes found, just return the original file
-        if (files.Count == 0 && File.Exists(firstVolumePath))
-        {
-            files.Add(firstVolumePath);
-        }
-
-        return files;
-    }
+        => FileOperations.GetAllVolumeFiles(firstVolumePath);
 
     /// <summary>
     /// Extracts the CMT block compressed data from a RAR file.

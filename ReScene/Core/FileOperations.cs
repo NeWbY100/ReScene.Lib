@@ -1,0 +1,536 @@
+namespace ReScene.Core;
+
+/// <summary>
+/// Provides static file system utility methods extracted from <see cref="Manager"/>
+/// for copying, deleting, timestamping, and attribute management of files and directories.
+/// </summary>
+internal static class FileOperations
+{
+    /// <summary>
+    /// Returns all RAR volume files belonging to the same archive set as the specified first volume.
+    /// Handles both new-style (part01.rar, part02.rar) and old-style (.rar, .r00, .r01) naming.
+    /// </summary>
+    /// <param name="firstVolumePath">Path to any volume in the set (typically the first).</param>
+    /// <returns>An ordered list of all volume file paths.</returns>
+    public static List<string> GetAllVolumeFiles(string firstVolumePath)
+    {
+        var files = new List<string>();
+        string directory = Path.GetDirectoryName(firstVolumePath) ?? string.Empty;
+        string fileName = Path.GetFileName(firstVolumePath);
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(firstVolumePath);
+
+        // Determine the base name (remove .partXX if present)
+        string baseName = fileNameWithoutExtension;
+        if (fileName.Contains(".part", StringComparison.OrdinalIgnoreCase) && fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            int partIndex = fileName.IndexOf(".part", StringComparison.OrdinalIgnoreCase);
+            if (partIndex > 0)
+            {
+                baseName = fileName[..partIndex];
+            }
+        }
+
+        // Check for partXX.rar format volumes
+        string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
+        if (partFiles.Length > 0)
+        {
+            files.AddRange(partFiles.OrderBy(f => f));
+            return files;
+        }
+
+        // Check for .rar + .rXX format volumes
+        string mainRar = Path.Combine(directory, $"{baseName}.rar");
+        if (File.Exists(mainRar))
+        {
+            files.Add(mainRar);
+        }
+
+        // .r?? matches .r00-.r99 but also .rar - exclude .rar to avoid duplicates
+        string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
+        if (rxxFiles.Length > 0)
+        {
+            files.AddRange(rxxFiles
+                .Where(f => !f.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f));
+        }
+
+        // If no volumes found, just return the original file
+        if (files.Count == 0 && File.Exists(firstVolumePath))
+        {
+            files.Add(firstVolumePath);
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// Resolves an SRR entry path to a safe relative path under the given base directory.
+    /// Returns false if the path is empty, traverses outside the base, or resolves to ".".
+    /// </summary>
+    /// <param name="baseFullPath">The base directory that the relative path must stay within.</param>
+    /// <param name="entryPath">The raw entry path from the SRR file.</param>
+    /// <param name="relativePath">When successful, the normalized relative path; otherwise empty.</param>
+    /// <returns>True if the path resolved safely; false otherwise.</returns>
+    public static bool TryResolveRelativePath(string baseFullPath, string entryPath, out string relativePath)
+    {
+        relativePath = string.Empty;
+        if (string.IsNullOrWhiteSpace(entryPath))
+        {
+            return false;
+        }
+
+        string normalized = entryPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+        while (normalized.StartsWith("." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            normalized = normalized[2..];
+        }
+
+        normalized = normalized.TrimStart(Path.DirectorySeparatorChar);
+
+        if (normalized.Length == 0)
+        {
+            return false;
+        }
+
+        string basePath = Path.GetFullPath(baseFullPath);
+        string fullPath = Path.GetFullPath(Path.Combine(basePath, normalized));
+
+        string basePrefix = basePath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+            ? basePath
+            : basePath + Path.DirectorySeparatorChar;
+
+        if (!fullPath.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        relativePath = Path.GetRelativePath(basePath, fullPath);
+        return !string.IsNullOrWhiteSpace(relativePath) && relativePath != ".";
+    }
+
+    /// <summary>
+    /// Copies a single file from source to destination with chunked progress reporting.
+    /// Updates the running byte/file counters via ref parameters.
+    /// </summary>
+    /// <param name="sourcePath">Source file path.</param>
+    /// <param name="destPath">Destination file path.</param>
+    /// <param name="displayName">Display name for progress reporting.</param>
+    /// <param name="bytesCopied">Running total of bytes copied (updated in-place).</param>
+    /// <param name="filesCopied">Running count of files copied (updated in-place).</param>
+    /// <param name="totalFiles">Total number of files to copy.</param>
+    /// <param name="totalBytes">Total bytes to copy across all files.</param>
+    /// <param name="sourceDir">Source directory (for progress event context).</param>
+    /// <param name="destDir">Destination directory (for progress event context).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <param name="onProgress">Optional callback invoked after each buffer write and after file completion.</param>
+    public static void CopyFileWithProgress(
+        string sourcePath, string destPath, string displayName,
+        ref long bytesCopied, ref int filesCopied, int totalFiles, long totalBytes,
+        string sourceDir, string destDir,
+        CancellationToken ct,
+        Action<FileCopyProgressEventArgs>? onProgress = null)
+    {
+        byte[] buffer = new byte[32 * 1024 * 1024];
+
+        using (FileStream sourceStream = File.OpenRead(sourcePath))
+        using (FileStream destStream = new(destPath, FileMode.Create, FileAccess.Write))
+        {
+            int bytesRead;
+            while ((bytesRead = sourceStream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                destStream.Write(buffer, 0, bytesRead);
+                bytesCopied += bytesRead;
+
+                onProgress?.Invoke(new FileCopyProgressEventArgs
+                {
+                    FileName = displayName,
+                    FilesCopied = filesCopied,
+                    TotalFiles = totalFiles,
+                    BytesCopied = bytesCopied,
+                    TotalBytes = totalBytes,
+                    SourceDirectory = sourceDir,
+                    DestinationDirectory = destDir
+                });
+            }
+        }
+
+        filesCopied++;
+
+        // Fire final event for this file with updated count
+        onProgress?.Invoke(new FileCopyProgressEventArgs
+        {
+            FileName = displayName,
+            FilesCopied = filesCopied,
+            TotalFiles = totalFiles,
+            BytesCopied = bytesCopied,
+            TotalBytes = totalBytes,
+            SourceDirectory = sourceDir,
+            DestinationDirectory = destDir
+        });
+    }
+
+    /// <summary>
+    /// Copies an entire directory tree from source to destination with progress reporting.
+    /// </summary>
+    /// <param name="sourceDir">Source directory path.</param>
+    /// <param name="destDir">Destination directory path.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <param name="onProgress">Optional callback invoked during file copy progress.</param>
+    public static void CopyDirectory(
+        string sourceDir, string destDir,
+        CancellationToken ct,
+        Action<FileCopyProgressEventArgs>? onProgress = null)
+    {
+        // Enumerate all files upfront for progress tracking
+        string[] allFiles = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
+        long totalBytes = 0;
+        foreach (string file in allFiles)
+        {
+            totalBytes += new FileInfo(file).Length;
+        }
+
+        int filesCopied = 0;
+        long bytesCopied = 0;
+
+        // Create all directories first
+        foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            string relative = Path.GetRelativePath(sourceDir, dir);
+            Directory.CreateDirectory(Path.Combine(destDir, relative));
+        }
+
+        Directory.CreateDirectory(destDir);
+
+        // Copy files with progress
+        foreach (string file in allFiles)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            string relative = Path.GetRelativePath(sourceDir, file);
+            string destFile = Path.Combine(destDir, relative);
+
+            // Ensure parent directory exists (for top-level files)
+            string? destParent = Path.GetDirectoryName(destFile);
+            if (!string.IsNullOrEmpty(destParent))
+            {
+                Directory.CreateDirectory(destParent);
+            }
+
+            CopyFileWithProgress(file, destFile, Path.GetFileName(file), ref bytesCopied, ref filesCopied,
+                allFiles.Length, totalBytes, sourceDir, destDir, ct, onProgress);
+        }
+    }
+
+    /// <summary>
+    /// Copies selected files and directories from the SRR file list to a destination directory.
+    /// </summary>
+    /// <param name="sourceDir">Source release directory.</param>
+    /// <param name="destDir">Destination input directory.</param>
+    /// <param name="filePaths">Set of file paths from the SRR archive list.</param>
+    /// <param name="directoryPaths">Set of directory paths from the SRR archive list.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <param name="onProgress">Optional callback invoked during file copy progress.</param>
+    /// <param name="logger">Optional logger for warnings.</param>
+    public static void CopySelectedEntries(
+        string sourceDir, string destDir,
+        HashSet<string> filePaths, HashSet<string> directoryPaths,
+        CancellationToken ct,
+        Action<FileCopyProgressEventArgs>? onProgress = null,
+        IReSceneLogger? logger = null)
+    {
+        string sourceRoot = Path.GetFullPath(sourceDir);
+        string destRoot = Path.GetFullPath(destDir);
+        int missingFiles = 0;
+        int skippedEntries = 0;
+
+        foreach (string directory in directoryPaths)
+        {
+            if (!TryResolveRelativePath(sourceRoot, directory, out string relativeDir))
+            {
+                skippedEntries++;
+                continue;
+            }
+
+            string destPath = Path.Combine(destRoot, relativeDir);
+            Directory.CreateDirectory(destPath);
+        }
+
+        // Pre-calculate totals for progress
+        int totalFiles = 0;
+        long totalBytes = 0;
+        foreach (string file in filePaths)
+        {
+            if (!TryResolveRelativePath(sourceRoot, file, out string relativeFile))
+            {
+                continue;
+            }
+
+            string sourcePath = Path.Combine(sourceRoot, relativeFile);
+            if (File.Exists(sourcePath))
+            {
+                totalFiles++;
+                totalBytes += new FileInfo(sourcePath).Length;
+            }
+        }
+
+        int filesCopied = 0;
+        long bytesCopied = 0;
+
+        foreach (string file in filePaths)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (!TryResolveRelativePath(sourceRoot, file, out string relativeFile))
+            {
+                skippedEntries++;
+                continue;
+            }
+
+            string sourcePath = Path.Combine(sourceRoot, relativeFile);
+            if (!File.Exists(sourcePath))
+            {
+                missingFiles++;
+                logger?.Warning(null, $"SRR entry not found on disk: {relativeFile}");
+                continue;
+            }
+
+            string destPath = Path.Combine(destRoot, relativeFile);
+            string? destDirectory = Path.GetDirectoryName(destPath);
+            if (!string.IsNullOrEmpty(destDirectory))
+            {
+                Directory.CreateDirectory(destDirectory);
+            }
+
+            CopyFileWithProgress(sourcePath, destPath, Path.GetFileName(relativeFile), ref bytesCopied, ref filesCopied,
+                totalFiles, totalBytes, sourceDir, destDir, ct, onProgress);
+        }
+
+        if (skippedEntries > 0)
+        {
+            logger?.Warning(null, $"Skipped {skippedEntries} SRR entries due to invalid paths.");
+        }
+
+        if (missingFiles > 0)
+        {
+            throw new FileNotFoundException($"{missingFiles} file(s) from the SRR archive list are missing in the release directory.");
+        }
+    }
+
+    /// <summary>
+    /// Adds or removes a file attribute on a collection of files.
+    /// </summary>
+    /// <param name="files">The files to modify.</param>
+    /// <param name="attribute">The attribute to add or remove.</param>
+    /// <param name="add">True to add the attribute; false to remove it.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public static void SetFileAttributes(IEnumerable<FileInfo> files, FileAttributes attribute, bool add, IReSceneLogger? logger = null)
+    {
+        foreach (FileInfo fileInfo in files)
+        {
+            if (add)
+            {
+                fileInfo.Attributes |= attribute;
+                logger?.Information(null, $"Added {attribute} attribute to {fileInfo}", LogTarget.Phase2);
+            }
+            else
+            {
+                fileInfo.Attributes &= ~attribute;
+                logger?.Information(null, $"Removed {attribute} attribute from {fileInfo}", LogTarget.Phase2);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies modified, creation, and access timestamps to files under the specified directory.
+    /// Order: creation, access, then modified (so modified time is the final write).
+    /// </summary>
+    /// <param name="inputDirectory">The base directory containing the files.</param>
+    /// <param name="modifiedTimes">Modified time entries keyed by relative path.</param>
+    /// <param name="creationTimes">Creation time entries keyed by relative path.</param>
+    /// <param name="accessTimes">Access time entries keyed by relative path.</param>
+    /// <param name="logger">Optional logger for warnings on failure.</param>
+    public static void ApplyFileTimestamps(
+        string inputDirectory,
+        Dictionary<string, DateTime> modifiedTimes,
+        Dictionary<string, DateTime> creationTimes,
+        Dictionary<string, DateTime> accessTimes,
+        IReSceneLogger? logger = null)
+    {
+        // Order matters: set creation/access first so modified time ends up as the final write.
+        ApplyFileTimestampEntries(inputDirectory, creationTimes, File.SetCreationTime, "creation", logger);
+        ApplyFileTimestampEntries(inputDirectory, accessTimes, File.SetLastAccessTime, "access", logger);
+        ApplyFileTimestampEntries(inputDirectory, modifiedTimes, File.SetLastWriteTime, "modified", logger);
+    }
+
+    /// <summary>
+    /// Applies a single category of timestamp entries to files under the specified directory.
+    /// </summary>
+    /// <param name="inputDirectory">The base directory containing the files.</param>
+    /// <param name="timestamps">Timestamp entries keyed by relative path.</param>
+    /// <param name="setter">The setter method (e.g., File.SetLastWriteTime).</param>
+    /// <param name="label">Label for log messages (e.g., "creation", "modified").</param>
+    /// <param name="logger">Optional logger for warnings on failure.</param>
+    public static void ApplyFileTimestampEntries(
+        string inputDirectory,
+        Dictionary<string, DateTime> timestamps,
+        Action<string, DateTime> setter,
+        string label,
+        IReSceneLogger? logger = null)
+    {
+        foreach (KeyValuePair<string, DateTime> entry in timestamps)
+        {
+            string relativePath = entry.Key;
+            string filePath = Path.Combine(inputDirectory, relativePath);
+            if (!File.Exists(filePath))
+            {
+                continue;
+            }
+
+            try
+            {
+                setter(filePath, entry.Value);
+            }
+            catch (Exception ex)
+            {
+                logger?.Warning(null, $"Failed to set {label} timestamp for file {relativePath}: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies modified, creation, and access timestamps to directories under the specified directory.
+    /// Order: creation, access, then modified (so modified time is the final write).
+    /// </summary>
+    /// <param name="inputDirectory">The base directory containing the subdirectories.</param>
+    /// <param name="modifiedTimes">Modified time entries keyed by relative path.</param>
+    /// <param name="creationTimes">Creation time entries keyed by relative path.</param>
+    /// <param name="accessTimes">Access time entries keyed by relative path.</param>
+    /// <param name="logger">Optional logger for warnings on failure.</param>
+    public static void ApplyDirectoryTimestamps(
+        string inputDirectory,
+        Dictionary<string, DateTime> modifiedTimes,
+        Dictionary<string, DateTime> creationTimes,
+        Dictionary<string, DateTime> accessTimes,
+        IReSceneLogger? logger = null)
+    {
+        // Order matters: set creation/access first so modified time ends up as the final write.
+        ApplyDirectoryTimestampEntries(inputDirectory, creationTimes, Directory.SetCreationTime, "creation", logger);
+        ApplyDirectoryTimestampEntries(inputDirectory, accessTimes, Directory.SetLastAccessTime, "access", logger);
+        ApplyDirectoryTimestampEntries(inputDirectory, modifiedTimes, Directory.SetLastWriteTime, "modified", logger);
+    }
+
+    /// <summary>
+    /// Applies a single category of timestamp entries to directories under the specified directory.
+    /// </summary>
+    /// <param name="inputDirectory">The base directory containing the subdirectories.</param>
+    /// <param name="timestamps">Timestamp entries keyed by relative path.</param>
+    /// <param name="setter">The setter method (e.g., Directory.SetLastWriteTime).</param>
+    /// <param name="label">Label for log messages (e.g., "creation", "modified").</param>
+    /// <param name="logger">Optional logger for warnings on failure.</param>
+    public static void ApplyDirectoryTimestampEntries(
+        string inputDirectory,
+        Dictionary<string, DateTime> timestamps,
+        Action<string, DateTime> setter,
+        string label,
+        IReSceneLogger? logger = null)
+    {
+        foreach (KeyValuePair<string, DateTime> entry in timestamps)
+        {
+            string relativePath = entry.Key;
+            string dirPath = Path.Combine(inputDirectory, relativePath);
+            if (!Directory.Exists(dirPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                setter(dirPath, entry.Value);
+            }
+            catch (Exception ex)
+            {
+                logger?.Warning(null, $"Failed to set {label} timestamp for directory {relativePath}: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Deletes a RAR file and all its associated volume files (both new and old naming formats).
+    /// </summary>
+    /// <param name="rarFilePath">Path to any volume in the set.</param>
+    /// <param name="logger">Optional logger for diagnostics.</param>
+    public static void DeleteRARFileAndVolumes(string rarFilePath, IReSceneLogger? logger = null)
+    {
+        try
+        {
+            string directory = Path.GetDirectoryName(rarFilePath) ?? string.Empty;
+            string fileName = Path.GetFileName(rarFilePath);
+            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(rarFilePath);
+
+            // Determine the base name (remove .partXX.rar or .rXX suffix if present)
+            string baseName = fileNameWithoutExtension;
+
+            // Check if this is a volume file and extract base name
+            if (fileName.Contains(".part", StringComparison.Ordinal) && fileName.EndsWith(".rar", StringComparison.Ordinal))
+            {
+                // Format: filename.part01.rar - remove .part01
+                int partIndex = fileName.IndexOf(".part", StringComparison.Ordinal);
+                if (partIndex > 0)
+                {
+                    baseName = fileName[..partIndex];
+                }
+            }
+
+            // Delete all related volume files using pattern matching
+            // Pattern 1: filename.partXX.rar (zero-padded)
+            string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
+            foreach (string file in partFiles)
+            {
+                try
+                {
+                    File.Delete(file);
+                    logger?.Debug(null, $"Deleted volume file: {file}", LogTarget.Phase2);
+                }
+                catch (Exception ex)
+                {
+                    logger?.Information(null, $"Failed to delete volume file {file}: {ex.Message}", LogTarget.Phase2);
+                }
+            }
+
+            // Pattern 2: filename.rXX (old format - r00, r01, r02, etc.)
+            string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
+            foreach (string file in rxxFiles)
+            {
+                try
+                {
+                    File.Delete(file);
+                    logger?.Debug(null, $"Deleted volume file: {file}", LogTarget.Phase2);
+                }
+                catch (Exception ex)
+                {
+                    logger?.Information(null, $"Failed to delete volume file {file}: {ex.Message}", LogTarget.Phase2);
+                }
+            }
+
+            // Also delete the main .rar file if it exists (old format first volume)
+            string mainRarFile = Path.Combine(directory, $"{baseName}.rar");
+            if (File.Exists(mainRarFile))
+            {
+                try
+                {
+                    File.Delete(mainRarFile);
+                    logger?.Debug(null, $"Deleted main RAR file: {mainRarFile}", LogTarget.Phase2);
+                }
+                catch (Exception ex)
+                {
+                    logger?.Information(null, $"Failed to delete main RAR file {mainRarFile}: {ex.Message}", LogTarget.Phase2);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.Information(null, $"Failed to delete RAR file and volumes: {rarFilePath}{Environment.NewLine}{ex.Message}", LogTarget.Phase2);
+        }
+    }
+}

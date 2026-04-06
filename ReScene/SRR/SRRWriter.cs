@@ -259,12 +259,12 @@ public class SRRWriter
         catch (OperationCanceledException)
         {
             result.ErrorMessage = "Operation was cancelled.";
-            TryDeleteFile(outputPath);
+            StreamUtilities.TryDeleteFile(outputPath);
         }
         catch (Exception ex)
         {
             result.ErrorMessage = ex.Message;
-            TryDeleteFile(outputPath);
+            StreamUtilities.TryDeleteFile(outputPath);
         }
 
         return result;
@@ -312,7 +312,7 @@ public class SRRWriter
             }
 
             string fileName = trimmed[..lastSpace].Trim();
-            if (IsRarVolume(fileName))
+            if (RarVolumeIdentifier.IsRarVolume(fileName))
             {
                 string fullPath = Path.Combine(sfvDir, fileName);
                 if (File.Exists(fullPath))
@@ -328,7 +328,7 @@ public class SRRWriter
         }
 
         // Sort volumes in correct order
-        rarFiles.Sort(CompareRarVolumeNames);
+        rarFiles.Sort(RarVolumeNameComparer.Instance);
 
         // Build stored files dictionary — additional files first (preserves caller's sort order)
         var storedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -448,7 +448,7 @@ public class SRRWriter
         using var reader = new BinaryReader(fs, Encoding.UTF8, leaveOpen: true);
 
         // Detect RAR version by checking marker
-        bool isRar5 = IsRar5Volume(fs);
+        bool isRar5 = RARUtils.IsRar5Marker(fs);
 
         if (isRar5)
         {
@@ -460,33 +460,6 @@ public class SRRWriter
         }
     }
 
-    private static bool IsRar5Volume(FileStream fs)
-    {
-        if (fs.Length < 8)
-        {
-            return false;
-        }
-
-        long pos = fs.Position;
-        byte[] marker = new byte[8];
-        int read = fs.Read(marker, 0, 8);
-        fs.Position = pos;
-
-        if (read < 8)
-        {
-            return false;
-        }
-
-        for (int i = 0; i < 8; i++)
-        {
-            if (marker[i] != _rar5Marker[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     private static Task ProcessRar4VolumeAsync(
         BinaryWriter srrWriter,
@@ -605,7 +578,7 @@ public class SRRWriter
                         if (isCmt)
                         {
                             // Copy CMT data verbatim
-                            CopyData(fs, srrWriter.BaseStream, addSize);
+                            StreamUtilities.CopyBytes(fs, srrWriter.BaseStream, addSize);
                         }
                         else
                         {
@@ -705,7 +678,7 @@ public class SRRWriter
                     srrWriter.Write(rawHeaderBytes);
                     if (block.DataSize > 0)
                     {
-                        SkipData(fs, block.DataSize);
+                        StreamUtilities.SkipBytes(fs, block.DataSize);
                     }
 
                     break;
@@ -718,7 +691,7 @@ public class SRRWriter
                         // Copy CMT data verbatim
                         if (block.DataSize > 0)
                         {
-                            CopyData(fs, srrWriter.BaseStream, block.DataSize);
+                            StreamUtilities.CopyBytes(fs, srrWriter.BaseStream, block.DataSize);
                         }
                     }
                     else
@@ -726,7 +699,7 @@ public class SRRWriter
                         // Skip data for other service blocks
                         if (block.DataSize > 0)
                         {
-                            SkipData(fs, block.DataSize);
+                            StreamUtilities.SkipBytes(fs, block.DataSize);
                         }
                     }
 
@@ -742,7 +715,7 @@ public class SRRWriter
                     srrWriter.Write(rawHeaderBytes);
                     if (block.DataSize > 0)
                     {
-                        SkipData(fs, block.DataSize);
+                        StreamUtilities.SkipBytes(fs, block.DataSize);
                     }
 
                     break;
@@ -754,144 +727,8 @@ public class SRRWriter
 
     #endregion
 
-    #region SFV Parsing Helpers
-
-    private static bool IsRarVolume(string fileName)
-    {
-        string ext = Path.GetExtension(fileName);
-        if (string.IsNullOrEmpty(ext))
-        {
-            return false;
-        }
-
-        // .rar (including .partN.rar)
-        if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // Old-style extensions: .r00, .r01, ..., .r99, .s00, etc.
-        if (ext.Length == 4 && ext[0] == '.' &&
-            char.IsLetter(ext[1]) && char.IsDigit(ext[2]) && char.IsDigit(ext[3]))
-        {
-            return true;
-        }
-
-        // Extensions like .001, .002 (numbered volumes)
-        if (ext.Length == 4 && ext[0] == '.' &&
-            char.IsDigit(ext[1]) && char.IsDigit(ext[2]) && char.IsDigit(ext[3]))
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Compares two RAR volume file paths for correct ordering (supports both old-style and new-style naming).
-    /// </summary>
-    /// <param name="a">First RAR volume path.</param>
-    /// <param name="b">Second RAR volume path.</param>
-    /// <returns>A negative value if <paramref name="a"/> comes before <paramref name="b"/>, zero if equal, or a positive value if after.</returns>
-    public static int CompareRarVolumeNames(string a, string b)
-    {
-        string nameA = Path.GetFileName(a);
-        string nameB = Path.GetFileName(b);
-
-        // Handle new-style naming: name.part01.rar, name.part02.rar
-        int partNumA = ExtractPartNumber(nameA);
-        int partNumB = ExtractPartNumber(nameB);
-
-        if (partNumA >= 0 && partNumB >= 0)
-        {
-            return partNumA.CompareTo(partNumB);
-        }
-
-        // Handle old-style naming: name.rar, name.r00, name.r01, etc.
-        string extA = Path.GetExtension(nameA).ToLowerInvariant();
-        string extB = Path.GetExtension(nameB).ToLowerInvariant();
-
-        int orderA = GetOldStyleOrder(extA);
-        int orderB = GetOldStyleOrder(extB);
-
-        return orderA.CompareTo(orderB);
-    }
-
-    private static int ExtractPartNumber(string fileName)
-    {
-        // Look for .partNN.rar pattern
-        string lower = fileName.ToLowerInvariant();
-        int partIdx = lower.LastIndexOf(".part", StringComparison.Ordinal);
-        if (partIdx < 0)
-        {
-            return -1;
-        }
-
-        int dotRar = lower.IndexOf(".rar", partIdx + 5, StringComparison.Ordinal);
-        if (dotRar < 0)
-        {
-            return -1;
-        }
-
-        string numStr = lower[(partIdx + 5)..dotRar];
-        return int.TryParse(numStr, out int num) ? num : -1;
-    }
-
-    private static int GetOldStyleOrder(string ext)
-    {
-        // .rar is always first
-        if (ext == ".rar")
-        {
-            return -1;
-        }
-
-        // .r00, .r01, ..., .s00, .s01, etc.
-        if (ext.Length == 4 && ext[0] == '.' && char.IsLetter(ext[1]))
-        {
-            int letterOffset = (ext[1] - 'r') * 100;
-            if (int.TryParse(ext[2..], out int num))
-            {
-                return letterOffset + num;
-            }
-        }
-
-        // .001, .002, etc.
-        if (ext.Length == 4 && ext[0] == '.' && int.TryParse(ext[1..], out int numExt))
-        {
-            return numExt;
-        }
-
-        return int.MaxValue;
-    }
-
-    #endregion
 
     #region Helpers
-
-    private static void SkipData(Stream stream, ulong bytes) => stream.Seek((long)bytes, SeekOrigin.Current);
-
-    private static void CopyData(Stream source, Stream destination, uint bytes) => CopyData(source, destination, (long)bytes);
-
-    private static void CopyData(Stream source, Stream destination, ulong bytes) => CopyData(source, destination, (long)bytes);
-
-    private static void CopyData(Stream source, Stream destination, long bytes)
-    {
-        byte[] buffer = new byte[80 * 1024];
-        long remaining = bytes;
-
-        while (remaining > 0)
-        {
-            int toRead = (int)Math.Min(buffer.Length, remaining);
-            int read = source.Read(buffer, 0, toRead);
-            if (read <= 0)
-            {
-                break;
-            }
-
-            destination.Write(buffer, 0, read);
-            remaining -= read;
-        }
-    }
 
     private void ReportProgress(int current, int total, string message)
     {
@@ -903,15 +740,6 @@ public class SRRWriter
             TotalVolumes = total,
             Message = message
         });
-    }
-
-    private static void TryDeleteFile(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch { }
     }
 
     #endregion

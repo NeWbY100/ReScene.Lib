@@ -832,12 +832,12 @@ public class SRSFile
         while (fs.Position < fileLength)
         {
             long frameOffset = fs.Position;
-            if (!TryReadVint(fs, out ulong elementId, out int idLen))
+            if (!EbmlReader.TryReadId(fs, out ulong elementId, out int idLen))
             {
                 break;
             }
 
-            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -911,12 +911,12 @@ public class SRSFile
         while (fs.Position + 2 <= end && fs.Position < fileLength)
         {
             long frameOffset = fs.Position;
-            if (!TryReadVint(fs, out ulong elementId, out int idLen))
+            if (!EbmlReader.TryReadId(fs, out ulong elementId, out int idLen))
             {
                 break;
             }
 
-            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -968,12 +968,12 @@ public class SRSFile
         while (fs.Position + 2 < end)
         {
             long frameOffset = fs.Position;
-            if (!TryReadVint(fs, out ulong elementId, out int idLen))
+            if (!EbmlReader.TryReadId(fs, out ulong elementId, out int idLen))
             {
                 break;
             }
 
-            if (!TryReadVintSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -1005,91 +1005,6 @@ public class SRSFile
 
             fs.Position = payloadStart + (long)dataSize;
         }
-    }
-
-    /// <summary>
-    /// Reads a VINT element ID (does NOT mask out the marker bit).
-    /// </summary>
-    private static bool TryReadVint(Stream stream, out ulong value, out int length)
-    {
-        value = 0;
-        length = 0;
-        int first = stream.ReadByte();
-        if (first < 0)
-        {
-            return false;
-        }
-
-        // Count leading zeros to determine VINT length
-        int mask = 0x80;
-        length = 1;
-        while (length <= 8 && (first & mask) == 0)
-        {
-            mask >>= 1;
-            length++;
-        }
-
-        if (length > 8)
-        {
-            return false;
-        }
-
-        // For element IDs, keep the marker bit
-        value = (ulong)first;
-        for (int i = 1; i < length; i++)
-        {
-            int b = stream.ReadByte();
-            if (b < 0)
-            {
-                return false;
-            }
-
-            value = (value << 8) | (uint)b;
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Reads a VINT data size (masks out the marker bit).
-    /// </summary>
-    private static bool TryReadVintSize(Stream stream, out ulong value, out int length)
-    {
-        value = 0;
-        length = 0;
-        int first = stream.ReadByte();
-        if (first < 0)
-        {
-            return false;
-        }
-
-        int mask = 0x80;
-        length = 1;
-        while (length <= 8 && (first & mask) == 0)
-        {
-            mask >>= 1;
-            length++;
-        }
-
-        if (length > 8)
-        {
-            return false;
-        }
-
-        // For sizes, mask out the marker bit
-        value = (ulong)(first & (mask - 1));
-        for (int i = 1; i < length; i++)
-        {
-            int b = stream.ReadByte();
-            if (b < 0)
-            {
-                return false;
-            }
-
-            value = (value << 8) | (uint)b;
-        }
-
-        return true;
     }
 
     private static string GetEbmlElementName(ulong id) => id switch
