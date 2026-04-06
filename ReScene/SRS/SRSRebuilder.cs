@@ -19,19 +19,27 @@ public record SrsReconstructionResult(
 /// </summary>
 public class SrsReconstructionProgressEventArgs : EventArgs
 {
-    /// <summary>Gets the current phase description (e.g., "Loading SRS", "Rebuilding").</summary>
+    /// <summary>
+    /// Gets the current phase description (e.g., "Loading SRS", "Rebuilding").
+    /// </summary>
     public string Phase { get; init; } = "";
-    /// <summary>Gets the current track number being processed.</summary>
+    /// <summary>
+    /// Gets the current track number being processed.
+    /// </summary>
     public int TrackNumber
     {
         get; init;
     }
-    /// <summary>Gets the total number of tracks to process.</summary>
+    /// <summary>
+    /// Gets the total number of tracks to process.
+    /// </summary>
     public int TotalTracks
     {
         get; init;
     }
-    /// <summary>Gets the overall progress percentage (0-100).</summary>
+    /// <summary>
+    /// Gets the overall progress percentage (0-100).
+    /// </summary>
     public double ProgressPercent
     {
         get; init;
@@ -43,16 +51,24 @@ public class SrsReconstructionProgressEventArgs : EventArgs
 /// </summary>
 public class SrsScanProgressEventArgs : EventArgs
 {
-    /// <summary>Gets the current phase description.</summary>
+    /// <summary>
+    /// Gets the current phase description.
+    /// </summary>
     public string Phase { get; init; } = string.Empty;
 
-    /// <summary>Gets the bytes scanned so far.</summary>
+    /// <summary>
+    /// Gets the bytes scanned so far.
+    /// </summary>
     public long BytesScanned { get; init; }
 
-    /// <summary>Gets the total bytes to scan.</summary>
+    /// <summary>
+    /// Gets the total bytes to scan.
+    /// </summary>
     public long BytesTotal { get; init; }
 
-    /// <summary>Gets the scan progress percentage (0-100).</summary>
+    /// <summary>
+    /// Gets the scan progress percentage (0-100).
+    /// </summary>
     public int Percent { get; init; }
 }
 

@@ -5,10 +5,16 @@ namespace ReScene.Core;
 /// </summary>
 public enum TriState
 {
-    /// <summary>The item is unchecked.</summary>
+    /// <summary>
+    /// The item is unchecked.
+    /// </summary>
     Unchecked,
-    /// <summary>The item is checked.</summary>
+    /// <summary>
+    /// The item is checked.
+    /// </summary>
     Checked,
-    /// <summary>The item is in an indeterminate state.</summary>
+    /// <summary>
+    /// The item is in an indeterminate state.
+    /// </summary>
     Indeterminate
 }

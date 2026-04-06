@@ -16,47 +16,65 @@ public class SrsCreationOptions
 /// </summary>
 public class SrsCreationResult
 {
-    /// <summary>Whether SRS creation completed successfully.</summary>
+    /// <summary>
+    /// Whether SRS creation completed successfully.
+    /// </summary>
     public bool Success
     {
         get; set;
     }
-    /// <summary>Path to the created SRS file.</summary>
+    /// <summary>
+    /// Path to the created SRS file.
+    /// </summary>
     public string? OutputPath
     {
         get; set;
     }
-    /// <summary>Error message if creation failed.</summary>
+    /// <summary>
+    /// Error message if creation failed.
+    /// </summary>
     public string? ErrorMessage
     {
         get; set;
     }
-    /// <summary>Detected container type of the sample file.</summary>
+    /// <summary>
+    /// Detected container type of the sample file.
+    /// </summary>
     public SRSContainerType ContainerType
     {
         get; set;
     }
-    /// <summary>Number of tracks found in the sample file.</summary>
+    /// <summary>
+    /// Number of tracks found in the sample file.
+    /// </summary>
     public int TrackCount
     {
         get; set;
     }
-    /// <summary>Size of the created SRS file in bytes.</summary>
+    /// <summary>
+    /// Size of the created SRS file in bytes.
+    /// </summary>
     public long SrsFileSize
     {
         get; set;
     }
-    /// <summary>CRC32 checksum of the original sample file.</summary>
+    /// <summary>
+    /// CRC32 checksum of the original sample file.
+    /// </summary>
     public uint SampleCrc32
     {
         get; set;
     }
-    /// <summary>Size of the original sample file in bytes.</summary>
+    /// <summary>
+    /// Size of the original sample file in bytes.
+    /// </summary>
     public long SampleSize
     {
         get; set;
     }
-    /// <summary>Non-fatal warnings encountered during creation.</summary>
+    /// <summary>
+    /// Non-fatal warnings encountered during creation.
+    /// </summary>
     public List<string> Warnings { get; set; } = [];
 }
 

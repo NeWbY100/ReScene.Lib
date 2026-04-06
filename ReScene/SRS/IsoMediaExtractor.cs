@@ -140,34 +140,54 @@ public static class IsoMediaExtractor
     /// </summary>
     public class IsoProgress
     {
-        /// <summary>Gets the current phase description.</summary>
+        /// <summary>
+        /// Gets the current phase description.
+        /// </summary>
         public string Phase { get; init; } = string.Empty;
 
-        /// <summary>Gets the current file name being processed.</summary>
+        /// <summary>
+        /// Gets the current file name being processed.
+        /// </summary>
         public string CurrentFile { get; init; } = string.Empty;
 
-        /// <summary>Gets the current file index (1-based).</summary>
+        /// <summary>
+        /// Gets the current file index (1-based).
+        /// </summary>
         public int FileIndex { get; init; }
 
-        /// <summary>Gets the total number of files.</summary>
+        /// <summary>
+        /// Gets the total number of files.
+        /// </summary>
         public int FileCount { get; init; }
 
-        /// <summary>Gets the progress percentage for the current file (0-100).</summary>
+        /// <summary>
+        /// Gets the progress percentage for the current file (0-100).
+        /// </summary>
         public int CurrentPercent { get; init; }
 
-        /// <summary>Gets the overall progress percentage (0-100).</summary>
+        /// <summary>
+        /// Gets the overall progress percentage (0-100).
+        /// </summary>
         public int OverallPercent { get; init; }
 
-        /// <summary>Gets the total bytes processed so far.</summary>
+        /// <summary>
+        /// Gets the total bytes processed so far.
+        /// </summary>
         public long BytesProcessed { get; init; }
 
-        /// <summary>Gets the total bytes to process.</summary>
+        /// <summary>
+        /// Gets the total bytes to process.
+        /// </summary>
         public long BytesTotal { get; init; }
 
-        /// <summary>Gets the bytes processed for the current file.</summary>
+        /// <summary>
+        /// Gets the bytes processed for the current file.
+        /// </summary>
         public long CurrentBytesProcessed { get; init; }
 
-        /// <summary>Gets the total bytes for the current file.</summary>
+        /// <summary>
+        /// Gets the total bytes for the current file.
+        /// </summary>
         public long CurrentBytesTotal { get; init; }
     }
 
