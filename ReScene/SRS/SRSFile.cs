@@ -37,8 +37,12 @@ public class SRSFile
     /// <summary>
     /// Loads and parses an SRS file from the specified path.
     /// </summary>
-    /// <param name="filePath">The path to the SRS file.</param>
-    /// <returns>A parsed <see cref="SRSFile"/> instance.</returns>
+    /// <param name="filePath">
+    /// The path to the SRS file.
+    /// </param>
+    /// <returns>
+    /// A parsed <see cref="SRSFile"/> instance.
+    /// </returns>
     public static SRSFile Load(string filePath)
     {
         if (!File.Exists(filePath))

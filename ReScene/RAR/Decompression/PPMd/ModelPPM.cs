@@ -52,10 +52,18 @@ public class ModelPPM
     /// <summary>
     /// Initializes the PPMd decoder.
     /// </summary>
-    /// <param name="data">The compressed data buffer.</param>
-    /// <param name="offset">Current offset into the data buffer, advanced on return.</param>
-    /// <param name="escChar">The escape character, updated on return.</param>
-    /// <returns><see langword="true"/> if initialization succeeded.</returns>
+    /// <param name="data">
+    /// The compressed data buffer.
+    /// </param>
+    /// <param name="offset">
+    /// Current offset into the data buffer, advanced on return.
+    /// </param>
+    /// <param name="escChar">
+    /// The escape character, updated on return.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> if initialization succeeded.
+    /// </returns>
     public bool DecodeInit(byte[] data, ref int offset, ref int escChar)
     {
         if (offset >= data.Length)
@@ -117,7 +125,9 @@ public class ModelPPM
     /// <summary>
     /// Decodes a single character.
     /// </summary>
-    /// <returns>The decoded character value, or -1 on failure.</returns>
+    /// <returns>
+    /// The decoded character value, or -1 on failure.
+    /// </returns>
     public int DecodeChar()
     {
         if (_minContext <= _subAlloc.PText || _minContext > _subAlloc.HeapEnd)

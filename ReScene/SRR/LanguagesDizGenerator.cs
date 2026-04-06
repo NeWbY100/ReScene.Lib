@@ -14,8 +14,12 @@ internal static class LanguagesDizGenerator
     /// Scans RAR volumes for VobSub .idx files and extracts language lines.
     /// Returns the languages.diz content as UTF-8 bytes, or null if no .idx files were found.
     /// </summary>
-    /// <param name="rarVolumePaths">The paths to the RAR volume files to scan.</param>
-    /// <returns>The languages.diz content as UTF-8 bytes, or <see langword="null"/> if no .idx files were found.</returns>
+    /// <param name="rarVolumePaths">
+    /// The paths to the RAR volume files to scan.
+    /// </param>
+    /// <returns>
+    /// The languages.diz content as UTF-8 bytes, or <see langword="null"/> if no .idx files were found.
+    /// </returns>
     public static byte[]? Generate(IReadOnlyList<string> rarVolumePaths)
     {
         if (rarVolumePaths.Count == 0)

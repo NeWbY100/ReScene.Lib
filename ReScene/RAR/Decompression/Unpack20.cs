@@ -51,9 +51,15 @@ public class Unpack20
     /// <summary>
     /// Decompresses RAR 2.0 compressed data.
     /// </summary>
-    /// <param name="srcData">Compressed data</param>
-    /// <param name="destSize">Expected decompressed size</param>
-    /// <returns>Decompressed data, or null on failure</returns>
+    /// <param name="srcData">
+    /// Compressed data
+    /// </param>
+    /// <param name="destSize">
+    /// Expected decompressed size
+    /// </param>
+    /// <returns>
+    /// Decompressed data, or null on failure
+    /// </returns>
     public byte[]? Decompress(byte[] srcData, int destSize)
     {
         if (srcData == null || srcData.Length == 0 || destSize <= 0)

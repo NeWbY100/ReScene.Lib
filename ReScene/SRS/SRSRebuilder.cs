@@ -23,6 +23,7 @@ public class SrsReconstructionProgressEventArgs : EventArgs
     /// Gets the current phase description (e.g., "Loading SRS", "Rebuilding").
     /// </summary>
     public string Phase { get; init; } = "";
+
     /// <summary>
     /// Gets the current track number being processed.
     /// </summary>
@@ -30,6 +31,7 @@ public class SrsReconstructionProgressEventArgs : EventArgs
     {
         get; init;
     }
+
     /// <summary>
     /// Gets the total number of tracks to process.
     /// </summary>
@@ -37,6 +39,7 @@ public class SrsReconstructionProgressEventArgs : EventArgs
     {
         get; init;
     }
+
     /// <summary>
     /// Gets the overall progress percentage (0-100).
     /// </summary>
@@ -108,11 +111,21 @@ public class SRSRebuilder
     /// <summary>
     /// Rebuilds the original sample file from an SRS file and the full media file.
     /// </summary>
-    /// <param name="srsFilePath">Path to the .srs file</param>
-    /// <param name="mediaFilePath">Path to the full original media file</param>
-    /// <param name="outputPath">Path to write the reconstructed sample</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>Reconstruction result with CRC verification status</returns>
+    /// <param name="srsFilePath">
+    /// Path to the .srs file
+    /// </param>
+    /// <param name="mediaFilePath">
+    /// Path to the full original media file
+    /// </param>
+    /// <param name="outputPath">
+    /// Path to write the reconstructed sample
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token
+    /// </param>
+    /// <returns>
+    /// Reconstruction result with CRC verification status
+    /// </returns>
     public async Task<SrsReconstructionResult> RebuildAsync(
         string srsFilePath, string mediaFilePath, string outputPath, CancellationToken ct = default)
     {
@@ -260,11 +273,21 @@ public class SRSRebuilder
     /// Searches for a byte signature in a stream. Tries the hint offset first,
     /// then a nearby window, then a full file scan.
     /// </summary>
-    /// <param name="stream">The stream to search.</param>
-    /// <param name="signature">The byte signature to find.</param>
-    /// <param name="hintOffset">The expected offset to try first.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The offset where the signature was found, or -1 if not found.</returns>
+    /// <param name="stream">
+    /// The stream to search.
+    /// </param>
+    /// <param name="signature">
+    /// The byte signature to find.
+    /// </param>
+    /// <param name="hintOffset">
+    /// The expected offset to try first.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <returns>
+    /// The offset where the signature was found, or -1 if not found.
+    /// </returns>
     internal long FindSignature(Stream stream, byte[] signature, long hintOffset,
         CancellationToken ct = default)
     {

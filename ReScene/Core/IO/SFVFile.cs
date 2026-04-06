@@ -28,7 +28,9 @@ public class SFVFile
     /// <summary>
     /// Initializes a new SFV file associated with the specified file info.
     /// </summary>
-    /// <param name="fileInfo">The file info for the SFV file on disk.</param>
+    /// <param name="fileInfo">
+    /// The file info for the SFV file on disk.
+    /// </param>
     public SFVFile(FileInfo fileInfo)
     {
         FileInfo = fileInfo;
@@ -37,8 +39,12 @@ public class SFVFile
     /// <summary>
     /// Reads and parses an SFV file from disk.
     /// </summary>
-    /// <param name="filePath">The path to the SFV file.</param>
-    /// <returns>A parsed <see cref="SFVFile"/> instance.</returns>
+    /// <param name="filePath">
+    /// The path to the SFV file.
+    /// </param>
+    /// <returns>
+    /// A parsed <see cref="SFVFile"/> instance.
+    /// </returns>
     public static SFVFile ReadFile(string filePath)
     {
         FileInfo fileInfo = new(filePath);

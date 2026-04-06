@@ -230,7 +230,9 @@ public class RARHeaderReader
     /// <summary>
     /// Creates a new RAR header reader.
     /// </summary>
-    /// <param name="stream">Stream to read from</param>
+    /// <param name="stream">
+    /// Stream to read from
+    /// </param>
     public RARHeaderReader(Stream stream)
     {
         _stream = stream ?? throw new ArgumentNullException(nameof(stream));
@@ -240,7 +242,9 @@ public class RARHeaderReader
     /// <summary>
     /// Creates a new RAR header reader using an existing BinaryReader.
     /// </summary>
-    /// <param name="reader">BinaryReader to use</param>
+    /// <param name="reader">
+    /// BinaryReader to use
+    /// </param>
     public RARHeaderReader(BinaryReader reader)
     {
         _reader = reader ?? throw new ArgumentNullException(nameof(reader));
@@ -255,7 +259,9 @@ public class RARHeaderReader
     /// <summary>
     /// Peeks at the next block type without advancing the stream position.
     /// </summary>
-    /// <returns>Block type byte, or null if not enough data</returns>
+    /// <returns>
+    /// Block type byte, or null if not enough data
+    /// </returns>
     public byte? PeekBlockType()
     {
         if (_stream.Position + 3 > _stream.Length)
@@ -273,8 +279,12 @@ public class RARHeaderReader
     /// <summary>
     /// Reads a RAR block header and optionally parses its contents.
     /// </summary>
-    /// <param name="parseContents">If true, parse archive/file header contents</param>
-    /// <returns>Block read result, or null if not enough data</returns>
+    /// <param name="parseContents">
+    /// If true, parse archive/file header contents
+    /// </param>
+    /// <returns>
+    /// Block read result, or null if not enough data
+    /// </returns>
     public RARBlockReadResult? ReadBlock(bool parseContents = true)
     {
         if (!CanReadBaseHeader)
@@ -351,8 +361,12 @@ public class RARHeaderReader
     /// Skips to the end of the current block (header only, not data).
     /// For file blocks in SRR files, data is not present.
     /// </summary>
-    /// <param name="block">Block to skip</param>
-    /// <param name="includeData">If true, also skip ADD_SIZE bytes (for non-file blocks)</param>
+    /// <param name="block">
+    /// Block to skip
+    /// </param>
+    /// <param name="includeData">
+    /// If true, also skip ADD_SIZE bytes (for non-file blocks)
+    /// </param>
     public void SkipBlock(RARBlockReadResult block, bool includeData = false)
     {
         long target = block.BlockPosition + block.HeaderSize;
@@ -859,8 +873,12 @@ public class RARHeaderReader
     /// Reads the data portion of a service block.
     /// Call this after ReadBlock to get the raw data.
     /// </summary>
-    /// <param name="block">The service block to read data from.</param>
-    /// <returns>The raw service block data, or <see langword="null"/> if not a service block.</returns>
+    /// <param name="block">
+    /// The service block to read data from.
+    /// </param>
+    /// <returns>
+    /// The raw service block data, or <see langword="null"/> if not a service block.
+    /// </returns>
     public byte[]? ReadServiceBlockData(RARBlockReadResult block)
     {
         if (block.BlockType != RAR4BlockType.Service || block.ServiceBlockInfo == null)

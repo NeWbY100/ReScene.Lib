@@ -5,10 +5,18 @@ namespace ReScene.RAR;
 /// <summary>
 /// Represents a logical byte range within a single RAR volume for a packed file.
 /// </summary>
-/// <param name="ArchivePath">Full path to the RAR volume file.</param>
-/// <param name="LogicalStart">Start byte position in the logical file (inclusive).</param>
-/// <param name="LogicalEnd">End byte position in the logical file (inclusive).</param>
-/// <param name="DataOffset">Byte offset within the physical RAR file where this segment's data begins.</param>
+/// <param name="ArchivePath">
+/// Full path to the RAR volume file.
+/// </param>
+/// <param name="LogicalStart">
+/// Start byte position in the logical file (inclusive).
+/// </param>
+/// <param name="LogicalEnd">
+/// End byte position in the logical file (inclusive).
+/// </param>
+/// <param name="DataOffset">
+/// Byte offset within the physical RAR file where this segment's data begins.
+/// </param>
 internal record RarVolume(string ArchivePath, long LogicalStart, long LogicalEnd, long DataOffset);
 
 /// <summary>
@@ -40,7 +48,9 @@ public partial class RarStream : Stream
     /// <summary>
     /// Opens a packed file from a RAR archive set for streaming.
     /// </summary>
-    /// <param name="firstRarPath">Path to the first RAR volume.</param>
+    /// <param name="firstRarPath">
+    /// Path to the first RAR volume.
+    /// </param>
     /// <param name="packedFileName">
     /// Name of the file inside the archive to stream. If null, the first file found is used.
     /// </param>
@@ -82,8 +92,12 @@ public partial class RarStream : Stream
     /// <summary>
     /// Internal constructor for testing with pre-built volumes.
     /// </summary>
-    /// <param name="volumes">The pre-built volume list.</param>
-    /// <param name="length">The total logical length of the stream.</param>
+    /// <param name="volumes">
+    /// The pre-built volume list.
+    /// </param>
+    /// <param name="length">
+    /// The total logical length of the stream.
+    /// </param>
     internal RarStream(List<RarVolume> volumes, long length)
     {
         _volumes = volumes;

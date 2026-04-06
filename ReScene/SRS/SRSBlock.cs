@@ -9,26 +9,32 @@ public enum SRSContainerType
     /// AVI (RIFF) container.
     /// </summary>
     AVI,
+
     /// <summary>
     /// Matroska (MKV/WebM) container.
     /// </summary>
     MKV,
+
     /// <summary>
     /// MPEG-4 Part 14 (MP4/M4V) container.
     /// </summary>
     MP4,
+
     /// <summary>
     /// Windows Media Video (ASF/WMV) container.
     /// </summary>
     WMV,
+
     /// <summary>
     /// Free Lossless Audio Codec container.
     /// </summary>
     FLAC,
+
     /// <summary>
     /// MPEG Audio Layer III container.
     /// </summary>
     MP3,
+
     /// <summary>
     /// Raw stream or MPEG-2 Transport Stream (M2TS) container.
     /// </summary>
@@ -80,6 +86,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// SRSF flags value.
     /// </summary>
@@ -95,6 +102,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Length of the application name string in bytes.
     /// </summary>
@@ -110,6 +118,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Name of the application that created the SRS file.
     /// </summary>
@@ -122,6 +131,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Length of the file name string in bytes.
     /// </summary>
@@ -137,6 +147,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Original sample file name.
     /// </summary>
@@ -149,6 +160,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Size of the original sample file in bytes.
     /// </summary>
@@ -164,6 +176,7 @@ public class SrsFileDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// CRC32 checksum of the original sample file.
     /// </summary>
@@ -217,6 +230,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// SRST flags value.
     /// </summary>
@@ -232,6 +246,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Size of the track number field in bytes (2 or 4).
     /// </summary>
@@ -239,6 +254,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Track number within the container.
     /// </summary>
@@ -254,6 +270,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Size of the data length field in bytes (4 or 8).
     /// </summary>
@@ -261,6 +278,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Total length of the track's stream data in the sample file.
     /// </summary>
@@ -276,6 +294,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Offset in the full media file where this track's data begins.
     /// </summary>
@@ -291,6 +310,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// Length of the signature in bytes.
     /// </summary>
@@ -306,6 +326,7 @@ public class SrsTrackDataBlock
     {
         get; set;
     }
+
     /// <summary>
     /// First bytes of the track's stream data, used for verification during rebuild.
     /// </summary>

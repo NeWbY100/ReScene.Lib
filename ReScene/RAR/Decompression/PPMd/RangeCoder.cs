@@ -23,8 +23,12 @@ public class RangeCoder
     /// <summary>
     /// Initializes the decoder with input data.
     /// </summary>
-    /// <param name="buffer">The input data buffer.</param>
-    /// <param name="offset">The starting offset in the buffer.</param>
+    /// <param name="buffer">
+    /// The input data buffer.
+    /// </param>
+    /// <param name="offset">
+    /// The starting offset in the buffer.
+    /// </param>
     public void InitDecoder(byte[] buffer, int offset = 0)
     {
         _buffer = buffer;
@@ -43,7 +47,9 @@ public class RangeCoder
     /// <summary>
     /// Gets a byte from the input buffer.
     /// </summary>
-    /// <returns>The next byte from the buffer, or 0 if past the end.</returns>
+    /// <returns>
+    /// The next byte from the buffer, or 0 if past the end.
+    /// </returns>
     public byte GetChar()
     {
         if (_buffer == null || _bufPos >= _buffer.Length)
@@ -58,7 +64,9 @@ public class RangeCoder
     /// Gets the current count for arithmetic decoding.
     /// Note: This modifies Range as a side effect (range /= scale).
     /// </summary>
-    /// <returns>The current count value.</returns>
+    /// <returns>
+    /// The current count value.
+    /// </returns>
     public int GetCurrentCount()
     {
         Range /= Scale;
@@ -69,8 +77,12 @@ public class RangeCoder
     /// Gets the current shifted count.
     /// Note: This modifies Range as a side effect (range >>= shift).
     /// </summary>
-    /// <param name="shift">The number of bits to shift.</param>
-    /// <returns>The current shifted count value.</returns>
+    /// <param name="shift">
+    /// The number of bits to shift.
+    /// </param>
+    /// <returns>
+    /// The current shifted count value.
+    /// </returns>
     public uint GetCurrentShiftCount(int shift)
     {
         Range >>= shift;

@@ -10,8 +10,12 @@ internal static class FileOperations
     /// Returns all RAR volume files belonging to the same archive set as the specified first volume.
     /// Handles both new-style (part01.rar, part02.rar) and old-style (.rar, .r00, .r01) naming.
     /// </summary>
-    /// <param name="firstVolumePath">Path to any volume in the set (typically the first).</param>
-    /// <returns>An ordered list of all volume file paths.</returns>
+    /// <param name="firstVolumePath">
+    /// Path to any volume in the set (typically the first).
+    /// </param>
+    /// <returns>
+    /// An ordered list of all volume file paths.
+    /// </returns>
     public static List<string> GetAllVolumeFiles(string firstVolumePath)
     {
         var files = new List<string>();
@@ -67,10 +71,18 @@ internal static class FileOperations
     /// Resolves an SRR entry path to a safe relative path under the given base directory.
     /// Returns false if the path is empty, traverses outside the base, or resolves to ".".
     /// </summary>
-    /// <param name="baseFullPath">The base directory that the relative path must stay within.</param>
-    /// <param name="entryPath">The raw entry path from the SRR file.</param>
-    /// <param name="relativePath">When successful, the normalized relative path; otherwise empty.</param>
-    /// <returns>True if the path resolved safely; false otherwise.</returns>
+    /// <param name="baseFullPath">
+    /// The base directory that the relative path must stay within.
+    /// </param>
+    /// <param name="entryPath">
+    /// The raw entry path from the SRR file.
+    /// </param>
+    /// <param name="relativePath">
+    /// When successful, the normalized relative path; otherwise empty.
+    /// </param>
+    /// <returns>
+    /// True if the path resolved safely; false otherwise.
+    /// </returns>
     public static bool TryResolveRelativePath(string baseFullPath, string entryPath, out string relativePath)
     {
         relativePath = string.Empty;
@@ -112,17 +124,39 @@ internal static class FileOperations
     /// Copies a single file from source to destination with chunked progress reporting.
     /// Updates the running byte/file counters via ref parameters.
     /// </summary>
-    /// <param name="sourcePath">Source file path.</param>
-    /// <param name="destPath">Destination file path.</param>
-    /// <param name="displayName">Display name for progress reporting.</param>
-    /// <param name="bytesCopied">Running total of bytes copied (updated in-place).</param>
-    /// <param name="filesCopied">Running count of files copied (updated in-place).</param>
-    /// <param name="totalFiles">Total number of files to copy.</param>
-    /// <param name="totalBytes">Total bytes to copy across all files.</param>
-    /// <param name="sourceDir">Source directory (for progress event context).</param>
-    /// <param name="destDir">Destination directory (for progress event context).</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <param name="onProgress">Optional callback invoked after each buffer write and after file completion.</param>
+    /// <param name="sourcePath">
+    /// Source file path.
+    /// </param>
+    /// <param name="destPath">
+    /// Destination file path.
+    /// </param>
+    /// <param name="displayName">
+    /// Display name for progress reporting.
+    /// </param>
+    /// <param name="bytesCopied">
+    /// Running total of bytes copied (updated in-place).
+    /// </param>
+    /// <param name="filesCopied">
+    /// Running count of files copied (updated in-place).
+    /// </param>
+    /// <param name="totalFiles">
+    /// Total number of files to copy.
+    /// </param>
+    /// <param name="totalBytes">
+    /// Total bytes to copy across all files.
+    /// </param>
+    /// <param name="sourceDir">
+    /// Source directory (for progress event context).
+    /// </param>
+    /// <param name="destDir">
+    /// Destination directory (for progress event context).
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <param name="onProgress">
+    /// Optional callback invoked after each buffer write and after file completion.
+    /// </param>
     public static void CopyFileWithProgress(
         string sourcePath, string destPath, string displayName,
         ref long bytesCopied, ref int filesCopied, int totalFiles, long totalBytes,
@@ -173,10 +207,18 @@ internal static class FileOperations
     /// <summary>
     /// Copies an entire directory tree from source to destination with progress reporting.
     /// </summary>
-    /// <param name="sourceDir">Source directory path.</param>
-    /// <param name="destDir">Destination directory path.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <param name="onProgress">Optional callback invoked during file copy progress.</param>
+    /// <param name="sourceDir">
+    /// Source directory path.
+    /// </param>
+    /// <param name="destDir">
+    /// Destination directory path.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <param name="onProgress">
+    /// Optional callback invoked during file copy progress.
+    /// </param>
     public static void CopyDirectory(
         string sourceDir, string destDir,
         CancellationToken ct,
@@ -225,13 +267,27 @@ internal static class FileOperations
     /// <summary>
     /// Copies selected files and directories from the SRR file list to a destination directory.
     /// </summary>
-    /// <param name="sourceDir">Source release directory.</param>
-    /// <param name="destDir">Destination input directory.</param>
-    /// <param name="filePaths">Set of file paths from the SRR archive list.</param>
-    /// <param name="directoryPaths">Set of directory paths from the SRR archive list.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <param name="onProgress">Optional callback invoked during file copy progress.</param>
-    /// <param name="logger">Optional logger for warnings.</param>
+    /// <param name="sourceDir">
+    /// Source release directory.
+    /// </param>
+    /// <param name="destDir">
+    /// Destination input directory.
+    /// </param>
+    /// <param name="filePaths">
+    /// Set of file paths from the SRR archive list.
+    /// </param>
+    /// <param name="directoryPaths">
+    /// Set of directory paths from the SRR archive list.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <param name="onProgress">
+    /// Optional callback invoked during file copy progress.
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for warnings.
+    /// </param>
     public static void CopySelectedEntries(
         string sourceDir, string destDir,
         HashSet<string> filePaths, HashSet<string> directoryPaths,
@@ -320,10 +376,18 @@ internal static class FileOperations
     /// <summary>
     /// Adds or removes a file attribute on a collection of files.
     /// </summary>
-    /// <param name="files">The files to modify.</param>
-    /// <param name="attribute">The attribute to add or remove.</param>
-    /// <param name="add">True to add the attribute; false to remove it.</param>
-    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <param name="files">
+    /// The files to modify.
+    /// </param>
+    /// <param name="attribute">
+    /// The attribute to add or remove.
+    /// </param>
+    /// <param name="add">
+    /// True to add the attribute; false to remove it.
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for diagnostics.
+    /// </param>
     public static void SetFileAttributes(IEnumerable<FileInfo> files, FileAttributes attribute, bool add, IReSceneLogger? logger = null)
     {
         foreach (FileInfo fileInfo in files)
@@ -345,11 +409,21 @@ internal static class FileOperations
     /// Applies modified, creation, and access timestamps to files under the specified directory.
     /// Order: creation, access, then modified (so modified time is the final write).
     /// </summary>
-    /// <param name="inputDirectory">The base directory containing the files.</param>
-    /// <param name="modifiedTimes">Modified time entries keyed by relative path.</param>
-    /// <param name="creationTimes">Creation time entries keyed by relative path.</param>
-    /// <param name="accessTimes">Access time entries keyed by relative path.</param>
-    /// <param name="logger">Optional logger for warnings on failure.</param>
+    /// <param name="inputDirectory">
+    /// The base directory containing the files.
+    /// </param>
+    /// <param name="modifiedTimes">
+    /// Modified time entries keyed by relative path.
+    /// </param>
+    /// <param name="creationTimes">
+    /// Creation time entries keyed by relative path.
+    /// </param>
+    /// <param name="accessTimes">
+    /// Access time entries keyed by relative path.
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for warnings on failure.
+    /// </param>
     public static void ApplyFileTimestamps(
         string inputDirectory,
         Dictionary<string, DateTime> modifiedTimes,
@@ -366,11 +440,21 @@ internal static class FileOperations
     /// <summary>
     /// Applies a single category of timestamp entries to files under the specified directory.
     /// </summary>
-    /// <param name="inputDirectory">The base directory containing the files.</param>
-    /// <param name="timestamps">Timestamp entries keyed by relative path.</param>
-    /// <param name="setter">The setter method (e.g., File.SetLastWriteTime).</param>
-    /// <param name="label">Label for log messages (e.g., "creation", "modified").</param>
-    /// <param name="logger">Optional logger for warnings on failure.</param>
+    /// <param name="inputDirectory">
+    /// The base directory containing the files.
+    /// </param>
+    /// <param name="timestamps">
+    /// Timestamp entries keyed by relative path.
+    /// </param>
+    /// <param name="setter">
+    /// The setter method (e.g., File.SetLastWriteTime).
+    /// </param>
+    /// <param name="label">
+    /// Label for log messages (e.g., "creation", "modified").
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for warnings on failure.
+    /// </param>
     public static void ApplyFileTimestampEntries(
         string inputDirectory,
         Dictionary<string, DateTime> timestamps,
@@ -402,11 +486,21 @@ internal static class FileOperations
     /// Applies modified, creation, and access timestamps to directories under the specified directory.
     /// Order: creation, access, then modified (so modified time is the final write).
     /// </summary>
-    /// <param name="inputDirectory">The base directory containing the subdirectories.</param>
-    /// <param name="modifiedTimes">Modified time entries keyed by relative path.</param>
-    /// <param name="creationTimes">Creation time entries keyed by relative path.</param>
-    /// <param name="accessTimes">Access time entries keyed by relative path.</param>
-    /// <param name="logger">Optional logger for warnings on failure.</param>
+    /// <param name="inputDirectory">
+    /// The base directory containing the subdirectories.
+    /// </param>
+    /// <param name="modifiedTimes">
+    /// Modified time entries keyed by relative path.
+    /// </param>
+    /// <param name="creationTimes">
+    /// Creation time entries keyed by relative path.
+    /// </param>
+    /// <param name="accessTimes">
+    /// Access time entries keyed by relative path.
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for warnings on failure.
+    /// </param>
     public static void ApplyDirectoryTimestamps(
         string inputDirectory,
         Dictionary<string, DateTime> modifiedTimes,
@@ -423,11 +517,21 @@ internal static class FileOperations
     /// <summary>
     /// Applies a single category of timestamp entries to directories under the specified directory.
     /// </summary>
-    /// <param name="inputDirectory">The base directory containing the subdirectories.</param>
-    /// <param name="timestamps">Timestamp entries keyed by relative path.</param>
-    /// <param name="setter">The setter method (e.g., Directory.SetLastWriteTime).</param>
-    /// <param name="label">Label for log messages (e.g., "creation", "modified").</param>
-    /// <param name="logger">Optional logger for warnings on failure.</param>
+    /// <param name="inputDirectory">
+    /// The base directory containing the subdirectories.
+    /// </param>
+    /// <param name="timestamps">
+    /// Timestamp entries keyed by relative path.
+    /// </param>
+    /// <param name="setter">
+    /// The setter method (e.g., Directory.SetLastWriteTime).
+    /// </param>
+    /// <param name="label">
+    /// Label for log messages (e.g., "creation", "modified").
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for warnings on failure.
+    /// </param>
     public static void ApplyDirectoryTimestampEntries(
         string inputDirectory,
         Dictionary<string, DateTime> timestamps,
@@ -458,8 +562,12 @@ internal static class FileOperations
     /// <summary>
     /// Deletes a RAR file and all its associated volume files (both new and old naming formats).
     /// </summary>
-    /// <param name="rarFilePath">Path to any volume in the set.</param>
-    /// <param name="logger">Optional logger for diagnostics.</param>
+    /// <param name="rarFilePath">
+    /// Path to any volume in the set.
+    /// </param>
+    /// <param name="logger">
+    /// Optional logger for diagnostics.
+    /// </param>
     public static void DeleteRARFileAndVolumes(string rarFilePath, IReSceneLogger? logger = null)
     {
         try

@@ -9,22 +9,27 @@ public enum RARMethod
     /// Store (no compression)
     /// </summary>
     Store = 0x30,
+
     /// <summary>
     /// Fastest compression
     /// </summary>
     Fastest = 0x31,
+
     /// <summary>
     /// Fast compression
     /// </summary>
     Fast = 0x32,
+
     /// <summary>
     /// Normal compression
     /// </summary>
     Normal = 0x33,
+
     /// <summary>
     /// Good compression
     /// </summary>
     Good = 0x34,
+
     /// <summary>
     /// Best compression
     /// </summary>
@@ -40,14 +45,17 @@ public enum RARVersion
     /// RAR 1.5
     /// </summary>
     RAR15 = 15,
+
     /// <summary>
     /// RAR 2.0
     /// </summary>
     RAR20 = 20,
+
     /// <summary>
     /// RAR 2.9/3.x
     /// </summary>
     RAR29 = 29,
+
     /// <summary>
     /// RAR 5.x
     /// </summary>
@@ -64,11 +72,21 @@ public static class RARDecompressor
     /// <summary>
     /// Decompresses RAR data.
     /// </summary>
-    /// <param name="compressedData">The compressed data</param>
-    /// <param name="uncompressedSize">Expected uncompressed size</param>
-    /// <param name="method">RAR compression method</param>
-    /// <param name="version">RAR format version</param>
-    /// <returns>Decompressed data, or null on failure</returns>
+    /// <param name="compressedData">
+    /// The compressed data
+    /// </param>
+    /// <param name="uncompressedSize">
+    /// Expected uncompressed size
+    /// </param>
+    /// <param name="method">
+    /// RAR compression method
+    /// </param>
+    /// <param name="version">
+    /// RAR format version
+    /// </param>
+    /// <returns>
+    /// Decompressed data, or null on failure
+    /// </returns>
     public static byte[]? Decompress(byte[] compressedData, int uncompressedSize, RARMethod method, RARVersion version = RARVersion.RAR29)
     {
         if (compressedData == null || compressedData.Length == 0)
@@ -134,11 +152,21 @@ public static class RARDecompressor
     /// <summary>
     /// Decompresses a RAR comment block.
     /// </summary>
-    /// <param name="compressedData">Compressed comment data</param>
-    /// <param name="uncompressedSize">Expected uncompressed size</param>
-    /// <param name="method">Compression method from RAR header</param>
-    /// <param name="isRAR5">True if this is a RAR5 format archive</param>
-    /// <returns>Decompressed comment text, or null on failure</returns>
+    /// <param name="compressedData">
+    /// Compressed comment data
+    /// </param>
+    /// <param name="uncompressedSize">
+    /// Expected uncompressed size
+    /// </param>
+    /// <param name="method">
+    /// Compression method from RAR header
+    /// </param>
+    /// <param name="isRAR5">
+    /// True if this is a RAR5 format archive
+    /// </param>
+    /// <returns>
+    /// Decompressed comment text, or null on failure
+    /// </returns>
     public static string? DecompressComment(byte[] compressedData, int uncompressedSize, byte method, bool isRAR5 = false)
     {
         RARMethod rarMethod = (RARMethod)method;
@@ -150,11 +178,21 @@ public static class RARDecompressor
     /// <summary>
     /// Decompresses a RAR comment block and returns raw bytes (for exact reconstruction).
     /// </summary>
-    /// <param name="compressedData">Compressed comment data</param>
-    /// <param name="uncompressedSize">Expected uncompressed size</param>
-    /// <param name="method">Compression method from RAR header</param>
-    /// <param name="isRAR5">True if this is a RAR5 format archive</param>
-    /// <returns>Decompressed comment bytes, or null on failure</returns>
+    /// <param name="compressedData">
+    /// Compressed comment data
+    /// </param>
+    /// <param name="uncompressedSize">
+    /// Expected uncompressed size
+    /// </param>
+    /// <param name="method">
+    /// Compression method from RAR header
+    /// </param>
+    /// <param name="isRAR5">
+    /// True if this is a RAR5 format archive
+    /// </param>
+    /// <returns>
+    /// Decompressed comment bytes, or null on failure
+    /// </returns>
     public static byte[]? DecompressCommentBytes(byte[] compressedData, int uncompressedSize, byte method, bool isRAR5 = false)
     {
         RARMethod rarMethod = (RARMethod)method;
@@ -166,11 +204,21 @@ public static class RARDecompressor
     /// <summary>
     /// Decompresses a RAR comment block with explicit version.
     /// </summary>
-    /// <param name="compressedData">Compressed comment data</param>
-    /// <param name="uncompressedSize">Expected uncompressed size</param>
-    /// <param name="method">Compression method</param>
-    /// <param name="version">RAR format version (from UnpVer field)</param>
-    /// <returns>Decompressed comment text, or null on failure</returns>
+    /// <param name="compressedData">
+    /// Compressed comment data
+    /// </param>
+    /// <param name="uncompressedSize">
+    /// Expected uncompressed size
+    /// </param>
+    /// <param name="method">
+    /// Compression method
+    /// </param>
+    /// <param name="version">
+    /// RAR format version (from UnpVer field)
+    /// </param>
+    /// <returns>
+    /// Decompressed comment text, or null on failure
+    /// </returns>
     public static string? DecompressComment(byte[] compressedData, int uncompressedSize, RARMethod method, RARVersion version)
     {
         byte[]? decompressed = Decompress(compressedData, uncompressedSize, method, version);

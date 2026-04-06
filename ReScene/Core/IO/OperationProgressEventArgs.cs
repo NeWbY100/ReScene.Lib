@@ -80,9 +80,15 @@ public class OperationProgressEventArgs : EventArgs
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationProgressEventArgs"/> class.
     /// </summary>
-    /// <param name="operationSize">The total number of units in the operation.</param>
-    /// <param name="operationProgressed">The number of units completed so far.</param>
-    /// <param name="startDateTime">The date and time when the operation started.</param>
+    /// <param name="operationSize">
+    /// The total number of units in the operation.
+    /// </param>
+    /// <param name="operationProgressed">
+    /// The number of units completed so far.
+    /// </param>
+    /// <param name="startDateTime">
+    /// The date and time when the operation started.
+    /// </param>
     public OperationProgressEventArgs(long operationSize, long operationProgressed, DateTime startDateTime)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(operationSize);

@@ -32,18 +32,22 @@ public enum SRRBlockType : byte
     /// SRR file header block.
     /// </summary>
     Header = 0x69,
+
     /// <summary>
     /// Stored file block.
     /// </summary>
     StoredFile = 0x6A,
+
     /// <summary>
     /// OSO hash block.
     /// </summary>
     OsoHash = 0x6B,
+
     /// <summary>
     /// RAR padding block.
     /// </summary>
     RarPadding = 0x6C,
+
     /// <summary>
     /// RAR file reference block, followed by embedded RAR headers.
     /// </summary>
@@ -60,6 +64,7 @@ public enum SRRHeaderFlags : ushort
     /// No flags set.
     /// </summary>
     None = 0x0000,
+
     /// <summary>
     /// Application name is present in the header.
     /// </summary>
@@ -76,10 +81,12 @@ public enum SRRBlockFlags : ushort
     /// No flags set.
     /// </summary>
     None = 0x0000,
+
     /// <summary>
     /// Skip this block if the type is unknown.
     /// </summary>
     SkipIfUnknown = 0x4000,
+
     /// <summary>
     /// Block has an additional size field (long block).
     /// </summary>

@@ -165,25 +165,33 @@ public class PatchOptions
     /// <summary>
     /// Gets the Host OS to use for file headers. Returns null if no patching needed.
     /// </summary>
-    /// <returns>The Host OS byte, or <see langword="null"/> if no patching needed.</returns>
+    /// <returns>
+    /// The Host OS byte, or <see langword="null"/> if no patching needed.
+    /// </returns>
     public byte? GetFileHostOS() => FileHostOS;
 
     /// <summary>
     /// Gets the Host OS to use for service blocks. Falls back to FileHostOS if not set.
     /// </summary>
-    /// <returns>The Host OS byte, or <see langword="null"/> if no patching needed.</returns>
+    /// <returns>
+    /// The Host OS byte, or <see langword="null"/> if no patching needed.
+    /// </returns>
     public byte? GetServiceBlockHostOS() => ServiceBlockHostOS ?? FileHostOS;
 
     /// <summary>
     /// Gets the file attributes to use for file headers.
     /// </summary>
-    /// <returns>The file attributes value, or <see langword="null"/> if not set.</returns>
+    /// <returns>
+    /// The file attributes value, or <see langword="null"/> if not set.
+    /// </returns>
     public uint? GetFileAttributes() => FileAttributes;
 
     /// <summary>
     /// Gets the file attributes to use for service blocks. Falls back to FileAttributes if not set.
     /// </summary>
-    /// <returns>The service block attributes value, or <see langword="null"/> if not set.</returns>
+    /// <returns>
+    /// The service block attributes value, or <see langword="null"/> if not set.
+    /// </returns>
     public uint? GetServiceBlockAttributes() => ServiceBlockAttributes ?? FileAttributes;
 }
 
@@ -208,8 +216,12 @@ public static class RARPatcher
     /// <summary>
     /// Host OS name lookup.
     /// </summary>
-    /// <param name="hostOS">The Host OS byte value from the RAR header.</param>
-    /// <returns>A human-readable OS name.</returns>
+    /// <param name="hostOS">
+    /// The Host OS byte value from the RAR header.
+    /// </param>
+    /// <returns>
+    /// A human-readable OS name.
+    /// </returns>
     public static string GetHostOSName(byte hostOS) => hostOS switch
     {
         0 => "MS-DOS",
@@ -244,9 +256,15 @@ public static class RARPatcher
     /// <summary>
     /// Patches a RAR file in-place to change Host OS and optionally attributes.
     /// </summary>
-    /// <param name="filePath">Path to the RAR file to patch</param>
-    /// <param name="options">Patching options</param>
-    /// <returns>List of patch results for each modified block</returns>
+    /// <param name="filePath">
+    /// Path to the RAR file to patch
+    /// </param>
+    /// <param name="options">
+    /// Patching options
+    /// </param>
+    /// <returns>
+    /// List of patch results for each modified block
+    /// </returns>
     public static List<PatchResult> PatchFile(string filePath, PatchOptions options)
     {
         var results = new List<PatchResult>();
@@ -260,9 +278,15 @@ public static class RARPatcher
     /// <summary>
     /// Patches a RAR file stream to change Host OS and optionally attributes.
     /// </summary>
-    /// <param name="stream">Stream with read/write access</param>
-    /// <param name="options">Patching options</param>
-    /// <param name="results">List to add patch results to</param>
+    /// <param name="stream">
+    /// Stream with read/write access
+    /// </param>
+    /// <param name="options">
+    /// Patching options
+    /// </param>
+    /// <param name="results">
+    /// List to add patch results to
+    /// </param>
     public static void PatchStream(Stream stream, PatchOptions options, List<PatchResult> results)
     {
         // Skip RAR signature (7 bytes for RAR 4.x)
@@ -447,9 +471,15 @@ public static class RARPatcher
     /// Analyzes a RAR file and returns information about blocks that would be patched.
     /// Does not modify the file.
     /// </summary>
-    /// <param name="filePath">Path to the RAR file</param>
-    /// <param name="options">Patching options to simulate</param>
-    /// <returns>List of blocks that would be modified</returns>
+    /// <param name="filePath">
+    /// Path to the RAR file
+    /// </param>
+    /// <param name="options">
+    /// Patching options to simulate
+    /// </param>
+    /// <returns>
+    /// List of blocks that would be modified
+    /// </returns>
     public static List<PatchResult> AnalyzeFile(string filePath, PatchOptions options)
     {
         var results = new List<PatchResult>();
@@ -571,9 +601,15 @@ public static class RARPatcher
     /// This is a structural patch: it inserts or removes 8 bytes (HIGH_PACK_SIZE + HIGH_UNP_SIZE)
     /// in each file/service header, so it must run BEFORE in-place patching (PatchStream).
     /// </summary>
-    /// <param name="stream">Stream with read/write access</param>
-    /// <param name="options">Patching options with SetLargeFlag</param>
-    /// <returns>True if any modifications were made</returns>
+    /// <param name="stream">
+    /// Stream with read/write access
+    /// </param>
+    /// <param name="options">
+    /// Patching options with SetLargeFlag
+    /// </param>
+    /// <returns>
+    /// True if any modifications were made
+    /// </returns>
     public static bool PatchLargeFlags(Stream stream, PatchOptions options)
     {
         if (!options.SetLargeFlag.HasValue)

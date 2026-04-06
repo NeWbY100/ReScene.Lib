@@ -25,9 +25,15 @@ public static class Hashing
     /// <summary>
     /// Converts a byte array to its hexadecimal string representation using a lookup table for performance.
     /// </summary>
-    /// <param name="bytes">The byte array to convert.</param>
-    /// <param name="upperCase"><c>true</c> for uppercase hex digits (A-F); <c>false</c> for lowercase (a-f).</param>
-    /// <returns>A hexadecimal string representation of the byte array.</returns>
+    /// <param name="bytes">
+    /// The byte array to convert.
+    /// </param>
+    /// <param name="upperCase">
+    /// <c>true</c> for uppercase hex digits (A-F); <c>false</c> for lowercase (a-f).
+    /// </param>
+    /// <returns>
+    /// A hexadecimal string representation of the byte array.
+    /// </returns>
     public static string ByteArrayToHexViaLookup32(byte[] bytes, bool upperCase)
     {
         uint[] lookup32 = upperCase ? _lookup32UpperCase : _lookup32LowerCase;

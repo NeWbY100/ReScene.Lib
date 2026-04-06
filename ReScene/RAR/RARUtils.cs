@@ -22,8 +22,12 @@ public static class RARUtils
     /// Calculates the RAR 4.x header CRC (lower 16 bits of CRC-32).
     /// The CRC is calculated over the header bytes starting from the type field (skipping the 2-byte CRC).
     /// </summary>
-    /// <param name="headerBytes">Complete header bytes including CRC field</param>
-    /// <returns>16-bit CRC value</returns>
+    /// <param name="headerBytes">
+    /// Complete header bytes including CRC field
+    /// </param>
+    /// <returns>
+    /// 16-bit CRC value
+    /// </returns>
     public static ushort CalculateHeaderCrc(byte[] headerBytes)
     {
         if (headerBytes.Length < 3)
@@ -39,9 +43,15 @@ public static class RARUtils
     /// <summary>
     /// Validates a RAR 4.x header CRC.
     /// </summary>
-    /// <param name="storedCrc">CRC value stored in the header</param>
-    /// <param name="headerBytes">Complete header bytes including CRC field</param>
-    /// <returns>True if CRC matches, false otherwise</returns>
+    /// <param name="storedCrc">
+    /// CRC value stored in the header
+    /// </param>
+    /// <param name="headerBytes">
+    /// Complete header bytes including CRC field
+    /// </param>
+    /// <returns>
+    /// True if CRC matches, false otherwise
+    /// </returns>
     public static bool ValidateHeaderCrc(ushort storedCrc, byte[] headerBytes) => storedCrc == CalculateHeaderCrc(headerBytes);
 
     #endregion
@@ -51,8 +61,12 @@ public static class RARUtils
     /// <summary>
     /// Converts a DOS date/time value to DateTime.
     /// </summary>
-    /// <param name="dosDate">DOS date/time packed value</param>
-    /// <returns>DateTime or null if invalid</returns>
+    /// <param name="dosDate">
+    /// DOS date/time packed value
+    /// </param>
+    /// <returns>
+    /// DateTime or null if invalid
+    /// </returns>
     public static DateTime? DosDateToDateTime(uint dosDate)
     {
         if (dosDate == 0)
@@ -89,9 +103,15 @@ public static class RARUtils
     /// <summary>
     /// Decodes a RAR filename from raw bytes, handling Unicode encoding if present.
     /// </summary>
-    /// <param name="nameBytes">Raw filename bytes</param>
-    /// <param name="hasUnicode">True if LHD_UNICODE flag is set</param>
-    /// <returns>Decoded filename or null if invalid</returns>
+    /// <param name="nameBytes">
+    /// Raw filename bytes
+    /// </param>
+    /// <param name="hasUnicode">
+    /// True if LHD_UNICODE flag is set
+    /// </param>
+    /// <returns>
+    /// Decoded filename or null if invalid
+    /// </returns>
     public static string? DecodeFileName(byte[] nameBytes, bool hasUnicode)
     {
         if (nameBytes.Length == 0)
@@ -249,8 +269,12 @@ public static class RARUtils
     /// <summary>
     /// Gets the dictionary size in KB from file flags.
     /// </summary>
-    /// <param name="flags">File header flags</param>
-    /// <returns>Dictionary size in KB, or 0 if directory entry</returns>
+    /// <param name="flags">
+    /// File header flags
+    /// </param>
+    /// <returns>
+    /// Dictionary size in KB, or 0 if directory entry
+    /// </returns>
     public static int GetDictionarySize(RARFileFlags flags)
     {
         int dictIndex = ((ushort)flags & RARFlagMasks.DictionarySizeMask) >> RARFlagMasks.DictionarySizeShift;
@@ -260,8 +284,12 @@ public static class RARUtils
     /// <summary>
     /// Checks if the flags indicate a directory entry.
     /// </summary>
-    /// <param name="flags">File header flags</param>
-    /// <returns>True if directory</returns>
+    /// <param name="flags">
+    /// File header flags
+    /// </param>
+    /// <returns>
+    /// True if directory
+    /// </returns>
     public static bool IsDirectory(RARFileFlags flags) => ((ushort)flags & RARFlagMasks.DictionarySizeMask) == (ushort)RARFileFlags.Directory;
 
     #endregion
@@ -272,7 +300,9 @@ public static class RARUtils
     /// Scans a stream for the RAR marker signature (RAR4 or RAR5).
     /// Used for finding the RAR archive within SFX (self-extracting) executables.
     /// </summary>
-    /// <returns>The byte offset of the RAR marker, or -1 if not found.</returns>
+    /// <returns>
+    /// The byte offset of the RAR marker, or -1 if not found.
+    /// </returns>
     private const long DefaultMaxScanSize = 1024 * 1024; // 1 MB
 
     public static long FindRarMarkerOffset(Stream stream, long maxScanSize = DefaultMaxScanSize)

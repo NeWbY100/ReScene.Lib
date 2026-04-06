@@ -48,7 +48,9 @@ public class BitInput
     /// <summary>
     /// Creates a BitInput using an external buffer.
     /// </summary>
-    /// <param name="buffer">External buffer to use</param>
+    /// <param name="buffer">
+    /// External buffer to use
+    /// </param>
     public BitInput(byte[] buffer)
     {
         InBuf = buffer;
@@ -68,7 +70,9 @@ public class BitInput
     /// <summary>
     /// Moves forward by the specified number of bits.
     /// </summary>
-    /// <param name="bits">Number of bits to advance</param>
+    /// <param name="bits">
+    /// Number of bits to advance
+    /// </param>
     public void AddBits(int bits)
     {
         bits += InBit;
@@ -80,7 +84,9 @@ public class BitInput
     /// Returns 16 bits from current position in the buffer.
     /// Bit at (InAddr, InBit) has the highest position in returned data.
     /// </summary>
-    /// <returns>16-bit value</returns>
+    /// <returns>
+    /// 16-bit value
+    /// </returns>
     public uint GetBits()
     {
         // Ensure we don't read past buffer
@@ -103,7 +109,9 @@ public class BitInput
     /// <summary>
     /// Returns 32 bits from current position in the buffer.
     /// </summary>
-    /// <returns>32-bit value</returns>
+    /// <returns>
+    /// 32-bit value
+    /// </returns>
     public uint GetBits32()
     {
         if (InAddr + 4 >= InBuf.Length)
@@ -130,16 +138,26 @@ public class BitInput
     /// <summary>
     /// Checks if buffer would overflow with the specified increment.
     /// </summary>
-    /// <param name="incPtr">Number of bytes to check</param>
-    /// <returns>True if would overflow</returns>
+    /// <param name="incPtr">
+    /// Number of bytes to check
+    /// </param>
+    /// <returns>
+    /// True if would overflow
+    /// </returns>
     public bool Overflow(int incPtr) => InAddr + incPtr >= MaxSize;
 
     /// <summary>
     /// Sets the buffer from external data.
     /// </summary>
-    /// <param name="data">Data to copy into buffer</param>
-    /// <param name="offset">Offset in source data</param>
-    /// <param name="length">Number of bytes to copy</param>
+    /// <param name="data">
+    /// Data to copy into buffer
+    /// </param>
+    /// <param name="offset">
+    /// Offset in source data
+    /// </param>
+    /// <param name="length">
+    /// Number of bytes to copy
+    /// </param>
     public void SetBuffer(byte[] data, int offset = 0, int length = -1)
     {
         if (length < 0)
@@ -155,7 +173,9 @@ public class BitInput
     /// <summary>
     /// Gets a single byte from the current position and advances.
     /// </summary>
-    /// <returns>Byte value</returns>
+    /// <returns>
+    /// Byte value
+    /// </returns>
     public byte GetChar()
     {
         if (InAddr >= InBuf.Length)

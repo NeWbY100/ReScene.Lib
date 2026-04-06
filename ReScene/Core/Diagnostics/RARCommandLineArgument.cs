@@ -3,9 +3,15 @@ namespace ReScene.Core.Diagnostics;
 /// <summary>
 /// Represents a RAR command-line argument with version constraints specifying which RAR versions support it.
 /// </summary>
-/// <param name="argument">The command-line argument string (e.g., "-m5", "-md4096k").</param>
-/// <param name="minimumVersion">The minimum RAR version that supports this argument.</param>
-/// <param name="archiveVersion">The archive format version required for this argument, if any.</param>
+/// <param name="argument">
+/// The command-line argument string (e.g., "-m5", "-md4096k").
+/// </param>
+/// <param name="minimumVersion">
+/// The minimum RAR version that supports this argument.
+/// </param>
+/// <param name="archiveVersion">
+/// The archive format version required for this argument, if any.
+/// </param>
 public class RARCommandLineArgument(string argument, int minimumVersion, RARArchiveVersion? archiveVersion = null)
 {
     /// <summary>
@@ -34,10 +40,18 @@ public class RARCommandLineArgument(string argument, int minimumVersion, RARArch
     /// <summary>
     /// Initializes a new instance with the specified argument, version range, and optional archive version.
     /// </summary>
-    /// <param name="argument">The command-line argument string.</param>
-    /// <param name="minimumVersion">The minimum RAR version that supports this argument.</param>
-    /// <param name="maximumVersion">The maximum RAR version that supports this argument.</param>
-    /// <param name="archiveVersion">The required archive format version, if any.</param>
+    /// <param name="argument">
+    /// The command-line argument string.
+    /// </param>
+    /// <param name="minimumVersion">
+    /// The minimum RAR version that supports this argument.
+    /// </param>
+    /// <param name="maximumVersion">
+    /// The maximum RAR version that supports this argument.
+    /// </param>
+    /// <param name="archiveVersion">
+    /// The required archive format version, if any.
+    /// </param>
     public RARCommandLineArgument(string argument, int minimumVersion, int maximumVersion, RARArchiveVersion? archiveVersion = null)
         : this(argument, minimumVersion, archiveVersion)
     {

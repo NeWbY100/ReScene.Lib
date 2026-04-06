@@ -145,12 +145,24 @@ public class SRRWriter
     /// <summary>
     /// Creates an SRR file from a list of RAR volume paths.
     /// </summary>
-    /// <param name="outputPath">Path for the output SRR file.</param>
-    /// <param name="rarVolumePaths">Ordered list of RAR volume file paths.</param>
-    /// <param name="storedFiles">Optional dictionary of stored files (name -> path on disk).</param>
-    /// <param name="options">Creation options, or null for defaults.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Result of the creation operation.</returns>
+    /// <param name="outputPath">
+    /// Path for the output SRR file.
+    /// </param>
+    /// <param name="rarVolumePaths">
+    /// Ordered list of RAR volume file paths.
+    /// </param>
+    /// <param name="storedFiles">
+    /// Optional dictionary of stored files (name -> path on disk).
+    /// </param>
+    /// <param name="options">
+    /// Creation options, or null for defaults.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <returns>
+    /// Result of the creation operation.
+    /// </returns>
     public async Task<SrrCreationResult> CreateAsync(
         string outputPath,
         IReadOnlyList<string> rarVolumePaths,
@@ -273,12 +285,24 @@ public class SRRWriter
     /// <summary>
     /// Creates an SRR file from an SFV file, automatically discovering RAR volumes.
     /// </summary>
-    /// <param name="outputPath">Path for the output SRR file.</param>
-    /// <param name="sfvFilePath">Path to the SFV file.</param>
-    /// <param name="additionalFiles">Optional additional files to store. Keys are stored names, values are file paths on disk.</param>
-    /// <param name="options">Creation options, or null for defaults.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Result of the creation operation.</returns>
+    /// <param name="outputPath">
+    /// Path for the output SRR file.
+    /// </param>
+    /// <param name="sfvFilePath">
+    /// Path to the SFV file.
+    /// </param>
+    /// <param name="additionalFiles">
+    /// Optional additional files to store. Keys are stored names, values are file paths on disk.
+    /// </param>
+    /// <param name="options">
+    /// Creation options, or null for defaults.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <returns>
+    /// Result of the creation operation.
+    /// </returns>
     public async Task<SrrCreationResult> CreateFromSfvAsync(
         string outputPath,
         string sfvFilePath,

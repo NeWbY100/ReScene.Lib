@@ -6,9 +6,15 @@ namespace ReScene.Core;
 /// Configuration options for the brute-force RAR reconstruction operation.
 /// Specifies the RAR installations directory, release files, output location, and expected hashes.
 /// </summary>
-/// <param name="rarInstallationsDirectoryPath">The directory containing extracted RAR installation versions.</param>
-/// <param name="releaseDirectoryPath">The directory containing the release files to be archived.</param>
-/// <param name="outputDirectoryPath">The directory to save generated RAR files.</param>
+/// <param name="rarInstallationsDirectoryPath">
+/// The directory containing extracted RAR installation versions.
+/// </param>
+/// <param name="releaseDirectoryPath">
+/// The directory containing the release files to be archived.
+/// </param>
+/// <param name="outputDirectoryPath">
+/// The directory to save generated RAR files.
+/// </param>
 public class BruteForceOptions(string rarInstallationsDirectoryPath, string releaseDirectoryPath, string outputDirectoryPath)
 {
     /// <summary>

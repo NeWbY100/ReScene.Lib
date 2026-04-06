@@ -10,13 +10,27 @@ internal static class SignatureScanner
     /// <summary>
     /// Searches for a byte signature in a region of the stream using a sliding window.
     /// </summary>
-    /// <param name="stream">The stream to search.</param>
-    /// <param name="signature">The byte pattern to find.</param>
-    /// <param name="regionStart">Start offset of the search region.</param>
-    /// <param name="regionEnd">End offset of the search region.</param>
-    /// <param name="onProgress">Optional callback reporting (bytesScanned, totalBytes, percent).</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The offset where the signature was found, or -1 if not found.</returns>
+    /// <param name="stream">
+    /// The stream to search.
+    /// </param>
+    /// <param name="signature">
+    /// The byte pattern to find.
+    /// </param>
+    /// <param name="regionStart">
+    /// Start offset of the search region.
+    /// </param>
+    /// <param name="regionEnd">
+    /// End offset of the search region.
+    /// </param>
+    /// <param name="onProgress">
+    /// Optional callback reporting (bytesScanned, totalBytes, percent).
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <returns>
+    /// The offset where the signature was found, or -1 if not found.
+    /// </returns>
     public static long Scan(
         Stream stream,
         byte[] signature,

@@ -40,11 +40,15 @@ public static class EbmlLacing
     /// Block data starting at the lacing header (after track number, timecode, and flags byte).
     /// For <see cref="EbmlLaceType.None"/>, this parameter is unused.
     /// </param>
-    /// <param name="laceType">The lacing type extracted from the block flags byte.</param>
+    /// <param name="laceType">
+    /// The lacing type extracted from the block flags byte.
+    /// </param>
     /// <param name="totalDataLength">
     /// Total length of the frame data area (block data size minus the block header: track VINT + 2 timecode + 1 flags).
     /// </param>
-    /// <returns>Array of frame sizes and the number of bytes consumed by the lacing header.</returns>
+    /// <returns>
+    /// Array of frame sizes and the number of bytes consumed by the lacing header.
+    /// </returns>
     public static (int[] frameSizes, int bytesConsumed) GetFrameLengths(
         ReadOnlySpan<byte> data, EbmlLaceType laceType, int totalDataLength)
     {
@@ -160,8 +164,12 @@ public static class EbmlVInt
     /// Reads an unsigned EBML VINT from the given data.
     /// The marker bit is masked out to produce the actual value.
     /// </summary>
-    /// <param name="data">Data starting at the VINT.</param>
-    /// <returns>The unsigned value and the number of bytes consumed.</returns>
+    /// <param name="data">
+    /// Data starting at the VINT.
+    /// </param>
+    /// <returns>
+    /// The unsigned value and the number of bytes consumed.
+    /// </returns>
     public static (long value, int length) ReadUnsigned(ReadOnlySpan<byte> data)
     {
         if (data.Length < 1)
@@ -191,8 +199,12 @@ public static class EbmlVInt
     /// First reads as unsigned, then subtracts the bias to convert to signed.
     /// The bias for an N-byte VINT is (2^(7*N - 1) - 1).
     /// </summary>
-    /// <param name="data">Data starting at the VINT.</param>
-    /// <returns>The signed value and the number of bytes consumed.</returns>
+    /// <param name="data">
+    /// Data starting at the VINT.
+    /// </param>
+    /// <returns>
+    /// The signed value and the number of bytes consumed.
+    /// </returns>
     public static (long signedValue, int length) ReadSigned(ReadOnlySpan<byte> data)
     {
         (long unsignedVal, int vintLen) = ReadUnsigned(data);

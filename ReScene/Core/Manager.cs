@@ -81,8 +81,12 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
     /// </summary>
-    /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
-    /// <returns>The parsed version number, normalized to three digits.</returns>
+    /// <param name="rarVersionDirectoryName">
+    /// The WinRAR version directory name.
+    /// </param>
+    /// <returns>
+    /// The parsed version number, normalized to three digits.
+    /// </returns>
     public static int ParseRARVersion(string rarVersionDirectoryName)
     {
         Match versionMatch = _rarVersionRegex.Match(rarVersionDirectoryName);
@@ -107,9 +111,15 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Determines the RAR archive format version from command-line arguments and the RAR version number.
     /// </summary>
-    /// <param name="commandLineArguments">The RAR command-line arguments to check.</param>
-    /// <param name="version">The RAR version number.</param>
-    /// <returns>The detected archive format version.</returns>
+    /// <param name="commandLineArguments">
+    /// The RAR command-line arguments to check.
+    /// </param>
+    /// <param name="version">
+    /// The RAR version number.
+    /// </param>
+    /// <returns>
+    /// The detected archive format version.
+    /// </returns>
     public static RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[] commandLineArguments, int version)
     {
         RARCommandLineArgument? archiveVersionCommandLine = commandLineArguments.FirstOrDefault(a => a.Argument == "-ma4" || a.Argument == "-ma5");
@@ -134,8 +144,12 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Runs the brute-force RAR reconstruction, testing version and argument combinations until a hash match is found.
     /// </summary>
-    /// <param name="options">The brute-force configuration options.</param>
-    /// <returns><see langword="true"/> if a matching RAR archive was found.</returns>
+    /// <param name="options">
+    /// The brute-force configuration options.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> if a matching RAR archive was found.
+    /// </returns>
     public async Task<bool> BruteForceRARVersionAsync(BruteForceOptions options)
     {
         _logger.Information(this, $"=== Starting Brute-Force ===", LogTarget.System);

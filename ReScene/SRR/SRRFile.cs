@@ -267,6 +267,7 @@ public class SRRFile
     }
 
     // Host OS and timestamp settings detected from headers
+
     /// <summary>
     /// Host OS from file headers (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix).
     /// </summary>
@@ -407,8 +408,12 @@ public class SRRFile
     /// <summary>
     /// Loads and parses an SRR file from the specified path.
     /// </summary>
-    /// <param name="filePath">The path to the SRR file.</param>
-    /// <returns>A parsed <see cref="SRRFile"/> instance containing all extracted metadata.</returns>
+    /// <param name="filePath">
+    /// The path to the SRR file.
+    /// </param>
+    /// <returns>
+    /// A parsed <see cref="SRRFile"/> instance containing all extracted metadata.
+    /// </returns>
     /// <exception cref="FileNotFoundException">Thrown when the file does not exist.</exception>
     public static SRRFile Load(string filePath)
     {
@@ -538,10 +543,18 @@ public class SRRFile
     /// <summary>
     /// Extracts a stored file from the SRR archive to the specified output directory.
     /// </summary>
-    /// <param name="srrFilePath">The path to the SRR file containing the stored data.</param>
-    /// <param name="outputDirectory">The directory to extract the file to.</param>
-    /// <param name="match">A predicate function to match the desired file by name.</param>
-    /// <returns>The path to the extracted file, or <c>null</c> if no matching file was found.</returns>
+    /// <param name="srrFilePath">
+    /// The path to the SRR file containing the stored data.
+    /// </param>
+    /// <param name="outputDirectory">
+    /// The directory to extract the file to.
+    /// </param>
+    /// <param name="match">
+    /// A predicate function to match the desired file by name.
+    /// </param>
+    /// <returns>
+    /// The path to the extracted file, or <c>null</c> if no matching file was found.
+    /// </returns>
     /// <exception cref="ArgumentException">Thrown when required parameters are null or empty.</exception>
     /// <exception cref="InvalidDataException">Thrown when stored file data is corrupted or out of bounds.</exception>
     public string? ExtractStoredFile(string srrFilePath, string outputDirectory, Func<string, bool> match)

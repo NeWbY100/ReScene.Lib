@@ -62,6 +62,7 @@ public static class PackDef
     public const int LowDistRepCount = 16;
 
     // RAR 5.x constants
+
     /// <summary>
     /// Alphabet size for RAR 5.x literals/lengths.
     /// </summary>
@@ -103,6 +104,7 @@ public static class PackDef
     public const int BC = 20;
 
     // RAR 3.x constants
+
     /// <summary>
     /// Alphabet size for RAR 3.x literals/lengths.
     /// </summary>
@@ -134,6 +136,7 @@ public static class PackDef
     public const int HuffTableSize30 = NC30 + DC30 + RC30 + LDC30;
 
     // RAR 2.x constants
+
     /// <summary>
     /// Alphabet size for RAR 2.x.
     /// </summary>

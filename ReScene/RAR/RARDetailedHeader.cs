@@ -134,9 +134,15 @@ public static class RARDetailedParser
     /// <summary>
     /// Parses a RAR file and returns all header blocks with detailed field information.
     /// </summary>
-    /// <param name="filePath">The path to the RAR file.</param>
-    /// <param name="enableSfx">Whether to scan for RAR data inside SFX executables.</param>
-    /// <returns>A list of parsed detailed blocks.</returns>
+    /// <param name="filePath">
+    /// The path to the RAR file.
+    /// </param>
+    /// <param name="enableSfx">
+    /// Whether to scan for RAR data inside SFX executables.
+    /// </param>
+    /// <returns>
+    /// A list of parsed detailed blocks.
+    /// </returns>
     public static List<RARDetailedBlock> Parse(string filePath, bool enableSfx = false)
     {
         using FileStream fs = File.OpenRead(filePath);
@@ -146,9 +152,15 @@ public static class RARDetailedParser
     /// <summary>
     /// Parses a RAR stream and returns all header blocks with detailed field information.
     /// </summary>
-    /// <param name="stream">The stream containing RAR data.</param>
-    /// <param name="enableSfx">Whether to scan for RAR data inside SFX executables.</param>
-    /// <returns>A list of parsed detailed blocks.</returns>
+    /// <param name="stream">
+    /// The stream containing RAR data.
+    /// </param>
+    /// <param name="enableSfx">
+    /// Whether to scan for RAR data inside SFX executables.
+    /// </param>
+    /// <returns>
+    /// A list of parsed detailed blocks.
+    /// </returns>
     public static List<RARDetailedBlock> Parse(Stream stream, bool enableSfx = false)
     {
         var blocks = new List<RARDetailedBlock>();
@@ -192,8 +204,12 @@ public static class RARDetailedParser
     /// Parses RAR blocks starting from the current stream position.
     /// Used for parsing embedded RAR data within SRR files.
     /// </summary>
-    /// <param name="stream">The stream positioned at the start of embedded RAR data.</param>
-    /// <returns>A list of parsed detailed blocks.</returns>
+    /// <param name="stream">
+    /// The stream positioned at the start of embedded RAR data.
+    /// </param>
+    /// <returns>
+    /// A list of parsed detailed blocks.
+    /// </returns>
     public static List<RARDetailedBlock> ParseFromPosition(Stream stream)
     {
         var blocks = new List<RARDetailedBlock>();

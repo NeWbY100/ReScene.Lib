@@ -21,8 +21,12 @@ public static class IsoMediaExtractor
     /// <summary>
     /// Lists all media files found inside an ISO image.
     /// </summary>
-    /// <param name="isoPath">Path to the ISO file.</param>
-    /// <returns>List of file paths inside the ISO.</returns>
+    /// <param name="isoPath">
+    /// Path to the ISO file.
+    /// </param>
+    /// <returns>
+    /// List of file paths inside the ISO.
+    /// </returns>
     public static List<string> ListMediaFiles(string isoPath)
     {
         var mediaFiles = new List<string>();
@@ -53,11 +57,21 @@ public static class IsoMediaExtractor
     /// <summary>
     /// Extracts a specific file from an ISO image to a destination path.
     /// </summary>
-    /// <param name="isoPath">Path to the ISO file.</param>
-    /// <param name="innerPath">Path of the file inside the ISO (as returned by ListMediaFiles).</param>
-    /// <param name="destPath">Destination path to write the extracted file.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <param name="progress">Optional progress callback (0-100).</param>
+    /// <param name="isoPath">
+    /// Path to the ISO file.
+    /// </param>
+    /// <param name="innerPath">
+    /// Path of the file inside the ISO (as returned by ListMediaFiles).
+    /// </param>
+    /// <param name="destPath">
+    /// Destination path to write the extracted file.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <param name="progress">
+    /// Optional progress callback (0-100).
+    /// </param>
     public static Task ExtractFileAsync(
         string isoPath,
         string innerPath,
@@ -126,8 +140,12 @@ public static class IsoMediaExtractor
     /// <summary>
     /// Checks whether the given file path appears to be an ISO image.
     /// </summary>
-    /// <param name="filePath">File path to check.</param>
-    /// <returns>True if the file extension indicates an ISO image.</returns>
+    /// <param name="filePath">
+    /// File path to check.
+    /// </param>
+    /// <returns>
+    /// True if the file extension indicates an ISO image.
+    /// </returns>
     public static bool IsIsoFile(string filePath)
     {
         string ext = Path.GetExtension(filePath);
@@ -196,12 +214,24 @@ public static class IsoMediaExtractor
     /// If found, concatenates the matching VOB set to a temp file and returns its path.
     /// Returns null if no matching VOB set is found.
     /// </summary>
-    /// <param name="isoPath">Path to the ISO file.</param>
-    /// <param name="srsFilePath">Path to the SRS file containing track signatures.</param>
-    /// <param name="destPath">Destination path for the concatenated VOB file.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <param name="progress">Optional progress callback (0-100).</param>
-    /// <returns>True if a matching VOB set was found and extracted.</returns>
+    /// <param name="isoPath">
+    /// Path to the ISO file.
+    /// </param>
+    /// <param name="srsFilePath">
+    /// Path to the SRS file containing track signatures.
+    /// </param>
+    /// <param name="destPath">
+    /// Destination path for the concatenated VOB file.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <param name="progress">
+    /// Optional progress callback (0-100).
+    /// </param>
+    /// <returns>
+    /// True if a matching VOB set was found and extracted.
+    /// </returns>
     public static Task<bool> ExtractMatchingVobSetAsync(
         string isoPath,
         string srsFilePath,

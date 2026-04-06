@@ -21,7 +21,9 @@ public static class EbmlHeaderStripping
     /// <param name="trackEntryData">
     /// The raw data of a TrackEntry element (children only, not including the TrackEntry element header itself).
     /// </param>
-    /// <returns>The stripped header bytes, or <see langword="null"/> if header stripping is not used.</returns>
+    /// <returns>
+    /// The stripped header bytes, or <see langword="null"/> if header stripping is not used.
+    /// </returns>
     public static byte[]? DetectStrippedHeader(ReadOnlySpan<byte> trackEntryData)
     {
         // Walk top-level children of TrackEntry looking for ContentEncodings (0x6D80)
@@ -61,9 +63,15 @@ public static class EbmlHeaderStripping
     /// <summary>
     /// Prepends the stripped header to a frame's data, restoring the original frame content.
     /// </summary>
-    /// <param name="strippedHeader">The header bytes that were stripped.</param>
-    /// <param name="frameData">The frame data without the stripped header.</param>
-    /// <returns>The restored frame data with the header prepended.</returns>
+    /// <param name="strippedHeader">
+    /// The header bytes that were stripped.
+    /// </param>
+    /// <param name="frameData">
+    /// The frame data without the stripped header.
+    /// </param>
+    /// <returns>
+    /// The restored frame data with the header prepended.
+    /// </returns>
     public static byte[] RestoreFrame(byte[] strippedHeader, ReadOnlySpan<byte> frameData)
     {
         byte[] result = new byte[strippedHeader.Length + frameData.Length];

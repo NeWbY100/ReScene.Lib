@@ -16,8 +16,12 @@ internal static class OsoHashCalculator
     /// Computes OSO hashes for all archived files in the given RAR volumes.
     /// Returns a list of (fileName, fileSize, hash) tuples.
     /// </summary>
-    /// <param name="rarVolumePaths">The paths to the RAR volume files.</param>
-    /// <returns>A list of tuples containing file name, file size, and OSO hash bytes.</returns>
+    /// <param name="rarVolumePaths">
+    /// The paths to the RAR volume files.
+    /// </param>
+    /// <returns>
+    /// A list of tuples containing file name, file size, and OSO hash bytes.
+    /// </returns>
     public static List<(string FileName, ulong FileSize, byte[] Hash)> ComputeHashes(
         IReadOnlyList<string> rarVolumePaths)
     {

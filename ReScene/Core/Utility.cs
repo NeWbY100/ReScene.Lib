@@ -10,8 +10,12 @@ public static class Utility
     /// <summary>
     /// Converts a byte count to a human-readable size string using binary (IEC) units.
     /// </summary>
-    /// <param name="bytes">The number of bytes to format.</param>
-    /// <returns>A formatted string like "1.5 MiB" or "256 KiB".</returns>
+    /// <param name="bytes">
+    /// The number of bytes to format.
+    /// </param>
+    /// <returns>
+    /// A formatted string like "1.5 MiB" or "256 KiB".
+    /// </returns>
     public static string GetUserFriendlySizeString(long bytes)
     {
         int index = 0;

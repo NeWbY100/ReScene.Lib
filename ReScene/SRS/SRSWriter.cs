@@ -23,6 +23,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Path to the created SRS file.
     /// </summary>
@@ -30,6 +31,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Error message if creation failed.
     /// </summary>
@@ -37,6 +39,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Detected container type of the sample file.
     /// </summary>
@@ -44,6 +47,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Number of tracks found in the sample file.
     /// </summary>
@@ -51,6 +55,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Size of the created SRS file in bytes.
     /// </summary>
@@ -58,6 +63,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// CRC32 checksum of the original sample file.
     /// </summary>
@@ -65,6 +71,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Size of the original sample file in bytes.
     /// </summary>
@@ -72,6 +79,7 @@ public class SrsCreationResult
     {
         get; set;
     }
+
     /// <summary>
     /// Non-fatal warnings encountered during creation.
     /// </summary>
@@ -114,11 +122,21 @@ public class SRSWriter
     /// <summary>
     /// Creates an SRS file from a sample media file.
     /// </summary>
-    /// <param name="outputPath">The output path for the SRS file.</param>
-    /// <param name="sampleFilePath">The path to the sample media file.</param>
-    /// <param name="options">Optional creation options.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The creation result containing status and track information.</returns>
+    /// <param name="outputPath">
+    /// The output path for the SRS file.
+    /// </param>
+    /// <param name="sampleFilePath">
+    /// The path to the sample media file.
+    /// </param>
+    /// <param name="options">
+    /// Optional creation options.
+    /// </param>
+    /// <param name="ct">
+    /// Cancellation token.
+    /// </param>
+    /// <returns>
+    /// The creation result containing status and track information.
+    /// </returns>
     public async Task<SrsCreationResult> CreateAsync(
         string outputPath,
         string sampleFilePath,

@@ -10,9 +10,15 @@ public static class HuffmanDecoder
     /// Builds decode tables from a bit length table.
     /// Ported from Unpack::MakeDecodeTables in unpack.cpp.
     /// </summary>
-    /// <param name="lengthTable">Bit lengths for each symbol</param>
-    /// <param name="dec">Decode table to populate</param>
-    /// <param name="size">Size of the alphabet</param>
+    /// <param name="lengthTable">
+    /// Bit lengths for each symbol
+    /// </param>
+    /// <param name="dec">
+    /// Decode table to populate
+    /// </param>
+    /// <param name="size">
+    /// Size of the alphabet
+    /// </param>
     public static void MakeDecodeTables(byte[] lengthTable, DecodeTable dec, int size)
     {
         // Size of alphabet and DecodePos array
@@ -133,9 +139,15 @@ public static class HuffmanDecoder
     /// Decodes a Huffman-encoded number.
     /// Ported from Unpack::DecodeNumber in unpackinline.cpp.
     /// </summary>
-    /// <param name="inp">Bit input stream</param>
-    /// <param name="dec">Decode table to use</param>
-    /// <returns>Decoded symbol number</returns>
+    /// <param name="inp">
+    /// Bit input stream
+    /// </param>
+    /// <param name="dec">
+    /// Decode table to use
+    /// </param>
+    /// <returns>
+    /// Decoded symbol number
+    /// </returns>
     public static uint DecodeNumber(BitInput inp, DecodeTable dec)
     {
         // Left aligned 15 bit length raw bit field

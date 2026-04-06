@@ -9,10 +9,12 @@ public enum TriState
     /// The item is unchecked.
     /// </summary>
     Unchecked,
+
     /// <summary>
     /// The item is checked.
     /// </summary>
     Checked,
+
     /// <summary>
     /// The item is in an indeterminate state.
     /// </summary>

@@ -58,8 +58,12 @@ public class RARFileData
     /// <summary>
     /// Loads and parses a RAR file, returning its header and file entry data.
     /// </summary>
-    /// <param name="filePath">The path to the RAR file.</param>
-    /// <returns>A populated <see cref="RARFileData"/> instance.</returns>
+    /// <param name="filePath">
+    /// The path to the RAR file.
+    /// </param>
+    /// <returns>
+    /// A populated <see cref="RARFileData"/> instance.
+    /// </returns>
     public static RARFileData Load(string filePath)
     {
         var data = new RARFileData { FilePath = filePath };
