@@ -256,6 +256,11 @@ public static class SRREditor
     /// <exception cref="InvalidOperationException">
     /// Thrown when no stored file with <paramref name="oldName"/> is found.
     /// </exception>
+    /// <remarks>
+    /// If multiple stored-file blocks share the same <paramref name="oldName"/>, only the
+    /// first match is renamed. Renaming to the same name is performed unconditionally and
+    /// will rewrite the file.
+    /// </remarks>
     public static void RenameStoredFile(string srrFilePath, string oldName, string newName)
     {
         if (string.IsNullOrWhiteSpace(srrFilePath))
