@@ -382,6 +382,186 @@ public static class SRREditor
         }
     }
 
+    /// <summary>
+    /// Moves a stored-file block within the SRR by <paramref name="offset"/> positions
+    /// among other stored-file blocks. Negative moves toward the beginning of the file,
+    /// positive toward the end. No-op if the resulting position would land outside the
+    /// stored-file range.
+    /// </summary>
+    /// <param name="srrFilePath">
+    /// Path to the SRR file to modify.
+    /// </param>
+    /// <param name="storedName">
+    /// The current stored-file name (case-insensitive match).
+    /// </param>
+    /// <param name="offset">
+    /// Number of stored-file slots to move. Use -1 for "up", +1 for "down".
+    /// </param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the path or name is empty/whitespace.
+    /// </exception>
+    /// <exception cref="FileNotFoundException">
+    /// Thrown when the SRR file does not exist.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when no stored file with <paramref name="storedName"/> is found.
+    /// </exception>
+    public static void MoveStoredFile(string srrFilePath, string storedName, int offset)
+    {
+        if (string.IsNullOrWhiteSpace(srrFilePath))
+        {
+            throw new ArgumentException("SRR file path is required.", nameof(srrFilePath));
+        }
+
+        if (!File.Exists(srrFilePath))
+        {
+            throw new FileNotFoundException("SRR file not found.", srrFilePath);
+        }
+
+        if (string.IsNullOrWhiteSpace(storedName))
+        {
+            throw new ArgumentException("Stored name is required.", nameof(storedName));
+        }
+
+        if (offset == 0)
+        {
+            return;
+        }
+
+        List<BlockSnapshot> blocks = ReadAllBlocks(srrFilePath);
+
+        List<int> storedIndices = [];
+        int targetIndex = -1;
+
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            if (blocks[i].Type == (byte)SRRBlockType.StoredFile)
+            {
+                if (string.Equals(blocks[i].Name, storedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    targetIndex = storedIndices.Count;
+                }
+
+                storedIndices.Add(i);
+            }
+        }
+
+        if (targetIndex < 0)
+        {
+            throw new InvalidOperationException($"Stored file '{storedName}' not found.");
+        }
+
+        int newTargetIndex = targetIndex + offset;
+
+        if (newTargetIndex < 0 || newTargetIndex >= storedIndices.Count)
+        {
+            return;
+        }
+
+        if (newTargetIndex == targetIndex)
+        {
+            return;
+        }
+
+        int oldGlobal = storedIndices[targetIndex];
+        int newGlobal = storedIndices[newTargetIndex];
+
+        BlockSnapshot moved = blocks[oldGlobal];
+        blocks.RemoveAt(oldGlobal);
+        blocks.Insert(newGlobal, moved);
+
+        WriteAllBlocks(srrFilePath, blocks);
+    }
+
+    private record struct BlockSnapshot(byte[] Bytes, byte Type, string? Name);
+
+    private static List<BlockSnapshot> ReadAllBlocks(string srrFilePath)
+    {
+        List<BlockSnapshot> result = [];
+
+        using FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using BinaryReader reader = new(input);
+
+        while (input.Position < input.Length)
+        {
+            long blockStart = input.Position;
+
+            if (blockStart + BaseHeaderSize > input.Length)
+            {
+                break;
+            }
+
+            ushort crc = reader.ReadUInt16();
+            byte typeRaw = reader.ReadByte();
+            ushort flags = reader.ReadUInt16();
+            ushort headerSize = reader.ReadUInt16();
+
+            if (headerSize < BaseHeaderSize)
+            {
+                break;
+            }
+
+            uint addSize = 0;
+            bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
+                              || typeRaw == (byte)SRRBlockType.StoredFile;
+
+            if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
+            {
+                addSize = reader.ReadUInt32();
+            }
+
+            long totalBlockSize = headerSize + addSize;
+
+            if (blockStart + totalBlockSize > input.Length)
+            {
+                break;
+            }
+
+            string? name = null;
+
+            if (typeRaw == (byte)SRRBlockType.StoredFile)
+            {
+                long mark = input.Position;
+                name = ReadStoredFileName(reader, input, blockStart);
+                input.Position = mark;
+            }
+
+            input.Position = blockStart;
+            byte[] bytes = reader.ReadBytes((int)totalBlockSize);
+            result.Add(new BlockSnapshot(bytes, typeRaw, name));
+        }
+
+        return result;
+    }
+
+    private static void WriteAllBlocks(string srrFilePath, List<BlockSnapshot> blocks)
+    {
+        string tempPath = srrFilePath + ".tmp";
+
+        try
+        {
+            using (FileStream output = new(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                foreach (BlockSnapshot b in blocks)
+                {
+                    output.Write(b.Bytes, 0, b.Bytes.Length);
+                }
+            }
+
+            File.Delete(srrFilePath);
+            File.Move(tempPath, srrFilePath);
+        }
+        catch
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+
+            throw;
+        }
+    }
+
     private static string? ReadStoredFileName(BinaryReader reader, FileStream input, long blockStart)
     {
         // Name length is at offset: base(7) + addSize(4)

@@ -84,4 +84,63 @@ public class SRREditorTests : IDisposable
             () => SRREditor.RenameStoredFile(
                 Path.Combine(_testDir, "missing.srr"), "a.nfo", "b.nfo"));
     }
+
+    [Fact]
+    public void MoveStoredFile_MovesUpByOne()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSrrHeader()
+            .AddStoredFile("a.nfo", [1])
+            .AddStoredFile("b.nfo", [2])
+            .AddStoredFile("c.nfo", [3])
+            .BuildToFile(_testDir, "reorder.srr");
+
+        SRREditor.MoveStoredFile(path, "b.nfo", offset: -1);
+
+        var names = SRRFile.Load(path).StoredFiles.Select(b => b.FileName).ToList();
+        Assert.Equal(new[] { "b.nfo", "a.nfo", "c.nfo" }, names);
+    }
+
+    [Fact]
+    public void MoveStoredFile_MovesDownByOne()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSrrHeader()
+            .AddStoredFile("a.nfo", [1])
+            .AddStoredFile("b.nfo", [2])
+            .AddStoredFile("c.nfo", [3])
+            .BuildToFile(_testDir, "reorder2.srr");
+
+        SRREditor.MoveStoredFile(path, "b.nfo", offset: 1);
+
+        var names = SRRFile.Load(path).StoredFiles.Select(b => b.FileName).ToList();
+        Assert.Equal(new[] { "a.nfo", "c.nfo", "b.nfo" }, names);
+    }
+
+    [Fact]
+    public void MoveStoredFile_AtEdge_NoOp()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSrrHeader()
+            .AddStoredFile("a.nfo", [1])
+            .AddStoredFile("b.nfo", [2])
+            .BuildToFile(_testDir, "reorder3.srr");
+
+        SRREditor.MoveStoredFile(path, "a.nfo", offset: -1);
+
+        var names = SRRFile.Load(path).StoredFiles.Select(b => b.FileName).ToList();
+        Assert.Equal(new[] { "a.nfo", "b.nfo" }, names);
+    }
+
+    [Fact]
+    public void MoveStoredFile_MissingName_Throws()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSrrHeader()
+            .AddStoredFile("a.nfo", [1])
+            .BuildToFile(_testDir, "reorder4.srr");
+
+        Assert.Throws<InvalidOperationException>(
+            () => SRREditor.MoveStoredFile(path, "missing.nfo", offset: 1));
+    }
 }
