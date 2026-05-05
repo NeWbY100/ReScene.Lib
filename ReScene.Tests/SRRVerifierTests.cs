@@ -57,7 +57,10 @@ public class SRRVerifierTests : IDisposable
         SrrVerifyResult result = SRRVerifier.Verify(path);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Issues, i => i.Severity == SrrVerifyIssueSeverity.Error);
+        Assert.Contains(result.Issues,
+            i => i.Severity == SrrVerifyIssueSeverity.Error
+                 && (i.Message.Contains("Truncated", StringComparison.OrdinalIgnoreCase)
+                     || i.Message.Contains("extends past end of file", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]

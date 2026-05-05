@@ -93,6 +93,7 @@ public static class SRRVerifier
 
             if (hasAddSize)
             {
+                // Strict guard (verifier reports truncation as an error; SRREditor reads-or-skips silently).
                 if (fs.Position + AddSizeFieldLength > fileSize)
                 {
                     issues.Add(new SrrVerifyIssue
