@@ -235,7 +235,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         FileInfo[] fileInfos = directoryInfo.GetFiles("*.*", SearchOption.AllDirectories);
 
         // Save file attributes
-        Dictionary<FileInfo, FileAttributes> fileInfoAttributes = fileInfos.Select(f => new KeyValuePair<FileInfo, FileAttributes>(f, f.Attributes)).ToDictionary(f => f.Key, f => f.Value);
+        var fileInfoAttributes = fileInfos.Select(f => new KeyValuePair<FileInfo, FileAttributes>(f, f.Attributes)).ToDictionary(f => f.Key, f => f.Value);
 
         // Save file hash
         HashSet<string> fileHashes = [];
@@ -444,7 +444,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         process.CompressionProgress += Process_CompressionProgress;
 
         // Create a linked cancellation token for early termination
-        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         // Start monitoring for second volume (for early termination optimization)
         Task monitorTask = MonitorForSecondVolumeAsync(outputFilePath, linkedCts);

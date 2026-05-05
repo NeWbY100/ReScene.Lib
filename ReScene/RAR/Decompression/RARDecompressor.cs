@@ -169,7 +169,7 @@ public static class RARDecompressor
     /// </returns>
     public static string? DecompressComment(byte[] compressedData, int uncompressedSize, byte method, bool isRAR5 = false)
     {
-        RARMethod rarMethod = (RARMethod)method;
+        var rarMethod = (RARMethod)method;
         RARVersion version = isRAR5 ? RARVersion.RAR50 : RARVersion.RAR29;
 
         return DecompressComment(compressedData, uncompressedSize, rarMethod, version);
@@ -195,7 +195,7 @@ public static class RARDecompressor
     /// </returns>
     public static byte[]? DecompressCommentBytes(byte[] compressedData, int uncompressedSize, byte method, bool isRAR5 = false)
     {
-        RARMethod rarMethod = (RARMethod)method;
+        var rarMethod = (RARMethod)method;
         RARVersion version = isRAR5 ? RARVersion.RAR50 : RARVersion.RAR29;
 
         return Decompress(compressedData, uncompressedSize, rarMethod, version);

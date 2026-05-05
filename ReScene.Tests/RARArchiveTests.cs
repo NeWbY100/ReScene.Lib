@@ -236,7 +236,7 @@ public class RARArchiveTests
         string debugInfo = $"unpVer={unpVer}, method=0x{method:X2}, unpSize={unpSize}, dataSize={dataSize}";
 
         // Act - decompress using RAR 2.0 algorithm
-        RARMethod rarMethod = (RARMethod)method;
+        var rarMethod = (RARMethod)method;
         string? comment = RARDecompressor.DecompressComment(compressedData, unpSize, rarMethod, RARVersion.RAR20);
 
         // Assert

@@ -241,7 +241,7 @@ public static class IsoMediaExtractor
     {
         return Task.Run(() =>
         {
-            SRSFile srs = SRSFile.Load(srsFilePath);
+            var srs = SRSFile.Load(srsFilePath);
             if (srs.Tracks.Count == 0 || srs.Tracks[0].Signature.Length == 0)
             {
                 return false;

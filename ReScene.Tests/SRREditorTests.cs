@@ -36,7 +36,7 @@ public class SRREditorTests : IDisposable
 
         SRREditor.RenameStoredFile(path, "old.nfo", "new.nfo");
 
-        SRRFile srr = SRRFile.Load(path);
+        var srr = SRRFile.Load(path);
         Assert.Contains(srr.StoredFiles, b => b.FileName == "new.nfo");
         Assert.Contains(srr.StoredFiles, b => b.FileName == "keep.nfo");
         Assert.DoesNotContain(srr.StoredFiles, b => b.FileName == "old.nfo");
@@ -53,8 +53,8 @@ public class SRREditorTests : IDisposable
 
         SRREditor.RenameStoredFile(path, "a.bin", "b.bin");
 
-        SRRFile srr = SRRFile.Load(path);
-        var renamed = srr.StoredFiles.Single(b => b.FileName == "b.bin");
+        var srr = SRRFile.Load(path);
+        SrrStoredFileBlock renamed = srr.StoredFiles.Single(b => b.FileName == "b.bin");
         Assert.Equal(payload.Length, (int)renamed.FileLength);
 
         using FileStream fs = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);

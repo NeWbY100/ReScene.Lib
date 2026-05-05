@@ -447,7 +447,7 @@ public class SRRFile
                 break;
             }
 
-            SRRBlockType type = (SRRBlockType)typeRaw;
+            var type = (SRRBlockType)typeRaw;
 
             uint addSize = 0;
             if ((flags & (ushort)SRRBlockFlags.LongBlock) != 0 || type == SRRBlockType.StoredFile)

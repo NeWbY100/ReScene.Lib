@@ -397,7 +397,7 @@ public class RARUtilsTests
     [InlineData(0x00E0, 0)]  // Directory entry
     public void GetDictionarySize_AllFlagCombinations_ReturnsExpectedSize(ushort flagValue, int expectedKB)
     {
-        RARFileFlags flags = (RARFileFlags)flagValue;
+        var flags = (RARFileFlags)flagValue;
 
         int result = RARUtils.GetDictionarySize(flags);
 
