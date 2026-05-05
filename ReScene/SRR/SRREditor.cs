@@ -232,6 +232,156 @@ public static class SRREditor
         }
     }
 
+    /// <summary>
+    /// Renames an existing stored file inside the SRR by writing a fresh
+    /// stored-file block in its place with the same payload but a new name.
+    /// All other blocks are preserved verbatim.
+    /// </summary>
+    /// <param name="srrFilePath">
+    /// Path to the SRR file to modify.
+    /// </param>
+    /// <param name="oldName">
+    /// The current stored file name (case-insensitive match).
+    /// </param>
+    /// <param name="newName">
+    /// The new name. Backslashes are normalized to forward slashes.
+    /// </param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when any of <paramref name="srrFilePath"/>, <paramref name="oldName"/>,
+    /// or <paramref name="newName"/> is empty or whitespace.
+    /// </exception>
+    /// <exception cref="FileNotFoundException">
+    /// Thrown when the SRR file does not exist.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when no stored file with <paramref name="oldName"/> is found.
+    /// </exception>
+    public static void RenameStoredFile(string srrFilePath, string oldName, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(srrFilePath))
+        {
+            throw new ArgumentException("SRR file path is required.", nameof(srrFilePath));
+        }
+
+        if (!File.Exists(srrFilePath))
+        {
+            throw new FileNotFoundException("SRR file not found.", srrFilePath);
+        }
+
+        if (string.IsNullOrWhiteSpace(oldName))
+        {
+            throw new ArgumentException("Old name is required.", nameof(oldName));
+        }
+
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            throw new ArgumentException("New name is required.", nameof(newName));
+        }
+
+        string normalizedNew = newName.Replace('\\', '/');
+        byte[] newNameBytes = Encoding.UTF8.GetBytes(normalizedNew);
+
+        string tempPath = srrFilePath + ".tmp";
+        bool renamed = false;
+
+        try
+        {
+            using (FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (BinaryReader reader = new(input))
+            using (FileStream output = new(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (BinaryWriter writer = new(output))
+            {
+                while (input.Position < input.Length)
+                {
+                    long blockStart = input.Position;
+
+                    if (blockStart + BaseHeaderSize > input.Length)
+                    {
+                        break;
+                    }
+
+                    ushort crc = reader.ReadUInt16();
+                    byte typeRaw = reader.ReadByte();
+                    ushort flags = reader.ReadUInt16();
+                    ushort headerSize = reader.ReadUInt16();
+
+                    if (headerSize < BaseHeaderSize)
+                    {
+                        break;
+                    }
+
+                    uint addSize = 0;
+                    bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
+                                      || typeRaw == (byte)SRRBlockType.StoredFile;
+
+                    if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
+                    {
+                        addSize = reader.ReadUInt32();
+                    }
+
+                    long totalBlockSize = headerSize + addSize;
+
+                    if (blockStart + totalBlockSize > input.Length)
+                    {
+                        break;
+                    }
+
+                    if (!renamed && typeRaw == (byte)SRRBlockType.StoredFile)
+                    {
+                        string? name = ReadStoredFileName(reader, input, blockStart);
+
+                        if (string.Equals(name, oldName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            long nameLenPos = blockStart + BaseHeaderSize + AddSizeFieldLength;
+                            input.Position = nameLenPos;
+                            ushort oldNameLen = reader.ReadUInt16();
+                            input.Position += oldNameLen;
+                            long payloadStart = input.Position;
+                            long payloadEnd = blockStart + totalBlockSize;
+                            long payloadLen = payloadEnd - payloadStart;
+                            byte[] payload = reader.ReadBytes((int)payloadLen);
+
+                            ushort newHeaderSize = (ushort)(BaseHeaderSize + AddSizeFieldLength + NameLengthFieldLength + newNameBytes.Length);
+                            writer.Write((ushort)0x6A6A);
+                            writer.Write((byte)SRRBlockType.StoredFile);
+                            writer.Write(flags);
+                            writer.Write(newHeaderSize);
+                            writer.Write(addSize);
+                            writer.Write((ushort)newNameBytes.Length);
+                            writer.Write(newNameBytes);
+                            writer.Write(payload);
+
+                            renamed = true;
+                            input.Position = payloadEnd;
+                            continue;
+                        }
+                    }
+
+                    input.Position = blockStart;
+                    CopyBytes(input, output, totalBlockSize);
+                }
+            }
+
+            if (!renamed)
+            {
+                File.Delete(tempPath);
+                throw new InvalidOperationException($"Stored file '{oldName}' not found.");
+            }
+
+            File.Delete(srrFilePath);
+            File.Move(tempPath, srrFilePath);
+        }
+        catch
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+
+            throw;
+        }
+    }
+
     private static string? ReadStoredFileName(BinaryReader reader, FileStream input, long blockStart)
     {
         // Name length is at offset: base(7) + addSize(4)
