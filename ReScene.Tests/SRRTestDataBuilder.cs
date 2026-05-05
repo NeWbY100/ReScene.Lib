@@ -36,7 +36,7 @@ internal class SRRTestDataBuilder
             headerSize += 2 + appNameLen; // 2 bytes name length + name
         }
 
-        _writer.Write((ushort)0x0000); // CRC (placeholder, SRR doesn't validate)
+        _writer.Write((ushort)0x6969); // CRC sentinel
         _writer.Write((byte)0x69);     // SRR Header type
         _writer.Write(flags);
         _writer.Write((ushort)headerSize);
@@ -59,7 +59,7 @@ internal class SRRTestDataBuilder
         ushort headerSize = (ushort)(7 + 4 + 2 + nameBytes.Length); // base + addSize + nameLen + name
         uint addSize = (uint)fileData.Length;
 
-        _writer.Write((ushort)0x0000);     // CRC
+        _writer.Write((ushort)0x6A6A);     // CRC sentinel
         _writer.Write((byte)0x6A);         // StoredFile type
         _writer.Write((ushort)0x0000);     // flags
         _writer.Write(headerSize);
@@ -79,7 +79,7 @@ internal class SRRTestDataBuilder
         byte[] nameBytes = Encoding.UTF8.GetBytes(rarFileName);
         ushort headerSize = (ushort)(7 + 2 + nameBytes.Length); // base + nameLen + name
 
-        _writer.Write((ushort)0x0000);     // CRC
+        _writer.Write((ushort)0x7171);     // CRC sentinel
         _writer.Write((byte)0x71);         // RarFile type
         _writer.Write((ushort)0x0000);     // flags
         _writer.Write(headerSize);
@@ -101,7 +101,7 @@ internal class SRRTestDataBuilder
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
         ushort headerSize = (ushort)(7 + 8 + 8 + 2 + nameBytes.Length); // base + fileSize + hash + nameLen + name
 
-        _writer.Write((ushort)0x0000);     // CRC
+        _writer.Write((ushort)0x6B6B);     // CRC sentinel
         _writer.Write((byte)0x6B);         // OsoHash type
         _writer.Write((ushort)0x0000);     // flags
         _writer.Write(headerSize);
@@ -121,7 +121,7 @@ internal class SRRTestDataBuilder
         byte[] nameBytes = Encoding.UTF8.GetBytes(rarFileName);
         ushort headerSize = (ushort)(7 + 4 + 2 + nameBytes.Length); // base + addSize + nameLen + name
 
-        _writer.Write((ushort)0x0000);     // CRC
+        _writer.Write((ushort)0x6C6C);     // CRC sentinel
         _writer.Write((byte)0x6C);         // RarPadding type
         _writer.Write((ushort)0x8000);     // flags with LongBlock
         _writer.Write(headerSize);
