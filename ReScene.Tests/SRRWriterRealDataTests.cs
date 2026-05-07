@@ -254,13 +254,16 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_new.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
+        var storedFiles = new Dictionary<string, string>
+        {
+            [Path.GetFileName(sfvPath)] = sfvPath
+        };
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath, storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        // SFV should be auto-stored
         Assert.Contains(srr.StoredFiles, sf => sf.FileName == "store_rr_solid_auth.sfv");
         Assert.True(srr.RARFiles.Count >= 1, "Should have at least one RAR volume");
     }
@@ -293,7 +296,11 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_old.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
+        var storedFiles = new Dictionary<string, string>
+        {
+            [Path.GetFileName(sfvPath)] = sfvPath
+        };
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath, storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);

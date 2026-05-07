@@ -225,6 +225,7 @@ public class SRRWriter
                     ct.ThrowIfCancellationRequested();
                     string storedName = kvp.Key.Replace('\\', '/');
                     byte[] fileData = await File.ReadAllBytesAsync(kvp.Value, ct);
+                    Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
                     WriteStoredFileBlock(writer, storedName, fileData);
                     result.StoredFileCount++;
                 }
@@ -248,9 +249,11 @@ public class SRRWriter
             // 4. Optionally compute and write OSO hash blocks
             if (options.ComputeOSOHashes)
             {
+                Log("Computing OSO hashes...");
                 List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(rarVolumePaths);
                 foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
                 {
+                    Log($"Added OSO hash: {fileName}");
                     WriteOSOHashBlock(writer, fileName, fileSize, hash);
                 }
             }
@@ -258,12 +261,14 @@ public class SRRWriter
             // 5. Optionally generate and store languages.diz from VobSub .idx files
             if (options.GenerateLanguagesDiz)
             {
+                Log("Scanning RAR archive for VobSub .idx files...");
                 LanguagesDizGenerator.Result dizResult = LanguagesDizGenerator.Generate(rarVolumePaths);
                 result.LanguagesDizIdxFiles.AddRange(dizResult.IdxFileNames);
                 result.Warnings.AddRange(dizResult.Warnings);
 
                 if (dizResult.Data is not null)
                 {
+                    Log($"Adding languages.diz ({dizResult.Data.Length:N0} bytes)");
                     WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
                     result.StoredFileCount++;
                 }
@@ -383,16 +388,6 @@ public class SRRWriter
                 }
             }
         }
-
-        // Auto-detect NFO files in the same directory (skipped if caller already included them)
-        foreach (string nfoFile in Directory.GetFiles(sfvDir, "*.nfo"))
-        {
-            string nfoName = Path.GetFileName(nfoFile);
-            storedFiles.TryAdd(nfoName, nfoFile);
-        }
-
-        // SFV goes last (pyrescene convention: main SFV is always the last stored file)
-        storedFiles.TryAdd(Path.GetFileName(sfvFilePath), sfvFilePath);
 
         return await CreateAsync(outputPath, rarFiles, storedFiles, options, ct);
     }
@@ -770,14 +765,35 @@ public class SRRWriter
 
     #region Helpers
 
+    private int _lastProgressPercent;
+    private int _lastCurrent;
+    private int _lastTotal;
+
     private void ReportProgress(int current, int total, string message)
     {
-        int percent = total > 0 ? (int)(current * 100.0 / total) : 0;
+        _lastCurrent = current;
+        _lastTotal = total;
+        _lastProgressPercent = total > 0 ? (int)(current * 100.0 / total) : 0;
         Progress?.Invoke(this, new SRRCreationProgressEventArgs
         {
-            ProgressPercent = percent,
+            ProgressPercent = _lastProgressPercent,
             CurrentVolume = current,
             TotalVolumes = total,
+            Message = message
+        });
+    }
+
+    /// <summary>
+    /// Emits a progress event carrying only a log message; the percentage and volume
+    /// counters reuse the last-reported values so the progress bar doesn't flicker.
+    /// </summary>
+    private void Log(string message)
+    {
+        Progress?.Invoke(this, new SRRCreationProgressEventArgs
+        {
+            ProgressPercent = _lastProgressPercent,
+            CurrentVolume = _lastCurrent,
+            TotalVolumes = _lastTotal,
             Message = message
         });
     }

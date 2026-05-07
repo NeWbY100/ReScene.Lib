@@ -317,13 +317,16 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
+        var storedFiles = new Dictionary<string, string>
+        {
+            [Path.GetFileName(sfvPath)] = sfvPath
+        };
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath, storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        // SFV itself should be stored
         Assert.Contains(srr.StoredFiles, sf => sf.FileName == "release.sfv");
     }
 
