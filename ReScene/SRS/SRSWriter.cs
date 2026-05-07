@@ -3,7 +3,7 @@ namespace ReScene.SRS;
 /// <summary>
 /// Options for SRS file creation.
 /// </summary>
-public class SrsCreationOptions
+public class SRSCreationOptions
 {
     /// <summary>
     /// Application name to embed in the SRS file.
@@ -14,7 +14,7 @@ public class SrsCreationOptions
 /// <summary>
 /// Result of SRS file creation.
 /// </summary>
-public class SrsCreationResult
+public class SRSCreationResult
 {
     /// <summary>
     /// Whether SRS creation completed successfully.
@@ -59,7 +59,7 @@ public class SrsCreationResult
     /// <summary>
     /// Size of the created SRS file in bytes.
     /// </summary>
-    public long SrsFileSize
+    public long SRSFileSize
     {
         get; set;
     }
@@ -89,7 +89,7 @@ public class SrsCreationResult
 /// <summary>
 /// Progress event args for SRS creation.
 /// </summary>
-public class SrsCreationProgressEventArgs : EventArgs
+public class SRSCreationProgressEventArgs : EventArgs
 {
     /// <summary>
     /// Gets or sets the progress message describing the current creation step.
@@ -105,19 +105,19 @@ public class SRSWriter
 {
     private static readonly Dictionary<SRSContainerType, IContainerHandler> _handlers = new()
     {
-        { SRSContainerType.AVI, new AviContainerHandler() },
-        { SRSContainerType.MKV, new MkvContainerHandler() },
-        { SRSContainerType.MP4, new Mp4ContainerHandler() },
-        { SRSContainerType.WMV, new WmvContainerHandler() },
+        { SRSContainerType.AVI, new AVIContainerHandler() },
+        { SRSContainerType.MKV, new MKVContainerHandler() },
+        { SRSContainerType.MP4, new MP4ContainerHandler() },
+        { SRSContainerType.WMV, new WMVContainerHandler() },
         { SRSContainerType.FLAC, new FlacContainerHandler() },
-        { SRSContainerType.MP3, new Mp3ContainerHandler() },
+        { SRSContainerType.MP3, new MP3ContainerHandler() },
         { SRSContainerType.Stream, new StreamContainerHandler() }
     };
 
     /// <summary>
     /// Occurs when SRS creation progress updates with a status message.
     /// </summary>
-    public event EventHandler<SrsCreationProgressEventArgs>? Progress;
+    public event EventHandler<SRSCreationProgressEventArgs>? Progress;
 
     /// <summary>
     /// Creates an SRS file from a sample media file.
@@ -137,14 +137,14 @@ public class SRSWriter
     /// <returns>
     /// The creation result containing status and track information.
     /// </returns>
-    public async Task<SrsCreationResult> CreateAsync(
+    public async Task<SRSCreationResult> CreateAsync(
         string outputPath,
         string sampleFilePath,
-        SrsCreationOptions? options = null,
+        SRSCreationOptions? options = null,
         CancellationToken ct = default)
     {
-        options ??= new SrsCreationOptions();
-        var result = new SrsCreationResult();
+        options ??= new SRSCreationOptions();
+        var result = new SRSCreationResult();
 
         try
         {
@@ -198,7 +198,7 @@ public class SRSWriter
                 outputPath, sampleFilePath,
                 tracks, sampleSize, crc32, options, ct), ct);
 
-            result.SrsFileSize = new FileInfo(outputPath).Length;
+            result.SRSFileSize = new FileInfo(outputPath).Length;
             result.OutputPath = outputPath;
             result.Success = true;
 
@@ -321,7 +321,7 @@ public class SRSWriter
 
     #region Utilities
 
-    private void ReportProgress(string message) => Progress?.Invoke(this, new SrsCreationProgressEventArgs { Message = message });
+    private void ReportProgress(string message) => Progress?.Invoke(this, new SRSCreationProgressEventArgs { Message = message });
 
     #endregion
 }

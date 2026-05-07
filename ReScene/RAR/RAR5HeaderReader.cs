@@ -66,7 +66,7 @@ public class RAR5BlockReadResult
     /// <summary>
     /// True if header CRC is valid.
     /// </summary>
-    public bool CrcValid
+    public bool CRCValid
     {
         get; set;
     }
@@ -387,7 +387,7 @@ public enum RAR5FileFlags : ulong
     /// <summary>
     /// CRC32 field is present.
     /// </summary>
-    Crc32Present = 0x0004,
+    CRC32Present = 0x0004,
 
     /// <summary>
     /// Unpacked size is unknown.
@@ -614,7 +614,7 @@ public class RAR5HeaderReader(Stream stream)
         // Validate CRC - CRC covers from header size field to end of header
         long currentPos = _stream.Position;
         long crcDataSize = (headerContentStart + (long)headerSize) - headerSizePosition;
-        if (crcDataSize <= 0 || crcDataSize > int.MaxValue)
+        if (crcDataSize is <= 0 or > int.MaxValue)
         {
             return result;
         }
@@ -622,7 +622,7 @@ public class RAR5HeaderReader(Stream stream)
         _stream.Position = headerSizePosition;
         byte[] headerData = _reader.ReadBytes((int)crcDataSize);
         uint calculatedCrc = Force.Crc32.Crc32Algorithm.Compute(headerData);
-        result.CrcValid = (crc == calculatedCrc);
+        result.CRCValid = (crc == calculatedCrc);
         _stream.Position = currentPos;
 
         return result;
@@ -652,7 +652,7 @@ public class RAR5HeaderReader(Stream stream)
         }
 
         // Skip CRC if present
-        if ((info.FileFlags & (ulong)RAR5FileFlags.Crc32Present) != 0)
+        if ((info.FileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
         {
             _reader.ReadUInt32();
         }
@@ -727,7 +727,7 @@ public class RAR5HeaderReader(Stream stream)
         }
 
         // Read CRC if present
-        if ((info.FileFlags & (ulong)RAR5FileFlags.Crc32Present) != 0)
+        if ((info.FileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
         {
             info.FileCrc = _reader.ReadUInt32();
         }

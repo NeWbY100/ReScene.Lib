@@ -40,7 +40,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_container");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -67,7 +67,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_filedata");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -93,7 +93,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_fname");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -120,7 +120,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_size");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -147,7 +147,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_crc");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -156,8 +156,8 @@ public class SRSFileFromSrrTests : IDisposable
 
             var srs = SRSFile.Load(extracted!);
 
-            Assert.True(srs.FileData!.Crc32 != 0,
-                $"SRS from {stored.FileName} has zero Crc32");
+            Assert.True(srs.FileData!.CRC32 != 0,
+                $"SRS from {stored.FileName} has zero CRC32");
         }
     }
 
@@ -174,7 +174,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_appname");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -201,7 +201,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_tracks");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -228,7 +228,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_trklen");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -237,7 +237,7 @@ public class SRSFileFromSrrTests : IDisposable
 
             var srs = SRSFile.Load(extracted!);
 
-            foreach (SrsTrackDataBlock track in srs.Tracks)
+            foreach (SRSTrackDataBlock track in srs.Tracks)
             {
                 Assert.True(track.DataLength > 0,
                     $"Track {track.TrackNumber} in {stored.FileName} has zero DataLength");
@@ -258,7 +258,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_sig");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -267,7 +267,7 @@ public class SRSFileFromSrrTests : IDisposable
 
             var srs = SRSFile.Load(extracted!);
 
-            foreach (SrsTrackDataBlock track in srs.Tracks)
+            foreach (SRSTrackDataBlock track in srs.Tracks)
             {
                 Assert.Equal(256, track.SignatureSize);
                 Assert.Equal(256, track.Signature.Length);
@@ -309,7 +309,7 @@ public class SRSFileFromSrrTests : IDisposable
             .ToList();
         Assert.NotEmpty(srsFiles);
 
-        foreach (SrrStoredFileBlock? stored in srsFiles)
+        foreach (SRRStoredFileBlock? stored in srsFiles)
         {
             string outputDir = Path.Combine(_tempDir, "extract_all");
             string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -325,8 +325,8 @@ public class SRSFileFromSrrTests : IDisposable
                 $"SRS {stored.FileName}: FileName is empty");
             Assert.True(srs.FileData.SampleSize > 0,
                 $"SRS {stored.FileName}: SampleSize is zero");
-            Assert.True(srs.FileData.Crc32 != 0,
-                $"SRS {stored.FileName}: Crc32 is zero");
+            Assert.True(srs.FileData.CRC32 != 0,
+                $"SRS {stored.FileName}: CRC32 is zero");
             Assert.True(srs.Tracks.Count > 0,
                 $"SRS {stored.FileName}: no tracks");
             Assert.True(Enum.IsDefined(srs.ContainerType),

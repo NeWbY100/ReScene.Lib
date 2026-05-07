@@ -54,8 +54,8 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("store_little", "store_little.srr"));
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("store_little.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("store_little.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -177,8 +177,8 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("store_empty", "store_empty.srr"));
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("store_empty.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("store_empty.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -217,8 +217,8 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("store_rr_solid_auth_unicode_new", "store_rr_solid_auth.part1.srr"));
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("store_rr_solid_auth.part1.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("store_rr_solid_auth.part1.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -273,10 +273,10 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr"));
 
-        Assert.Equal(3, srr.RarFiles.Count);
-        Assert.Equal("store_split_folder.rar", srr.RarFiles[0].FileName);
-        Assert.Equal("store_split_folder.r00", srr.RarFiles[1].FileName);
-        Assert.Equal("store_split_folder.r01", srr.RarFiles[2].FileName);
+        Assert.Equal(3, srr.RARFiles.Count);
+        Assert.Equal("store_split_folder.rar", srr.RARFiles[0].FileName);
+        Assert.Equal("store_split_folder.r00", srr.RARFiles[1].FileName);
+        Assert.Equal("store_split_folder.r01", srr.RARFiles[2].FileName);
     }
 
     [Fact]
@@ -353,7 +353,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "winrar2.80.srr"));
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Empty(srr.RarFiles);
+        Assert.Empty(srr.RARFiles);
         Assert.Empty(srr.StoredFiles);
         Assert.Empty(srr.ArchivedFiles);
     }
@@ -385,8 +385,8 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("store_utf8_comment", "store_utf8_comment.srr"));
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("store_utf8_comment.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("store_utf8_comment.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -436,7 +436,7 @@ public class SRRFileRealDataTests : IDisposable
     {
         var srr = SRRFile.Load(TestFile("no_files_stored", fileName));
 
-        Assert.Equal(expectedCount, srr.RarFiles.Count);
+        Assert.Equal(expectedCount, srr.RARFiles.Count);
     }
 
     [Theory]
@@ -514,9 +514,9 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
 
-        Assert.Equal(2, srr.RarFiles.Count);
-        Assert.Equal("shark.week.2012.shark.fight-killers.r00", srr.RarFiles[0].FileName);
-        Assert.Equal("shark.week.2012.shark.fight-killers.r01", srr.RarFiles[1].FileName);
+        Assert.Equal(2, srr.RARFiles.Count);
+        Assert.Equal("shark.week.2012.shark.fight-killers.r00", srr.RARFiles[0].FileName);
+        Assert.Equal("shark.week.2012.shark.fight-killers.r01", srr.RARFiles[1].FileName);
     }
 
     [Fact]
@@ -560,7 +560,7 @@ public class SRRFileRealDataTests : IDisposable
             "Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr"));
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal(25, srr.RarFiles.Count);
+        Assert.Equal(25, srr.RARFiles.Count);
     }
 
     [Fact]
@@ -570,7 +570,7 @@ public class SRRFileRealDataTests : IDisposable
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal(25, srr.RarFiles.Count);
+        Assert.Equal(25, srr.RARFiles.Count);
     }
 
     [Fact]
@@ -581,7 +581,7 @@ public class SRRFileRealDataTests : IDisposable
         var srrCaps = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
 
-        Assert.Equal(srrLower.RarFiles.Count, srrCaps.RarFiles.Count);
+        Assert.Equal(srrLower.RARFiles.Count, srrCaps.RARFiles.Count);
     }
 
     [Fact]
@@ -628,8 +628,8 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
 
-        bool hasLowercase = srr.RarFiles.Any(rf => rf.FileName.StartsWith("parlamentet", StringComparison.Ordinal));
-        bool hasUppercase = srr.RarFiles.Any(rf => rf.FileName.StartsWith("Parlamentet", StringComparison.Ordinal));
+        bool hasLowercase = srr.RARFiles.Any(rf => rf.FileName.StartsWith("parlamentet", StringComparison.Ordinal));
+        bool hasUppercase = srr.RARFiles.Any(rf => rf.FileName.StartsWith("Parlamentet", StringComparison.Ordinal));
 
         Assert.True(hasLowercase);
         Assert.True(hasUppercase);
@@ -641,7 +641,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr"));
 
-        Assert.All(srr.RarFiles, rf =>
+        Assert.All(srr.RARFiles, rf =>
             Assert.StartsWith("parlamentet", rf.FileName, StringComparison.Ordinal));
     }
 
@@ -663,8 +663,8 @@ public class SRRFileRealDataTests : IDisposable
         var srrCaps = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
 
-        SrrStoredFileBlock lowerNfo = srrLower.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
-        SrrStoredFileBlock capsNfo = srrCaps.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
+        SRRStoredFileBlock lowerNfo = srrLower.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
+        SRRStoredFileBlock capsNfo = srrCaps.StoredFiles.First(sf => sf.FileName.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
 
         Assert.Equal(lowerNfo.FileLength, capsNfo.FileLength);
         Assert.Equal(8249u, lowerNfo.FileLength);
@@ -689,7 +689,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("cleanup_script",
             "007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr"));
 
-        Assert.Equal(98, srr.RarFiles.Count);
+        Assert.Equal(98, srr.RARFiles.Count);
     }
 
     [Fact]
@@ -718,8 +718,8 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("cleanup_script",
             "007.Quantum.Of.Solace.DVDRip.XViD-PUKKA.cleanup_script.srr"));
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("CD1/p-qos-cd1.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("CD1/p-qos-cd1.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -790,7 +790,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("bug_detected_as_being_different3", fileName));
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.True(srr.RarFiles.Count > 0);
+        Assert.True(srr.RARFiles.Count > 0);
     }
 
     [Fact]
@@ -944,8 +944,8 @@ public class SRRFileRealDataTests : IDisposable
 
         var reloaded = SRRFile.Load(extractedPath!);
         Assert.NotNull(reloaded.HeaderBlock);
-        Assert.Single(reloaded.RarFiles);
-        Assert.Equal("store_little.rar", reloaded.RarFiles[0].FileName);
+        Assert.Single(reloaded.RARFiles);
+        Assert.Equal("store_little.rar", reloaded.RARFiles[0].FileName);
     }
 
     [Fact]

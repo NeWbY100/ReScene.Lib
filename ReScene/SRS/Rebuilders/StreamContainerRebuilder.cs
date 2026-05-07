@@ -10,7 +10,7 @@ internal class StreamContainerRebuilder : IContainerRebuilder
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -23,7 +23,7 @@ internal class StreamContainerRebuilder : IContainerRebuilder
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        if (tracks.TryGetValue(1, out SrsTrackDataBlock? track) && trackOffsets.TryGetValue(1, out long offset))
+        if (tracks.TryGetValue(1, out SRSTrackDataBlock? track) && trackOffsets.TryGetValue(1, out long offset))
         {
             mediaFs.Position = offset;
             StreamUtilities.CopyBytes(mediaFs, outFs, (long)track.DataLength);

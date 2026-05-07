@@ -189,7 +189,7 @@ public class RARBlockReadResult
     /// <summary>
     /// True if header CRC is valid.
     /// </summary>
-    public bool CrcValid
+    public bool CRCValid
     {
         get; set;
     }
@@ -318,7 +318,7 @@ public class RARHeaderReader
         long currentPos = _stream.Position;
         _stream.Seek(blockStart, SeekOrigin.Begin);
         byte[] headerBytes = _reader.ReadBytes(headerSize);
-        result.CrcValid = RARUtils.ValidateHeaderCrc(crc, headerBytes);
+        result.CRCValid = RARUtils.ValidateHeaderCrc(crc, headerBytes);
         _stream.Seek(currentPos, SeekOrigin.Begin);
 
         // Read ADD_SIZE for file headers and service blocks (always present even without LONG_BLOCK flag)
@@ -393,7 +393,7 @@ public class RARHeaderReader
             HeaderCrc = block.HeaderCrc,
             HeaderSize = block.HeaderSize,
             Flags = (RARArchiveFlags)block.Flags,
-            CrcValid = block.CrcValid
+            CRCValid = block.CRCValid
         };
     }
 
@@ -485,7 +485,7 @@ public class RARHeaderReader
             MtimePrecision = mtimePrecision,
             CtimePrecision = ctimePrecision,
             AtimePrecision = atimePrecision,
-            CrcValid = block.CrcValid,
+            CRCValid = block.CRCValid,
             HighPackSize = highPackSize,
             HighUnpSize = highUnpSize
         };

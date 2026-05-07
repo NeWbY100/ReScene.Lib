@@ -18,7 +18,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
 
     // RAR block type constants
-    private const byte RarMarkerType = 0x72;
+    private const byte RARMarkerType = 0x72;
     private const byte ArchiveHeaderType = 0x73;
     private const byte FileHeaderType = 0x74;
     private const byte ServiceBlockType = 0x7A;
@@ -30,11 +30,11 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
     private const ushort FlagSplitAfter = 0x0002;
 
     // SRR block type constants
-    private const byte SrrHeaderType = 0x69;
-    private const byte SrrStoredFileType = 0x6A;
-    private const byte SrrOsoHashType = 0x6B;
-    private const byte SrrRarPaddingType = 0x6C;
-    private const byte SrrRarFileType = 0x71;
+    private const byte SRRHeaderType = 0x69;
+    private const byte SRRStoredFileType = 0x6A;
+    private const byte SRROsoHashType = 0x6B;
+    private const byte SRRRarPaddingType = 0x6C;
+    private const byte SRRRarFileType = 0x71;
 
     /// <summary>
     /// Reconstructs RAR files from an SRR file by replaying original headers and splicing in source file data.
@@ -101,7 +101,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                 if (IsSrrBlockType(blockType))
                 {
                     // SRR blocks
-                    if (hasLongBlock || blockType == SrrStoredFileType)
+                    if (hasLongBlock || blockType == SRRStoredFileType)
                     {
                         if (srrStream.Position + 4 > srrStream.Length)
                         {
@@ -111,7 +111,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                         addSize = reader.ReadUInt32();
                     }
 
-                    if (blockType == SrrRarFileType)
+                    if (blockType == SRRRarFileType)
                     {
                         // Close previous volume and verify
                         if (outputStream != null && currentOutputPath != null && currentRarFileName != null)
@@ -124,7 +124,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                             FireProgress(inputDirectory, currentRarFileName, totalVolumes, completedVolumes, startTime);
                         }
 
-                        // Read the RAR filename from the SrrRarFile block
+                        // Read the RAR filename from the SRRRarFile block
                         if (srrStream.Position + 2 > srrStream.Length)
                         {
                             break;
@@ -146,7 +146,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
 
                         _logger.Information(this, $"Reconstructing: {currentRarFileName}", LogTarget.System);
                     }
-                    else if (blockType == SrrRarPaddingType)
+                    else if (blockType == SRRRarPaddingType)
                     {
                         // Read the padding block's RAR filename
                         long paddingHeaderEnd = blockStartPos + headerSize;
@@ -192,7 +192,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
 
                     switch (blockType)
                     {
-                        case RarMarkerType:
+                        case RARMarkerType:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             break;
 
@@ -355,7 +355,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
         return allMatched;
     }
 
-    private static bool IsSrrBlockType(byte type) => type is SrrHeaderType or SrrStoredFileType or SrrOsoHashType or SrrRarPaddingType or SrrRarFileType;
+    private static bool IsSrrBlockType(byte type) => type is SRRHeaderType or SRRStoredFileType or SRROsoHashType or SRRRarPaddingType or SRRRarFileType;
 
     private static string FindSourceFile(string inputDirectory, string archivedFileName)
     {

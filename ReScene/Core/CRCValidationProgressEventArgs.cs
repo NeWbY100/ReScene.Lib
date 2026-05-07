@@ -3,7 +3,7 @@ namespace ReScene.Core;
 /// <summary>
 /// Provides data for CRC32 validation progress events during brute-force input preparation.
 /// </summary>
-public class CrcValidationProgressEventArgs : EventArgs
+public class CRCValidationProgressEventArgs : EventArgs
 {
     /// <summary>
     /// The name of the file currently being verified.

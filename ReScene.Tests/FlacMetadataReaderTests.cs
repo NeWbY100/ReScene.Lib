@@ -205,7 +205,7 @@ public class FlacMetadataReaderTests
         // ID3v2 wrapper
         ms.Write("ID3"u8);
         ms.Write([0x04, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(50));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(50));
         ms.Write(new byte[50]); // body = 60 total
 
         // fLaC marker
@@ -268,7 +268,7 @@ public class FlacMetadataReaderTests
         {
             ms.Write("ID3"u8);
             ms.Write([0x04, 0x00, 0x00]);
-            ms.Write(Mp3TagReader.EncodeSyncSafeInt(id3BodySize));
+            ms.Write(MP3TagReader.EncodeSyncSafeInt(id3BodySize));
             ms.Write(new byte[id3BodySize]);
         }
 

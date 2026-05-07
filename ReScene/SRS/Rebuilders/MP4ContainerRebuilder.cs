@@ -7,7 +7,7 @@ namespace ReScene.SRS;
 /// Rebuilds an MP4 sample by replaying the atom structure from the SRS file,
 /// skipping SRSF/SRST atoms and reading mdat content from the media file.
 /// </summary>
-internal class Mp4ContainerRebuilder : IContainerRebuilder
+internal class MP4ContainerRebuilder : IContainerRebuilder
 {
     private static readonly HashSet<string> _containerAtoms =
         ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta"];
@@ -16,7 +16,7 @@ internal class Mp4ContainerRebuilder : IContainerRebuilder
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -34,7 +34,7 @@ internal class Mp4ContainerRebuilder : IContainerRebuilder
     private static void RebuildMp4Atoms(
         Stream srsFs, Stream outFs,
         Stream mediaFs,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         Dictionary<uint, long> trackOffsets,
         long start, long end,
         CancellationToken ct)
@@ -102,7 +102,7 @@ internal class Mp4ContainerRebuilder : IContainerRebuilder
                     .OrderBy(kv => trackOffsets[kv.Key])
                     .ToList();
 
-                foreach ((uint trackNumber, SrsTrackDataBlock? track) in sortedTracks)
+                foreach ((uint trackNumber, SRSTrackDataBlock? track) in sortedTracks)
                 {
                     mediaFs.Position = trackOffsets[trackNumber];
                     StreamUtilities.CopyBytes(mediaFs, outFs, (long)track.DataLength);

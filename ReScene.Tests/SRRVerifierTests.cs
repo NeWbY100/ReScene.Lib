@@ -33,10 +33,10 @@ public class SRRVerifierTests : IDisposable
             .AddStoredFile("hello.txt", [1, 2, 3])
             .BuildToFile(_testDir, "ok.srr");
 
-        SrrVerifyResult result = SRRVerifier.Verify(path);
+        SRRVerifyResult result = SRRVerifier.Verify(path);
 
         Assert.True(result.IsValid);
-        Assert.DoesNotContain(result.Issues, i => i.Severity == SrrVerifyIssueSeverity.Error);
+        Assert.DoesNotContain(result.Issues, i => i.Severity == SRRVerifyIssueSeverity.Error);
         Assert.True(result.BlocksScanned >= 2);
     }
 
@@ -54,11 +54,11 @@ public class SRRVerifierTests : IDisposable
             fs.SetLength(size - 4);
         }
 
-        SrrVerifyResult result = SRRVerifier.Verify(path);
+        SRRVerifyResult result = SRRVerifier.Verify(path);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Issues,
-            i => i.Severity == SrrVerifyIssueSeverity.Error
+            i => i.Severity == SRRVerifyIssueSeverity.Error
                  && (i.Message.Contains("Truncated", StringComparison.OrdinalIgnoreCase)
                      || i.Message.Contains("extends past end of file", StringComparison.OrdinalIgnoreCase)));
     }
@@ -76,10 +76,10 @@ public class SRRVerifierTests : IDisposable
         bytes[1] = 0xFF;
         File.WriteAllBytes(path, bytes);
 
-        SrrVerifyResult result = SRRVerifier.Verify(path);
+        SRRVerifyResult result = SRRVerifier.Verify(path);
 
         Assert.Contains(result.Issues,
-            i => i.Severity == SrrVerifyIssueSeverity.Warning
+            i => i.Severity == SRRVerifyIssueSeverity.Warning
                  && i.Message.Contains("CRC", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -97,11 +97,11 @@ public class SRRVerifierTests : IDisposable
             .AddStoredFile("hello.txt", [1, 2, 3])
             .BuildToFile(_testDir, "noheader.srr");
 
-        SrrVerifyResult result = SRRVerifier.Verify(path);
+        SRRVerifyResult result = SRRVerifier.Verify(path);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Issues,
-            i => i.Severity == SrrVerifyIssueSeverity.Error
+            i => i.Severity == SRRVerifyIssueSeverity.Error
                  && i.Message.Contains("header", StringComparison.OrdinalIgnoreCase));
     }
 }

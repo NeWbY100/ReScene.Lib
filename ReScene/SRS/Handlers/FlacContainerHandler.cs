@@ -10,7 +10,7 @@ internal class FlacContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.FLAC;
 
-    public (List<TrackInfo> Tracks, uint Crc32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
     {
         var track = new TrackInfo { TrackNumber = 1 };
         long otherLength = 0;
@@ -125,7 +125,7 @@ internal class FlacContainerHandler : IContainerHandler
     public void WriteSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options, CancellationToken ct)
+        SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -188,9 +188,9 @@ internal class FlacContainerHandler : IContainerHandler
     #region Writing Helpers
 
     private static void WriteSrsfFlac(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options)
+        SRSCreationOptions options)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
         outFs.WriteByte(0x73); // 's' type
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
@@ -201,7 +201,7 @@ internal class FlacContainerHandler : IContainerHandler
 
     private static void WriteSrstFlac(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrst(track, bigFile);
+        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
         outFs.WriteByte(0x74); // 't' type
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));

@@ -4,14 +4,14 @@ using System.IO.Hashing;
 namespace ReScene;
 
 /// <summary>
-/// Shared CRC32 computation utilities.
+/// Shared Crc32 computation utilities.
 /// </summary>
-internal static class CrcUtility
+internal static class CRCUtility
 {
     private const int BufferSize = 80 * 1024;
 
     /// <summary>
-    /// Computes the CRC32 hash of an entire file.
+    /// Computes the Crc32 hash of an entire file.
     /// </summary>
     public static uint ComputeFileCrc32(string filePath, CancellationToken ct = default)
     {

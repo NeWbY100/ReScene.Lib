@@ -3,17 +3,17 @@ namespace ReScene.SRR;
 /// <summary>
 /// Aggregate result of an <see cref="SRRVerifier"/> run.
 /// </summary>
-public sealed class SrrVerifyResult
+public sealed class SRRVerifyResult
 {
     /// <summary>
-    /// Gets a value indicating whether the file passed verification (no <see cref="SrrVerifyIssueSeverity.Error"/> issues).
+    /// Gets a value indicating whether the file passed verification (no <see cref="SRRVerifyIssueSeverity.Error"/> issues).
     /// </summary>
     public required bool IsValid { get; init; }
 
     /// <summary>
     /// Gets the list of issues found during verification.
     /// </summary>
-    public required IReadOnlyList<SrrVerifyIssue> Issues { get; init; }
+    public required IReadOnlyList<SRRVerifyIssue> Issues { get; init; }
 
     /// <summary>
     /// Gets the number of blocks successfully parsed.

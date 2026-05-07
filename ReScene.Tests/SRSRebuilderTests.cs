@@ -122,16 +122,16 @@ public class SRSRebuilderTests : IDisposable
         // Create SRS
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         // Rebuild
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.avi");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
 
@@ -143,12 +143,12 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.avi");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -167,17 +167,17 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_multi.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
         Assert.True(createResult.TrackCount >= 2, "Expected multiple tracks");
 
         // Rebuild from the same file (round-trip)
         string outputPath = Path.Combine(_tempDir, "rebuilt_multi.avi");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
         // Verify file content matches byte-for-byte
@@ -199,15 +199,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.vob");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch);
+        Assert.True(result.CRCMatch);
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
         byte[] originalBytes = File.ReadAllBytes(samplePath);
@@ -228,15 +228,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
     }
 
@@ -248,15 +248,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_att.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_att.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
@@ -276,15 +276,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
@@ -304,15 +304,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_realistic.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_realistic.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
@@ -329,15 +329,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp4");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
     }
 
     #endregion
@@ -352,15 +352,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.flac");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
     }
 
     #endregion
@@ -375,15 +375,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp3");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
     }
 
     #endregion
@@ -398,7 +398,7 @@ public class SRSRebuilderTests : IDisposable
         // Create SRS from original
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         // Create a corrupted "media" file (same size, different content)
@@ -424,9 +424,9 @@ public class SRSRebuilderTests : IDisposable
         // Rebuild from corrupted media
         string outputPath = Path.Combine(_tempDir, "rebuilt_corrupt.vob");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, corruptMediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, corruptMediaPath, outputPath);
 
-        Assert.False(result.CrcMatch);
+        Assert.False(result.CRCMatch);
         Assert.NotEqual(result.ExpectedCrc, result.ActualCrc);
     }
 
@@ -438,7 +438,7 @@ public class SRSRebuilderTests : IDisposable
     public async Task Rebuild_MissingSrsFile_ReturnsError()
     {
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(
             Path.Combine(_tempDir, "nonexistent.srs"),
             Path.Combine(_tempDir, "media.avi"),
             Path.Combine(_tempDir, "output.avi"));
@@ -457,7 +457,7 @@ public class SRSRebuilderTests : IDisposable
         await writer.CreateAsync(srsPath, samplePath);
 
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(
             srsPath,
             Path.Combine(_tempDir, "nonexistent_media.vob"),
             Path.Combine(_tempDir, "output.vob"));
@@ -478,7 +478,7 @@ public class SRSRebuilderTests : IDisposable
         cts.Cancel(); // Cancel immediately
 
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(
             srsPath, samplePath,
             Path.Combine(_tempDir, "output.vob"),
             cts.Token);
@@ -524,15 +524,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_xiph.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_xiph.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -548,15 +548,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_fixed.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_fixed.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -572,15 +572,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_ebml.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_ebml.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -597,16 +597,16 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_mixed.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
         Assert.True(createResult.TrackCount >= 2, "Expected multiple tracks");
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_mixed.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -623,15 +623,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_xiph_media.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_xiph_media.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
@@ -647,15 +647,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_multi_cluster.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_multi_cluster.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -672,15 +672,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_many.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_many.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
@@ -692,15 +692,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_ts.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_ts.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -717,15 +717,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test_bg.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_bg.mkv");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch,
+        Assert.True(result.CRCMatch,
             $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
@@ -745,12 +745,12 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp4");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -768,12 +768,12 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.flac");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -791,12 +791,12 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp3");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -814,12 +814,12 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.vob");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -841,15 +841,15 @@ public class SRSRebuilderTests : IDisposable
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
-        SrsCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         string outputPath = Path.Combine(_tempDir, "rebuilt_sample.avi");
         var rebuilder = new SRSRebuilder();
-        SrsReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CrcMatch);
+        Assert.True(result.CRCMatch);
     }
 
     #endregion
@@ -1955,12 +1955,12 @@ public class SRSRebuilderTests : IDisposable
         // Encode as signed VINT: value + bias
         // 1-byte: bias = 63, range = -63..63
         // 2-byte: bias = 8191, range = -8191..8191
-        if (value >= -63 && value <= 63)
+        if (value is >= -63 and <= 63)
         {
             int encoded = value + 63;
             stream.WriteByte((byte)(0x80 | encoded));
         }
-        else if (value >= -8191 && value <= 8191)
+        else if (value is >= -8191 and <= 8191)
         {
             int encoded = value + 8191;
             stream.WriteByte((byte)(0x40 | (encoded >> 8)));

@@ -9,7 +9,7 @@ namespace ReScene.SRS;
 /// Extracts media files from ISO disc images for SRS reconstruction.
 /// Supports both ISO 9660 and UDF file systems.
 /// </summary>
-public static class IsoMediaExtractor
+public static class ISOMediaExtractor
 {
     private static readonly HashSet<string> _mediaExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -156,7 +156,7 @@ public static class IsoMediaExtractor
     /// <summary>
     /// Progress data for ISO media extraction operations.
     /// </summary>
-    public class IsoProgress
+    public class ISOProgress
     {
         /// <summary>
         /// Gets the current phase description.
@@ -236,7 +236,7 @@ public static class IsoMediaExtractor
         string isoPath,
         string srsFilePath,
         string destPath,
-        Action<IsoProgress>? progress = null,
+        Action<ISOProgress>? progress = null,
         CancellationToken ct = default)
     {
         return Task.Run(() =>
@@ -289,7 +289,7 @@ public static class IsoMediaExtractor
 
                 if (hintOffset >= 0 && hintOffset < titleSetSizes[t])
                 {
-                    progress?.Invoke(new IsoProgress
+                    progress?.Invoke(new ISOProgress
                     {
                         Phase = "Scanning",
                         CurrentFile = $"Checking {titlePrefix} at hint offset...",
@@ -320,7 +320,7 @@ public static class IsoMediaExtractor
                 (string titlePrefix, List<string> vobFiles) = titleSets[t];
                 long setSize = titleSetSizes[t];
 
-                progress?.Invoke(new IsoProgress
+                progress?.Invoke(new ISOProgress
                 {
                     Phase = "Scanning",
                     CurrentFile = $"Scanning {titlePrefix}...",
@@ -335,7 +335,7 @@ public static class IsoMediaExtractor
                 if (SearchSignatureInVobSet(disc, vobFiles, signature, ct,
                         (scanPercent, scanned, total) =>
                         {
-                            progress?.Invoke(new IsoProgress
+                            progress?.Invoke(new ISOProgress
                             {
                                 Phase = "Scanning",
                                 CurrentFile = $"Scanning {titlePrefix}...",
@@ -415,7 +415,7 @@ public static class IsoMediaExtractor
         string destPath,
         int totalFiles, long totalAllBytes,
         ref int filesProcessed, ref long bytesProcessedAll,
-        Action<IsoProgress>? progress, CancellationToken ct)
+        Action<ISOProgress>? progress, CancellationToken ct)
     {
         string? destDir = Path.GetDirectoryName(destPath);
         if (destDir is not null)
@@ -453,7 +453,7 @@ public static class IsoMediaExtractor
                 int filePercent = fileSize > 0 ? (int)(fileCopied * 100 / fileSize) : 100;
                 int overallPercent = totalAllBytes > 0 ? (int)(bytesProcessedAll * 100 / totalAllBytes) : 0;
 
-                progress?.Invoke(new IsoProgress
+                progress?.Invoke(new ISOProgress
                 {
                     Phase = "Extracting",
                     CurrentFile = $"{vobName} ({f + 1}/{vobFiles.Count})",

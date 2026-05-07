@@ -4,7 +4,7 @@ namespace ReScene.SRS;
 /// Lacing mode for MKV Block/SimpleBlock elements.
 /// Values correspond to the 2-bit lacing field in the block flags byte (bits 1-2).
 /// </summary>
-public enum EbmlLaceType : byte
+public enum EBMLLaceType : byte
 {
     /// <summary>
     /// No lacing - single frame per block.
@@ -31,14 +31,14 @@ public enum EbmlLaceType : byte
 /// Parses lacing headers from MKV Block/SimpleBlock elements to determine
 /// individual frame sizes within a laced block.
 /// </summary>
-public static class EbmlLacing
+public static class EBMLLacing
 {
     /// <summary>
     /// Parses the lacing information from block data to get individual frame sizes.
     /// </summary>
     /// <param name="data">
     /// Block data starting at the lacing header (after track number, timecode, and flags byte).
-    /// For <see cref="EbmlLaceType.None"/>, this parameter is unused.
+    /// For <see cref="EBMLLaceType.None"/>, this parameter is unused.
     /// </param>
     /// <param name="laceType">
     /// The lacing type extracted from the block flags byte.
@@ -50,12 +50,12 @@ public static class EbmlLacing
     /// Array of frame sizes and the number of bytes consumed by the lacing header.
     /// </returns>
     public static (int[] frameSizes, int bytesConsumed) GetFrameLengths(
-        ReadOnlySpan<byte> data, EbmlLaceType laceType, int totalDataLength)
+        ReadOnlySpan<byte> data, EBMLLaceType laceType, int totalDataLength)
     {
         int bytesConsumed = 0;
         int frameCount = 1;
 
-        if (laceType != EbmlLaceType.None)
+        if (laceType != EBMLLaceType.None)
         {
             if (data.Length < 1)
             {
@@ -70,11 +70,11 @@ public static class EbmlLacing
 
         switch (laceType)
         {
-            case EbmlLaceType.None:
+            case EBMLLaceType.None:
                 frameSizes[0] = totalDataLength;
                 break;
 
-            case EbmlLaceType.Fixed:
+            case EBMLLaceType.Fixed:
                 int fixedSize = totalDataLength / frameCount;
                 for (int i = 0; i < frameCount; i++)
                 {
@@ -83,7 +83,7 @@ public static class EbmlLacing
 
                 break;
 
-            case EbmlLaceType.Xiph:
+            case EBMLLaceType.Xiph:
                 for (int i = 0; i < frameCount; i++)
                 {
                     if (i < frameCount - 1)
@@ -118,20 +118,20 @@ public static class EbmlLacing
 
                 break;
 
-            case EbmlLaceType.Ebml:
+            case EBMLLaceType.Ebml:
                 for (int i = 0; i < frameCount; i++)
                 {
                     if (i == 0)
                     {
                         // First frame: read as unsigned EBML VINT
-                        (long value, int vintLen) = EbmlVInt.ReadUnsigned(data[bytesConsumed..]);
+                        (long value, int vintLen) = EBMLVInt.ReadUnsigned(data[bytesConsumed..]);
                         frameSizes[0] = (int)value;
                         bytesConsumed += vintLen;
                     }
                     else if (i < frameCount - 1)
                     {
                         // Subsequent frames (not last): read signed EBML VINT delta
-                        (long delta, int vintLen) = EbmlVInt.ReadSigned(data[bytesConsumed..]);
+                        (long delta, int vintLen) = EBMLVInt.ReadSigned(data[bytesConsumed..]);
                         frameSizes[i] = frameSizes[i - 1] + (int)delta;
                         bytesConsumed += vintLen;
                     }
@@ -158,7 +158,7 @@ public static class EbmlLacing
 /// <summary>
 /// Helper methods for reading EBML variable-length integers (VINTs).
 /// </summary>
-public static class EbmlVInt
+public static class EBMLVInt
 {
     /// <summary>
     /// Reads an unsigned EBML VINT from the given data.

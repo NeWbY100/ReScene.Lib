@@ -4,16 +4,16 @@ using System.Text;
 
 namespace ReScene.SRS;
 
-internal class Mp4ContainerHandler : IContainerHandler
+internal class MP4ContainerHandler : IContainerHandler
 {
     private const int SignatureSize = 256;
 
     public SRSContainerType ContainerType => SRSContainerType.MP4;
 
-    private static readonly HashSet<string> _mp4ContainerAtoms =
+    private static readonly HashSet<string> _mP4ContainerAtoms =
         ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta", "meta", "ilst"];
 
-    public (List<TrackInfo> Tracks, uint Crc32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
     {
         var trackMap = new SortedDictionary<int, TrackInfo>();
         long metaLength = 0;
@@ -62,7 +62,7 @@ internal class Mp4ContainerHandler : IContainerHandler
     public void WriteSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options, CancellationToken ct)
+        SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -281,7 +281,7 @@ internal class Mp4ContainerHandler : IContainerHandler
                     }
                 }
             }
-            else if (_mp4ContainerAtoms.Contains(type))
+            else if (_mP4ContainerAtoms.Contains(type))
             {
                 // Step into children
                 ProfileMp4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
@@ -308,9 +308,9 @@ internal class Mp4ContainerHandler : IContainerHandler
     #region Writing Helpers
 
     private static void WriteSrsfMov(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options)
+        SRSCreationOptions options)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
         Span<byte> header = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + 8));
         header[4] = (byte)'S';
@@ -323,7 +323,7 @@ internal class Mp4ContainerHandler : IContainerHandler
 
     private static void WriteSrstMov(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrst(track, bigFile);
+        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
         Span<byte> header = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + 8));
         header[4] = (byte)'S';

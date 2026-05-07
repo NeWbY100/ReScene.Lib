@@ -88,9 +88,9 @@ public class RARPatcherTests : IDisposable
                 break;
             }
 
-            if (block.BlockType == RAR4BlockType.FileHeader || block.BlockType == RAR4BlockType.Service)
+            if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
             {
-                Assert.True(block.CrcValid, $"CRC invalid after patching at position {block.BlockPosition}");
+                Assert.True(block.CRCValid, $"CRC invalid after patching at position {block.BlockPosition}");
             }
 
             reader.SkipBlock(block, includeData: block.BlockType != RAR4BlockType.FileHeader);
@@ -437,7 +437,7 @@ public class RARPatcherTests : IDisposable
         Assert.True(fileBlock.FileHeader!.HasLargeSize);
         Assert.Equal(0x12345678u, fileBlock.FileHeader.HighPackSize);
         Assert.Equal(0xABCDEF00u, fileBlock.FileHeader.HighUnpSize);
-        Assert.True(fileBlock.CrcValid);
+        Assert.True(fileBlock.CRCValid);
     }
 
     [Fact]
@@ -475,7 +475,7 @@ public class RARPatcherTests : IDisposable
         Assert.False(fileBlock.FileHeader!.HasLargeSize);
         Assert.Equal(0u, fileBlock.FileHeader.HighPackSize);
         Assert.Equal(0u, fileBlock.FileHeader.HighUnpSize);
-        Assert.True(fileBlock.CrcValid);
+        Assert.True(fileBlock.CRCValid);
     }
 
     [Fact]
@@ -521,7 +521,7 @@ public class RARPatcherTests : IDisposable
 
         RARBlockReadResult? fileBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(fileBlock);
-        Assert.True(fileBlock!.CrcValid);
+        Assert.True(fileBlock!.CRCValid);
         Assert.False(fileBlock.FileHeader!.HasLargeSize);
     }
 
@@ -593,9 +593,9 @@ public class RARPatcherTests : IDisposable
                 break;
             }
 
-            if (block.BlockType == RAR4BlockType.FileHeader || block.BlockType == RAR4BlockType.Service)
+            if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
             {
-                Assert.True(block.CrcValid, $"CRC invalid after LARGE patching at position {block.BlockPosition}");
+                Assert.True(block.CRCValid, $"CRC invalid after LARGE patching at position {block.BlockPosition}");
 
                 if (block.FileHeader != null)
                 {
@@ -1065,7 +1065,7 @@ public class RARPatcherTests : IDisposable
         // First file header (LARGE)
         RARBlockReadResult? firstBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(firstBlock);
-        Assert.True(firstBlock!.CrcValid, "First block CRC should be valid after patching");
+        Assert.True(firstBlock!.CRCValid, "First block CRC should be valid after patching");
         Assert.NotNull(firstBlock.FileHeader);
         Assert.Equal(3, firstBlock.FileHeader!.HostOS); // Patched to Unix
         Assert.True(firstBlock.FileHeader.HasLargeSize);

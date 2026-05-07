@@ -6,7 +6,7 @@ namespace ReScene.SRR;
 /// <summary>
 /// Options for SRR file creation.
 /// </summary>
-public class SrrCreationOptions
+public class SRRCreationOptions
 {
     /// <summary>
     /// Application name to embed in the SRR header.
@@ -38,7 +38,7 @@ public class SrrCreationOptions
 /// <summary>
 /// Result of SRR file creation.
 /// </summary>
-public class SrrCreationResult
+public class SRRCreationResult
 {
     /// <summary>
     /// Whether creation succeeded.
@@ -83,7 +83,7 @@ public class SrrCreationResult
     /// <summary>
     /// Size of the created SRR file in bytes.
     /// </summary>
-    public long SrrFileSize
+    public long SRRFileSize
     {
         get; set;
     }
@@ -92,12 +92,17 @@ public class SrrCreationResult
     /// Non-fatal warnings encountered during creation.
     /// </summary>
     public List<string> Warnings { get; set; } = [];
+
+    /// <summary>
+    /// Names of VobSub .idx files discovered when generating languages.diz, in archive order.
+    /// </summary>
+    public List<string> LanguagesDizIdxFiles { get; set; } = [];
 }
 
 /// <summary>
 /// Progress event args for SRR creation.
 /// </summary>
-public class SrrCreationProgressEventArgs : EventArgs
+public class SRRCreationProgressEventArgs : EventArgs
 {
     /// <summary>
     /// Overall progress percentage (0-100).
@@ -140,7 +145,7 @@ public class SRRWriter
     /// <summary>
     /// Raised to report progress during SRR creation.
     /// </summary>
-    public event EventHandler<SrrCreationProgressEventArgs>? Progress;
+    public event EventHandler<SRRCreationProgressEventArgs>? Progress;
 
     /// <summary>
     /// Creates an SRR file from a list of RAR volume paths.
@@ -163,15 +168,15 @@ public class SRRWriter
     /// <returns>
     /// Result of the creation operation.
     /// </returns>
-    public async Task<SrrCreationResult> CreateAsync(
+    public async Task<SRRCreationResult> CreateAsync(
         string outputPath,
         IReadOnlyList<string> rarVolumePaths,
         IReadOnlyDictionary<string, string>? storedFiles = null,
-        SrrCreationOptions? options = null,
+        SRRCreationOptions? options = null,
         CancellationToken ct = default)
     {
-        options ??= new SrrCreationOptions();
-        var result = new SrrCreationResult();
+        options ??= new SRRCreationOptions();
+        var result = new SRRCreationResult();
 
         try
         {
@@ -243,7 +248,7 @@ public class SRRWriter
             // 4. Optionally compute and write OSO hash blocks
             if (options.ComputeOsoHashes)
             {
-                List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OsoHashCalculator.ComputeHashes(rarVolumePaths);
+                List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(rarVolumePaths);
                 foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
                 {
                     WriteOsoHashBlock(writer, fileName, fileSize, hash);
@@ -253,16 +258,27 @@ public class SRRWriter
             // 5. Optionally generate and store languages.diz from VobSub .idx files
             if (options.GenerateLanguagesDiz)
             {
-                byte[]? dizData = LanguagesDizGenerator.Generate(rarVolumePaths);
-                if (dizData is not null)
+                LanguagesDizGenerator.Result dizResult = LanguagesDizGenerator.Generate(rarVolumePaths);
+                result.LanguagesDizIdxFiles.AddRange(dizResult.IdxFileNames);
+                result.Warnings.AddRange(dizResult.Warnings);
+
+                if (dizResult.Data is not null)
                 {
-                    WriteStoredFileBlock(writer, "languages.diz", dizData);
+                    WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
                     result.StoredFileCount++;
+                }
+                else if (dizResult.IdxFileNames.Count == 0)
+                {
+                    result.Warnings.Add("languages.diz requested but no VobSub .idx files were found.");
+                }
+                else if (dizResult.Warnings.Count == 0)
+                {
+                    result.Warnings.Add("languages.diz requested but no language lines could be extracted from the .idx file(s).");
                 }
             }
 
             await outStream.FlushAsync(ct);
-            result.SrrFileSize = outStream.Length;
+            result.SRRFileSize = outStream.Length;
             result.OutputPath = outputPath;
             result.Success = true;
 
@@ -303,16 +319,16 @@ public class SRRWriter
     /// <returns>
     /// Result of the creation operation.
     /// </returns>
-    public async Task<SrrCreationResult> CreateFromSfvAsync(
+    public async Task<SRRCreationResult> CreateFromSfvAsync(
         string outputPath,
         string sfvFilePath,
         IReadOnlyDictionary<string, string>? additionalFiles = null,
-        SrrCreationOptions? options = null,
+        SRRCreationOptions? options = null,
         CancellationToken ct = default)
     {
         if (!File.Exists(sfvFilePath))
         {
-            return new SrrCreationResult { ErrorMessage = $"SFV file not found: {sfvFilePath}" };
+            return new SRRCreationResult { ErrorMessage = $"SFV file not found: {sfvFilePath}" };
         }
 
         string sfvDir = Path.GetDirectoryName(sfvFilePath) ?? ".";
@@ -336,7 +352,7 @@ public class SRRWriter
             }
 
             string fileName = trimmed[..lastSpace].Trim();
-            if (RarVolumeIdentifier.IsRarVolume(fileName))
+            if (RARVolumeIdentifier.IsRarVolume(fileName))
             {
                 string fullPath = Path.Combine(sfvDir, fileName);
                 if (File.Exists(fullPath))
@@ -348,11 +364,11 @@ public class SRRWriter
 
         if (rarFiles.Count == 0)
         {
-            return new SrrCreationResult { ErrorMessage = "No RAR volumes found in SFV file." };
+            return new SRRCreationResult { ErrorMessage = "No RAR volumes found in SFV file." };
         }
 
         // Sort volumes in correct order
-        rarFiles.Sort(RarVolumeNameComparer.Instance);
+        rarFiles.Sort(RARVolumeNameComparer.Instance);
 
         // Build stored files dictionary — additional files first (preserves caller's sort order)
         var storedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -429,7 +445,7 @@ public class SRRWriter
         ushort headerSize = (ushort)(7 + 2 + nameBytes.Length); // base + nameLen + name
 
         writer.Write((ushort)0x7171);           // CRC (SRR RAR file sentinel)
-        writer.Write((byte)0x71);               // RarFile type
+        writer.Write((byte)0x71);               // RARFile type
         writer.Write((ushort)0x0000);           // flags
         writer.Write(headerSize);
         writer.Write((ushort)nameBytes.Length);
@@ -443,7 +459,7 @@ public class SRRWriter
         ushort headerSize = (ushort)(7 + 8 + 8 + 2 + nameBytes.Length);
 
         writer.Write((ushort)0x6B6B);           // CRC (SRR OSO hash sentinel)
-        writer.Write((byte)0x6B);               // OsoHash type
+        writer.Write((byte)0x6B);               // OSOHash type
         writer.Write((ushort)0x0000);           // flags
         writer.Write(headerSize);
         writer.Write(fileSize);                 // file size (8 bytes)
@@ -460,8 +476,8 @@ public class SRRWriter
         BinaryWriter writer,
         string volumePath,
         string volumeName,
-        SrrCreationOptions options,
-        SrrCreationResult result,
+        SRRCreationOptions options,
+        SRRCreationResult result,
         CancellationToken ct)
     {
         // Write the SRR RAR file reference block
@@ -490,8 +506,8 @@ public class SRRWriter
         FileStream fs,
         BinaryReader reader,
         string volumeName,
-        SrrCreationOptions options,
-        SrrCreationResult result,
+        SRRCreationOptions options,
+        SRRCreationResult result,
         CancellationToken ct)
     {
         // Read and copy RAR4 marker block (7 bytes)
@@ -641,7 +657,7 @@ public class SRRWriter
         FileStream fs,
         BinaryReader reader,
         string volumeName,
-        SrrCreationResult result,
+        SRRCreationResult result,
         CancellationToken ct)
     {
         // Read and copy RAR5 marker (8 bytes)
@@ -682,7 +698,7 @@ public class SRRWriter
 
             // Read the full raw header bytes (CRC + vint + header content)
             long rawHeaderSize = headerEndPos - blockStart;
-            if (rawHeaderSize <= 0 || rawHeaderSize > int.MaxValue)
+            if (rawHeaderSize is <= 0 or > int.MaxValue)
             {
                 break;
             }
@@ -757,7 +773,7 @@ public class SRRWriter
     private void ReportProgress(int current, int total, string message)
     {
         int percent = total > 0 ? (int)(current * 100.0 / total) : 0;
-        Progress?.Invoke(this, new SrrCreationProgressEventArgs
+        Progress?.Invoke(this, new SRRCreationProgressEventArgs
         {
             ProgressPercent = percent,
             CurrentVolume = current,

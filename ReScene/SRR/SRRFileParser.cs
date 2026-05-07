@@ -11,10 +11,10 @@ internal static class SRRFileParser
 {
     internal static bool IsSrrBlockType(byte type) => type is 0x69 or 0x6A or 0x6B or 0x6C or 0x71;
 
-    internal static SrrHeaderBlock ParseHeaderBlock(BinaryReader reader, FileStream fs,
+    internal static SRRHeaderBlock ParseHeaderBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize)
     {
-        var block = new SrrHeaderBlock
+        var block = new SRRHeaderBlock
         {
             Crc = crc,
             BlockType = type,
@@ -41,7 +41,7 @@ internal static class SRRFileParser
         return block;
     }
 
-    internal static SrrOsoHashBlock? ParseOsoHashBlock(BinaryReader reader, FileStream fs,
+    internal static SRROsoHashBlock? ParseOsoHashBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize)
     {
         long headerEnd = startPos + headerSize;
@@ -69,7 +69,7 @@ internal static class SRRFileParser
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
 
-        return new SrrOsoHashBlock
+        return new SRROsoHashBlock
         {
             Crc = crc,
             BlockType = type,
@@ -78,11 +78,11 @@ internal static class SRRFileParser
             BlockPosition = startPos,
             FileName = fileName,
             FileSize = fileSize,
-            OsoHash = osoHash
+            OSOHash = osoHash
         };
     }
 
-    internal static SrrRarPaddingBlock? ParseRarPaddingBlock(BinaryReader reader, FileStream fs,
+    internal static SRRRarPaddingBlock? ParseRarPaddingBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         long headerEnd = startPos + headerSize;
@@ -106,7 +106,7 @@ internal static class SRRFileParser
             rarFileName = Encoding.UTF8.GetString(nameBytes);
         }
 
-        return new SrrRarPaddingBlock
+        return new SRRRarPaddingBlock
         {
             Crc = crc,
             BlockType = type,
@@ -114,12 +114,12 @@ internal static class SRRFileParser
             HeaderSize = headerSize,
             BlockPosition = startPos,
             AddSize = addSize,
-            RarFileName = rarFileName,
+            RARFileName = rarFileName,
             PaddingSize = addSize
         };
     }
 
-    internal static SrrStoredFileBlock? ParseStoredFileBlock(BinaryReader reader, FileStream fs,
+    internal static SRRStoredFileBlock? ParseStoredFileBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         const int minStoredHeaderSize = 7 + 4 + 2;
@@ -154,7 +154,7 @@ internal static class SRRFileParser
             return null;
         }
 
-        return new SrrStoredFileBlock
+        return new SRRStoredFileBlock
         {
             Crc = crc,
             BlockType = type,
@@ -168,7 +168,7 @@ internal static class SRRFileParser
         };
     }
 
-    internal static SrrRarFileBlock? ParseRarFileBlock(BinaryReader reader, FileStream fs,
+    internal static SRRRarFileBlock? ParseRarFileBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         ushort nameLen = reader.ReadUInt16();
@@ -180,7 +180,7 @@ internal static class SRRFileParser
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
 
-        return new SrrRarFileBlock
+        return new SRRRarFileBlock
         {
             Crc = crc,
             BlockType = type,
@@ -231,7 +231,7 @@ internal static class SRRFileParser
             }
 
             // Track CRC mismatches
-            if (!block.CrcValid)
+            if (!block.CRCValid)
             {
                 srr.HeaderCrcMismatches++;
             }
@@ -285,7 +285,7 @@ internal static class SRRFileParser
                 break;
             }
             // SRR blocks have types in 0x69-0x71 range, RAR5 blocks are 0-5
-            if (peekType.Value >= 0x69 && peekType.Value <= 0x71)
+            if (peekType.Value is >= 0x69 and <= 0x71)
             {
                 break;
             }
@@ -299,7 +299,7 @@ internal static class SRRFileParser
             }
 
             // Track CRC mismatches
-            if (!block.CrcValid)
+            if (!block.CRCValid)
             {
                 srr.HeaderCrcMismatches++;
             }
@@ -491,7 +491,7 @@ internal static class SRRFileParser
         {
             // Get the uncompressed size from the service block info
             int uncompressedSize = (int)serviceInfo.UnpackedSize;
-            if (uncompressedSize <= 0 || uncompressedSize > 1024 * 1024) // Sanity check: max 1MB
+            if (uncompressedSize is <= 0 or > (1024 * 1024)) // Sanity check: max 1MB
             {
                 return (null, null);
             }
@@ -641,7 +641,7 @@ internal static class SRRFileParser
         {
             // Get the uncompressed size from the service block info
             int uncompressedSize = (int)serviceInfo.UnpackedSize;
-            if (uncompressedSize <= 0 || uncompressedSize > 1024 * 1024) // Sanity check: max 1MB
+            if (uncompressedSize is <= 0 or > (1024 * 1024)) // Sanity check: max 1MB
             {
                 return (null, null);
             }
@@ -708,7 +708,7 @@ internal static class SRRFileParser
         string[] parts = normalized.Split(Path.DirectorySeparatorChar);
         foreach (string part in parts)
         {
-            if (part == "." || part == "..")
+            if (part is "." or "..")
             {
                 return null;
             }
@@ -801,13 +801,13 @@ internal static class SRRFileParser
 
     internal static void CalculateVolumeSizeBytes(SRRFile srr)
     {
-        if (srr.RarVolumeSizes.Count == 0)
+        if (srr.RARVolumeSizes.Count == 0)
         {
             return;
         }
 
         Dictionary<long, int> counts = [];
-        foreach (long size in srr.RarVolumeSizes)
+        foreach (long size in srr.RARVolumeSizes)
         {
             counts.TryGetValue(size, out int count);
             counts[size] = count + 1;

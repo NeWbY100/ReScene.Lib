@@ -3,7 +3,7 @@ namespace ReScene.SRR;
 /// <summary>
 /// Validates the structural integrity of an SRR file. The verifier walks each block,
 /// checks header sanity, CRC sentinels, and block sizes against the file length, and
-/// returns a structured <see cref="SrrVerifyResult"/>.
+/// returns a structured <see cref="SRRVerifyResult"/>.
 /// </summary>
 public static class SRRVerifier
 {
@@ -11,9 +11,9 @@ public static class SRRVerifier
     private const int AddSizeFieldLength = 4;
     private const ushort HeaderSentinel = 0x6969;
     private const ushort StoredFileSentinel = 0x6A6A;
-    private const ushort OsoSentinel = 0x6B6B;
-    private const ushort RarPaddingSentinel = 0x6C6C;
-    private const ushort RarFileSentinel = 0x7171;
+    private const ushort OSOSentinel = 0x6B6B;
+    private const ushort RARPaddingSentinel = 0x6C6C;
+    private const ushort RARFileSentinel = 0x7171;
 
     /// <summary>
     /// Verifies the structural integrity of the SRR file at the given path.
@@ -22,9 +22,9 @@ public static class SRRVerifier
     /// Absolute path to the SRR file to verify.
     /// </param>
     /// <returns>
-    /// A <see cref="SrrVerifyResult"/> describing the outcome.
+    /// A <see cref="SRRVerifyResult"/> describing the outcome.
     /// </returns>
-    public static SrrVerifyResult Verify(string srrFilePath)
+    public static SRRVerifyResult Verify(string srrFilePath)
     {
         if (string.IsNullOrWhiteSpace(srrFilePath))
         {
@@ -36,7 +36,7 @@ public static class SRRVerifier
             throw new FileNotFoundException("SRR file not found.", srrFilePath);
         }
 
-        List<SrrVerifyIssue> issues = [];
+        List<SRRVerifyIssue> issues = [];
         int blocksScanned = 0;
         bool sawHeader = false;
 
@@ -50,9 +50,9 @@ public static class SRRVerifier
 
             if (blockStart + BaseHeaderSize > fileSize)
             {
-                issues.Add(new SrrVerifyIssue
+                issues.Add(new SRRVerifyIssue
                 {
-                    Severity = SrrVerifyIssueSeverity.Error,
+                    Severity = SRRVerifyIssueSeverity.Error,
                     Message = $"Truncated header at offset 0x{blockStart:X}.",
                     Offset = blockStart
                 });
@@ -66,9 +66,9 @@ public static class SRRVerifier
 
             if (headerSize < BaseHeaderSize)
             {
-                issues.Add(new SrrVerifyIssue
+                issues.Add(new SRRVerifyIssue
                 {
-                    Severity = SrrVerifyIssueSeverity.Error,
+                    Severity = SRRVerifyIssueSeverity.Error,
                     Message = $"Block at 0x{blockStart:X} reports header size {headerSize}; must be >= {BaseHeaderSize}.",
                     Offset = blockStart,
                     BlockType = typeRaw
@@ -76,11 +76,11 @@ public static class SRRVerifier
                 break;
             }
 
-            if (!CrcSentinelMatches(crc, typeRaw))
+            if (!CRCSentinelMatches(crc, typeRaw))
             {
-                issues.Add(new SrrVerifyIssue
+                issues.Add(new SRRVerifyIssue
                 {
-                    Severity = SrrVerifyIssueSeverity.Warning,
+                    Severity = SRRVerifyIssueSeverity.Warning,
                     Message = $"Unexpected CRC sentinel 0x{crc:X4} for block type 0x{typeRaw:X2} at 0x{blockStart:X}.",
                     Offset = blockStart,
                     BlockType = typeRaw
@@ -96,9 +96,9 @@ public static class SRRVerifier
                 // Strict guard (verifier reports truncation as an error; SRREditor reads-or-skips silently).
                 if (fs.Position + AddSizeFieldLength > fileSize)
                 {
-                    issues.Add(new SrrVerifyIssue
+                    issues.Add(new SRRVerifyIssue
                     {
-                        Severity = SrrVerifyIssueSeverity.Error,
+                        Severity = SRRVerifyIssueSeverity.Error,
                         Message = $"Truncated addSize at offset 0x{fs.Position:X}.",
                         Offset = blockStart,
                         BlockType = typeRaw
@@ -114,9 +114,9 @@ public static class SRRVerifier
 
             if (blockEnd > fileSize)
             {
-                issues.Add(new SrrVerifyIssue
+                issues.Add(new SRRVerifyIssue
                 {
-                    Severity = SrrVerifyIssueSeverity.Error,
+                    Severity = SRRVerifyIssueSeverity.Error,
                     Message = $"Block at 0x{blockStart:X} extends past end of file (size {totalBlockSize:N0}, file {fileSize:N0}).",
                     Offset = blockStart,
                     BlockType = typeRaw
@@ -135,17 +135,17 @@ public static class SRRVerifier
 
         if (!sawHeader)
         {
-            issues.Add(new SrrVerifyIssue
+            issues.Add(new SRRVerifyIssue
             {
-                Severity = SrrVerifyIssueSeverity.Error,
+                Severity = SRRVerifyIssueSeverity.Error,
                 Message = "Missing SRR header block (0x69).",
                 Offset = 0
             });
         }
 
-        bool isValid = !issues.Any(i => i.Severity == SrrVerifyIssueSeverity.Error);
+        bool isValid = !issues.Any(i => i.Severity == SRRVerifyIssueSeverity.Error);
 
-        return new SrrVerifyResult
+        return new SRRVerifyResult
         {
             IsValid = isValid,
             Issues = issues,
@@ -154,14 +154,14 @@ public static class SRRVerifier
         };
     }
 
-    private static bool CrcSentinelMatches(ushort crc, byte typeRaw)
+    private static bool CRCSentinelMatches(ushort crc, byte typeRaw)
         => typeRaw switch
         {
             (byte)SRRBlockType.Header => crc == HeaderSentinel,
             (byte)SRRBlockType.StoredFile => crc == StoredFileSentinel,
-            (byte)SRRBlockType.OsoHash => crc == OsoSentinel,
-            (byte)SRRBlockType.RarPadding => crc == RarPaddingSentinel,
-            (byte)SRRBlockType.RarFile => crc == RarFileSentinel,
+            (byte)SRRBlockType.OSOHash => crc == OSOSentinel,
+            (byte)SRRBlockType.RARPadding => crc == RARPaddingSentinel,
+            (byte)SRRBlockType.RARFile => crc == RARFileSentinel,
             _ => true
         };
 }

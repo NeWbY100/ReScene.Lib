@@ -186,8 +186,8 @@ public class SRRFileTests : IDisposable
 
         var srr = SRRFile.Load(path);
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("release.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("release.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -508,10 +508,10 @@ public class SRRFileTests : IDisposable
 
         var srr = SRRFile.Load(path);
 
-        Assert.Single(srr.OsoHashBlocks);
-        Assert.Equal("video.avi", srr.OsoHashBlocks[0].FileName);
-        Assert.Equal(734003200UL, srr.OsoHashBlocks[0].FileSize);
-        Assert.Equal(osoHash, srr.OsoHashBlocks[0].OsoHash);
+        Assert.Single(srr.OSOHashBlocks);
+        Assert.Equal("video.avi", srr.OSOHashBlocks[0].FileName);
+        Assert.Equal(734003200UL, srr.OSOHashBlocks[0].FileSize);
+        Assert.Equal(osoHash, srr.OSOHashBlocks[0].OSOHash);
     }
 
     #endregion
@@ -528,9 +528,9 @@ public class SRRFileTests : IDisposable
 
         var srr = SRRFile.Load(path);
 
-        Assert.Single(srr.RarPaddingBlocks);
-        Assert.Equal("release.r00", srr.RarPaddingBlocks[0].RarFileName);
-        Assert.Equal(512u, srr.RarPaddingBlocks[0].PaddingSize);
+        Assert.Single(srr.RARPaddingBlocks);
+        Assert.Equal("release.r00", srr.RARPaddingBlocks[0].RARFileName);
+        Assert.Equal(512u, srr.RARPaddingBlocks[0].PaddingSize);
     }
 
     #endregion
@@ -558,8 +558,8 @@ public class SRRFileTests : IDisposable
 
         var srr = SRRFile.Load(path);
 
-        Assert.Equal(2, srr.RarFiles.Count);
-        Assert.Equal(2, srr.RarVolumeSizes.Count);
+        Assert.Equal(2, srr.RARFiles.Count);
+        Assert.Equal(2, srr.RARVolumeSizes.Count);
         Assert.NotNull(srr.VolumeSizeBytes);
     }
 
@@ -715,11 +715,11 @@ public class SRRFileTests : IDisposable
         Assert.Equal("release.sfv", srr.StoredFiles[0].FileName);
 
         // OSO hashes
-        Assert.Single(srr.OsoHashBlocks);
+        Assert.Single(srr.OSOHashBlocks);
 
         // RAR files
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("release.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("release.rar", srr.RARFiles[0].FileName);
 
         // Archive metadata
         Assert.Equal(29, srr.RARVersion);
@@ -855,11 +855,11 @@ public class SRRFileTests : IDisposable
 
         var srr = SRRFile.Load(path);
 
-        Assert.Equal(3, srr.RarFiles.Count);
-        Assert.Equal("release.rar", srr.RarFiles[0].FileName);
-        Assert.Equal("release.r00", srr.RarFiles[1].FileName);
-        Assert.Equal("release.r01", srr.RarFiles[2].FileName);
-        Assert.Equal(3, srr.RarVolumeSizes.Count);
+        Assert.Equal(3, srr.RARFiles.Count);
+        Assert.Equal("release.rar", srr.RARFiles[0].FileName);
+        Assert.Equal("release.r00", srr.RARFiles[1].FileName);
+        Assert.Equal("release.r01", srr.RARFiles[2].FileName);
+        Assert.Equal(3, srr.RARVolumeSizes.Count);
     }
 
     [Fact]
@@ -876,8 +876,8 @@ public class SRRFileTests : IDisposable
             })
             .Build();
 
-        // Find the archive header (0x73) after the SRR RarFile block and corrupt its CRC
-        // The SRR header is 7 bytes, then the RarFile block, then RAR headers start
+        // Find the archive header (0x73) after the SRR RARFile block and corrupt its CRC
+        // The SRR header is 7 bytes, then the RARFile block, then RAR headers start
         // We need to find the archive header byte 0x73 and corrupt the 2 CRC bytes before it
         int archiveHeaderPos = -1;
         for (int i = 2; i < srrData.Length - 5; i++)
@@ -1094,7 +1094,7 @@ public class SRRFileTests : IDisposable
     public void Load_Rar5Headers_DetectsRarVersion50()
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "sample.txt",
-            fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.Crc32Present);
+            fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_version.srr");
         File.WriteAllBytes(path, srrData);
@@ -1108,7 +1108,7 @@ public class SRRFileTests : IDisposable
     public void Load_Rar5Headers_ExtractsArchivedFileName()
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "video.avi",
-            fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.Crc32Present);
+            fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_filename.srr");
         File.WriteAllBytes(path, srrData);
@@ -1122,7 +1122,7 @@ public class SRRFileTests : IDisposable
     public void Load_Rar5Headers_ExtractsFileCrc()
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
-            fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.Crc32Present,
+            fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present,
             fileCrc: 0xAABBCCDD);
 
         string path = Path.Combine(_testDir, "rar5_crc.srr");
@@ -1138,15 +1138,15 @@ public class SRRFileTests : IDisposable
     public void Load_Rar5Headers_ParsesRarFileBlockName()
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.part01.rar", "data.bin",
-            fileFlags: (ulong)RAR5FileFlags.Crc32Present);
+            fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_rarfile.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
 
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("release.part01.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("release.part01.rar", srr.RARFiles[0].FileName);
     }
 
     [Fact]
@@ -1154,7 +1154,7 @@ public class SRRFileTests : IDisposable
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
             archiveFlags: 0x0001,
-            fileFlags: (ulong)RAR5FileFlags.Crc32Present);
+            fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_volume.srr");
         File.WriteAllBytes(path, srrData);
@@ -1169,7 +1169,7 @@ public class SRRFileTests : IDisposable
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
             archiveFlags: 0x0004,
-            fileFlags: (ulong)RAR5FileFlags.Crc32Present);
+            fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_solid.srr");
         File.WriteAllBytes(path, srrData);
@@ -1183,7 +1183,7 @@ public class SRRFileTests : IDisposable
     public void Load_Rar5SplitFlags_DetectsCorrectly()
     {
         byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
-            fileFlags: (ulong)RAR5FileFlags.Crc32Present,
+            fileFlags: (ulong)RAR5FileFlags.CRC32Present,
             headerFlags: (ulong)RAR5HeaderFlags.SplitAfter);
 
         string path = Path.Combine(_testDir, "rar5_split.srr");
@@ -1464,7 +1464,7 @@ public class SRRFileTests : IDisposable
         var srr = SRRFile.Load(path);
 
         Assert.Equal("33333333", srr.ArchivedFileCrcs["file.dat"]);
-        Assert.Equal(3, srr.RarFiles.Count);
+        Assert.Equal(3, srr.RARFiles.Count);
     }
 
     [Fact]
@@ -1506,7 +1506,7 @@ public class SRRFileTests : IDisposable
         w.Write((ushort)0x0000);
         w.Write((ushort)7);
 
-        // SRR RarFile block
+        // SRR RARFile block
         byte[] rarNameBytes = Encoding.UTF8.GetBytes(rarFileName);
         ushort rarBlockSize = (ushort)(7 + 2 + rarNameBytes.Length);
         w.Write((ushort)0x0000);
@@ -1540,7 +1540,7 @@ public class SRRFileTests : IDisposable
                 bw.Write((uint)1700000000);
             }
 
-            if ((fileFlags & (ulong)RAR5FileFlags.Crc32Present) != 0)
+            if ((fileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
             {
                 using var bw = new BinaryWriter(fileMs, Encoding.UTF8, leaveOpen: true);
                 bw.Write(fileCrc);
@@ -1622,7 +1622,7 @@ public class SRRFileTests : IDisposable
         w.Write((ushort)0x0000);
         w.Write((ushort)7);
 
-        // SRR RarFile block
+        // SRR RARFile block
         byte[] rarNameBytes = Encoding.UTF8.GetBytes(rarFileName);
         ushort rarBlockSize = (ushort)(7 + 2 + rarNameBytes.Length);
         w.Write((ushort)0x0000);

@@ -3,7 +3,7 @@ namespace ReScene.SRS;
 /// <summary>
 /// Shared EBML variable-length integer reading utilities for MKV/WebM container parsing.
 /// </summary>
-internal static class EbmlReader
+internal static class EBMLReader
 {
     /// <summary>
     /// Reads an EBML element ID from the stream. The marker bit is preserved in the value.

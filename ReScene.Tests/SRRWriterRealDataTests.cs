@@ -38,14 +38,14 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "store_little.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("store_little.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("store_little.rar", srr.RARFiles[0].FileName);
         Assert.Contains("little_file.txt", srr.ArchivedFiles);
     }
 
@@ -69,7 +69,7 @@ public class SRRWriterRealDataTests : IDisposable
         };
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(2, result.StoredFileCount);
@@ -115,17 +115,17 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "multi_new.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
-        Assert.True(result.SrrFileSize > 0);
+        Assert.True(result.SRRFileSize > 0);
         Assert.True(File.Exists(srrPath));
 
         // Verify the created SRR can be loaded and has at least the first volume
         var srr = SRRFile.Load(srrPath);
-        Assert.True(srr.RarFiles.Count >= 1);
-        Assert.Equal("store_rr_solid_auth.part1.rar", srr.RarFiles[0].FileName);
+        Assert.True(srr.RARFiles.Count >= 1);
+        Assert.Equal("store_rr_solid_auth.part1.rar", srr.RARFiles[0].FileName);
         Assert.True(srr.ArchivedFiles.Count > 0, "Should contain at least one archived file");
     }
 
@@ -155,16 +155,16 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "multi_old.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Equal(3, srr.RarFiles.Count);
-        Assert.Equal("store_split_folder.rar", srr.RarFiles[0].FileName);
-        Assert.Equal("store_split_folder.r00", srr.RarFiles[1].FileName);
-        Assert.Equal("store_split_folder.r01", srr.RarFiles[2].FileName);
+        Assert.Equal(3, srr.RARFiles.Count);
+        Assert.Equal("store_split_folder.rar", srr.RARFiles[0].FileName);
+        Assert.Equal("store_split_folder.r00", srr.RARFiles[1].FileName);
+        Assert.Equal("store_split_folder.r01", srr.RARFiles[2].FileName);
     }
 
     #endregion
@@ -183,14 +183,14 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "empty.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("store_empty.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("store_empty.rar", srr.RARFiles[0].FileName);
         // The RAR contains empty_file.txt (a zero-byte file), not truly empty
         Assert.Contains("empty_file.txt", srr.ArchivedFiles);
     }
@@ -211,14 +211,14 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "best_little.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("best_little.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("best_little.rar", srr.RARFiles[0].FileName);
         Assert.True(srr.ArchivedFiles.Count > 0, "Compressed RAR should still have archived file entries");
     }
 
@@ -254,7 +254,7 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_new.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -262,7 +262,7 @@ public class SRRWriterRealDataTests : IDisposable
         var srr = SRRFile.Load(srrPath);
         // SFV should be auto-stored
         Assert.Contains(srr.StoredFiles, sf => sf.FileName == "store_rr_solid_auth.sfv");
-        Assert.True(srr.RarFiles.Count >= 1, "Should have at least one RAR volume");
+        Assert.True(srr.RARFiles.Count >= 1, "Should have at least one RAR volume");
     }
 
     [Fact]
@@ -293,19 +293,19 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_old.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
         Assert.Contains(srr.StoredFiles, sf => sf.FileName == "store_split_folder.sfv");
-        Assert.Equal(3, srr.RarFiles.Count);
+        Assert.Equal(3, srr.RARFiles.Count);
 
         // Volumes should be sorted: .rar first, then .r00, .r01
-        Assert.Equal("store_split_folder.rar", srr.RarFiles[0].FileName);
-        Assert.Equal("store_split_folder.r00", srr.RarFiles[1].FileName);
-        Assert.Equal("store_split_folder.r01", srr.RarFiles[2].FileName);
+        Assert.Equal("store_split_folder.rar", srr.RARFiles[0].FileName);
+        Assert.Equal("store_split_folder.r00", srr.RARFiles[1].FileName);
+        Assert.Equal("store_split_folder.r01", srr.RARFiles[2].FileName);
     }
 
     #endregion
@@ -326,8 +326,8 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "compare_store_little.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AppName = null });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -335,12 +335,12 @@ public class SRRWriterRealDataTests : IDisposable
         var reference = SRRFile.Load(refSrrPath);
 
         // Same number of RAR volumes
-        Assert.Equal(reference.RarFiles.Count, created.RarFiles.Count);
+        Assert.Equal(reference.RARFiles.Count, created.RARFiles.Count);
 
         // Same RAR file names
-        for (int i = 0; i < reference.RarFiles.Count; i++)
+        for (int i = 0; i < reference.RARFiles.Count; i++)
         {
-            Assert.Equal(reference.RarFiles[i].FileName, created.RarFiles[i].FileName);
+            Assert.Equal(reference.RARFiles[i].FileName, created.RARFiles[i].FileName);
         }
 
         // Same archived files
@@ -378,8 +378,8 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "compare_multi_new.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
-            options: new SrrCreationOptions { AppName = null });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
+            options: new SRRCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -387,12 +387,12 @@ public class SRRWriterRealDataTests : IDisposable
         var reference = SRRFile.Load(refSrrPath);
 
         // Same number of RAR volumes
-        Assert.Equal(reference.RarFiles.Count, created.RarFiles.Count);
+        Assert.Equal(reference.RARFiles.Count, created.RARFiles.Count);
 
         // Same RAR file names
-        for (int i = 0; i < reference.RarFiles.Count; i++)
+        for (int i = 0; i < reference.RARFiles.Count; i++)
         {
-            Assert.Equal(reference.RarFiles[i].FileName, created.RarFiles[i].FileName);
+            Assert.Equal(reference.RARFiles[i].FileName, created.RARFiles[i].FileName);
         }
 
         // Same archived files
@@ -430,8 +430,8 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "compare_multi_old.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
-            options: new SrrCreationOptions { AppName = null });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
+            options: new SRRCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);
 
@@ -439,12 +439,12 @@ public class SRRWriterRealDataTests : IDisposable
         var reference = SRRFile.Load(refSrrPath);
 
         // Same number of RAR volumes
-        Assert.Equal(reference.RarFiles.Count, created.RarFiles.Count);
+        Assert.Equal(reference.RARFiles.Count, created.RARFiles.Count);
 
         // Same RAR file names
-        for (int i = 0; i < reference.RarFiles.Count; i++)
+        for (int i = 0; i < reference.RARFiles.Count; i++)
         {
-            Assert.Equal(reference.RarFiles[i].FileName, created.RarFiles[i].FileName);
+            Assert.Equal(reference.RARFiles[i].FileName, created.RARFiles[i].FileName);
         }
 
         // Same archived files

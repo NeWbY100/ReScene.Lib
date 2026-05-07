@@ -41,17 +41,17 @@ public enum SRRBlockType : byte
     /// <summary>
     /// OSO hash block.
     /// </summary>
-    OsoHash = 0x6B,
+    OSOHash = 0x6B,
 
     /// <summary>
     /// RAR padding block.
     /// </summary>
-    RarPadding = 0x6C,
+    RARPadding = 0x6C,
 
     /// <summary>
     /// RAR file reference block, followed by embedded RAR headers.
     /// </summary>
-    RarFile = 0x71
+    RARFile = 0x71
 }
 
 /// <summary>
@@ -151,7 +151,7 @@ public class SRRBlock
 /// SRR RAR file reference block (0x71).
 /// Contains the RAR filename and is followed by embedded RAR headers.
 /// </summary>
-public class SrrRarFileBlock : SRRBlock
+public class SRRRarFileBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the RAR filename referenced by this block.
@@ -163,7 +163,7 @@ public class SrrRarFileBlock : SRRBlock
 /// SRR stored file block (0x6A).
 /// Contains a file embedded within the SRR.
 /// </summary>
-public class SrrStoredFileBlock : SRRBlock
+public class SRRStoredFileBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the stored filename.
@@ -191,7 +191,7 @@ public class SrrStoredFileBlock : SRRBlock
 /// SRR header block (0x69).
 /// The first block in an SRR file, contains app name if present.
 /// </summary>
-public class SrrHeaderBlock : SRRBlock
+public class SRRHeaderBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the application name that created this SRR file.
@@ -211,7 +211,7 @@ public class SrrHeaderBlock : SRRBlock
 /// SRR OSO hash block (0x6B).
 /// Contains OSO hash information for OpenSubtitles matching.
 /// </summary>
-public class SrrOsoHashBlock : SRRBlock
+public class SRROsoHashBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the filename associated with this hash.
@@ -229,19 +229,19 @@ public class SrrOsoHashBlock : SRRBlock
     /// <summary>
     /// Gets or sets the 8-byte OSO hash value.
     /// </summary>
-    public byte[] OsoHash { get; set; } = [];
+    public byte[] OSOHash { get; set; } = [];
 }
 
 /// <summary>
 /// SRR RAR padding block (0x6C).
 /// Contains padding information for RAR reconstruction.
 /// </summary>
-public class SrrRarPaddingBlock : SRRBlock
+public class SRRRarPaddingBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the RAR filename this padding applies to.
     /// </summary>
-    public string RarFileName { get; set; } = string.Empty;
+    public string RARFileName { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the padding size in bytes.

@@ -137,7 +137,7 @@ public class RAR5HeaderReaderTests
 
         Assert.NotNull(block);
         Assert.Equal(RAR5BlockType.Main, block!.BlockType);
-        Assert.True(block.CrcValid);
+        Assert.True(block.CRCValid);
     }
 
     [Fact]
@@ -358,7 +358,7 @@ public class RAR5HeaderReaderTests
     /// <summary>
     /// Builds a synthetic RAR5 block in a MemoryStream.
     /// Returns the stream positioned at the start of the block (after the CRC field).
-    /// CRC is set to 0 so CrcValid will be false - we're testing parsing, not CRC.
+    /// CRC is set to 0 so CRCValid will be false - we're testing parsing, not CRC.
     /// </summary>
     private static MemoryStream BuildRAR5Block(
         RAR5BlockType blockType,
@@ -487,7 +487,7 @@ public class RAR5HeaderReaderTests
         // Build file-specific content: fileFlags(vint) + unpackedSize(vint) + attributes(vint)
         //   + compressionInfo(vint) + hostOS(vint) + nameLen(vint) + name(bytes)
         ulong largeUnpackedSize = 10_000_000_000ul; // ~9.3 GB
-        ulong fileFlags = (ulong)RAR5FileFlags.Crc32Present;
+        ulong fileFlags = (ulong)RAR5FileFlags.CRC32Present;
         string fileName = "big.bin";
         byte[] nameBytes = System.Text.Encoding.UTF8.GetBytes(fileName);
 

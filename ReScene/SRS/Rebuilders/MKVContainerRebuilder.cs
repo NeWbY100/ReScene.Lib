@@ -14,13 +14,13 @@ namespace ReScene.SRS;
 /// Both cases are handled by the same pipeline: walk the SRS, then fill any remaining
 /// bytes (up to the expected sample size) from the media file.
 /// </summary>
-internal class MkvContainerRebuilder : IContainerRebuilder
+internal class MKVContainerRebuilder : IContainerRebuilder
 {
     public SRSContainerType ContainerType => SRSContainerType.MKV;
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -82,12 +82,12 @@ internal class MkvContainerRebuilder : IContainerRebuilder
         {
             ct.ThrowIfCancellationRequested();
 
-            if (!EbmlReader.TryReadId(fs, out ulong elemId, out int idLen))
+            if (!EBMLReader.TryReadId(fs, out ulong elemId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -145,14 +145,14 @@ internal class MkvContainerRebuilder : IContainerRebuilder
     private static Dictionary<uint, MemoryStream> CollectMediaFrameData(
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         Action<string, int, int, double>? reportProgress,
         CancellationToken ct)
     {
         var streams = new Dictionary<uint, MemoryStream>();
         var remaining = new Dictionary<uint, long>();
 
-        foreach ((uint trackNumber, SrsTrackDataBlock? track) in tracks)
+        foreach ((uint trackNumber, SRSTrackDataBlock? track) in tracks)
         {
             streams[trackNumber] = new MemoryStream((int)track.DataLength);
             remaining[trackNumber] = (long)track.DataLength;
@@ -188,12 +188,12 @@ internal class MkvContainerRebuilder : IContainerRebuilder
                 break;
             }
 
-            if (!EbmlReader.TryReadId(fs, out ulong elemId, out int idLen))
+            if (!EBMLReader.TryReadId(fs, out ulong elemId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -205,7 +205,7 @@ internal class MkvContainerRebuilder : IContainerRebuilder
             if (elemId is 0xA3 or 0xA1)
             {
                 long blockStart = fs.Position;
-                if (EbmlReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
+                if (EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
                 {
                     int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
 
@@ -246,12 +246,12 @@ internal class MkvContainerRebuilder : IContainerRebuilder
                             }
                             else if (laceType == 3) // EBML lacing
                             {
-                                if (EbmlReader.TryReadSize(fs, out _, out int firstSizeLen))
+                                if (EBMLReader.TryReadSize(fs, out _, out int firstSizeLen))
                                 {
                                     lacingHeaderSize += firstSizeLen;
                                     for (int i = 1; i < laceCount; i++)
                                     {
-                                        if (EbmlReader.TryReadSize(fs, out _, out int deltaLen))
+                                        if (EBMLReader.TryReadSize(fs, out _, out int deltaLen))
                                         {
                                             lacingHeaderSize += deltaLen;
                                         }
@@ -427,12 +427,12 @@ internal class MkvContainerRebuilder : IContainerRebuilder
             ct.ThrowIfCancellationRequested();
             long elemStart = srsFs.Position;
 
-            if (!EbmlReader.TryReadId(srsFs, out ulong elemId, out int idLen))
+            if (!EBMLReader.TryReadId(srsFs, out ulong elemId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(srsFs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(srsFs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -487,7 +487,7 @@ internal class MkvContainerRebuilder : IContainerRebuilder
             {
                 blockCount++;
                 long blockStart = srsFs.Position;
-                if (EbmlReader.TryReadSize(srsFs, out ulong trackNum, out int vintLen))
+                if (EBMLReader.TryReadSize(srsFs, out ulong trackNum, out int vintLen))
                 {
                     int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
 
@@ -509,7 +509,7 @@ internal class MkvContainerRebuilder : IContainerRebuilder
                         if (probePos < srsFs.Length)
                         {
                             srsFs.Position = probePos;
-                            if (EbmlReader.TryReadId(srsFs, out ulong probeId, out _)
+                            if (EBMLReader.TryReadId(srsFs, out ulong probeId, out _)
                                 && IsKnownMkvElementId(probeId))
                             {
                                 srsHasLacing = false;
@@ -526,8 +526,8 @@ internal class MkvContainerRebuilder : IContainerRebuilder
                                     int read = StreamUtilities.ReadFully(srsFs, lacingPeek, 0, peekLen);
                                     if (read > 0)
                                     {
-                                        var lacingType = (EbmlLaceType)(flagsByte & 0x06);
-                                        (int[] _, int bytesConsumed) = EbmlLacing.GetFrameLengths(
+                                        var lacingType = (EBMLLaceType)(flagsByte & 0x06);
+                                        (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
                                             lacingPeek.AsSpan(0, read), lacingType, dataAfterBase);
                                         srsBlockHeaderSize = blockHeaderBase + bytesConsumed;
                                         srsHasLacing = bytesConsumed > 0;

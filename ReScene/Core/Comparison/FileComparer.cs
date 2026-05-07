@@ -34,7 +34,7 @@ public static class FileComparer
 
         if (leftData is SRRFileData leftSrr && rightData is SRRFileData rightSrr)
         {
-            CompareSRRFiles(leftSrr.SrrFile, rightSrr.SrrFile, result);
+            CompareSRRFiles(leftSrr.SRRFile, rightSrr.SRRFile, result);
         }
         else if (leftData is SRSFile leftSrs && rightData is SRSFile rightSrs)
         {
@@ -97,7 +97,7 @@ public static class FileComparer
         CompareProperty(result.ArchiveDifferences, "Recovery Record", FormatBool(left.HasRecoveryRecord), FormatBool(right.HasRecoveryRecord));
         CompareProperty(result.ArchiveDifferences, "Encrypted Headers", FormatBool(left.HasEncryptedHeaders), FormatBool(right.HasEncryptedHeaders));
         CompareProperty(result.ArchiveDifferences, "Has Comment", FormatBool(!string.IsNullOrEmpty(left.ArchiveComment)), FormatBool(!string.IsNullOrEmpty(right.ArchiveComment)));
-        CompareProperty(result.ArchiveDifferences, "RAR Volumes Count", left.RarFiles.Count.ToString(), right.RarFiles.Count.ToString());
+        CompareProperty(result.ArchiveDifferences, "RAR Volumes Count", left.RARFiles.Count.ToString(), right.RARFiles.Count.ToString());
         CompareProperty(result.ArchiveDifferences, "Stored Files Count", left.StoredFiles.Count.ToString(), right.StoredFiles.Count.ToString());
         CompareProperty(result.ArchiveDifferences, "Archived Files Count", left.ArchivedFiles.Count.ToString(), right.ArchivedFiles.Count.ToString());
         CompareProperty(result.ArchiveDifferences, "Header CRC Errors", left.HeaderCrcMismatches.ToString(), right.HeaderCrcMismatches.ToString());
@@ -199,7 +199,7 @@ public static class FileComparer
             CompareProperty(result.ArchiveDifferences, "Sample Size",
                 $"{leftFd.SampleSize:N0} bytes", $"{rightFd.SampleSize:N0} bytes");
             CompareProperty(result.ArchiveDifferences, "CRC32",
-                leftFd.Crc32.ToString("X8"), rightFd.Crc32.ToString("X8"));
+                leftFd.CRC32.ToString("X8"), rightFd.CRC32.ToString("X8"));
             CompareProperty(result.ArchiveDifferences, "Flags",
                 $"0x{leftFd.Flags:X4}", $"0x{rightFd.Flags:X4}");
         }
@@ -208,8 +208,8 @@ public static class FileComparer
         int trackCount = Math.Max(left.Tracks.Count, right.Tracks.Count);
         for (int i = 0; i < trackCount; i++)
         {
-            SrsTrackDataBlock? lt = i < left.Tracks.Count ? left.Tracks[i] : null;
-            SrsTrackDataBlock? rt = i < right.Tracks.Count ? right.Tracks[i] : null;
+            SRSTrackDataBlock? lt = i < left.Tracks.Count ? left.Tracks[i] : null;
+            SRSTrackDataBlock? rt = i < right.Tracks.Count ? right.Tracks[i] : null;
             string trackName = $"Track {lt?.TrackNumber ?? rt?.TrackNumber ?? (uint)i}";
 
             if (lt is null || rt is null)

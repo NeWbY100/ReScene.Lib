@@ -3,12 +3,12 @@ namespace ReScene.SRR;
 /// <summary>
 /// A single issue reported by <see cref="SRRVerifier"/> while validating an SRR file.
 /// </summary>
-public sealed class SrrVerifyIssue
+public sealed class SRRVerifyIssue
 {
     /// <summary>
     /// Gets the severity of the issue.
     /// </summary>
-    public required SrrVerifyIssueSeverity Severity { get; init; }
+    public required SRRVerifyIssueSeverity Severity { get; init; }
 
     /// <summary>
     /// Gets the human-readable description of the issue.

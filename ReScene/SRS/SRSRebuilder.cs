@@ -5,9 +5,9 @@ namespace ReScene.SRS;
 /// <summary>
 /// Result of SRS sample reconstruction.
 /// </summary>
-public record SrsReconstructionResult(
+public record SRSReconstructionResult(
     bool Success,
-    bool CrcMatch,
+    bool CRCMatch,
     uint ExpectedCrc,
     uint ActualCrc,
     long ExpectedSize,
@@ -17,7 +17,7 @@ public record SrsReconstructionResult(
 /// <summary>
 /// Progress event args for SRS reconstruction.
 /// </summary>
-public class SrsReconstructionProgressEventArgs : EventArgs
+public class SRSReconstructionProgressEventArgs : EventArgs
 {
     /// <summary>
     /// Gets the current phase description (e.g., "Loading SRS", "Rebuilding").
@@ -52,7 +52,7 @@ public class SrsReconstructionProgressEventArgs : EventArgs
 /// <summary>
 /// Progress data for signature scanning operations.
 /// </summary>
-public class SrsScanProgressEventArgs : EventArgs
+public class SRSScanProgressEventArgs : EventArgs
 {
     /// <summary>
     /// Gets the current phase description.
@@ -89,24 +89,24 @@ public class SRSRebuilder
 
     private static readonly Dictionary<SRSContainerType, IContainerRebuilder> _rebuilders = new()
     {
-        { SRSContainerType.AVI, new AviContainerRebuilder() },
-        { SRSContainerType.MKV, new MkvContainerRebuilder() },
-        { SRSContainerType.MP4, new Mp4ContainerRebuilder() },
-        { SRSContainerType.WMV, new WmvContainerRebuilder() },
+        { SRSContainerType.AVI, new AVIContainerRebuilder() },
+        { SRSContainerType.MKV, new MKVContainerRebuilder() },
+        { SRSContainerType.MP4, new MP4ContainerRebuilder() },
+        { SRSContainerType.WMV, new WMVContainerRebuilder() },
         { SRSContainerType.FLAC, new FlacContainerRebuilder() },
-        { SRSContainerType.MP3, new Mp3ContainerRebuilder() },
+        { SRSContainerType.MP3, new MP3ContainerRebuilder() },
         { SRSContainerType.Stream, new StreamContainerRebuilder() }
     };
 
     /// <summary>
     /// Occurs when reconstruction progress updates.
     /// </summary>
-    public event EventHandler<SrsReconstructionProgressEventArgs>? Progress;
+    public event EventHandler<SRSReconstructionProgressEventArgs>? Progress;
 
     /// <summary>
     /// Occurs during signature scanning to report scan progress (bytes scanned / total).
     /// </summary>
-    public event EventHandler<SrsScanProgressEventArgs>? ScanProgress;
+    public event EventHandler<SRSScanProgressEventArgs>? ScanProgress;
 
     /// <summary>
     /// Rebuilds the original sample file from an SRS file and the full media file.
@@ -126,7 +126,7 @@ public class SRSRebuilder
     /// <returns>
     /// Reconstruction result with CRC verification status
     /// </returns>
-    public async Task<SrsReconstructionResult> RebuildAsync(
+    public async Task<SRSReconstructionResult> RebuildAsync(
         string srsFilePath, string mediaFilePath, string outputPath, CancellationToken ct = default)
     {
         try
@@ -136,16 +136,16 @@ public class SRSRebuilder
         catch (OperationCanceledException)
         {
             StreamUtilities.TryDeleteFile(outputPath);
-            return new SrsReconstructionResult(false, false, 0, 0, 0, 0, "Operation was cancelled.");
+            return new SRSReconstructionResult(false, false, 0, 0, 0, 0, "Operation was cancelled.");
         }
         catch (Exception ex)
         {
             StreamUtilities.TryDeleteFile(outputPath);
-            return new SrsReconstructionResult(false, false, 0, 0, 0, 0, ex.Message);
+            return new SRSReconstructionResult(false, false, 0, 0, 0, 0, ex.Message);
         }
     }
 
-    private SrsReconstructionResult RebuildCore(
+    private SRSReconstructionResult RebuildCore(
         string srsFilePath, string mediaFilePath, string outputPath, CancellationToken ct)
     {
         if (!File.Exists(srsFilePath))
@@ -172,14 +172,14 @@ public class SRSRebuilder
             throw new InvalidDataException("SRS file does not contain any track data (SRST blocks).");
         }
 
-        SrsFileDataBlock fileData = srs.FileData;
-        List<SrsTrackDataBlock> tracks = srs.Tracks;
+        SRSFileDataBlock fileData = srs.FileData;
+        List<SRSTrackDataBlock> tracks = srs.Tracks;
         long expectedSize = (long)fileData.SampleSize;
-        uint expectedCrc = fileData.Crc32;
+        uint expectedCrc = fileData.CRC32;
 
         // Build a dictionary keyed by track number for easy lookup
-        var trackDict = new Dictionary<uint, SrsTrackDataBlock>();
-        foreach (SrsTrackDataBlock track in tracks)
+        var trackDict = new Dictionary<uint, SRSTrackDataBlock>();
+        foreach (SRSTrackDataBlock track in tracks)
         {
             trackDict[track.TrackNumber] = track;
         }
@@ -202,7 +202,7 @@ public class SRSRebuilder
         // Step 4: Verify CRC
         ReportProgress("Verifying CRC", 0, tracks.Count, 90);
         long actualSize = new FileInfo(outputPath).Length;
-        uint actualCrc = CrcUtility.ComputeFileCrc32(outputPath, ct);
+        uint actualCrc = CRCUtility.ComputeFileCrc32(outputPath, ct);
 
         // The SRSF CRC may be stored in either byte order depending on the tool
         // that created the SRS. Check both the direct value and byte-reversed.
@@ -212,9 +212,9 @@ public class SRSRebuilder
 
         ReportProgress("Complete", 0, tracks.Count, 100);
 
-        return new SrsReconstructionResult(
+        return new SRSReconstructionResult(
             Success: crcMatch && sizeMatch,
-            CrcMatch: crcMatch,
+            CRCMatch: crcMatch,
             ExpectedCrc: expectedCrc,
             ActualCrc: actualCrc,
             ExpectedSize: expectedSize,
@@ -233,7 +233,7 @@ public class SRSRebuilder
     /// </summary>
     private Dictionary<uint, long> FindSampleStreams(
         string mediaFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         CancellationToken ct)
     {
         var offsets = new Dictionary<uint, long>();
@@ -242,7 +242,7 @@ public class SRSRebuilder
             bufferSize: 80 * 1024);
 
         int trackIndex = 0;
-        foreach ((uint trackNumber, SrsTrackDataBlock? track) in tracks)
+        foreach ((uint trackNumber, SRSTrackDataBlock? track) in tracks)
         {
             ct.ThrowIfCancellationRequested();
             trackIndex++;
@@ -328,7 +328,7 @@ public class SRSRebuilder
 
     private void ReportScanProgress(string phase, long bytesScanned, long bytesTotal, int percent)
     {
-        ScanProgress?.Invoke(this, new SrsScanProgressEventArgs
+        ScanProgress?.Invoke(this, new SRSScanProgressEventArgs
         {
             Phase = phase,
             BytesScanned = bytesScanned,
@@ -347,7 +347,7 @@ public class SRSRebuilder
     private void RebuildSample(
         string srsFilePath,
         SRSContainerType containerType,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -369,7 +369,7 @@ public class SRSRebuilder
 
     private void ReportProgress(string phase, int trackNumber, int totalTracks, double percent)
     {
-        Progress?.Invoke(this, new SrsReconstructionProgressEventArgs
+        Progress?.Invoke(this, new SRSReconstructionProgressEventArgs
         {
             Phase = phase,
             TrackNumber = trackNumber,

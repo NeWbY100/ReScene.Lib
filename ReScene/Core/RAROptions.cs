@@ -258,7 +258,7 @@ public class RAROptions
     /// <summary>
     /// Gets or sets the path to the SRR file for direct reconstruction.
     /// </summary>
-    public string? SrrFilePath
+    public string? SRRFilePath
     {
         get; set;
     }

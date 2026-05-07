@@ -7,13 +7,13 @@ namespace ReScene.SRS;
 /// Rebuilds AVI/RIFF samples by replaying the RIFF structure from the SRS file,
 /// skipping SRSF/SRST chunks and reading movi data directly from the media file.
 /// </summary>
-internal class AviContainerRebuilder : IContainerRebuilder
+internal class AVIContainerRebuilder : IContainerRebuilder
 {
     public SRSContainerType ContainerType => SRSContainerType.AVI;
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -43,13 +43,13 @@ internal class AviContainerRebuilder : IContainerRebuilder
     private static Dictionary<uint, Queue<(long DataOffset, int Size)>> IndexMediaRiffChunks(
         string mediaFilePath,
         long scanStart,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         CancellationToken ct)
     {
         var result = new Dictionary<uint, Queue<(long, int)>>();
         var remaining = new Dictionary<uint, long>();
 
-        foreach ((uint trackNumber, SrsTrackDataBlock? track) in tracks)
+        foreach ((uint trackNumber, SRSTrackDataBlock? track) in tracks)
         {
             result[trackNumber] = new Queue<(long, int)>();
             remaining[trackNumber] = (long)track.DataLength;

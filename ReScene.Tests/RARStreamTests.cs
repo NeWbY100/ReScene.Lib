@@ -4,7 +4,7 @@ using ReScene.RAR;
 
 namespace ReScene.Tests;
 
-public class RarStreamTests
+public class RARStreamTests
 {
     private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
     private static readonly string TestDataPath = Path.Combine(AppContext.BaseDirectory, "TestData");
@@ -142,20 +142,20 @@ public class RarStreamTests
     public void Constructor_NonExistentFile_ThrowsFileNotFoundException()
     {
         string fakePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".rar");
-        Assert.Throws<FileNotFoundException>(() => new RarStream(fakePath));
+        Assert.Throws<FileNotFoundException>(() => new RARStream(fakePath));
     }
 
     [Fact]
     public void Constructor_SingleVolume_OpensSuccessfully()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = "Hello, World!"u8.ToArray();
             string path = BuildSyntheticRar4(dir, "test.rar", "hello.txt", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
 
             Assert.Equal(data.Length, stream.Length);
             Assert.Equal("hello.txt", stream.PackedFileName);
@@ -169,14 +169,14 @@ public class RarStreamTests
     [Fact]
     public void Constructor_NullPackedFileName_UsesFirstFileFound()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = "content"u8.ToArray();
             string path = BuildSyntheticRar4(dir, "test.rar", "auto.dat", data);
 
-            using var stream = new RarStream(path, null);
+            using var stream = new RARStream(path, null);
 
             Assert.Equal("auto.dat", stream.PackedFileName);
         }
@@ -189,14 +189,14 @@ public class RarStreamTests
     [Fact]
     public void Constructor_SpecificPackedFileName_FindsCorrectFile()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = "target file data"u8.ToArray();
             string path = BuildSyntheticRar4(dir, "test.rar", "target.bin", data);
 
-            using var stream = new RarStream(path, "target.bin");
+            using var stream = new RARStream(path, "target.bin");
 
             Assert.Equal("target.bin", stream.PackedFileName);
             Assert.Equal(data.Length, stream.Length);
@@ -210,14 +210,14 @@ public class RarStreamTests
     [Fact]
     public void Constructor_FileNotInArchive_ThrowsArgumentException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = "some data"u8.ToArray();
             string path = BuildSyntheticRar4(dir, "test.rar", "actual.txt", data);
 
-            Assert.Throws<ArgumentException>(() => new RarStream(path, "nonexistent.txt"));
+            Assert.Throws<ArgumentException>(() => new RARStream(path, "nonexistent.txt"));
         }
         finally
         {
@@ -232,13 +232,13 @@ public class RarStreamTests
     [Fact]
     public void CanRead_NotDisposed_ReturnsTrue()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.True(stream.CanRead);
         }
         finally
@@ -250,13 +250,13 @@ public class RarStreamTests
     [Fact]
     public void CanSeek_NotDisposed_ReturnsTrue()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.True(stream.CanSeek);
         }
         finally
@@ -268,13 +268,13 @@ public class RarStreamTests
     [Fact]
     public void CanWrite_ReturnsFalse()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.False(stream.CanWrite);
         }
         finally
@@ -286,14 +286,14 @@ public class RarStreamTests
     [Fact]
     public void Length_ReturnsPackedFileLength()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = new byte[256];
             Random.Shared.NextBytes(data);
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.Equal(256, stream.Length);
         }
         finally
@@ -305,13 +305,13 @@ public class RarStreamTests
     [Fact]
     public void Position_InitiallyZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.Equal(0, stream.Position);
         }
         finally
@@ -323,13 +323,13 @@ public class RarStreamTests
     [Fact]
     public void Write_ThrowsNotSupportedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.Throws<NotSupportedException>(() => stream.Write([0x00], 0, 1));
         }
         finally
@@ -341,13 +341,13 @@ public class RarStreamTests
     [Fact]
     public void SetLength_ThrowsNotSupportedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.Throws<NotSupportedException>(() => stream.SetLength(100));
         }
         finally
@@ -363,14 +363,14 @@ public class RarStreamTests
     [Fact]
     public void Read_SingleVolume_ReadsEntireFile()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] expected = Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog.");
             string path = BuildSyntheticRar4(dir, "test.rar", "fox.txt", expected);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buffer = new byte[expected.Length];
             int bytesRead = stream.Read(buffer, 0, buffer.Length);
 
@@ -386,14 +386,14 @@ public class RarStreamTests
     [Fact]
     public void Read_PartialRead_ReturnsRequestedBytes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buffer = new byte[4];
             int bytesRead = stream.Read(buffer, 0, 4);
 
@@ -409,14 +409,14 @@ public class RarStreamTests
     [Fact]
     public void Read_PastEnd_ReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             // Read all data first
             byte[] buf = new byte[3];
             stream.ReadExactly(buf, 0, 3);
@@ -436,14 +436,14 @@ public class RarStreamTests
     [Fact]
     public void Read_MoreThanAvailable_ReturnsAvailableBytes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0xAA, 0xBB, 0xCC];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buffer = new byte[100];
             int bytesRead = stream.Read(buffer, 0, 100);
 
@@ -461,14 +461,14 @@ public class RarStreamTests
     [Fact]
     public void Read_WithOffset_WritesToCorrectPosition()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x11, 0x22, 0x33];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buffer = new byte[10];
             int bytesRead = stream.Read(buffer, 5, 3);
 
@@ -487,14 +487,14 @@ public class RarStreamTests
     [Fact]
     public void Read_ZeroCount_ReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buffer = new byte[10];
             int bytesRead = stream.Read(buffer, 0, 0);
 
@@ -513,14 +513,14 @@ public class RarStreamTests
     [Fact]
     public void Seek_Begin_SetsPositionFromStart()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             long result = stream.Seek(3, SeekOrigin.Begin);
 
             Assert.Equal(3, result);
@@ -539,14 +539,14 @@ public class RarStreamTests
     [Fact]
     public void Seek_Current_MovesRelativeToCurrentPosition()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             stream.Position = 2;
             long result = stream.Seek(1, SeekOrigin.Current);
 
@@ -565,14 +565,14 @@ public class RarStreamTests
     [Fact]
     public void Seek_End_MovesRelativeToEnd()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             long result = stream.Seek(-2, SeekOrigin.End);
 
             Assert.Equal(3, result);
@@ -590,14 +590,14 @@ public class RarStreamTests
     [Fact]
     public void Seek_NegativeResult_ThrowsArgumentOutOfRangeException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.Throws<ArgumentOutOfRangeException>(() => stream.Seek(-1, SeekOrigin.Begin));
         }
         finally
@@ -609,14 +609,14 @@ public class RarStreamTests
     [Fact]
     public void Seek_BeyondEnd_AllowedButReadReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             long result = stream.Seek(100, SeekOrigin.Begin);
 
             Assert.Equal(100, result);
@@ -634,7 +634,7 @@ public class RarStreamTests
     [Fact]
     public void Seek_ToVariousPositions_ReadsCorrectData()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
@@ -645,7 +645,7 @@ public class RarStreamTests
             }
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
 
             // Read byte at position 0
             byte[] buf = new byte[1];
@@ -680,14 +680,14 @@ public class RarStreamTests
     [Fact]
     public void Position_Set_NegativeValue_ThrowsArgumentOutOfRangeException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             Assert.Throws<ArgumentOutOfRangeException>(() => stream.Position = -1);
         }
         finally
@@ -699,14 +699,14 @@ public class RarStreamTests
     [Fact]
     public void Position_AdvancesAfterRead()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03, 0x04, 0x05];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buf = new byte[3];
             stream.ReadExactly(buf, 0, 3);
 
@@ -725,14 +725,14 @@ public class RarStreamTests
     [Fact]
     public void Dispose_ClosesAllHandles()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            var stream = new RarStream(path);
+            var stream = new RARStream(path);
             byte[] buf = new byte[3];
             stream.ReadExactly(buf, 0, 3); // This opens the internal stream
             stream.Dispose();
@@ -750,14 +750,14 @@ public class RarStreamTests
     [Fact]
     public void Dispose_CalledTwice_DoesNotThrow()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            var stream = new RarStream(path);
+            var stream = new RARStream(path);
             stream.Dispose();
             stream.Dispose(); // Should not throw
         }
@@ -770,14 +770,14 @@ public class RarStreamTests
     [Fact]
     public void Read_AfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            var stream = new RarStream(path);
+            var stream = new RARStream(path);
             stream.Dispose();
 
             byte[] buf = new byte[1];
@@ -792,14 +792,14 @@ public class RarStreamTests
     [Fact]
     public void Seek_AfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            var stream = new RarStream(path);
+            var stream = new RARStream(path);
             stream.Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => stream.Seek(0, SeekOrigin.Begin));
@@ -813,14 +813,14 @@ public class RarStreamTests
     [Fact]
     public void Length_AfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            var stream = new RarStream(path);
+            var stream = new RARStream(path);
             stream.Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => _ = stream.Length);
@@ -834,14 +834,14 @@ public class RarStreamTests
     [Fact]
     public void Position_GetAfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            var stream = new RarStream(path);
+            var stream = new RARStream(path);
             stream.Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => _ = stream.Position);
@@ -859,7 +859,7 @@ public class RarStreamTests
     [Fact]
     public void Read_MultiVolume_NewStyle_ReadsAcrossVolumes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
@@ -880,7 +880,7 @@ public class RarStreamTests
                 splitBefore: true, splitAfter: false);
 
             string firstVolume = Path.Combine(dir, "test.part1.rar");
-            using var stream = new RarStream(firstVolume);
+            using var stream = new RARStream(firstVolume);
 
             Assert.Equal(13, stream.Length);
 
@@ -901,7 +901,7 @@ public class RarStreamTests
     [Fact]
     public void Read_MultiVolume_NewStyle_SeekAcrossVolumes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
@@ -917,7 +917,7 @@ public class RarStreamTests
                 splitBefore: true, splitAfter: false);
 
             string firstVolume = Path.Combine(dir, "test.part1.rar");
-            using var stream = new RarStream(firstVolume);
+            using var stream = new RARStream(firstVolume);
 
             // Seek into second volume and read
             // Position 7 = part2Data[2] = 0x80
@@ -940,7 +940,7 @@ public class RarStreamTests
     [Fact]
     public void Read_MultiVolume_NewStyle_ReadSpanningBoundary()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
@@ -956,7 +956,7 @@ public class RarStreamTests
                 splitBefore: true, splitAfter: false);
 
             string firstVolume = Path.Combine(dir, "test.part1.rar");
-            using var stream = new RarStream(firstVolume);
+            using var stream = new RARStream(firstVolume);
 
             // Read 4 bytes starting at position 1, which spans the boundary
             stream.Seek(1, SeekOrigin.Begin);
@@ -979,7 +979,7 @@ public class RarStreamTests
     [Fact]
     public void Read_MultiVolume_OldStyle_ReadsAcrossVolumes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
@@ -999,7 +999,7 @@ public class RarStreamTests
                 RARArchiveFlags.Volume, splitBefore: true, splitAfter: false);
 
             string firstVolume = Path.Combine(dir, "test.rar");
-            using var stream = new RarStream(firstVolume);
+            using var stream = new RARStream(firstVolume);
 
             Assert.Equal(8, stream.Length);
 
@@ -1029,7 +1029,7 @@ public class RarStreamTests
             return; // Skip if test data not available
         }
 
-        using var stream = new RarStream(path, "testfile.txt");
+        using var stream = new RARStream(path, "testfile.txt");
 
         Assert.Equal(131, stream.Length);
 
@@ -1052,7 +1052,7 @@ public class RarStreamTests
             return;
         }
 
-        using var stream = new RarStream(path, "testfile.txt");
+        using var stream = new RARStream(path, "testfile.txt");
 
         // "This" is at position 0
         byte[] buf = new byte[4];
@@ -1075,7 +1075,7 @@ public class RarStreamTests
             return;
         }
 
-        using var stream = new RarStream(path);
+        using var stream = new RARStream(path);
 
         // Should have non-zero length (the packed data size)
         Assert.True(stream.Length > 0);
@@ -1093,14 +1093,14 @@ public class RarStreamTests
     [Fact]
     public void Read_EmptyBuffer_ReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buffer = [];
             int bytesRead = stream.Read(buffer, 0, 0);
             Assert.Equal(0, bytesRead);
@@ -1114,7 +1114,7 @@ public class RarStreamTests
     [Fact]
     public void Read_SequentialSmallReads_ReadsCorrectData()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
@@ -1125,7 +1125,7 @@ public class RarStreamTests
             }
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
 
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             byte[] buf = new byte[1];
 
             for (int i = 0; i < 10; i++)
@@ -1148,13 +1148,13 @@ public class RarStreamTests
     [Fact]
     public void Flush_DoesNotThrow()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RarStreamTest_" + Guid.NewGuid().ToString("N"));
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
         {
             byte[] data = [0x01];
             string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
-            using var stream = new RarStream(path);
+            using var stream = new RARStream(path);
             stream.Flush(); // Should be a no-op
         }
         finally
@@ -1179,7 +1179,7 @@ public class RarStreamTests
 
         byte[] expected = File.ReadAllBytes(refPath);
 
-        using var rs = new RarStream(rarPath, "unicode_dos.nfo");
+        using var rs = new RARStream(rarPath, "unicode_dos.nfo");
         byte[] actual = new byte[rs.Length];
         int bytesRead = rs.Read(actual, 0, actual.Length);
 
@@ -1199,7 +1199,7 @@ public class RarStreamTests
 
         byte[] expected = File.ReadAllBytes(refPath);
 
-        using var rs = new RarStream(rarPath, "unicode_dos.nfo");
+        using var rs = new RARStream(rarPath, "unicode_dos.nfo");
 
         // Seek to position 3312, read 4 bytes (near end of 3316-byte file)
         rs.Seek(3312, SeekOrigin.Begin);
@@ -1228,7 +1228,7 @@ public class RarStreamTests
 
         byte[] expected = File.ReadAllBytes(refPath);
 
-        using var rs = new RarStream(rarPath, "unicode_dos.nfo");
+        using var rs = new RARStream(rarPath, "unicode_dos.nfo");
 
         // Seek to -20 from end, read remaining bytes
         rs.Seek(-20, SeekOrigin.End);
@@ -1251,7 +1251,7 @@ public class RarStreamTests
 
         byte[] expected = File.ReadAllBytes(refPath);
 
-        using var rs = new RarStream(rarPath, "unicode_mac.nfo");
+        using var rs = new RARStream(rarPath, "unicode_mac.nfo");
 
         // Seek to position 333, read the rest
         rs.Seek(333, SeekOrigin.Begin);
@@ -1271,7 +1271,7 @@ public class RarStreamTests
             return;
         }
 
-        var rs = new RarStream(rarPath, "unicode_dos.nfo");
+        var rs = new RARStream(rarPath, "unicode_dos.nfo");
         Assert.True(rs.CanRead);
 
         rs.Close();
@@ -1295,7 +1295,7 @@ public class RarStreamTests
 
         byte[] expected = File.ReadAllBytes(refPath);
 
-        using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
+        using var rs = new RARStream(rarPath, @"txt\users_manual4.00.txt");
         byte[] actual = new byte[rs.Length];
         int bytesRead = rs.Read(actual, 0, actual.Length);
 
@@ -1312,7 +1312,7 @@ public class RarStreamTests
             return;
         }
 
-        using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
+        using var rs = new RARStream(rarPath, @"txt\users_manual4.00.txt");
 
         // Read all content
         byte[] buffer = new byte[rs.Length];
@@ -1336,7 +1336,7 @@ public class RarStreamTests
             return;
         }
 
-        using var rs = new RarStream(rarPath, @"txt\users_manual4.00.txt");
+        using var rs = new RARStream(rarPath, @"txt\users_manual4.00.txt");
 
         // Seek to start, read 2 bytes
         rs.Seek(0, SeekOrigin.Begin);
@@ -1369,7 +1369,7 @@ public class RarStreamTests
             Encoding.UTF8.GetString(refBytes).ReplaceLineEndings("\n"));
 
         // No specific filename = reads first file in archive
-        using var rs = new RarStream(rarPath);
+        using var rs = new RARStream(rarPath);
         byte[] actual = new byte[rs.Length];
         int bytesRead = rs.Read(actual, 0, actual.Length);
 

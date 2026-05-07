@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ReScene.SRS;
 
-internal class WmvContainerHandler : IContainerHandler
+internal class WMVContainerHandler : IContainerHandler
 {
     private const int SignatureSize = 256;
 
@@ -13,7 +13,7 @@ internal class WmvContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.WMV;
 
-    public (List<TrackInfo> Tracks, uint Crc32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
     {
         var trackMap = new Dictionary<int, TrackInfo>();
         long totalLength = 0;
@@ -134,7 +134,7 @@ internal class WmvContainerHandler : IContainerHandler
     public void WriteSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options, CancellationToken ct)
+        SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -220,9 +220,9 @@ internal class WmvContainerHandler : IContainerHandler
     #region Writing Helpers
 
     private static void WriteSrsfAsf(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options)
+        SRSCreationOptions options)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
         outFs.Write(_guidSrsFile);
         Span<byte> sizeBytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
@@ -232,7 +232,7 @@ internal class WmvContainerHandler : IContainerHandler
 
     private static void WriteSrstAsf(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrst(track, bigFile);
+        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
         outFs.Write(_guidSrsTrack);
         Span<byte> sizeBytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));

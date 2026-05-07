@@ -3,7 +3,7 @@ using System.IO.Hashing;
 
 namespace ReScene.SRS;
 
-internal class MkvContainerHandler : IContainerHandler
+internal class MKVContainerHandler : IContainerHandler
 {
     private const int SignatureSize = 256;
 
@@ -14,7 +14,7 @@ internal class MkvContainerHandler : IContainerHandler
     /// <summary>
     /// Container element IDs that we step into (no data of their own).
     /// </summary>
-    private static readonly HashSet<ulong> _ebmlContainerElements =
+    private static readonly HashSet<ulong> _eBMLContainerElements =
     [
         0x18538067, // Segment
         0x1F43B675, // Cluster
@@ -28,16 +28,16 @@ internal class MkvContainerHandler : IContainerHandler
         0x61A7,     // AttachedFile
     ];
 
-    private static readonly ulong _ebmlIdBlock = 0xA3;             // SimpleBlock
-    private static readonly ulong _ebmlIdBlockGroupBlock = 0xA1;  // Block inside BlockGroup
-    private static readonly ulong _ebmlIdTrackNumber = 0xD7;       // TrackNumber in TrackEntry
-    private static readonly ulong _ebmlIdContentCompAlgo = 0x4254; // ContentCompAlgo
-    private static readonly ulong _ebmlIdContentCompSettings = 0x4255; // ContentCompSettings
+    private static readonly ulong _eBMLIdBlock = 0xA3;             // SimpleBlock
+    private static readonly ulong _eBMLIdBlockGroupBlock = 0xA1;  // Block inside BlockGroup
+    private static readonly ulong _eBMLIdTrackNumber = 0xD7;       // TrackNumber in TrackEntry
+    private static readonly ulong _eBMLIdContentCompAlgo = 0x4254; // ContentCompAlgo
+    private static readonly ulong _eBMLIdContentCompSettings = 0x4255; // ContentCompSettings
 
     /// <summary>
     /// EBML element IDs that we should step into during SRS writing (they are containers).
     /// </summary>
-    private static readonly HashSet<ulong> _mkvSrsContainers =
+    private static readonly HashSet<ulong> _mKVSrsContainers =
     [
         0x1F43B675, // Cluster
         0xA0,       // BlockGroup
@@ -51,7 +51,7 @@ internal class MkvContainerHandler : IContainerHandler
     /// State tracked across recursive ProfileEbmlElements calls for MKV profiling.
     /// Stores the current track number context and header stripping flag during TrackEntry parsing.
     /// </summary>
-    private class EbmlProfileState
+    private class EBMLProfileState
     {
         public int CurrentTrackNumber
         {
@@ -63,7 +63,7 @@ internal class MkvContainerHandler : IContainerHandler
         }
     }
 
-    public (List<TrackInfo> Tracks, uint Crc32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
     {
         var trackMap = new Dictionary<int, TrackInfo>();
         long otherLength = 0;
@@ -88,7 +88,7 @@ internal class MkvContainerHandler : IContainerHandler
     public void WriteSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options, CancellationToken ct)
+        SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -106,9 +106,9 @@ internal class MkvContainerHandler : IContainerHandler
         Crc32 crc,
         bool isSegmentLevel,
         CancellationToken ct,
-        EbmlProfileState? state = null)
+        EBMLProfileState? state = null)
     {
-        state ??= new EbmlProfileState();
+        state ??= new EBMLProfileState();
         fs.Position = start;
 
         while (fs.Position < end)
@@ -116,12 +116,12 @@ internal class MkvContainerHandler : IContainerHandler
             ct.ThrowIfCancellationRequested();
             long elemStart = fs.Position;
 
-            if (!EbmlReader.TryReadId(fs, out ulong elemId, out int idLen))
+            if (!EBMLReader.TryReadId(fs, out ulong elemId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -137,7 +137,7 @@ internal class MkvContainerHandler : IContainerHandler
             otherLength += headerSize;
             crc.Append(rawHeader);
 
-            if (_ebmlContainerElements.Contains(elemId))
+            if (_eBMLContainerElements.Contains(elemId))
             {
                 // When entering ContentCompression (0x5034), mark that compression is present
                 if (elemId == 0x5034 && trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? compTrack))
@@ -150,10 +150,10 @@ internal class MkvContainerHandler : IContainerHandler
                 ProfileEbmlElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
                     isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state);
             }
-            else if (elemId == _ebmlIdBlock || elemId == _ebmlIdBlockGroupBlock)
+            else if (elemId == _eBMLIdBlock || elemId == _eBMLIdBlockGroupBlock)
             {
                 // Parse block: track number (EBML VINT) + timecode (2 bytes) + flags (1 byte)
-                if (!EbmlReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
+                if (!EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
                 {
                     fs.Position = elemEnd;
                     continue;
@@ -173,18 +173,18 @@ internal class MkvContainerHandler : IContainerHandler
 
                 // Extract lace type from flags byte (bits 1-2)
                 byte flagsByte = blockHeader[blockHeaderBase - 1];
-                var laceType = (EbmlLaceType)(flagsByte & 0x06);
+                var laceType = (EBMLLaceType)(flagsByte & 0x06);
 
                 // Calculate remaining data after base block header
                 int dataAfterBaseHeader = (int)((long)dataSize - blockHeaderBase);
 
                 // Parse lacing to determine frame sizes and lacing header size
                 int lacingHeaderSize = 0;
-                if (laceType != EbmlLaceType.None && dataAfterBaseHeader > 0)
+                if (laceType != EBMLLaceType.None && dataAfterBaseHeader > 0)
                 {
                     // Read the lacing header data to parse it
                     byte[] lacingData = ReadExactly(fs, Math.Min(dataAfterBaseHeader, 256)); // lacing headers are small
-                    (int[] _, int bytesConsumed) = EbmlLacing.GetFrameLengths(
+                    (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
                         lacingData, laceType, dataAfterBaseHeader);
                     lacingHeaderSize = bytesConsumed;
 
@@ -240,7 +240,7 @@ internal class MkvContainerHandler : IContainerHandler
                     }
                 }
             }
-            else if (elemId == _ebmlIdTrackNumber)
+            else if (elemId == _eBMLIdTrackNumber)
             {
                 // Read TrackNumber element to track current context
                 long remaining = elemEnd - fs.Position;
@@ -265,7 +265,7 @@ internal class MkvContainerHandler : IContainerHandler
                     }
                 }
             }
-            else if (elemId == _ebmlIdContentCompAlgo)
+            else if (elemId == _eBMLIdContentCompAlgo)
             {
                 // Read compression algorithm
                 long remaining = elemEnd - fs.Position;
@@ -289,7 +289,7 @@ internal class MkvContainerHandler : IContainerHandler
                     state.HeaderStrippingDetected = algorithm == 3;
                 }
             }
-            else if (elemId == _ebmlIdContentCompSettings)
+            else if (elemId == _eBMLIdContentCompSettings)
             {
                 // Read compression settings (stripped header bytes)
                 long remaining = elemEnd - fs.Position;
@@ -330,7 +330,7 @@ internal class MkvContainerHandler : IContainerHandler
         Stream outFs, Stream inFs,
         long start, long end,
         List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options,
+        SRSCreationOptions options,
         bool resampleInjected,
         CancellationToken ct)
     {
@@ -341,12 +341,12 @@ internal class MkvContainerHandler : IContainerHandler
             ct.ThrowIfCancellationRequested();
             long elemStart = inFs.Position;
 
-            if (!EbmlReader.TryReadId(inFs, out ulong elemId, out int idLen))
+            if (!EBMLReader.TryReadId(inFs, out ulong elemId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(inFs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(inFs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -374,7 +374,7 @@ internal class MkvContainerHandler : IContainerHandler
                 WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCrc32, options, resampleInjected, ct);
             }
-            else if (_mkvSrsContainers.Contains(elemId))
+            else if (_mKVSrsContainers.Contains(elemId))
             {
                 outFs.Write(rawHeader);
                 WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
@@ -385,14 +385,14 @@ internal class MkvContainerHandler : IContainerHandler
                 outFs.Write(rawHeader);
                 // Skip attachment data
             }
-            else if (elemId == _ebmlIdBlock || elemId == _ebmlIdBlockGroupBlock)
+            else if (elemId == _eBMLIdBlock || elemId == _eBMLIdBlockGroupBlock)
             {
                 // Write header + block header (including lacing header), skip frame data
                 outFs.Write(rawHeader);
 
                 // Parse and copy block header: track number VINT + timecode(2) + flags(1) + lacing header
                 long blockParseStart = inFs.Position;
-                if (EbmlReader.TryReadSize(inFs, out _, out int vintLen))
+                if (EBMLReader.TryReadSize(inFs, out _, out int vintLen))
                 {
                     int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
                     long available = elemEnd - blockParseStart;
@@ -404,17 +404,17 @@ internal class MkvContainerHandler : IContainerHandler
                         inFs.ReadExactly(baseHeader, 0, blockHeaderBase);
 
                         byte flagsByte = baseHeader[blockHeaderBase - 1];
-                        var laceType = (EbmlLaceType)(flagsByte & 0x06);
+                        var laceType = (EBMLLaceType)(flagsByte & 0x06);
 
                         int lacingHeaderSize = 0;
-                        if (laceType != EbmlLaceType.None)
+                        if (laceType != EBMLLaceType.None)
                         {
                             // Read lacing header to determine its size
                             int dataAfterBase = (int)((long)dataSize - blockHeaderBase);
                             if (dataAfterBase > 0)
                             {
                                 byte[] lacingPeek = ReadExactly(inFs, Math.Min(dataAfterBase, 256));
-                                (int[] _, int bytesConsumed) = EbmlLacing.GetFrameLengths(
+                                (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
                                     lacingPeek, laceType, dataAfterBase);
                                 lacingHeaderSize = bytesConsumed;
                             }
@@ -448,17 +448,17 @@ internal class MkvContainerHandler : IContainerHandler
     private static void WriteEbmlReSampleElement(
         Stream outFs, List<TrackInfo> tracks,
         string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options)
+        SRSCreationOptions options)
     {
         // Build the file and track sub-elements
-        byte[] srsfPayload = SrsPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] srsfPayload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
         byte[] srsfElement = BuildEbmlElement(0x6A75, srsfPayload); // RESAMPLE_FILE
 
         bool bigFile = sampleSize >= 0x80000000;
         var trackElements = new List<byte[]>();
         foreach (TrackInfo track in tracks)
         {
-            byte[] srstPayload = SrsPayloadSerializer.SerializeSrst(track, bigFile);
+            byte[] srstPayload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
             trackElements.Add(BuildEbmlElement(0x6B75, srstPayload)); // RESAMPLE_TRACK
         }
 

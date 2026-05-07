@@ -11,7 +11,7 @@ public class SRRFileData
     /// <summary>
     /// Gets or sets the parsed SRR file.
     /// </summary>
-    public SRRFile SrrFile { get; set; } = null!;
+    public SRRFile SRRFile { get; set; } = null!;
 
     /// <summary>
     /// Detailed RAR blocks per volume, keyed by volume filename.
@@ -32,12 +32,12 @@ public class SRRFileData
         var srrFile = SRRFile.Load(filePath);
         var volumeBlocks = new Dictionary<string, List<RARDetailedBlock>>(StringComparer.OrdinalIgnoreCase);
 
-        if (srrFile.RarFiles.Count > 0)
+        if (srrFile.RARFiles.Count > 0)
         {
             try
             {
                 using FileStream fs = File.OpenRead(filePath);
-                foreach (SrrRarFileBlock rarFile in srrFile.RarFiles)
+                foreach (SRRRarFileBlock rarFile in srrFile.RARFiles)
                 {
                     try
                     {
@@ -61,7 +61,7 @@ public class SRRFileData
 
         return new SRRFileData
         {
-            SrrFile = srrFile,
+            SRRFile = srrFile,
             VolumeDetailedBlocks = volumeBlocks
         };
     }

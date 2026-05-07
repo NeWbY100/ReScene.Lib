@@ -4,13 +4,13 @@ using System.Text;
 
 namespace ReScene.SRS;
 
-internal class Mp3ContainerHandler : IContainerHandler
+internal class MP3ContainerHandler : IContainerHandler
 {
     private const int SignatureSize = 256;
 
     public SRSContainerType ContainerType => SRSContainerType.MP3;
 
-    public (List<TrackInfo> Tracks, uint Crc32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
     {
         var track = new TrackInfo { TrackNumber = 1 };
         var crc = new Crc32();
@@ -18,10 +18,10 @@ internal class Mp3ContainerHandler : IContainerHandler
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         long fileLen = fs.Length;
 
-        // Use Mp3TagReader to find audio boundaries (handles ID3v2, ID3v1,
+        // Use MP3TagReader to find audio boundaries (handles ID3v2, ID3v1,
         // Lyrics3v1, Lyrics3v2, APEv1/v2)
-        long audioStart = Mp3TagReader.FindAudioStart(fs);
-        long audioEnd = Mp3TagReader.FindAudioEnd(fs);
+        long audioStart = MP3TagReader.FindAudioStart(fs);
+        long audioEnd = MP3TagReader.FindAudioEnd(fs);
 
         // Read entire file for CRC
         fs.Position = 0;
@@ -73,15 +73,15 @@ internal class Mp3ContainerHandler : IContainerHandler
     public void WriteSrs(
         string outputPath, string samplePath,
         List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options, CancellationToken ct)
+        SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(inFs);
 
-        // Use Mp3TagReader to find audio boundaries
-        long audioStart = Mp3TagReader.FindAudioStart(inFs);
-        long audioEnd = Mp3TagReader.FindAudioEnd(inFs);
+        // Use MP3TagReader to find audio boundaries
+        long audioStart = MP3TagReader.FindAudioStart(inFs);
+        long audioEnd = MP3TagReader.FindAudioEnd(inFs);
 
         // Copy all header tags (ID3v2 etc.) verbatim
         if (audioStart > 0)
@@ -111,9 +111,9 @@ internal class Mp3ContainerHandler : IContainerHandler
     #region Writing Helpers
 
     private static void WriteSrsfMp3(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options)
+        SRSCreationOptions options)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
         outFs.Write(Encoding.ASCII.GetBytes("SRSF"));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(4 + 4 + payload.Length));
@@ -123,7 +123,7 @@ internal class Mp3ContainerHandler : IContainerHandler
 
     private static void WriteSrstMp3(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SrsPayloadSerializer.SerializeSrst(track, bigFile);
+        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
         outFs.Write(Encoding.ASCII.GetBytes("SRST"));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(8 + payload.Length));

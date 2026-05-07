@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace ReScene.RAR;
 
 /// <summary>
@@ -17,7 +15,7 @@ namespace ReScene.RAR;
 /// <param name="DataOffset">
 /// Byte offset within the physical RAR file where this segment's data begins.
 /// </param>
-internal record RarVolume(string ArchivePath, long LogicalStart, long LogicalEnd, long DataOffset);
+internal record RARVolume(string ArchivePath, long LogicalStart, long LogicalEnd, long DataOffset);
 
 /// <summary>
 /// Provides transparent read-only streaming access to a file packed across
@@ -26,15 +24,15 @@ internal record RarVolume(string ArchivePath, long LogicalStart, long LogicalEnd
 /// Only stored (m0) files are guaranteed to return correct content; compressed
 /// files will return the raw compressed bytes.
 /// </summary>
-public partial class RarStream : Stream
+public class RARStream : Stream
 {
     private static readonly byte[] _rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
-    private readonly List<RarVolume> _volumes = [];
+    private readonly List<RARVolume> _volumes = [];
     private readonly Dictionary<string, FileStream> _openStreams = new(StringComparer.OrdinalIgnoreCase);
     private long _length;
     private long _position;
-    private RarVolume? _currentVolume;
+    private RARVolume? _currentVolume;
     private bool _disposed;
 
     /// <summary>
@@ -59,7 +57,7 @@ public partial class RarStream : Stream
     /// The specified file is not the first volume, the archive contains no files,
     /// or the requested file was not found in the archive.
     /// </exception>
-    public RarStream(string firstRarPath, string? packedFileName = null)
+    public RARStream(string firstRarPath, string? packedFileName = null)
     {
         if (!File.Exists(firstRarPath))
         {
@@ -76,7 +74,7 @@ public partial class RarStream : Stream
         while (currentPath != null && File.Exists(currentPath))
         {
             isOldNaming = ProcessVolume(currentPath, ref packedFileName, isOldNaming);
-            currentPath = GetNextVolumePath(currentPath, isOldNaming.Value);
+            currentPath = RARVolumeNaming.GetNextVolumePath(currentPath, isOldNaming.Value);
         }
 
         PackedFileName = packedFileName;
@@ -98,7 +96,7 @@ public partial class RarStream : Stream
     /// <param name="length">
     /// The total logical length of the stream.
     /// </param>
-    internal RarStream(List<RarVolume> volumes, long length)
+    internal RARStream(List<RARVolume> volumes, long length)
     {
         _volumes = volumes;
         _length = length;
@@ -237,11 +235,11 @@ public partial class RarStream : Stream
 
     /// <inheritdoc/>
     public override void SetLength(long value) =>
-        throw new NotSupportedException("RarStream is read-only.");
+        throw new NotSupportedException("RARStream is read-only.");
 
     /// <inheritdoc/>
     public override void Write(byte[] buffer, int offset, int count) =>
-        throw new NotSupportedException("RarStream is read-only.");
+        throw new NotSupportedException("RARStream is read-only.");
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
@@ -384,7 +382,7 @@ public partial class RarStream : Stream
                     long dataOffset = block.BlockPosition + (long)block.HeaderSize;
                     long packedSize = (long)block.DataSize;
 
-                    var volume = new RarVolume(
+                    var volume = new RARVolume(
                         volumePath,
                         _length,
                         _length + packedSize - 1,
@@ -431,7 +429,7 @@ public partial class RarStream : Stream
                     long dataOffset = block.BlockPosition + block.HeaderSize;
                     long packedSize = (long)fileHeader.PackedSize;
 
-                    var volume = new RarVolume(
+                    var volume = new RARVolume(
                         volumePath,
                         _length,
                         _length + packedSize - 1,
@@ -444,7 +442,7 @@ public partial class RarStream : Stream
 
             // Skip past the block (header + data)
             long target = block.BlockPosition + block.HeaderSize;
-            if (block.BlockType == RAR4BlockType.FileHeader || block.BlockType == RAR4BlockType.Service)
+            if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
             {
                 target += block.AddSize;
             }
@@ -458,100 +456,6 @@ public partial class RarStream : Stream
 
         return isOldNaming;
     }
-
-    #endregion
-
-    #region Volume Naming
-
-    /// <summary>
-    /// Computes the path of the next volume in the set.
-    /// </summary>
-    private static string? GetNextVolumePath(string currentPath, bool isOldNaming)
-    {
-        if (isOldNaming)
-        {
-            return GetNextOldStyleVolume(currentPath);
-        }
-        else
-        {
-            return GetNextNewStyleVolume(currentPath);
-        }
-    }
-
-    /// <summary>
-    /// Old-style naming: .rar -> .r00 -> .r01 -> ... -> .r99 -> .s00 -> ...
-    /// Also handles: .001 -> .002 -> ...
-    /// </summary>
-    private static string? GetNextOldStyleVolume(string currentPath)
-    {
-        string ext = Path.GetExtension(currentPath);
-
-        if (ext.Equals(".rar", StringComparison.OrdinalIgnoreCase))
-        {
-            // First volume .rar -> .r00
-            string basePath = currentPath[..^ext.Length];
-            char prefix = char.IsUpper(ext[1]) ? 'R' : 'r';
-            return basePath + "." + prefix + "00";
-        }
-
-        if (ext.Length == 4 && (ext[1] == 'r' || ext[1] == 'R' || ext[1] == 's' || ext[1] == 'S' ||
-                                ext[1] == 't' || ext[1] == 'T' || ext[1] == 'u' || ext[1] == 'U' ||
-                                ext[1] == 'v' || ext[1] == 'V' || ext[1] == 'w' || ext[1] == 'W' ||
-                                ext[1] == 'x' || ext[1] == 'X' || ext[1] == 'y' || ext[1] == 'Y' ||
-                                ext[1] == 'z' || ext[1] == 'Z') &&
-            char.IsDigit(ext[2]) && char.IsDigit(ext[3]))
-        {
-            // .r00 -> .r01 -> ... -> .r99 -> .s00 -> ...
-            char prefix = ext[1];
-            int num = (ext[2] - '0') * 10 + (ext[3] - '0');
-            num++;
-
-            const int maxVolumeNumberPerLetter = 99;
-            if (num > maxVolumeNumberPerLetter)
-            {
-                // Roll over to next letter: r->s, s->t, ...
-                num = 0;
-                prefix = char.IsUpper(prefix) ? (char)(prefix + 1) : (char)(prefix + 1);
-            }
-
-            string basePath = currentPath[..^ext.Length];
-            return basePath + "." + prefix + num.ToString("D2");
-        }
-
-        // Handle numeric extensions like .001 -> .002
-        if (ext.Length >= 2 && ext[1..].All(char.IsDigit))
-        {
-            int num = int.Parse(ext[1..]);
-            num++;
-            string basePath = currentPath[..^ext.Length];
-            return basePath + "." + num.ToString($"D{ext.Length - 1}");
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// New-style naming: .part1.rar -> .part2.rar, .part01.rar -> .part02.rar, etc.
-    /// </summary>
-    private static string? GetNextNewStyleVolume(string currentPath)
-    {
-        // Match patterns like .part1.rar, .part01.rar, .part001.rar
-        Match match = NewStylePartRegex().Match(currentPath);
-        if (match.Success)
-        {
-            string numStr = match.Groups[1].Value;
-            string suffix = match.Groups[2].Value; // e.g. ".rar"
-
-            int num = int.Parse(numStr) + 1;
-            string newNumStr = num.ToString($"D{numStr.Length}");
-            return currentPath[..match.Groups[1].Index] + newNumStr + suffix;
-        }
-
-        return null;
-    }
-
-    [GeneratedRegex(@"\.part(\d+)(\.rar)$", RegexOptions.IgnoreCase)]
-    private static partial Regex NewStylePartRegex();
 
     #endregion
 
@@ -591,7 +495,7 @@ public partial class RarStream : Stream
 
         _currentVolume = null;
 
-        foreach (RarVolume vol in _volumes)
+        foreach (RARVolume vol in _volumes)
         {
             if (_position >= vol.LogicalStart && _position <= vol.LogicalEnd)
             {

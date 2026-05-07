@@ -6,7 +6,7 @@ namespace ReScene.Tests;
 
 /// <summary>
 /// Builds synthetic SRR files for unit testing.
-/// SRR format: sequence of blocks (SRR Header, StoredFiles, RarFile references + embedded RAR headers).
+/// SRR format: sequence of blocks (SRR Header, StoredFiles, RARFile references + embedded RAR headers).
 /// </summary>
 internal class SRRTestDataBuilder
 {
@@ -80,7 +80,7 @@ internal class SRRTestDataBuilder
         ushort headerSize = (ushort)(7 + 2 + nameBytes.Length); // base + nameLen + name
 
         _writer.Write((ushort)0x7171);     // CRC sentinel
-        _writer.Write((byte)0x71);         // RarFile type
+        _writer.Write((byte)0x71);         // RARFile type
         _writer.Write((ushort)0x0000);     // flags
         _writer.Write(headerSize);
         _writer.Write((ushort)nameBytes.Length);
@@ -102,7 +102,7 @@ internal class SRRTestDataBuilder
         ushort headerSize = (ushort)(7 + 8 + 8 + 2 + nameBytes.Length); // base + fileSize + hash + nameLen + name
 
         _writer.Write((ushort)0x6B6B);     // CRC sentinel
-        _writer.Write((byte)0x6B);         // OsoHash type
+        _writer.Write((byte)0x6B);         // OSOHash type
         _writer.Write((ushort)0x0000);     // flags
         _writer.Write(headerSize);
         _writer.Write(fileSize);           // pyrescene order: fileSize first
@@ -122,7 +122,7 @@ internal class SRRTestDataBuilder
         ushort headerSize = (ushort)(7 + 4 + 2 + nameBytes.Length); // base + addSize + nameLen + name
 
         _writer.Write((ushort)0x6C6C);     // CRC sentinel
-        _writer.Write((byte)0x6C);         // RarPadding type
+        _writer.Write((byte)0x6C);         // RARPadding type
         _writer.Write((ushort)0x8000);     // flags with LongBlock
         _writer.Write(headerSize);
         _writer.Write(paddingSize);        // padding size (addSize)

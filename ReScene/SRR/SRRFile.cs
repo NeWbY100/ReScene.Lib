@@ -10,7 +10,7 @@ public class SRRFile
     /// <summary>
     /// Gets the SRR file header block.
     /// </summary>
-    public SrrHeaderBlock? HeaderBlock
+    public SRRHeaderBlock? HeaderBlock
     {
         get; internal set;
     }
@@ -18,22 +18,22 @@ public class SRRFile
     /// <summary>
     /// Gets the OSO hash blocks from the SRR file.
     /// </summary>
-    public List<SrrOsoHashBlock> OsoHashBlocks { get; internal set; } = [];
+    public List<SRROsoHashBlock> OSOHashBlocks { get; internal set; } = [];
 
     /// <summary>
     /// Gets the RAR padding blocks from the SRR file.
     /// </summary>
-    public List<SrrRarPaddingBlock> RarPaddingBlocks { get; internal set; } = [];
+    public List<SRRRarPaddingBlock> RARPaddingBlocks { get; internal set; } = [];
 
     /// <summary>
     /// Gets the RAR file reference blocks from the SRR file.
     /// </summary>
-    public List<SrrRarFileBlock> RarFiles { get; internal set; } = [];
+    public List<SRRRarFileBlock> RARFiles { get; internal set; } = [];
 
     /// <summary>
     /// Gets the stored file blocks (SFV, NFO, etc.) from the SRR file.
     /// </summary>
-    public List<SrrStoredFileBlock> StoredFiles { get; internal set; } = [];
+    public List<SRRStoredFileBlock> StoredFiles { get; internal set; } = [];
 
     /// <summary>
     /// Gets the set of archived file paths (normalized, case-insensitive).
@@ -85,7 +85,7 @@ public class SRRFile
     /// <summary>
     /// Gets the calculated RAR volume sizes in bytes for each volume.
     /// </summary>
-    public List<long> RarVolumeSizes { get; internal set; } = [];
+    public List<long> RARVolumeSizes { get; internal set; } = [];
 
     /// <summary>
     /// Gets the most common volume size in bytes (for multi-volume archives).
@@ -479,7 +479,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.StoredFile:
-                    SrrStoredFileBlock? storedBlock = SRRFileParser.ParseStoredFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                    SRRStoredFileBlock? storedBlock = SRRFileParser.ParseStoredFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (storedBlock == null)
                     {
                         goto exitLoop;
@@ -489,40 +489,40 @@ public class SRRFile
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
 
-                case SRRBlockType.OsoHash:
-                    SrrOsoHashBlock? osoBlock = SRRFileParser.ParseOsoHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
+                case SRRBlockType.OSOHash:
+                    SRROsoHashBlock? osoBlock = SRRFileParser.ParseOsoHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
                     if (osoBlock != null)
                     {
-                        srr.OsoHashBlocks.Add(osoBlock);
+                        srr.OSOHashBlocks.Add(osoBlock);
                     }
 
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
 
-                case SRRBlockType.RarPadding:
-                    SrrRarPaddingBlock? paddingBlock = SRRFileParser.ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                case SRRBlockType.RARPadding:
+                    SRRRarPaddingBlock? paddingBlock = SRRFileParser.ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (paddingBlock != null)
                     {
-                        srr.RarPaddingBlocks.Add(paddingBlock);
+                        srr.RARPaddingBlocks.Add(paddingBlock);
                     }
 
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
 
-                case SRRBlockType.RarFile:
-                    SrrRarFileBlock? rarBlock = SRRFileParser.ParseRarFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                case SRRBlockType.RARFile:
+                    SRRRarFileBlock? rarBlock = SRRFileParser.ParseRarFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (rarBlock == null)
                     {
                         goto exitLoop;
                     }
 
-                    srr.RarFiles.Add(rarBlock);
+                    srr.RARFiles.Add(rarBlock);
 
                     // Parse embedded RAR headers that follow
                     long volumeTotalSize = SRRFileParser.ParseEmbeddedRarHeaders(reader, fs, srr);
                     if (volumeTotalSize > 0)
                     {
-                        srr.RarVolumeSizes.Add(volumeTotalSize);
+                        srr.RARVolumeSizes.Add(volumeTotalSize);
                     }
 
                     break;
@@ -571,8 +571,8 @@ public class SRRFile
 
         ArgumentNullException.ThrowIfNull(match);
 
-        SrrStoredFileBlock? storedFile = null;
-        foreach (SrrStoredFileBlock stored in StoredFiles)
+        SRRStoredFileBlock? storedFile = null;
+        foreach (SRRStoredFileBlock stored in StoredFiles)
         {
             if (match(stored.FileName))
             {

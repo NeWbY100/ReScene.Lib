@@ -173,7 +173,7 @@ public class RARFileHeader
     /// <summary>
     /// True if header CRC validation passed.
     /// </summary>
-    public bool CrcValid
+    public bool CRCValid
     {
         get; set;
     }
@@ -267,7 +267,7 @@ public class RARArchiveHeader
     /// <summary>
     /// True if header CRC validation passed.
     /// </summary>
-    public bool CrcValid
+    public bool CRCValid
     {
         get; set;
     }

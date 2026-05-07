@@ -51,7 +51,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Occurs when CRC validation progress updates during input file verification.
     /// </summary>
-    public event EventHandler<CrcValidationProgressEventArgs>? CrcValidationProgress;
+    public event EventHandler<CRCValidationProgressEventArgs>? CRCValidationProgress;
 
     /// <summary>
     /// Gets the current brute-force options, or null if no operation is in progress.
@@ -122,7 +122,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// </returns>
     public static RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[] commandLineArguments, int version)
     {
-        RARCommandLineArgument? archiveVersionCommandLine = commandLineArguments.FirstOrDefault(a => a.Argument == "-ma4" || a.Argument == "-ma5");
+        RARCommandLineArgument? archiveVersionCommandLine = commandLineArguments.FirstOrDefault(a => a.Argument is "-ma4" or "-ma5");
         if (archiveVersionCommandLine != null)
         {
             return archiveVersionCommandLine.Argument switch
@@ -169,7 +169,7 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         // === DIRECT RECONSTRUCTION (Custom Packer) ===
         if (options.RAROptions.CustomPackerDetected != SRR.CustomPackerType.None
-            && !string.IsNullOrEmpty(options.RAROptions.SrrFilePath))
+            && !string.IsNullOrEmpty(options.RAROptions.SRRFilePath))
         {
             _logger.Information(this, $"Custom packer detected ({options.RAROptions.CustomPackerDetected}) — using direct SRR reconstruction", LogTarget.System);
 
@@ -177,7 +177,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             reconstructor.Progress += (s, e) => FireBruteForceProgress(e);
 
             bool result = await reconstructor.ReconstructAsync(
-                options.RAROptions.SrrFilePath,
+                options.RAROptions.SRRFilePath,
                 options.ReleaseDirectoryPath,
                 options.OutputDirectoryPath,
                 options.RAROptions.OriginalRarFileNames,
@@ -596,8 +596,8 @@ public partial class Manager(IReSceneLogger? logger = null)
     private void FireFileCopyProgress(FileCopyProgressEventArgs e)
         => FileCopyProgress?.Invoke(this, e);
 
-    private void FireCrcValidationProgress(CrcValidationProgressEventArgs e)
-        => CrcValidationProgress?.Invoke(this, e);
+    private void FireCrcValidationProgress(CRCValidationProgressEventArgs e)
+        => CRCValidationProgress?.Invoke(this, e);
 
     private void SetFileAttributes(IEnumerable<FileInfo> files, FileAttributes attribute, bool add)
         => FileOperations.SetFileAttributes(files, attribute, add, _logger);
@@ -1103,7 +1103,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             long fileSize = new FileInfo(filePath).Length;
             long baseBytes = cumulativeBytesVerified;
 
-            FireCrcValidationProgress(new CrcValidationProgressEventArgs
+            FireCrcValidationProgress(new CRCValidationProgressEventArgs
             {
                 FileName = relativePath,
                 FilesVerified = filesVerified,
@@ -1114,7 +1114,7 @@ public partial class Manager(IReSceneLogger? logger = null)
 
             string actualCrc = CRC32.Calculate(filePath, bytesRead =>
             {
-                FireCrcValidationProgress(new CrcValidationProgressEventArgs
+                FireCrcValidationProgress(new CRCValidationProgressEventArgs
                 {
                     FileName = relativePath,
                     FilesVerified = filesVerified,
@@ -1134,7 +1134,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         }
 
         // Fire final 100% event
-        FireCrcValidationProgress(new CrcValidationProgressEventArgs
+        FireCrcValidationProgress(new CRCValidationProgressEventArgs
         {
             FileName = "",
             FilesVerified = expectedCrcs.Count,
@@ -1510,7 +1510,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             byte rawMethod = options.RAROptions.CmtCompressionMethod.Value;
             int cmtMethod = rawMethod >= 0x30 ? rawMethod - 0x30 : rawMethod;
-            if (cmtMethod >= 0 && cmtMethod <= 5)
+            if (cmtMethod is >= 0 and <= 5)
             {
                 cmtMethodArg = $"-m{cmtMethod}";
             }
@@ -1552,7 +1552,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             List<string> args = ["a", "-r", cmtMethodArg, cmtDictArg, $"-z{commentFilePath}"];
 
             // Add -ma4 for RAR 5.50-6.x to create RAR4 format (RAR 7.x doesn't accept -ma4)
-            if (version >= 550 && version < 700)
+            if (version is >= 550 and < 700)
             {
                 args.Add("-ma4");
             }
@@ -1668,7 +1668,7 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         // Command line arguments
         _logger.Information(this, $"  Command line combinations: {opts.CommandLineArguments.Count}", LogTarget.System);
-        if (opts.CommandLineArguments.Count > 0 && opts.CommandLineArguments.Count <= 10)
+        if (opts.CommandLineArguments.Count is > 0 and <= 10)
         {
             foreach (RARCommandLineArgument[] args in opts.CommandLineArguments)
             {

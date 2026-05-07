@@ -95,7 +95,7 @@ public static class FlacMetadataReader
             return (false, 0);
         }
 
-        int size = Mp3TagReader.DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
+        int size = MP3TagReader.DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
         int totalSize = Id3v2HeaderSize + size;
 
         return (true, totalSize);

@@ -37,7 +37,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success);
         var srr = SRRFile.Load(srrPath);
@@ -52,8 +52,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AppName = "TestApp 1.0" });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = "TestApp 1.0" });
 
         Assert.True(result.Success);
         var srr = SRRFile.Load(srrPath);
@@ -68,8 +68,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AppName = null });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = null });
 
         Assert.True(result.Success);
         var srr = SRRFile.Load(srrPath);
@@ -109,7 +109,7 @@ public class SRRWriterTests : IDisposable
         };
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.StoredFileCount);
@@ -160,14 +160,14 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
-        Assert.True(result.SrrFileSize > 0);
+        Assert.True(result.SRRFileSize > 0);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
+        Assert.Single(srr.RARFiles);
     }
 
     [Fact]
@@ -193,8 +193,8 @@ public class SRRWriterTests : IDisposable
         await writer.CreateAsync(srrPath, [rarPath]);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("release.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("release.rar", srr.RARFiles[0].FileName);
     }
 
     #endregion
@@ -212,15 +212,15 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rar1, rar2]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rar1, rar2]);
 
         Assert.True(result.Success);
         Assert.Equal(2, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Equal(2, srr.RarFiles.Count);
-        Assert.Equal("release.rar", srr.RarFiles[0].FileName);
-        Assert.Equal("release.r00", srr.RarFiles[1].FileName);
+        Assert.Equal(2, srr.RARFiles.Count);
+        Assert.Equal("release.rar", srr.RARFiles[0].FileName);
+        Assert.Equal("release.r00", srr.RARFiles[1].FileName);
     }
 
     #endregion
@@ -233,7 +233,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, []);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, []);
 
         Assert.False(result.Success);
         Assert.Contains("at least one", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
@@ -245,7 +245,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, ["/nonexistent/file.rar"]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, ["/nonexistent/file.rar"]);
 
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
@@ -260,7 +260,7 @@ public class SRRWriterTests : IDisposable
         var storedFiles = new Dictionary<string, string> { ["test.sfv"] = "/nonexistent/test.sfv" };
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
 
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
@@ -276,7 +276,7 @@ public class SRRWriterTests : IDisposable
         cts.Cancel(); // Cancel immediately
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath], ct: cts.Token);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], ct: cts.Token);
 
         Assert.False(result.Success);
         Assert.Contains("cancel", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
@@ -317,7 +317,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
@@ -333,7 +333,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, "/nonexistent/release.sfv");
+        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, "/nonexistent/release.sfv");
 
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
@@ -347,7 +347,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
 
         Assert.False(result.Success);
         Assert.Contains("No RAR volumes", result.ErrorMessage!, StringComparison.Ordinal);
@@ -365,7 +365,7 @@ public class SRRWriterTests : IDisposable
             "release.r02", "release.rar", "release.r00", "release.r01"
         };
 
-        files.Sort(RarVolumeNameComparer.Instance);
+        files.Sort(RARVolumeNameComparer.Instance);
 
         Assert.Equal("release.rar", files[0]);
         Assert.Equal("release.r00", files[1]);
@@ -381,7 +381,7 @@ public class SRRWriterTests : IDisposable
             "release.part03.rar", "release.part01.rar", "release.part02.rar"
         };
 
-        files.Sort(RarVolumeNameComparer.Instance);
+        files.Sort(RARVolumeNameComparer.Instance);
 
         Assert.Equal("release.part01.rar", files[0]);
         Assert.Equal("release.part02.rar", files[1]);
@@ -401,15 +401,15 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "roundtrip.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AppName = "RoundTripTest" });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = "RoundTripTest" });
 
         Assert.True(result.Success, result.ErrorMessage);
 
         var srr = SRRFile.Load(srrPath);
         Assert.Equal("RoundTripTest", srr.HeaderBlock!.AppName);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("test.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("test.rar", srr.RARFiles[0].FileName);
         Assert.Contains("sample.txt", srr.ArchivedFiles);
         Assert.Equal(29, srr.RARVersion);
         Assert.Equal((byte)2, srr.DetectedHostOS);
@@ -456,11 +456,11 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "size_check.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success);
-        Assert.True(result.SrrFileSize > 0);
-        Assert.True(result.SrrFileSize < new FileInfo(rarPath).Length + 200,
+        Assert.True(result.SRRFileSize > 0);
+        Assert.True(result.SRRFileSize < new FileInfo(rarPath).Length + 200,
             "SRR file should be comparable in size to headers-only data");
     }
 
@@ -481,14 +481,14 @@ public class SRRWriterTests : IDisposable
             string srrPath = Path.Combine(_testDir, $"{testFile}.srr");
 
             var writer = new SRRWriter();
-            SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+            SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
             Assert.True(result.Success, $"Failed for {testFile}: {result.ErrorMessage}");
             Assert.Equal(1, result.VolumeCount);
 
             var srr = SRRFile.Load(srrPath);
-            Assert.Single(srr.RarFiles);
-            Assert.Equal(testFile, srr.RarFiles[0].FileName);
+            Assert.Single(srr.RARFiles);
+            Assert.Equal(testFile, srr.RARFiles[0].FileName);
             Assert.True(srr.ArchivedFiles.Count > 0, $"No archived files found in SRR from {testFile}");
         }
     }
@@ -619,8 +619,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AllowCompressed = false });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AllowCompressed = false });
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Empty(result.Warnings);
@@ -634,8 +634,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AllowCompressed = false });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AllowCompressed = false });
 
         // SRR is still created, but with a warning
         Assert.True(result.Success, result.ErrorMessage);
@@ -652,8 +652,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AllowCompressed = true });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AllowCompressed = true });
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Empty(result.Warnings);
@@ -671,8 +671,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AllowCompressed = false });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AllowCompressed = false });
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.NotEmpty(result.Warnings);
@@ -691,8 +691,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AllowCompressed = false });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AllowCompressed = false });
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Empty(result.Warnings);
@@ -717,8 +717,8 @@ public class SRRWriterTests : IDisposable
         };
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles,
-            options: new SrrCreationOptions());
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles,
+            options: new SRRCreationOptions());
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
@@ -739,12 +739,12 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { ComputeOsoHashes = false });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { ComputeOsoHashes = false });
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
-        Assert.Empty(srr.OsoHashBlocks);
+        Assert.Empty(srr.OSOHashBlocks);
     }
 
     [Fact]
@@ -756,13 +756,13 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { ComputeOsoHashes = true });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { ComputeOsoHashes = true });
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
         // OSO hash blocks are not yet implemented, so none should be present
-        Assert.Empty(srr.OsoHashBlocks);
+        Assert.Empty(srr.OSOHashBlocks);
     }
 
     #endregion
@@ -781,15 +781,15 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "rar5_output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
-        Assert.True(result.SrrFileSize > 0);
+        Assert.True(result.SRRFileSize > 0);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("test_rar5_m3.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("test_rar5_m3.rar", srr.RARFiles[0].FileName);
         Assert.True(srr.ArchivedFiles.Count > 0, "Should have extracted archived file names from RAR5");
     }
 
@@ -805,14 +805,14 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "rar5_m5_output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Single(srr.RarFiles);
-        Assert.Equal("test_rar5_m5.rar", srr.RarFiles[0].FileName);
+        Assert.Single(srr.RARFiles);
+        Assert.Equal("test_rar5_m5.rar", srr.RARFiles[0].FileName);
         Assert.True(srr.ArchivedFiles.Count > 0, "Should have extracted archived file names from RAR5 m5");
     }
 
@@ -845,8 +845,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AppName = "" });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = "" });
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
@@ -863,8 +863,8 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SrrCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SrrCreationOptions { AppName = null });
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = null });
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);

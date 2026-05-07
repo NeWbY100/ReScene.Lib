@@ -5,7 +5,7 @@ namespace ReScene.SRS;
 /// When header stripping is used, common header bytes are removed from each frame
 /// and stored once in the TrackEntry's ContentCompSettings element.
 /// </summary>
-public static class EbmlHeaderStripping
+public static class EBMLHeaderStripping
 {
     // EBML element IDs for header stripping detection within a TrackEntry
     private const ulong IdContentEncodings = 0x6D80;
@@ -38,7 +38,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(trackEntryData[pos..]);
+            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(trackEntryData[pos..]);
             if (sizeLen == 0)
             {
                 break;
@@ -94,7 +94,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
+            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
             if (sizeLen == 0)
             {
                 break;
@@ -133,7 +133,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
+            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
             if (sizeLen == 0)
             {
                 break;
@@ -175,7 +175,7 @@ public static class EbmlHeaderStripping
 
             pos += idLen;
 
-            (long dataSize, int sizeLen) = EbmlVInt.ReadUnsigned(data[pos..]);
+            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
             if (sizeLen == 0)
             {
                 break;

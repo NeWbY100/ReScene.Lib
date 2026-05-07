@@ -5,11 +5,11 @@ using ReScene.SRS;
 namespace ReScene.Tests;
 
 /// <summary>
-/// Tests for Mp3TagReader: ID3v2, ID3v1, Lyrics3v1, Lyrics3v2, APEv2/v1 detection,
+/// Tests for MP3TagReader: ID3v2, ID3v1, Lyrics3v1, Lyrics3v2, APEv2/v1 detection,
 /// syncsafe integer encoding/decoding, and FindAudioStart/FindAudioEnd.
 /// Uses synthetic MemoryStream data.
 /// </summary>
-public class Mp3TagReaderTests
+public class MP3TagReaderTests
 {
     #region SyncSafe Integer Tests
 
@@ -23,7 +23,7 @@ public class Mp3TagReaderTests
     [InlineData(0x7F, 0x7F, 0x7F, 0x7F, 268435455)] // max value
     public void DecodeSyncSafeInt_CorrectValues(byte b0, byte b1, byte b2, byte b3, int expected)
     {
-        int result = Mp3TagReader.DecodeSyncSafeInt(b0, b1, b2, b3);
+        int result = MP3TagReader.DecodeSyncSafeInt(b0, b1, b2, b3);
         Assert.Equal(expected, result);
     }
 
@@ -37,16 +37,16 @@ public class Mp3TagReaderTests
     [InlineData(268435455)]
     public void EncodeSyncSafeInt_RoundTrips(int value)
     {
-        byte[] encoded = Mp3TagReader.EncodeSyncSafeInt(value);
+        byte[] encoded = MP3TagReader.EncodeSyncSafeInt(value);
         Assert.Equal(4, encoded.Length);
-        int decoded = Mp3TagReader.DecodeSyncSafeInt(encoded[0], encoded[1], encoded[2], encoded[3]);
+        int decoded = MP3TagReader.DecodeSyncSafeInt(encoded[0], encoded[1], encoded[2], encoded[3]);
         Assert.Equal(value, decoded);
     }
 
     [Fact]
     public void EncodeSyncSafeInt_TopBitsAlwaysZero()
     {
-        byte[] encoded = Mp3TagReader.EncodeSyncSafeInt(268435455); // max
+        byte[] encoded = MP3TagReader.EncodeSyncSafeInt(268435455); // max
         foreach (byte b in encoded)
         {
             Assert.Equal(0, b & 0x80);
@@ -66,12 +66,12 @@ public class Mp3TagReaderTests
         ms.Write("ID3"u8);
         ms.Write([0x04, 0x00]); // version 2.4.0
         ms.WriteByte(0x00);     // flags
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(100)); // body size = 100
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(100)); // body size = 100
         ms.Write(new byte[100]); // body padding
         ms.Write(new byte[50]);  // audio data
 
         ms.Position = 0;
-        (bool found, int size) = Mp3TagReader.DetectId3v2(ms);
+        (bool found, int size) = MP3TagReader.DetectId3v2(ms);
 
         Assert.True(found);
         Assert.Equal(110, size); // 10 header + 100 body
@@ -84,7 +84,7 @@ public class Mp3TagReaderTests
         var ms = new MemoryStream([0xFF, 0xFB, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
         ms.Position = 0;
 
-        (bool found, int _) = Mp3TagReader.DetectId3v2(ms);
+        (bool found, int _) = MP3TagReader.DetectId3v2(ms);
         Assert.False(found);
     }
 
@@ -94,7 +94,7 @@ public class Mp3TagReaderTests
         var ms = new MemoryStream([0x49, 0x44, 0x33]); // "ID3" but only 3 bytes
         ms.Position = 0;
 
-        (bool found, int _) = Mp3TagReader.DetectId3v2(ms);
+        (bool found, int _) = MP3TagReader.DetectId3v2(ms);
         Assert.False(found);
     }
 
@@ -105,17 +105,17 @@ public class Mp3TagReaderTests
         // First ID3v2 tag, 50 bytes body
         ms.Write("ID3"u8);
         ms.Write([0x03, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(50));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(50));
         ms.Write(new byte[50]);
         // Second ID3v2 tag at position 60
         ms.Write("ID3"u8);
         ms.Write([0x03, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(30));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(30));
         ms.Write(new byte[30]);
 
         // Detect second tag
         ms.Position = 60;
-        (bool found, int size) = Mp3TagReader.DetectId3v2(ms);
+        (bool found, int size) = MP3TagReader.DetectId3v2(ms);
 
         Assert.True(found);
         Assert.Equal(40, size); // 10 + 30
@@ -134,7 +134,7 @@ public class Mp3TagReaderTests
         ms.Write("TAG"u8);
         ms.Write(new byte[125]);
 
-        (bool found, int size) = Mp3TagReader.DetectId3v1(ms);
+        (bool found, int size) = MP3TagReader.DetectId3v1(ms);
 
         Assert.True(found);
         Assert.Equal(128, size);
@@ -145,7 +145,7 @@ public class Mp3TagReaderTests
     {
         var ms = new MemoryStream(new byte[256]); // all zeros
 
-        (bool found, int _) = Mp3TagReader.DetectId3v1(ms);
+        (bool found, int _) = MP3TagReader.DetectId3v1(ms);
         Assert.False(found);
     }
 
@@ -154,7 +154,7 @@ public class Mp3TagReaderTests
     {
         var ms = new MemoryStream(new byte[64]);
 
-        (bool found, int _) = Mp3TagReader.DetectId3v1(ms);
+        (bool found, int _) = MP3TagReader.DetectId3v1(ms);
         Assert.False(found);
     }
 
@@ -189,7 +189,7 @@ public class Mp3TagReaderTests
         // endOffset = just before ID3v1
         long endOffset = ms.Length - 128;
 
-        (bool found, int size) = Mp3TagReader.DetectLyrics3v2(ms, endOffset);
+        (bool found, int size) = MP3TagReader.DetectLyrics3v2(ms, endOffset);
 
         Assert.True(found);
         // Total = lyricsInnerSize + 6 (size field) + 9 ("LYRICS200") = 61 + 6 + 9 = 76
@@ -206,7 +206,7 @@ public class Mp3TagReaderTests
         ms.Position = 0;
 
         long endOffset = ms.Length - 128;
-        (bool found, int _) = Mp3TagReader.DetectLyrics3v2(ms, endOffset);
+        (bool found, int _) = MP3TagReader.DetectLyrics3v2(ms, endOffset);
 
         Assert.False(found);
     }
@@ -239,7 +239,7 @@ public class Mp3TagReaderTests
 
         long endOffset = ms.Length - 128;
 
-        (bool found, int size) = Mp3TagReader.DetectLyrics3v1(ms, endOffset);
+        (bool found, int size) = MP3TagReader.DetectLyrics3v1(ms, endOffset);
 
         Assert.True(found);
         Assert.Equal(expectedSize, size);
@@ -250,7 +250,7 @@ public class Mp3TagReaderTests
     {
         var ms = new MemoryStream(new byte[256]);
 
-        (bool found, int _) = Mp3TagReader.DetectLyrics3v1(ms, 256);
+        (bool found, int _) = MP3TagReader.DetectLyrics3v1(ms, 256);
         Assert.False(found);
     }
 
@@ -295,7 +295,7 @@ public class Mp3TagReaderTests
 
         long endOffset = ms.Length;
 
-        (bool found, int size) = Mp3TagReader.DetectApeTag(ms, endOffset);
+        (bool found, int size) = MP3TagReader.DetectApeTag(ms, endOffset);
 
         Assert.True(found);
         // Total = tagSize(64) + header(32) = 96
@@ -327,7 +327,7 @@ public class Mp3TagReaderTests
 
         long endOffset = ms.Length;
 
-        (bool found, int size) = Mp3TagReader.DetectApeTag(ms, endOffset);
+        (bool found, int size) = MP3TagReader.DetectApeTag(ms, endOffset);
 
         Assert.True(found);
         // APEv1: no header, total = tagSize(64) + header(0) = 64
@@ -339,7 +339,7 @@ public class Mp3TagReaderTests
     {
         var ms = new MemoryStream(new byte[256]);
 
-        (bool found, int _) = Mp3TagReader.DetectApeTag(ms, 256);
+        (bool found, int _) = MP3TagReader.DetectApeTag(ms, 256);
         Assert.False(found);
     }
 
@@ -353,7 +353,7 @@ public class Mp3TagReaderTests
         // MP3 file starting with sync word
         var ms = new MemoryStream([0xFF, 0xFB, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
 
-        long result = Mp3TagReader.FindAudioStart(ms);
+        long result = MP3TagReader.FindAudioStart(ms);
         Assert.Equal(0, result);
     }
 
@@ -363,11 +363,11 @@ public class Mp3TagReaderTests
         var ms = new MemoryStream();
         ms.Write("ID3"u8);
         ms.Write([0x04, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(200));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(200));
         ms.Write(new byte[200]);
         ms.Write([0xFF, 0xFB]); // audio sync word
 
-        long result = Mp3TagReader.FindAudioStart(ms);
+        long result = MP3TagReader.FindAudioStart(ms);
         Assert.Equal(210, result); // 10 + 200
     }
 
@@ -379,19 +379,19 @@ public class Mp3TagReaderTests
         // First ID3v2: 50 bytes body
         ms.Write("ID3"u8);
         ms.Write([0x03, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(50));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(50));
         ms.Write(new byte[50]);
 
         // Second ID3v2: 30 bytes body
         ms.Write("ID3"u8);
         ms.Write([0x03, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(30));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(30));
         ms.Write(new byte[30]);
 
         // Audio data
         ms.Write([0xFF, 0xFB]);
 
-        long result = Mp3TagReader.FindAudioStart(ms);
+        long result = MP3TagReader.FindAudioStart(ms);
         Assert.Equal(100, result); // (10+50) + (10+30) = 100
     }
 
@@ -404,7 +404,7 @@ public class Mp3TagReaderTests
     {
         var ms = new MemoryStream(new byte[500]);
 
-        long result = Mp3TagReader.FindAudioEnd(ms);
+        long result = MP3TagReader.FindAudioEnd(ms);
         Assert.Equal(500, result);
     }
 
@@ -416,7 +416,7 @@ public class Mp3TagReaderTests
         ms.Write("TAG"u8);
         ms.Write(new byte[125]); // rest of ID3v1
 
-        long result = Mp3TagReader.FindAudioEnd(ms);
+        long result = MP3TagReader.FindAudioEnd(ms);
         Assert.Equal(372, result);
     }
 
@@ -454,7 +454,7 @@ public class Mp3TagReaderTests
         ms.Write("TAG"u8);
         ms.Write(new byte[125]);
 
-        long result = Mp3TagReader.FindAudioEnd(ms);
+        long result = MP3TagReader.FindAudioEnd(ms);
         Assert.Equal(200, result); // audio ends before APE header
     }
 
@@ -500,7 +500,7 @@ public class Mp3TagReaderTests
         ms.Write("TAG"u8);
         ms.Write(new byte[125]);
 
-        long result = Mp3TagReader.FindAudioEnd(ms);
+        long result = MP3TagReader.FindAudioEnd(ms);
         Assert.Equal(audioEndExpected, result);
     }
 
@@ -516,7 +516,7 @@ public class Mp3TagReaderTests
         // ID3v2 header: 80 bytes body
         ms.Write("ID3"u8);
         ms.Write([0x04, 0x00, 0x00]);
-        ms.Write(Mp3TagReader.EncodeSyncSafeInt(80));
+        ms.Write(MP3TagReader.EncodeSyncSafeInt(80));
         ms.Write(new byte[80]); // body
 
         long expectedAudioStart = ms.Position; // = 90
@@ -533,8 +533,8 @@ public class Mp3TagReaderTests
         ms.Write("TAG"u8);
         ms.Write(new byte[125]);
 
-        long audioStart = Mp3TagReader.FindAudioStart(ms);
-        long audioEnd = Mp3TagReader.FindAudioEnd(ms);
+        long audioStart = MP3TagReader.FindAudioStart(ms);
+        long audioEnd = MP3TagReader.FindAudioEnd(ms);
 
         Assert.Equal(expectedAudioStart, audioStart);
         Assert.Equal(expectedAudioEnd, audioEnd);

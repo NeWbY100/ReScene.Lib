@@ -19,7 +19,7 @@ public class SRSFile
     /// <summary>
     /// Gets the parsed SRSF (file data) block, or null if not present.
     /// </summary>
-    public SrsFileDataBlock? FileData
+    public SRSFileDataBlock? FileData
     {
         get; private set;
     }
@@ -27,12 +27,12 @@ public class SRSFile
     /// <summary>
     /// Gets the parsed SRST (track data) blocks.
     /// </summary>
-    public List<SrsTrackDataBlock> Tracks { get; private set; } = [];
+    public List<SRSTrackDataBlock> Tracks { get; private set; } = [];
 
     /// <summary>
     /// Gets the container-native chunks (non-SRS elements) found in the file.
     /// </summary>
-    public List<SrsContainerChunk> ContainerChunks { get; private set; } = [];
+    public List<SRSContainerChunk> ContainerChunks { get; private set; } = [];
 
     /// <summary>
     /// Loads and parses an SRS file from the specified path.
@@ -164,10 +164,10 @@ public class SRSFile
 
     // ==================== Common Payload Parsers ====================
 
-    private static SrsFileDataBlock ParseFileDataPayload(BinaryReader reader, long payloadStart,
+    private static SRSFileDataBlock ParseFileDataPayload(BinaryReader reader, long payloadStart,
         long frameOffset, int frameHeaderSize, long blockSize)
     {
-        var block = new SrsFileDataBlock
+        var block = new SRSFileDataBlock
         {
             BlockPosition = frameOffset,
             BlockSize = blockSize,
@@ -210,16 +210,16 @@ public class SRSFile
         block.SampleSize = reader.ReadUInt64();
         p += 8;
 
-        block.Crc32Offset = p;
-        block.Crc32 = reader.ReadUInt32();
+        block.CRC32Offset = p;
+        block.CRC32 = reader.ReadUInt32();
 
         return block;
     }
 
-    private static SrsTrackDataBlock ParseTrackDataPayload(BinaryReader reader, long payloadStart,
+    private static SRSTrackDataBlock ParseTrackDataPayload(BinaryReader reader, long payloadStart,
         long frameOffset, int frameHeaderSize, long blockSize)
     {
-        var block = new SrsTrackDataBlock
+        var block = new SRSTrackDataBlock
         {
             BlockPosition = frameOffset,
             BlockSize = blockSize,
@@ -309,7 +309,7 @@ public class SRSFile
             }
             else
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -333,10 +333,10 @@ public class SRSFile
         while (true)
         {
             fs.Position = headerEnd;
-            (bool found, int size) = Mp3TagReader.DetectId3v2(fs);
+            (bool found, int size) = MP3TagReader.DetectId3v2(fs);
             if (found)
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = headerEnd,
                     BlockSize = size,
@@ -387,7 +387,7 @@ public class SRSFile
                 }
                 else
                 {
-                    srs.ContainerChunks.Add(new SrsContainerChunk
+                    srs.ContainerChunks.Add(new SRSContainerChunk
                     {
                         BlockPosition = frameOffset,
                         BlockSize = totalSize,
@@ -411,10 +411,10 @@ public class SRSFile
         long endOffset = fs.Length;
 
         // Check for ID3v1
-        (bool id3v1Found, int id3v1Size) = Mp3TagReader.DetectId3v1(fs);
+        (bool id3v1Found, int id3v1Size) = MP3TagReader.DetectId3v1(fs);
         if (id3v1Found)
         {
-            srs.ContainerChunks.Add(new SrsContainerChunk
+            srs.ContainerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = endOffset - id3v1Size,
                 BlockSize = id3v1Size,
@@ -427,10 +427,10 @@ public class SRSFile
         }
 
         // Check for Lyrics3v2
-        (bool lyrics3v2Found, int lyrics3v2Size) = Mp3TagReader.DetectLyrics3v2(fs, endOffset);
+        (bool lyrics3v2Found, int lyrics3v2Size) = MP3TagReader.DetectLyrics3v2(fs, endOffset);
         if (lyrics3v2Found)
         {
-            srs.ContainerChunks.Add(new SrsContainerChunk
+            srs.ContainerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = endOffset - lyrics3v2Size,
                 BlockSize = lyrics3v2Size,
@@ -444,10 +444,10 @@ public class SRSFile
         else
         {
             // Check for Lyrics3v1
-            (bool lyrics3v1Found, int lyrics3v1Size) = Mp3TagReader.DetectLyrics3v1(fs, endOffset);
+            (bool lyrics3v1Found, int lyrics3v1Size) = MP3TagReader.DetectLyrics3v1(fs, endOffset);
             if (lyrics3v1Found)
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = endOffset - lyrics3v1Size,
                     BlockSize = lyrics3v1Size,
@@ -461,10 +461,10 @@ public class SRSFile
         }
 
         // Check for APE tag
-        (bool apeFound, int apeSize) = Mp3TagReader.DetectApeTag(fs, endOffset);
+        (bool apeFound, int apeSize) = MP3TagReader.DetectApeTag(fs, endOffset);
         if (apeFound)
         {
-            srs.ContainerChunks.Add(new SrsContainerChunk
+            srs.ContainerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = endOffset - apeSize,
                 BlockSize = apeSize,
@@ -484,7 +484,7 @@ public class SRSFile
         (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
         if (id3Found)
         {
-            srs.ContainerChunks.Add(new SrsContainerChunk
+            srs.ContainerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = 0,
                 BlockSize = id3Size,
@@ -504,7 +504,7 @@ public class SRSFile
         long markerPos = fs.Position;
         fs.Position += 4;
 
-        srs.ContainerChunks.Add(new SrsContainerChunk
+        srs.ContainerChunks.Add(new SRSContainerChunk
         {
             BlockPosition = markerPos,
             BlockSize = 4,
@@ -534,7 +534,7 @@ public class SRSFile
             {
                 string label = FlacMetadataReader.GetBlockTypeName(type);
 
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = headerSize + payloadSize,
@@ -576,7 +576,7 @@ public class SRSFile
                 string label = $"{fourcc} {subType}";
 
                 long totalSize = headerSize + payloadSize;
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -625,7 +625,7 @@ public class SRSFile
             }
             else
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = headerSize + payloadSize,
@@ -648,7 +648,7 @@ public class SRSFile
 
     private static void ParseMp4(BinaryReader reader, FileStream fs, SRSFile srs) => ParseMp4Atoms(reader, fs, srs, 0, fs.Length);
 
-    private static readonly HashSet<string> _mp4ContainerAtoms = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _mP4ContainerAtoms = new(StringComparer.Ordinal)
     {
         "moov", "trak", "mdia", "minf", "stbl", "edts", "udta"
     };
@@ -709,9 +709,9 @@ public class SRSFile
                 srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 fs.Position = frameOffset + totalSize;
             }
-            else if (_mp4ContainerAtoms.Contains(type))
+            else if (_mP4ContainerAtoms.Contains(type))
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -733,7 +733,7 @@ public class SRSFile
             }
             else
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -783,7 +783,7 @@ public class SRSFile
             {
                 string label = GuidEquals(guid, _guidSrsPadding) ? "SRS Padding" : FormatGuid(guid);
 
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = (long)totalSize,
@@ -836,12 +836,12 @@ public class SRSFile
         while (fs.Position < fileLength)
         {
             long frameOffset = fs.Position;
-            if (!EbmlReader.TryReadId(fs, out ulong elementId, out int idLen))
+            if (!EBMLReader.TryReadId(fs, out ulong elementId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -856,7 +856,7 @@ public class SRSFile
             if (elementId == 0x1F697576)
             {
                 // Parse children of ReSample element
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -872,7 +872,7 @@ public class SRSFile
             }
             else if (elementId == 0x18538067) // Segment
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -890,7 +890,7 @@ public class SRSFile
             else
             {
                 string label = GetEbmlElementName(elementId);
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -915,12 +915,12 @@ public class SRSFile
         while (fs.Position + 2 <= end && fs.Position < fileLength)
         {
             long frameOffset = fs.Position;
-            if (!EbmlReader.TryReadId(fs, out ulong elementId, out int idLen))
+            if (!EBMLReader.TryReadId(fs, out ulong elementId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -933,7 +933,7 @@ public class SRSFile
 
             if (elementId == 0x1F697576) // ReSample
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -949,7 +949,7 @@ public class SRSFile
             else
             {
                 string label = GetEbmlElementName(elementId);
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -972,12 +972,12 @@ public class SRSFile
         while (fs.Position + 2 < end)
         {
             long frameOffset = fs.Position;
-            if (!EbmlReader.TryReadId(fs, out ulong elementId, out int idLen))
+            if (!EBMLReader.TryReadId(fs, out ulong elementId, out int idLen))
             {
                 break;
             }
 
-            if (!EbmlReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
             {
                 break;
             }
@@ -996,7 +996,7 @@ public class SRSFile
             }
             else
             {
-                srs.ContainerChunks.Add(new SrsContainerChunk
+                srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,

@@ -4,12 +4,12 @@ namespace ReScene.SRR;
 /// Compares RAR volume file paths for correct ordering.
 /// Supports both new-style (.part01.rar) and old-style (.rar, .r00, .r01) naming conventions.
 /// </summary>
-public class RarVolumeNameComparer : IComparer<string>
+public class RARVolumeNameComparer : IComparer<string>
 {
     /// <summary>
     /// Shared singleton instance.
     /// </summary>
-    public static RarVolumeNameComparer Instance { get; } = new();
+    public static RARVolumeNameComparer Instance { get; } = new();
 
     public int Compare(string? a, string? b)
     {

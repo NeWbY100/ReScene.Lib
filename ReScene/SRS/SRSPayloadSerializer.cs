@@ -6,14 +6,14 @@ namespace ReScene.SRS;
 /// <summary>
 /// Serializes SRSF (file data) and SRST (track data) payloads for SRS files.
 /// </summary>
-internal static class SrsPayloadSerializer
+internal static class SRSPayloadSerializer
 {
     /// <summary>
     /// Serializes the SRSF (file data) payload - format matches pyrescene exactly.
     /// Layout: flags(2) + appNameLen(2) + appName + fileNameLen(2) + fileName + sampleSize(8) + crc32(4)
     /// </summary>
     public static byte[] SerializeSrsf(string samplePath, long sampleSize, uint sampleCrc32,
-        SrsCreationOptions options)
+        SRSCreationOptions options)
     {
         byte[] appNameBytes = Encoding.UTF8.GetBytes(options.AppName);
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(Path.GetFileName(samplePath));

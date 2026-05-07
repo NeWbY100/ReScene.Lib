@@ -45,7 +45,7 @@ public enum SRSContainerType
 /// Parsed SRSF (FileData) payload from an SRS file.
 /// Every field stores its absolute byte offset for hex highlighting.
 /// </summary>
-public class SrsFileDataBlock
+public class SRSFileDataBlock
 {
     /// <summary>
     /// Absolute position of the container frame in the file.
@@ -172,7 +172,7 @@ public class SrsFileDataBlock
     /// <summary>
     /// Byte offset of the CRC32 field.
     /// </summary>
-    public long Crc32Offset
+    public long CRC32Offset
     {
         get; set;
     }
@@ -180,7 +180,7 @@ public class SrsFileDataBlock
     /// <summary>
     /// CRC32 checksum of the original sample file.
     /// </summary>
-    public uint Crc32
+    public uint CRC32
     {
         get; set;
     }
@@ -189,7 +189,7 @@ public class SrsFileDataBlock
 /// <summary>
 /// Parsed SRST (TrackData) payload from an SRS file.
 /// </summary>
-public class SrsTrackDataBlock
+public class SRSTrackDataBlock
 {
     /// <summary>
     /// Absolute position of the container frame in the file.
@@ -336,7 +336,7 @@ public class SrsTrackDataBlock
 /// <summary>
 /// Non-SRS container element (for tree display).
 /// </summary>
-public class SrsContainerChunk
+public class SRSContainerChunk
 {
     /// <summary>
     /// Absolute position in the file.

@@ -104,7 +104,7 @@ public class RARHeaderReaderTests
 
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
-        Assert.True(block.CrcValid);
+        Assert.True(block.CRCValid);
         Assert.NotNull(block.ArchiveHeader);
     }
 
@@ -136,7 +136,7 @@ public class RARHeaderReaderTests
         Assert.Equal(5, block.FileHeader.CompressionMethod); // Best (0x35 - 0x30)
         Assert.Equal(29, block.FileHeader.UnpackVersion);
         Assert.Equal("testfile.txt", block.FileHeader.FileName);
-        Assert.True(block.CrcValid);
+        Assert.True(block.CRCValid);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.False(block!.CrcValid);
+        Assert.False(block!.CRCValid);
     }
 
     #endregion
@@ -870,7 +870,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.False(block!.CrcValid);
+        Assert.False(block!.CRCValid);
         // File header should still be parsed even with invalid CRC
         Assert.NotNull(block.FileHeader);
         Assert.Equal("test.txt", block.FileHeader!.FileName);
@@ -894,7 +894,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.False(block!.CrcValid);
+        Assert.False(block!.CRCValid);
     }
 
     [Fact]
@@ -910,7 +910,7 @@ public class RARHeaderReaderTests
 
         Assert.NotNull(block);
         Assert.Equal(RAR4BlockType.EndArchive, block!.BlockType);
-        Assert.False(block.CrcValid);
+        Assert.False(block.CRCValid);
     }
 
     #endregion

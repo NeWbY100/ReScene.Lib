@@ -33,7 +33,7 @@ internal interface IContainerRebuilder
     /// </param>
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,

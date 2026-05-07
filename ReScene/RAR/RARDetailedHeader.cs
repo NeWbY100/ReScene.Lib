@@ -661,7 +661,7 @@ public static class RARDetailedParser
                 flagsField.Children.Add(new RARHeaderField { Name = "FIRST_VOLUME", Value = "First volume" });
             }
         }
-        else if (blockType == 0x74 || blockType == 0x7A) // File header or service block
+        else if (blockType is 0x74 or 0x7A) // File header or service block
         {
             if ((flags & 0x0001) != 0)
             {
@@ -2560,7 +2560,7 @@ public static class RARDetailedParser
         0x33 => "Normal",
         0x34 => "Good",
         0x35 => "Best",
-        _ when method >= 0 && method <= 5 => new[] { "Store", "Fastest", "Fast", "Normal", "Good", "Best" }[method],
+        _ when method is >= 0 and <= 5 => new[] { "Store", "Fastest", "Fast", "Normal", "Good", "Best" }[method],
         _ => $"Unknown (0x{method:X2})"
     };
 

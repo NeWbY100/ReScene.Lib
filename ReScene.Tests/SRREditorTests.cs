@@ -54,7 +54,7 @@ public class SRREditorTests : IDisposable
         SRREditor.RenameStoredFile(path, "a.bin", "b.bin");
 
         var srr = SRRFile.Load(path);
-        SrrStoredFileBlock renamed = srr.StoredFiles.Single(b => b.FileName == "b.bin");
+        SRRStoredFileBlock renamed = srr.StoredFiles.Single(b => b.FileName == "b.bin");
         Assert.Equal(payload.Length, (int)renamed.FileLength);
 
         using FileStream fs = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);

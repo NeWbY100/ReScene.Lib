@@ -3,7 +3,7 @@ namespace ReScene.SRR;
 /// <summary>
 /// Identifies RAR volume files by their file extension patterns.
 /// </summary>
-internal static class RarVolumeIdentifier
+internal static class RARVolumeIdentifier
 {
     /// <summary>
     /// Determines whether a filename has a RAR volume extension.

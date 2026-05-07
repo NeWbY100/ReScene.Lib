@@ -7,7 +7,7 @@ namespace ReScene.SRS;
 /// Rebuilds a WMV/ASF sample by replaying the ASF object structure from the SRS file,
 /// skipping SRS GUID objects. Body data is copied verbatim from SRS.
 /// </summary>
-internal class WmvContainerRebuilder : IContainerRebuilder
+internal class WMVContainerRebuilder : IContainerRebuilder
 {
     private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
     private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
@@ -17,7 +17,7 @@ internal class WmvContainerRebuilder : IContainerRebuilder
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,

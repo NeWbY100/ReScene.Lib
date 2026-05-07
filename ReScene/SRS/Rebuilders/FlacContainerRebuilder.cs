@@ -10,7 +10,7 @@ internal class FlacContainerRebuilder : IContainerRebuilder
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -62,7 +62,7 @@ internal class FlacContainerRebuilder : IContainerRebuilder
             }
 
             // After the last metadata block, write audio data from media file
-            if (isLast && tracks.TryGetValue(1, out SrsTrackDataBlock? track) &&
+            if (isLast && tracks.TryGetValue(1, out SRSTrackDataBlock? track) &&
                 trackOffsets.TryGetValue(1, out long offset))
             {
                 mediaFs.Position = offset;

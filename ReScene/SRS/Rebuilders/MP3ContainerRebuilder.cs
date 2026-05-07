@@ -6,13 +6,13 @@ namespace ReScene.SRS;
 /// Rebuilds an MP3 sample: copies header tags from SRS, reads audio data
 /// from the media file, then copies footer tags from SRS.
 /// </summary>
-internal class Mp3ContainerRebuilder : IContainerRebuilder
+internal class MP3ContainerRebuilder : IContainerRebuilder
 {
     public SRSContainerType ContainerType => SRSContainerType.MP3;
 
     public void Rebuild(
         string srsFilePath,
-        Dictionary<uint, SrsTrackDataBlock> tracks,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
         string mediaFilePath,
         Dictionary<uint, long> trackOffsets,
         string outputPath,
@@ -67,7 +67,7 @@ internal class Mp3ContainerRebuilder : IContainerRebuilder
             if (tag is "SRSF" or "SRST" or "SRSP")
             {
                 // Write audio data from media file before skipping SRS blocks
-                if (!mainDataWritten && tracks.TryGetValue(1, out SrsTrackDataBlock? track) &&
+                if (!mainDataWritten && tracks.TryGetValue(1, out SRSTrackDataBlock? track) &&
                     trackOffsets.TryGetValue(1, out long offset))
                 {
                     mediaFs.Position = offset;
