@@ -31,7 +31,7 @@ public class SRRWriterTests : IDisposable
     #region SRR Header Tests
 
     [Fact]
-    public async Task CreateAsync_WritesCorrectSrrHeader()
+    public async Task CreateAsync_WritesCorrectSRRHeader()
     {
         string rarPath = CreateMinimalRar4File("test.rar");
         string srrPath = Path.Combine(_testDir, "output.srr");
@@ -308,7 +308,7 @@ public class SRRWriterTests : IDisposable
     #region SFV Parsing Tests
 
     [Fact]
-    public async Task CreateFromSfvAsync_FindsRarVolumes()
+    public async Task CreateFromSFVAsync_FindsRarVolumes()
     {
         // Create RAR files and an SFV referencing them
         string rar1 = CreateMinimalRar4File("release.rar");
@@ -317,7 +317,7 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.VolumeCount);
@@ -328,26 +328,26 @@ public class SRRWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateFromSfvAsync_MissingSfv_Fails()
+    public async Task CreateFromSFVAsync_MissingSFV_Fails()
     {
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, "/nonexistent/release.sfv");
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, "/nonexistent/release.sfv");
 
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task CreateFromSfvAsync_NoRarInSfv_Fails()
+    public async Task CreateFromSFVAsync_NoRarInSFV_Fails()
     {
         string sfvContent = "; Only comments\n; No files\n";
         string sfvPath = CreateTextFile("empty.sfv", sfvContent);
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
 
         Assert.False(result.Success);
         Assert.Contains("No RAR volumes", result.ErrorMessage!, StringComparison.Ordinal);
@@ -397,7 +397,7 @@ public class SRRWriterTests : IDisposable
     {
         // Create a RAR4 file with specific metadata, create SRR, read back, verify
         string rarPath = CreateMinimalRar4File("test.rar", "sample.txt",
-            hostOS: 2, method: 0x33, fileCrc: 0xAABBCCDD, unpVer: 29);
+            hostOS: 2, method: 0x33, fileCRC: 0xAABBCCDD, unpVer: 29);
         string srrPath = Path.Combine(_testDir, "roundtrip.srr");
 
         var writer = new SRRWriter();
@@ -439,9 +439,9 @@ public class SRRWriterTests : IDisposable
 
         // Extract and verify content
         string extractDir = Path.Combine(_testDir, "extract_verify");
-        string? extractedSfv = srr.ExtractStoredFile(srrPath, extractDir, n => n.EndsWith(".sfv", StringComparison.Ordinal));
-        Assert.NotNull(extractedSfv);
-        Assert.Equal(sfvContent, File.ReadAllText(extractedSfv!));
+        string? extractedSFV = srr.ExtractStoredFile(srrPath, extractDir, n => n.EndsWith(".sfv", StringComparison.Ordinal));
+        Assert.NotNull(extractedSFV);
+        Assert.Equal(sfvContent, File.ReadAllText(extractedSFV!));
 
         string? extractedNfo = srr.ExtractStoredFile(srrPath, extractDir, n => n.EndsWith(".nfo", StringComparison.Ordinal));
         Assert.NotNull(extractedNfo);
@@ -449,7 +449,7 @@ public class SRRWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task RoundTrip_SrrFileSize_IsReasonable()
+    public async Task RoundTrip_SRRFileSize_IsReasonable()
     {
         // SRR should be much smaller than the original RAR (headers only, no file data)
         string rarPath = CreateMinimalRar4File("test.rar");
@@ -505,7 +505,7 @@ public class SRRWriterTests : IDisposable
         string archivedFileName = "testfile.txt",
         byte hostOS = 2,
         byte method = 0x33,
-        uint fileCrc = 0xDEADBEEF,
+        uint fileCRC = 0xDEADBEEF,
         byte unpVer = 29,
         RARArchiveFlags archiveFlags = RARArchiveFlags.None,
         RARFileFlags fileFlags = RARFileFlags.LongBlock | RARFileFlags.ExtTime)
@@ -523,7 +523,7 @@ public class SRRWriterTests : IDisposable
         // File header with fake data
         byte[] fakeData = "This is fake packed data for testing."u8.ToArray();
         WriteRar4FileHeader(writer, archivedFileName, (uint)fakeData.Length, (uint)fakeData.Length,
-            hostOS, fileCrc, unpVer, method, fileFlags);
+            hostOS, fileCRC, unpVer, method, fileFlags);
         writer.Write(fakeData); // packed data
 
         // End of archive
@@ -548,7 +548,7 @@ public class SRRWriterTests : IDisposable
     }
 
     private static void WriteRar4FileHeader(BinaryWriter writer, string fileName,
-        uint packedSize, uint unpackedSize, byte hostOS, uint fileCrc, byte unpVer, byte method,
+        uint packedSize, uint unpackedSize, byte hostOS, uint fileCRC, byte unpVer, byte method,
         RARFileFlags flags)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
@@ -564,7 +564,7 @@ public class SRRWriterTests : IDisposable
         BitConverter.GetBytes(packedSize).CopyTo(header, 7);
         BitConverter.GetBytes(unpackedSize).CopyTo(header, 11);
         header[15] = hostOS;
-        BitConverter.GetBytes(fileCrc).CopyTo(header, 16);
+        BitConverter.GetBytes(fileCRC).CopyTo(header, 16);
         BitConverter.GetBytes((uint)0x5A8E3100).CopyTo(header, 20); // DOS time
         header[24] = unpVer;
         header[25] = method;
@@ -730,17 +730,17 @@ public class SRRWriterTests : IDisposable
 
     #endregion
 
-    #region ComputeOsoHashes Option Tests
+    #region ComputeOSOHashes Option Tests
 
     [Fact]
-    public async Task CreateAsync_ComputeOsoHashesFalse_NoOsoBlocks()
+    public async Task CreateAsync_ComputeOSOHashesFalse_NoOSOBlocks()
     {
         string rarPath = CreateMinimalRar4File("test.rar");
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SRRCreationOptions { ComputeOsoHashes = false });
+            options: new SRRCreationOptions { ComputeOSOHashes = false });
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
@@ -748,16 +748,16 @@ public class SRRWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_ComputeOsoHashesTrue_NoOsoBlocksYet()
+    public async Task CreateAsync_ComputeOSOHashesTrue_NoOSOBlocksYet()
     {
         // OSO hash computation is a placeholder in SRRWriter (requires file data access).
-        // With ComputeOsoHashes=true, creation should still succeed (no OSO blocks emitted yet).
+        // With ComputeOSOHashes=true, creation should still succeed (no OSO blocks emitted yet).
         string rarPath = CreateMinimalRar4File("test.rar");
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
-            options: new SRRCreationOptions { ComputeOsoHashes = true });
+            options: new SRRCreationOptions { ComputeOSOHashes = true });
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
@@ -850,7 +850,7 @@ public class SRRWriterTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
-        // Empty string is non-null so WriteSrrHeader sets AppNamePresent flag,
+        // Empty string is non-null so WriteSRRHeader sets AppNamePresent flag,
         // but the parser returns null for a 0-length name
         Assert.True(srr.HeaderBlock!.HasAppName);
         Assert.Null(srr.HeaderBlock.AppName);

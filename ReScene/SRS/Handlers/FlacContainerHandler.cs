@@ -122,9 +122,9 @@ internal class FlacContainerHandler : IContainerHandler
         return (track.DataLength > 0 ? [track] : [], crc32Val, totalSize);
     }
 
-    public void WriteSrs(
+    public void WriteSRS(
         string outputPath, string samplePath,
-        List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
@@ -150,7 +150,7 @@ internal class FlacContainerHandler : IContainerHandler
         outFs.Write(marker);
 
         // Inject SRSF/SRST right after fLaC marker
-        WriteSrsfFlac(outFs, samplePath, sampleSize, sampleCrc32, options);
+        WriteSrsfFlac(outFs, samplePath, sampleSize, sampleCRC32, options);
         foreach (TrackInfo track in tracks)
         {
             WriteSrstFlac(outFs, track, sampleSize >= 0x80000000);
@@ -187,10 +187,10 @@ internal class FlacContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfFlac(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
+    private static void WriteSrsfFlac(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
         outFs.WriteByte(0x73); // 's' type
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));

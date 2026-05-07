@@ -192,7 +192,7 @@ public enum RAREndArchiveFlags : ushort
     /// <summary>
     /// Data CRC present (EARC_DATACRC).
     /// </summary>
-    DataCrc = 0x0002,
+    DataCRC = 0x0002,
 
     /// <summary>
     /// Reserved space present (EARC_REVSPACE).

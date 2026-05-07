@@ -9,9 +9,9 @@ namespace ReScene.SRS;
 /// </summary>
 internal class WMVContainerRebuilder : IContainerRebuilder
 {
-    private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
-    private static readonly byte[] _guidSrsPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
+    private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
+    private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    private static readonly byte[] _guidSRSPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
 
     public SRSContainerType ContainerType => SRSContainerType.WMV;
 
@@ -46,9 +46,9 @@ internal class WMVContainerRebuilder : IContainerRebuilder
             long objEnd = objStart + (long)totalSize;
 
             // Skip SRS objects
-            if (GuidEquals(guid, _guidSrsFile) ||
-                GuidEquals(guid, _guidSrsTrack) ||
-                GuidEquals(guid, _guidSrsPadding))
+            if (GuidEquals(guid, _guidSRSFile) ||
+                GuidEquals(guid, _guidSRSTrack) ||
+                GuidEquals(guid, _guidSRSPadding))
             {
                 srsFs.Position = objEnd;
                 continue;

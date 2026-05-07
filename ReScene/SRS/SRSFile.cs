@@ -72,7 +72,7 @@ public class SRSFile
                 ParseStream(reader, fs, srs);
                 break;
             case SRSContainerType.MP3:
-                ParseMp3(reader, fs, srs);
+                ParseMP3(reader, fs, srs);
                 break;
             case SRSContainerType.FLAC:
                 ParseFlac(reader, fs, srs);
@@ -81,13 +81,13 @@ public class SRSFile
                 ParseRiff(reader, fs, srs);
                 break;
             case SRSContainerType.MP4:
-                ParseMp4(reader, fs, srs);
+                ParseMP4(reader, fs, srs);
                 break;
             case SRSContainerType.WMV:
-                ParseAsf(reader, fs, srs);
+                ParseASF(reader, fs, srs);
                 break;
             case SRSContainerType.MKV:
-                ParseEbml(reader, fs, srs);
+                ParseEBML(reader, fs, srs);
                 break;
         }
 
@@ -326,7 +326,7 @@ public class SRSFile
 
     // ==================== MP3 Parser ====================
 
-    private static void ParseMp3(BinaryReader reader, FileStream fs, SRSFile srs)
+    private static void ParseMP3(BinaryReader reader, FileStream fs, SRSFile srs)
     {
         // Detect header tags (ID3v2, possibly multiple)
         long headerEnd = 0;
@@ -646,14 +646,14 @@ public class SRSFile
 
     // ==================== MP4 Parser ====================
 
-    private static void ParseMp4(BinaryReader reader, FileStream fs, SRSFile srs) => ParseMp4Atoms(reader, fs, srs, 0, fs.Length);
+    private static void ParseMP4(BinaryReader reader, FileStream fs, SRSFile srs) => ParseMP4Atoms(reader, fs, srs, 0, fs.Length);
 
     private static readonly HashSet<string> _mP4ContainerAtoms = new(StringComparer.Ordinal)
     {
         "moov", "trak", "mdia", "minf", "stbl", "edts", "udta"
     };
 
-    private static void ParseMp4Atoms(BinaryReader reader, FileStream fs, SRSFile srs,
+    private static void ParseMP4Atoms(BinaryReader reader, FileStream fs, SRSFile srs,
         long start, long end)
     {
         fs.Position = start;
@@ -728,7 +728,7 @@ public class SRSFile
                     childEnd = end;
                 }
 
-                ParseMp4Atoms(reader, fs, srs, payloadStart, childEnd);
+                ParseMP4Atoms(reader, fs, srs, payloadStart, childEnd);
                 fs.Position = childEnd;
             }
             else
@@ -750,11 +750,11 @@ public class SRSFile
 
     // ==================== WMV/ASF Parser ====================
 
-    private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
-    private static readonly byte[] _guidSrsPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
+    private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
+    private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    private static readonly byte[] _guidSRSPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
 
-    private static void ParseAsf(BinaryReader reader, FileStream fs, SRSFile srs)
+    private static void ParseASF(BinaryReader reader, FileStream fs, SRSFile srs)
     {
         while (fs.Position + 24 <= fs.Length)
         {
@@ -771,17 +771,17 @@ public class SRSFile
             long payloadSize = (long)totalSize - headerSize;
             long payloadStart = fs.Position;
 
-            if (GuidEquals(guid, _guidSrsFile))
+            if (GuidEquals(guid, _guidSRSFile))
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize);
             }
-            else if (GuidEquals(guid, _guidSrsTrack))
+            else if (GuidEquals(guid, _guidSRSTrack))
             {
                 srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
             }
             else
             {
-                string label = GuidEquals(guid, _guidSrsPadding) ? "SRS Padding" : FormatGuid(guid);
+                string label = GuidEquals(guid, _guidSRSPadding) ? "SRS Padding" : FormatGuid(guid);
 
                 srs.ContainerChunks.Add(new SRSContainerChunk
                 {
@@ -828,7 +828,7 @@ public class SRSFile
 
     // ==================== MKV/EBML Parser ====================
 
-    private static void ParseEbml(BinaryReader reader, FileStream fs, SRSFile srs)
+    private static void ParseEBML(BinaryReader reader, FileStream fs, SRSFile srs)
     {
         long fileLength = fs.Length;
 
@@ -867,7 +867,7 @@ public class SRSFile
                 });
 
                 long childEnd = Math.Min(payloadStart + (long)dataSize, fileLength);
-                ParseEbmlReSampleChildren(reader, fs, srs, payloadStart, childEnd);
+                ParseEBMLReSampleChildren(reader, fs, srs, payloadStart, childEnd);
                 fs.Position = childEnd;
             }
             else if (elementId == 0x18538067) // Segment
@@ -884,12 +884,12 @@ public class SRSFile
 
                 // Parse children of Segment to find ReSample
                 long childEnd = Math.Min(payloadStart + (long)dataSize, fileLength);
-                ParseEbmlSegmentChildren(reader, fs, srs, payloadStart, childEnd);
+                ParseEBMLSegmentChildren(reader, fs, srs, payloadStart, childEnd);
                 fs.Position = childEnd;
             }
             else
             {
-                string label = GetEbmlElementName(elementId);
+                string label = GetEBMLElementName(elementId);
                 srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
@@ -905,7 +905,7 @@ public class SRSFile
         }
     }
 
-    private static void ParseEbmlSegmentChildren(BinaryReader reader, FileStream fs, SRSFile srs,
+    private static void ParseEBMLSegmentChildren(BinaryReader reader, FileStream fs, SRSFile srs,
         long start, long end)
     {
         long fileLength = fs.Length;
@@ -944,11 +944,11 @@ public class SRSFile
                 });
 
                 long childEnd = Math.Min(payloadStart + (long)dataSize, fileLength);
-                ParseEbmlReSampleChildren(reader, fs, srs, payloadStart, childEnd);
+                ParseEBMLReSampleChildren(reader, fs, srs, payloadStart, childEnd);
             }
             else
             {
-                string label = GetEbmlElementName(elementId);
+                string label = GetEBMLElementName(elementId);
                 srs.ContainerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
@@ -964,7 +964,7 @@ public class SRSFile
         }
     }
 
-    private static void ParseEbmlReSampleChildren(BinaryReader reader, FileStream fs, SRSFile srs,
+    private static void ParseEBMLReSampleChildren(BinaryReader reader, FileStream fs, SRSFile srs,
         long start, long end)
     {
         fs.Position = start;
@@ -1011,7 +1011,7 @@ public class SRSFile
         }
     }
 
-    private static string GetEbmlElementName(ulong id) => id switch
+    private static string GetEBMLElementName(ulong id) => id switch
     {
         0x1A45DFA3 => "EBML",
         0x4286 => "EBMLVersion",

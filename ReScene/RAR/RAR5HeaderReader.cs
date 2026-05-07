@@ -58,7 +58,7 @@ public class RAR5BlockReadResult
     /// <summary>
     /// Header CRC32 value.
     /// </summary>
-    public uint HeaderCrc
+    public uint HeaderCRC
     {
         get; set;
     }
@@ -183,7 +183,7 @@ public class RAR5FileInfo
     /// <summary>
     /// File CRC32.
     /// </summary>
-    public uint? FileCrc
+    public uint? FileCRC
     {
         get; set;
     }
@@ -577,7 +577,7 @@ public class RAR5HeaderReader(Stream stream)
             Flags = flags,
             HeaderSize = headerSize,
             BlockPosition = headerContentStart,  // Position where header content starts
-            HeaderCrc = crc
+            HeaderCRC = crc
         };
 
         // Read extra area size if flag set
@@ -621,8 +621,8 @@ public class RAR5HeaderReader(Stream stream)
 
         _stream.Position = headerSizePosition;
         byte[] headerData = _reader.ReadBytes((int)crcDataSize);
-        uint calculatedCrc = Force.Crc32.Crc32Algorithm.Compute(headerData);
-        result.CRCValid = (crc == calculatedCrc);
+        uint calculatedCRC = Force.Crc32.Crc32Algorithm.Compute(headerData);
+        result.CRCValid = (crc == calculatedCRC);
         _stream.Position = currentPos;
 
         return result;
@@ -729,7 +729,7 @@ public class RAR5HeaderReader(Stream stream)
         // Read CRC if present
         if ((info.FileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
         {
-            info.FileCrc = _reader.ReadUInt32();
+            info.FileCRC = _reader.ReadUInt32();
         }
 
         // Read compression info

@@ -224,10 +224,10 @@ public class SRRWriterRealDataTests : IDisposable
 
     #endregion
 
-    #region CreateFromSfvAsync — Real SFV Files
+    #region CreateFromSFVAsync — Real SFV Files
 
     [Fact]
-    public async Task CreateFromSfvAsync_RealSfv_NewStyle()
+    public async Task CreateFromSFVAsync_RealSFV_NewStyle()
     {
         string sfvPath = Path.Combine(_testDataDir, "store_rr_solid_auth_unicode_new", "store_rr_solid_auth.sfv");
         if (!File.Exists(sfvPath))
@@ -254,7 +254,7 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_new.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -266,7 +266,7 @@ public class SRRWriterRealDataTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateFromSfvAsync_OldStyleSfv()
+    public async Task CreateFromSFVAsync_OldStyleSFV()
     {
         string sfvPath = Path.Combine(_testDataDir, "store_split_folder_old_srrsfv_windows", "store_split_folder.sfv");
         if (!File.Exists(sfvPath))
@@ -293,7 +293,7 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_old.srr");
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateFromSfvAsync(srrPath, sfvPath);
+        SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(3, result.VolumeCount);
@@ -317,8 +317,8 @@ public class SRRWriterRealDataTests : IDisposable
     {
         string baseDir = Path.Combine(_testDataDir, "store_little");
         string rarPath = Path.Combine(baseDir, "store_little.rar");
-        string refSrrPath = Path.Combine(baseDir, "store_little.srr");
-        if (!File.Exists(rarPath) || !File.Exists(refSrrPath))
+        string refSRRPath = Path.Combine(baseDir, "store_little.srr");
+        if (!File.Exists(rarPath) || !File.Exists(refSRRPath))
         {
             return;
         }
@@ -332,7 +332,7 @@ public class SRRWriterRealDataTests : IDisposable
         Assert.True(result.Success, result.ErrorMessage);
 
         var created = SRRFile.Load(srrPath);
-        var reference = SRRFile.Load(refSrrPath);
+        var reference = SRRFile.Load(refSRRPath);
 
         // Same number of RAR volumes
         Assert.Equal(reference.RARFiles.Count, created.RARFiles.Count);
@@ -361,7 +361,7 @@ public class SRRWriterRealDataTests : IDisposable
             Path.Combine(baseDir, "store_rr_solid_auth.part2.rar"),
             Path.Combine(baseDir, "store_rr_solid_auth.part3.rar")
         ];
-        string refSrrPath = Path.Combine(baseDir, "store_rr_solid_auth.part1.srr");
+        string refSRRPath = Path.Combine(baseDir, "store_rr_solid_auth.part1.srr");
 
         foreach (string path in rarPaths)
         {
@@ -370,7 +370,7 @@ public class SRRWriterRealDataTests : IDisposable
                 return;
             }
         }
-        if (!File.Exists(refSrrPath))
+        if (!File.Exists(refSRRPath))
         {
             return;
         }
@@ -384,7 +384,7 @@ public class SRRWriterRealDataTests : IDisposable
         Assert.True(result.Success, result.ErrorMessage);
 
         var created = SRRFile.Load(srrPath);
-        var reference = SRRFile.Load(refSrrPath);
+        var reference = SRRFile.Load(refSRRPath);
 
         // Same number of RAR volumes
         Assert.Equal(reference.RARFiles.Count, created.RARFiles.Count);
@@ -413,7 +413,7 @@ public class SRRWriterRealDataTests : IDisposable
             Path.Combine(baseDir, "store_split_folder.r00"),
             Path.Combine(baseDir, "store_split_folder.r01")
         ];
-        string refSrrPath = Path.Combine(baseDir, "store_split_folder.srr");
+        string refSRRPath = Path.Combine(baseDir, "store_split_folder.srr");
 
         foreach (string path in rarPaths)
         {
@@ -422,7 +422,7 @@ public class SRRWriterRealDataTests : IDisposable
                 return;
             }
         }
-        if (!File.Exists(refSrrPath))
+        if (!File.Exists(refSRRPath))
         {
             return;
         }
@@ -436,7 +436,7 @@ public class SRRWriterRealDataTests : IDisposable
         Assert.True(result.Success, result.ErrorMessage);
 
         var created = SRRFile.Load(srrPath);
-        var reference = SRRFile.Load(refSrrPath);
+        var reference = SRRFile.Load(refSRRPath);
 
         // Same number of RAR volumes
         Assert.Equal(reference.RARFiles.Count, created.RARFiles.Count);

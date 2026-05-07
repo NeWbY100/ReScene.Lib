@@ -70,9 +70,9 @@ internal class MP3ContainerHandler : IContainerHandler
         return (track.DataLength > 0 ? [track] : [], crc32Val, fileLen);
     }
 
-    public void WriteSrs(
+    public void WriteSRS(
         string outputPath, string samplePath,
-        List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
@@ -92,10 +92,10 @@ internal class MP3ContainerHandler : IContainerHandler
         }
 
         // Write SRSF/SRST blocks (replaces audio data)
-        WriteSrsfMp3(outFs, samplePath, sampleSize, sampleCrc32, options);
+        WriteSrsfMP3(outFs, samplePath, sampleSize, sampleCRC32, options);
         foreach (TrackInfo track in tracks)
         {
-            WriteSrstMp3(outFs, track, sampleSize >= 0x80000000);
+            WriteSrstMP3(outFs, track, sampleSize >= 0x80000000);
         }
 
         // Copy all footer tags (APE, Lyrics3, ID3v1 etc.) verbatim
@@ -110,10 +110,10 @@ internal class MP3ContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfMp3(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
+    private static void WriteSrsfMP3(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
         outFs.Write(Encoding.ASCII.GetBytes("SRSF"));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(4 + 4 + payload.Length));
@@ -121,7 +121,7 @@ internal class MP3ContainerHandler : IContainerHandler
         outFs.Write(payload);
     }
 
-    private static void WriteSrstMp3(Stream outFs, TrackInfo track, bool bigFile)
+    private static void WriteSrstMP3(Stream outFs, TrackInfo track, bool bigFile)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
         outFs.Write(Encoding.ASCII.GetBytes("SRST"));

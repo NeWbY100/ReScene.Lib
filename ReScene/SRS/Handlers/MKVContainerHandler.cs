@@ -48,7 +48,7 @@ internal class MKVContainerHandler : IContainerHandler
     #endregion
 
     /// <summary>
-    /// State tracked across recursive ProfileEbmlElements calls for MKV profiling.
+    /// State tracked across recursive ProfileEBMLElements calls for MKV profiling.
     /// Stores the current track number context and header stripping flag during TrackEntry parsing.
     /// </summary>
     private class EBMLProfileState
@@ -70,7 +70,7 @@ internal class MKVContainerHandler : IContainerHandler
         var crc = new Crc32();
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ProfileEbmlElements(fs, 0, fs.Length, trackMap, ref otherLength, crc, isSegmentLevel: false, ct);
+        ProfileEBMLElements(fs, 0, fs.Length, trackMap, ref otherLength, crc, isSegmentLevel: false, ct);
 
         long totalSize = otherLength;
         foreach (TrackInfo t in trackMap.Values)
@@ -85,21 +85,21 @@ internal class MKVContainerHandler : IContainerHandler
         return (trackMap.Values.ToList(), crc32, totalSize);
     }
 
-    public void WriteSrs(
+    public void WriteSRS(
         string outputPath, string samplePath,
-        List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        WriteMkvSrsElements(outFs, inFs, 0, inFs.Length, tracks, samplePath, sampleSize, sampleCrc32,
+        WriteMKVSrsElements(outFs, inFs, 0, inFs.Length, tracks, samplePath, sampleSize, sampleCRC32,
             options, resampleInjected: false, ct);
     }
 
     #region Profiling
 
-    private static void ProfileEbmlElements(
+    private static void ProfileEBMLElements(
         Stream fs, long start, long end,
         Dictionary<int, TrackInfo> trackMap,
         ref long otherLength,
@@ -147,7 +147,7 @@ internal class MKVContainerHandler : IContainerHandler
                 }
 
                 // Step into container element
-                ProfileEbmlElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
+                ProfileEBMLElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
                     isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state);
             }
             else if (elemId == _eBMLIdBlock || elemId == _eBMLIdBlockGroupBlock)
@@ -326,10 +326,10 @@ internal class MKVContainerHandler : IContainerHandler
 
     #region Writing
 
-    private static void WriteMkvSrsElements(
+    private static void WriteMKVSrsElements(
         Stream outFs, Stream inFs,
         long start, long end,
-        List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options,
         bool resampleInjected,
         CancellationToken ct)
@@ -367,18 +367,18 @@ internal class MKVContainerHandler : IContainerHandler
                 // Inject ReSample element
                 if (!resampleInjected)
                 {
-                    WriteEbmlReSampleElement(outFs, tracks, samplePath, sampleSize, sampleCrc32, options);
+                    WriteEBMLReSampleElement(outFs, tracks, samplePath, sampleSize, sampleCRC32, options);
                     resampleInjected = true;
                 }
 
-                WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
-                    sampleCrc32, options, resampleInjected, ct);
+                WriteMKVSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
+                    sampleCRC32, options, resampleInjected, ct);
             }
             else if (_mKVSrsContainers.Contains(elemId))
             {
                 outFs.Write(rawHeader);
-                WriteMkvSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
-                    sampleCrc32, options, resampleInjected, ct);
+                WriteMKVSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
+                    sampleCRC32, options, resampleInjected, ct);
             }
             else if (elemId == 0x465C) // AttachedFileData - skip data
             {
@@ -445,21 +445,21 @@ internal class MKVContainerHandler : IContainerHandler
         }
     }
 
-    private static void WriteEbmlReSampleElement(
+    private static void WriteEBMLReSampleElement(
         Stream outFs, List<TrackInfo> tracks,
-        string samplePath, long sampleSize, uint sampleCrc32,
+        string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
         // Build the file and track sub-elements
-        byte[] srsfPayload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
-        byte[] srsfElement = BuildEbmlElement(0x6A75, srsfPayload); // RESAMPLE_FILE
+        byte[] srsfPayload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
+        byte[] srsfElement = BuildEBMLElement(0x6A75, srsfPayload); // RESAMPLE_FILE
 
         bool bigFile = sampleSize >= 0x80000000;
         var trackElements = new List<byte[]>();
         foreach (TrackInfo track in tracks)
         {
             byte[] srstPayload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-            trackElements.Add(BuildEbmlElement(0x6B75, srstPayload)); // RESAMPLE_TRACK
+            trackElements.Add(BuildEBMLElement(0x6B75, srstPayload)); // RESAMPLE_TRACK
         }
 
         // Total child size
@@ -470,7 +470,7 @@ internal class MKVContainerHandler : IContainerHandler
         }
 
         // Write the ReSample container element (ID: 0x1F697576)
-        byte[] resampleHeader = BuildEbmlElementHeader(0x1F697576, childSize);
+        byte[] resampleHeader = BuildEBMLElementHeader(0x1F697576, childSize);
         outFs.Write(resampleHeader);
         outFs.Write(srsfElement);
         foreach (var te in trackElements)
@@ -483,7 +483,7 @@ internal class MKVContainerHandler : IContainerHandler
 
     #region EBML Helpers
 
-    private static byte[] MakeEbmlUInt(long value)
+    private static byte[] MakeEBMLUInt(long value)
     {
         // Encode value as EBML variable-length unsigned integer (size descriptor)
         if (value < 0x7F)
@@ -526,7 +526,7 @@ internal class MKVContainerHandler : IContainerHandler
         return result.ToArray();
     }
 
-    private static byte[] MakeEbmlId(ulong id)
+    private static byte[] MakeEBMLId(ulong id)
     {
         // Encode element ID as big-endian bytes (preserve marker bit)
         if (id < 0x100)
@@ -547,10 +547,10 @@ internal class MKVContainerHandler : IContainerHandler
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
-    private static byte[] BuildEbmlElement(ulong id, byte[] data)
+    private static byte[] BuildEBMLElement(ulong id, byte[] data)
     {
-        byte[] idBytes = MakeEbmlId(id);
-        byte[] sizeBytes = MakeEbmlUInt(data.Length);
+        byte[] idBytes = MakeEBMLId(id);
+        byte[] sizeBytes = MakeEBMLUInt(data.Length);
         byte[] result = new byte[idBytes.Length + sizeBytes.Length + data.Length];
         idBytes.CopyTo(result, 0);
         sizeBytes.CopyTo(result, idBytes.Length);
@@ -558,10 +558,10 @@ internal class MKVContainerHandler : IContainerHandler
         return result;
     }
 
-    private static byte[] BuildEbmlElementHeader(ulong id, long dataSize)
+    private static byte[] BuildEBMLElementHeader(ulong id, long dataSize)
     {
-        byte[] idBytes = MakeEbmlId(id);
-        byte[] sizeBytes = MakeEbmlUInt(dataSize);
+        byte[] idBytes = MakeEBMLId(id);
+        byte[] sizeBytes = MakeEBMLUInt(dataSize);
         byte[] result = new byte[idBytes.Length + sizeBytes.Length];
         idBytes.CopyTo(result, 0);
         sizeBytes.CopyTo(result, idBytes.Length);

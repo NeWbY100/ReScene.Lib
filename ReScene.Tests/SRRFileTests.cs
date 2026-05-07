@@ -28,10 +28,10 @@ public class SRRFileTests : IDisposable
     #region Header Block Tests
 
     [Fact]
-    public void Load_SrrHeader_ParsesBlockType()
+    public void Load_SRRHeader_ParsesBlockType()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .BuildToFile(_testDir, "header.srr");
 
         var srr = SRRFile.Load(path);
@@ -41,10 +41,10 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrrHeaderWithAppName_ParsesAppName()
+    public void Load_SRRHeaderWithAppName_ParsesAppName()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader("pyReScene 0.7")
+            .AddSRRHeader("pyReScene 0.7")
             .BuildToFile(_testDir, "header_appname.srr");
 
         var srr = SRRFile.Load(path);
@@ -55,10 +55,10 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrrHeaderWithoutAppName_NoAppName()
+    public void Load_SRRHeaderWithoutAppName_NoAppName()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .BuildToFile(_testDir, "header_no_appname.srr");
 
         var srr = SRRFile.Load(path);
@@ -78,7 +78,7 @@ public class SRRFileTests : IDisposable
         byte[] sfvData = Encoding.UTF8.GetBytes("testfile.rar DEADBEEF\r\n");
 
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("release.sfv", sfvData)
             .BuildToFile(_testDir, "stored.srr");
 
@@ -96,7 +96,7 @@ public class SRRFileTests : IDisposable
         byte[] nfoData = Encoding.UTF8.GetBytes("Release NFO content\r\n");
 
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("release.sfv", sfvData)
             .AddStoredFile("release.nfo", nfoData)
             .BuildToFile(_testDir, "multi_stored.srr");
@@ -114,7 +114,7 @@ public class SRRFileTests : IDisposable
         byte[] sfvData = Encoding.UTF8.GetBytes("testfile.rar DEADBEEF\r\n");
 
         string srrPath = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("release.sfv", sfvData)
             .BuildToFile(_testDir, "extract.srr");
 
@@ -134,7 +134,7 @@ public class SRRFileTests : IDisposable
     {
         byte[] data = Encoding.UTF8.GetBytes("test");
         string srrPath = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("release.sfv", data)
             .BuildToFile(_testDir, "nomatch.srr");
 
@@ -147,7 +147,7 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void ExtractStoredFile_NullSrrPath_ThrowsArgumentException()
+    public void ExtractStoredFile_NullSRRPath_ThrowsArgumentException()
     {
         var srr = new SRRFile();
         Assert.Throws<ArgumentException>(() => srr.ExtractStoredFile("", "output", _ => true));
@@ -175,7 +175,7 @@ public class SRRFileTests : IDisposable
     public void Load_RarFileBlock_ParsesRarFileName()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -194,7 +194,7 @@ public class SRRFileTests : IDisposable
     public void Load_EmbeddedRarHeaders_ExtractsFileEntries()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -212,7 +212,7 @@ public class SRRFileTests : IDisposable
     public void Load_EmbeddedRarHeaders_ExtractsCompressionMethod()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -232,7 +232,7 @@ public class SRRFileTests : IDisposable
     public void Load_EmbeddedRarHeaders_DetectsHostOS()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -257,7 +257,7 @@ public class SRRFileTests : IDisposable
     public void Load_HostOS_MapsToCorrectName(byte hostOS, string expectedName)
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -276,7 +276,7 @@ public class SRRFileTests : IDisposable
     public void Load_EmbeddedRarHeaders_DetectsFileAttributes()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -294,7 +294,7 @@ public class SRRFileTests : IDisposable
     public void Load_EmbeddedRarHeaders_DetectsUnpackVersion()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -312,7 +312,7 @@ public class SRRFileTests : IDisposable
     public void Load_ArchiveHeaderFlags_DetectsVolumeArchive()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume)
@@ -332,7 +332,7 @@ public class SRRFileTests : IDisposable
     public void Load_ArchiveHeaderFlags_DetectsSolidArchive()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Solid)
@@ -350,7 +350,7 @@ public class SRRFileTests : IDisposable
     public void Load_ArchiveHeaderFlags_DetectsRecoveryRecord()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Protected)
@@ -374,7 +374,7 @@ public class SRRFileTests : IDisposable
         string comment = "Test archive comment.";
 
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -394,7 +394,7 @@ public class SRRFileTests : IDisposable
     public void Load_CmtServiceBlock_DetectsCmtHostOS()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -415,7 +415,7 @@ public class SRRFileTests : IDisposable
     public void Load_CmtServiceBlock_DetectsZeroedFileTime()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -437,7 +437,7 @@ public class SRRFileTests : IDisposable
     {
         uint dosTime = 0x5A8E3100; // Some non-zero DOS time
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -458,7 +458,7 @@ public class SRRFileTests : IDisposable
     public void Load_CmtServiceBlock_StoresCompressionMethod()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -477,7 +477,7 @@ public class SRRFileTests : IDisposable
     public void Load_CmtServiceBlock_DetectsCmtFileAttributes()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -497,13 +497,13 @@ public class SRRFileTests : IDisposable
     #region OSO Hash Tests
 
     [Fact]
-    public void Load_OsoHashBlock_ParsesCorrectly()
+    public void Load_OSOHashBlock_ParsesCorrectly()
     {
         byte[] osoHash = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
 
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
-            .AddOsoHash("video.avi", 734003200, osoHash)
+            .AddSRRHeader()
+            .AddOSOHash("video.avi", 734003200, osoHash)
             .BuildToFile(_testDir, "osohash.srr");
 
         var srr = SRRFile.Load(path);
@@ -522,7 +522,7 @@ public class SRRFileTests : IDisposable
     public void Load_RarPaddingBlock_ParsesCorrectly()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarPadding("release.r00", 512)
             .BuildToFile(_testDir, "padding.srr");
 
@@ -541,7 +541,7 @@ public class SRRFileTests : IDisposable
     public void Load_MultipleRarVolumes_CalculatesVolumeSize()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
@@ -571,7 +571,7 @@ public class SRRFileTests : IDisposable
     public void Load_DirectoryEntry_TracksAsDirectory()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -597,12 +597,12 @@ public class SRRFileTests : IDisposable
     public void Load_MultipleFiles_TracksCrcs()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
-                       .AddFileHeader("file1.txt", fileCrc: 0xAABBCCDD)
-                       .AddFileHeader("file2.txt", fileCrc: 0x11223344)
+                       .AddFileHeader("file1.txt", fileCRC: 0xAABBCCDD)
+                       .AddFileHeader("file2.txt", fileCRC: 0x11223344)
                        .AddEndArchive();
             })
             .BuildToFile(_testDir, "multi_files.srr");
@@ -624,7 +624,7 @@ public class SRRFileTests : IDisposable
     public void Load_EmptyStoredFile_ParsesCorrectly()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("empty.txt", [])
             .BuildToFile(_testDir, "empty_stored.srr");
 
@@ -642,11 +642,11 @@ public class SRRFileTests : IDisposable
     public void Load_CaseInsensitivePaths_WorkCorrectly()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
-                       .AddFileHeader("FILE.TXT", fileCrc: 0x12345678)
+                       .AddFileHeader("FILE.TXT", fileCRC: 0x12345678)
                        .AddEndArchive();
             })
             .BuildToFile(_testDir, "case.srr");
@@ -686,19 +686,19 @@ public class SRRFileTests : IDisposable
     #region Complete SRR Structure Tests
 
     [Fact]
-    public void Load_CompleteSrrFile_ParsesAllBlockTypes()
+    public void Load_CompleteSRRFile_ParsesAllBlockTypes()
     {
         byte[] sfvData = Encoding.UTF8.GetBytes("release.rar DEADBEEF\r\n");
         byte[] osoHash = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
 
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader("TestApp 1.0")
+            .AddSRRHeader("TestApp 1.0")
             .AddStoredFile("release.sfv", sfvData)
-            .AddOsoHash("video.avi", 734003200, osoHash)
+            .AddOSOHash("video.avi", 734003200, osoHash)
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.FirstVolume)
-                       .AddFileHeader("video.avi", hostOS: 2, unpVer: 29, method: 0x33, fileCrc: 0xDEADBEEF)
+                       .AddFileHeader("video.avi", hostOS: 2, unpVer: 29, method: 0x33, fileCRC: 0xDEADBEEF)
                        .AddCmtServiceBlock("Release comment", hostOS: 2, method: 0x30)
                        .AddEndArchive();
             })
@@ -741,7 +741,7 @@ public class SRRFileTests : IDisposable
         // CMT block with method 0x33 (Normal compression) - cannot decompress synthetically,
         // but the raw compressed data and method should still be captured
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -766,7 +766,7 @@ public class SRRFileTests : IDisposable
     public void ExtractStoredFile_EmptyFile_ExtractsZeroByteFile()
     {
         string srrPath = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("empty.txt", [])
             .BuildToFile(_testDir, "extract_empty.srr");
 
@@ -787,7 +787,7 @@ public class SRRFileTests : IDisposable
         byte[] data2 = Encoding.UTF8.GetBytes("second sfv");
 
         string srrPath = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("release.sfv", data1)
             .AddStoredFile("release2.sfv", data2)
             .BuildToFile(_testDir, "multi_match.srr");
@@ -810,7 +810,7 @@ public class SRRFileTests : IDisposable
         byte[] nfoData = Encoding.UTF8.GetBytes("Release NFO");
 
         string srrPath = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("Release.NFO", nfoData)
             .BuildToFile(_testDir, "case_extract.srr");
 
@@ -830,7 +830,7 @@ public class SRRFileTests : IDisposable
     public void Load_MultipleRarVolumes_PreservesOrdering()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
@@ -863,11 +863,11 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_HeaderCrcMismatch_IncrementsCounter()
+    public void Load_HeaderCRCMismatch_IncrementsCounter()
     {
         // Build an SRR with a valid RAR file reference, then corrupt the embedded header CRC
         byte[] srrData = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -903,7 +903,7 @@ public class SRRFileTests : IDisposable
 
         var srr = SRRFile.Load(path);
 
-        Assert.True(srr.HeaderCrcMismatches >= 1);
+        Assert.True(srr.HeaderCRCMismatches >= 1);
     }
 
     [Fact]
@@ -917,7 +917,7 @@ public class SRRFileTests : IDisposable
 
         // Zeroed: CMT block with fileTimeDOS = 0
         string pathZeroed = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -932,7 +932,7 @@ public class SRRFileTests : IDisposable
 
         // Preserved: CMT block with non-zero fileTimeDOS
         string pathPreserved = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -954,7 +954,7 @@ public class SRRFileTests : IDisposable
     public void Load_NormalFileHeaders_NoCustomPackerDetected()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
@@ -974,7 +974,7 @@ public class SRRFileTests : IDisposable
     {
         // Sentinel 1: unpacked_size = 0xFFFFFFFFFFFFFFFF (RELOADED/HI2U/0x0007/0x0815 style)
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
@@ -996,7 +996,7 @@ public class SRRFileTests : IDisposable
     {
         // Sentinel 2: unpacked_size = 0xFFFFFFFF without LARGE flag (QCF style)
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
@@ -1020,7 +1020,7 @@ public class SRRFileTests : IDisposable
         // Legitimate large file: UnpackedSize = 0xFFFFFFFF but LARGE flag set with HIGH_UNP = 0
         // This is a valid ~4GB file, NOT a custom packer sentinel
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
@@ -1043,7 +1043,7 @@ public class SRRFileTests : IDisposable
     {
         // Detection should trigger even if only the second file header has the sentinel
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
@@ -1066,7 +1066,7 @@ public class SRRFileTests : IDisposable
     {
         // Directory entries should not trigger detection (directories often have size=0 or garbage)
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
@@ -1093,7 +1093,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_Rar5Headers_DetectsRarVersion50()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "sample.txt",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "sample.txt",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_version.srr");
@@ -1107,7 +1107,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_Rar5Headers_ExtractsArchivedFileName()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "video.avi",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "video.avi",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_filename.srr");
@@ -1119,11 +1119,11 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_Rar5Headers_ExtractsFileCrc()
+    public void Load_Rar5Headers_ExtractsFileCRC()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present,
-            fileCrc: 0xAABBCCDD);
+            fileCRC: 0xAABBCCDD);
 
         string path = Path.Combine(_testDir, "rar5_crc.srr");
         File.WriteAllBytes(path, srrData);
@@ -1137,7 +1137,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_Rar5Headers_ParsesRarFileBlockName()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.part01.rar", "data.bin",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.part01.rar", "data.bin",
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(_testDir, "rar5_rarfile.srr");
@@ -1152,7 +1152,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_Rar5VolumeFlagSet_DetectsVolumeArchive()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
             archiveFlags: 0x0001,
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
@@ -1167,7 +1167,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_Rar5SolidFlagSet_DetectsSolidArchive()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
             archiveFlags: 0x0004,
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
@@ -1182,7 +1182,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_Rar5SplitFlags_DetectsCorrectly()
     {
-        byte[] srrData = BuildSrrWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
             fileFlags: (ulong)RAR5FileFlags.CRC32Present,
             headerFlags: (ulong)RAR5HeaderFlags.SplitAfter);
 
@@ -1202,7 +1202,7 @@ public class SRRFileTests : IDisposable
     public void Load_FileWithModificationTime_PopulatesTimestamp()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1221,7 +1221,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_FileWithExtendedTimesCreationAndAccess_PopulatesAllTimestamps()
     {
-        byte[] srrData = BuildSrrWithExtendedTimeHeaders("release.rar", "file.txt");
+        byte[] srrData = BuildSRRWithExtendedTimeHeaders("release.rar", "file.txt");
 
         string path = Path.Combine(_testDir, "ts_ctime_atime.srr");
         File.WriteAllBytes(path, srrData);
@@ -1238,7 +1238,7 @@ public class SRRFileTests : IDisposable
     public void Load_MultipleFilesWithTimestamps_TracksEachFile()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1264,7 +1264,7 @@ public class SRRFileTests : IDisposable
     public void Load_DirectoryEntryWithTimestamp_PopulatesDirectoryTimestamps()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1284,7 +1284,7 @@ public class SRRFileTests : IDisposable
     [Fact]
     public void Load_DirectoryWithExtendedTimes_PopulatesAllDirectoryTimestamps()
     {
-        byte[] srrData = BuildSrrWithExtendedTimeHeaders("release.rar", "subdir\\", isDirectory: true);
+        byte[] srrData = BuildSRRWithExtendedTimeHeaders("release.rar", "subdir\\", isDirectory: true);
 
         string path = Path.Combine(_testDir, "dir_ext_ts.srr");
         File.WriteAllBytes(path, srrData);
@@ -1305,7 +1305,7 @@ public class SRRFileTests : IDisposable
     public void Load_LargeFileHeader_TracksHighPackSize()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1326,7 +1326,7 @@ public class SRRFileTests : IDisposable
     public void Load_LargeFileHeader_TracksHighUnpSize()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1347,7 +1347,7 @@ public class SRRFileTests : IDisposable
     public void Load_LargeFileHeader_SetsHasLargeFilesFlag()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1367,7 +1367,7 @@ public class SRRFileTests : IDisposable
     public void Load_NormalFileHeader_NoHighSizes()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
@@ -1388,21 +1388,21 @@ public class SRRFileTests : IDisposable
     #region Split File Flag Tests
 
     [Fact]
-    public void Load_SplitAfterFlag_CrcOverwrittenByFinalSegment()
+    public void Load_SplitAfterFlag_CRCOverwrittenByFinalSegment()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
-                       .AddFileHeader("file.dat", packedSize: 5000, fileCrc: 0x11111111,
+                       .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x11111111,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
             .AddRarFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
-                       .AddFileHeader("file.dat", packedSize: 5000, fileCrc: 0x22222222,
+                       .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x22222222,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
@@ -1418,11 +1418,11 @@ public class SRRFileTests : IDisposable
     public void Load_SplitBeforeFlag_FileStillTracked()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
-                       .AddFileHeader("file.dat", packedSize: 5000, fileCrc: 0xAABBCCDD,
+                       .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0xAABBCCDD,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
@@ -1434,28 +1434,28 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_SplitMiddleVolume_FinalCrcFromLastSegment()
+    public void Load_SplitMiddleVolume_FinalCRCFromLastSegment()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
-                       .AddFileHeader("file.dat", packedSize: 5000, fileCrc: 0x11111111,
+                       .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x11111111,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
             .AddRarFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
-                       .AddFileHeader("file.dat", packedSize: 5000, fileCrc: 0x22222222,
+                       .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x22222222,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
             .AddRarFileWithHeaders("release.r01", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
-                       .AddFileHeader("file.dat", packedSize: 3000, fileCrc: 0x33333333,
+                       .AddFileHeader("file.dat", packedSize: 3000, fileCRC: 0x33333333,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
@@ -1468,14 +1468,14 @@ public class SRRFileTests : IDisposable
     }
 
     [Fact]
-    public void Load_NoSplitFlags_CrcFromFirstHeader()
+    public void Load_NoSplitFlags_CRCFromFirstHeader()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddRarFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
-                       .AddFileHeader("file.dat", fileCrc: 0xDEADBEEF)
+                       .AddFileHeader("file.dat", fileCRC: 0xDEADBEEF)
                        .AddEndArchive();
             })
             .BuildToFile(_testDir, "no_split.srr");
@@ -1492,10 +1492,10 @@ public class SRRFileTests : IDisposable
     /// <summary>
     /// Builds an SRR file containing a RAR5 file block with basic file header.
     /// </summary>
-    private static byte[] BuildSrrWithRar5FileHeader(
+    private static byte[] BuildSRRWithRar5FileHeader(
         string rarFileName, string archivedFileName,
         ulong archiveFlags = 0, ulong fileFlags = 0,
-        uint fileCrc = 0xDEADBEEF, ulong headerFlags = 0)
+        uint fileCRC = 0xDEADBEEF, ulong headerFlags = 0)
     {
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
@@ -1543,7 +1543,7 @@ public class SRRFileTests : IDisposable
             if ((fileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
             {
                 using var bw = new BinaryWriter(fileMs, Encoding.UTF8, leaveOpen: true);
-                bw.Write(fileCrc);
+                bw.Write(fileCRC);
             }
 
             WriteVInt(fileMs, 0x00);  // compression info
@@ -1611,7 +1611,7 @@ public class SRRFileTests : IDisposable
     /// Builds an SRR with a RAR4 file header that includes full extended time data
     /// (mtime, ctime, and atime with DOS-second precision).
     /// </summary>
-    private static byte[] BuildSrrWithExtendedTimeHeaders(string rarFileName, string archivedFileName, bool isDirectory = false)
+    private static byte[] BuildSRRWithExtendedTimeHeaders(string rarFileName, string archivedFileName, bool isDirectory = false)
     {
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true);
@@ -1637,8 +1637,8 @@ public class SRRFileTests : IDisposable
         archiveHeader[2] = 0x73;
         BitConverter.GetBytes((ushort)0).CopyTo(archiveHeader, 3);
         BitConverter.GetBytes((ushort)13).CopyTo(archiveHeader, 5);
-        uint ahCrc = Force.Crc32.Crc32Algorithm.Compute(archiveHeader, 2, archiveHeader.Length - 2);
-        BitConverter.GetBytes((ushort)(ahCrc & 0xFFFF)).CopyTo(archiveHeader, 0);
+        uint ahCRC = Force.Crc32.Crc32Algorithm.Compute(archiveHeader, 2, archiveHeader.Length - 2);
+        BitConverter.GetBytes((ushort)(ahCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
         w.Write(archiveHeader);
 
         // RAR4 File header with extended time data for mtime, ctime, atime
@@ -1692,8 +1692,8 @@ public class SRRFileTests : IDisposable
         endArchive[2] = 0x7B;
         BitConverter.GetBytes((ushort)0).CopyTo(endArchive, 3);
         BitConverter.GetBytes((ushort)7).CopyTo(endArchive, 5);
-        uint eaCrc = Force.Crc32.Crc32Algorithm.Compute(endArchive, 2, endArchive.Length - 2);
-        BitConverter.GetBytes((ushort)(eaCrc & 0xFFFF)).CopyTo(endArchive, 0);
+        uint eaCRC = Force.Crc32.Crc32Algorithm.Compute(endArchive, 2, endArchive.Length - 2);
+        BitConverter.GetBytes((ushort)(eaCRC & 0xFFFF)).CopyTo(endArchive, 0);
         w.Write(endArchive);
 
         w.Flush();

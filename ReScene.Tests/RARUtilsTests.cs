@@ -8,79 +8,79 @@ public class RARUtilsTests
     #region CRC Validation Tests
 
     [Fact]
-    public void CalculateHeaderCrc_ValidHeader_ReturnsCorrectCrc()
+    public void CalculateHeaderCRC_ValidHeader_ReturnsCorrectCRC()
     {
         // Build a simple header and verify CRC calculation
         byte[] header = [0x00, 0x00, 0x73, 0x00, 0x08, 0x0D, 0x00]; // Archive header
-        uint expectedCrc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
-        ushort expectedCrc = (ushort)(expectedCrc32 & 0xFFFF);
+        uint expectedCRC32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        ushort expectedCRC = (ushort)(expectedCRC32 & 0xFFFF);
 
-        ushort calculated = RARUtils.CalculateHeaderCrc(header);
+        ushort calculated = RARUtils.CalculateHeaderCRC(header);
 
-        Assert.Equal(expectedCrc, calculated);
+        Assert.Equal(expectedCRC, calculated);
     }
 
     [Fact]
-    public void CalculateHeaderCrc_TooShortHeader_ReturnsZero()
+    public void CalculateHeaderCRC_TooShortHeader_ReturnsZero()
     {
         byte[] header = [0x00, 0x00]; // Only 2 bytes
 
-        ushort calculated = RARUtils.CalculateHeaderCrc(header);
+        ushort calculated = RARUtils.CalculateHeaderCRC(header);
 
         Assert.Equal(0, calculated);
     }
 
     [Fact]
-    public void CalculateHeaderCrc_EmptyHeader_ReturnsZero()
+    public void CalculateHeaderCRC_EmptyHeader_ReturnsZero()
     {
         byte[] header = [];
 
-        ushort calculated = RARUtils.CalculateHeaderCrc(header);
+        ushort calculated = RARUtils.CalculateHeaderCRC(header);
 
         Assert.Equal(0, calculated);
     }
 
     [Fact]
-    public void CalculateHeaderCrc_SingleByteHeader_ReturnsZero()
+    public void CalculateHeaderCRC_SingleByteHeader_ReturnsZero()
     {
         byte[] header = [0xFF];
 
-        ushort calculated = RARUtils.CalculateHeaderCrc(header);
+        ushort calculated = RARUtils.CalculateHeaderCRC(header);
 
         Assert.Equal(0, calculated);
     }
 
     [Fact]
-    public void CalculateHeaderCrc_ThreeByteHeader_ComputesCrcOfOneByte()
+    public void CalculateHeaderCRC_ThreeByteHeader_ComputesCRCOfOneByte()
     {
         // Exactly 3 bytes: first 2 are CRC field, CRC is computed over 1 byte
         byte[] header = [0x00, 0x00, 0x73];
-        uint expectedCrc32 = Crc32Algorithm.Compute(header, 2, 1);
-        ushort expectedCrc = (ushort)(expectedCrc32 & 0xFFFF);
+        uint expectedCRC32 = Crc32Algorithm.Compute(header, 2, 1);
+        ushort expectedCRC = (ushort)(expectedCRC32 & 0xFFFF);
 
-        ushort calculated = RARUtils.CalculateHeaderCrc(header);
+        ushort calculated = RARUtils.CalculateHeaderCRC(header);
 
-        Assert.Equal(expectedCrc, calculated);
+        Assert.Equal(expectedCRC, calculated);
     }
 
     [Fact]
-    public void ValidateHeaderCrc_ValidCrc_ReturnsTrue()
+    public void ValidateHeaderCRC_ValidCRC_ReturnsTrue()
     {
         byte[] header = [0x00, 0x00, 0x73, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
-        ushort correctCrc = RARUtils.CalculateHeaderCrc(header);
-        BitConverter.GetBytes(correctCrc).CopyTo(header, 0);
+        ushort correctCRC = RARUtils.CalculateHeaderCRC(header);
+        BitConverter.GetBytes(correctCRC).CopyTo(header, 0);
 
-        bool valid = RARUtils.ValidateHeaderCrc(correctCrc, header);
+        bool valid = RARUtils.ValidateHeaderCRC(correctCRC, header);
 
         Assert.True(valid);
     }
 
     [Fact]
-    public void ValidateHeaderCrc_InvalidCrc_ReturnsFalse()
+    public void ValidateHeaderCRC_InvalidCRC_ReturnsFalse()
     {
         byte[] header = [0xFF, 0xFF, 0x73, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 
-        bool valid = RARUtils.ValidateHeaderCrc(0xFFFF, header);
+        bool valid = RARUtils.ValidateHeaderCRC(0xFFFF, header);
 
         Assert.False(valid);
     }

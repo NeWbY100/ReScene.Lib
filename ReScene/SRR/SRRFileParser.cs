@@ -9,14 +9,14 @@ namespace ReScene.SRR;
 /// </summary>
 internal static class SRRFileParser
 {
-    internal static bool IsSrrBlockType(byte type) => type is 0x69 or 0x6A or 0x6B or 0x6C or 0x71;
+    internal static bool IsSRRBlockType(byte type) => type is 0x69 or 0x6A or 0x6B or 0x6C or 0x71;
 
     internal static SRRHeaderBlock ParseHeaderBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize)
     {
         var block = new SRRHeaderBlock
         {
-            Crc = crc,
+            CRC = crc,
             BlockType = type,
             Flags = flags,
             HeaderSize = headerSize,
@@ -41,7 +41,7 @@ internal static class SRRFileParser
         return block;
     }
 
-    internal static SRROsoHashBlock? ParseOsoHashBlock(BinaryReader reader, FileStream fs,
+    internal static SRROsoHashBlock? ParseOSOHashBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize)
     {
         long headerEnd = startPos + headerSize;
@@ -71,7 +71,7 @@ internal static class SRRFileParser
 
         return new SRROsoHashBlock
         {
-            Crc = crc,
+            CRC = crc,
             BlockType = type,
             Flags = flags,
             HeaderSize = headerSize,
@@ -108,7 +108,7 @@ internal static class SRRFileParser
 
         return new SRRRarPaddingBlock
         {
-            Crc = crc,
+            CRC = crc,
             BlockType = type,
             Flags = flags,
             HeaderSize = headerSize,
@@ -156,7 +156,7 @@ internal static class SRRFileParser
 
         return new SRRStoredFileBlock
         {
-            Crc = crc,
+            CRC = crc,
             BlockType = type,
             Flags = flags,
             HeaderSize = headerSize,
@@ -182,7 +182,7 @@ internal static class SRRFileParser
 
         return new SRRRarFileBlock
         {
-            Crc = crc,
+            CRC = crc,
             BlockType = type,
             Flags = flags,
             HeaderSize = headerSize,
@@ -217,7 +217,7 @@ internal static class SRRFileParser
                 break;
             }
 
-            if (IsSrrBlockType(peekType.Value))
+            if (IsSRRBlockType(peekType.Value))
             {
                 break;
             }
@@ -233,7 +233,7 @@ internal static class SRRFileParser
             // Track CRC mismatches
             if (!block.CRCValid)
             {
-                srr.HeaderCrcMismatches++;
+                srr.HeaderCRCMismatches++;
             }
 
             // Calculate actual RAR volume size (header + packed data for all blocks)
@@ -301,7 +301,7 @@ internal static class SRRFileParser
             // Track CRC mismatches
             if (!block.CRCValid)
             {
-                srr.HeaderCrcMismatches++;
+                srr.HeaderCRCMismatches++;
             }
 
             // Calculate RAR5 volume size (CRC + header size vint + header + data)
@@ -411,7 +411,7 @@ internal static class SRRFileParser
                 srr,
                 header.FileName,
                 header.IsDirectory,
-                header.FileCrc,
+                header.FileCRC,
                 header.Flags,
                 header.ModifiedTime,
                 header.CreationTime,
@@ -577,7 +577,7 @@ internal static class SRRFileParser
                 srr,
                 info.FileName,
                 info.IsDirectory,
-                info.FileCrc,
+                info.FileCRC,
                 flags,
                 modifiedTime,
                 null, // RAR5 doesn't store creation time in basic header
@@ -717,7 +717,7 @@ internal static class SRRFileParser
         return normalized;
     }
 
-    internal static void AddArchiveEntry(SRRFile srr, string rawName, bool isDirectory, uint? fileCrc, RARFileFlags flags,
+    internal static void AddArchiveEntry(SRRFile srr, string rawName, bool isDirectory, uint? fileCRC, RARFileFlags flags,
         DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)
     {
         string? normalized = NormalizeArchivePath(rawName);
@@ -736,25 +736,25 @@ internal static class SRRFileParser
         srr.ArchivedFiles.Add(normalized);
 
         bool overwriteTimes = false;
-        if (fileCrc.HasValue)
+        if (fileCRC.HasValue)
         {
-            string crcString = fileCrc.Value.ToString("x8");
+            string crcString = fileCRC.Value.ToString("x8");
             bool newHasSplitAfter = (flags & RARFileFlags.SplitAfter) != 0;
             if (!srr.ArchivedFileCrcs.TryGetValue(normalized, out _))
             {
                 srr.ArchivedFileCrcs[normalized] = crcString;
-                srr.ArchivedFileCrcFlags[normalized] = flags;
+                srr.ArchivedFileCRCFlags[normalized] = flags;
                 overwriteTimes = true;
             }
             else
             {
-                RARFileFlags existingFlags = srr.ArchivedFileCrcFlags.TryGetValue(normalized, out RARFileFlags storedFlags) ? storedFlags : RARFileFlags.None;
+                RARFileFlags existingFlags = srr.ArchivedFileCRCFlags.TryGetValue(normalized, out RARFileFlags storedFlags) ? storedFlags : RARFileFlags.None;
                 bool existingHasSplitAfter = (existingFlags & RARFileFlags.SplitAfter) != 0;
 
                 if (existingHasSplitAfter && !newHasSplitAfter)
                 {
                     srr.ArchivedFileCrcs[normalized] = crcString;
-                    srr.ArchivedFileCrcFlags[normalized] = flags;
+                    srr.ArchivedFileCRCFlags[normalized] = flags;
                     overwriteTimes = true;
                 }
             }

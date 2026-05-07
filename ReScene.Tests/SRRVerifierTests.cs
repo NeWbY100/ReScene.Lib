@@ -26,10 +26,10 @@ public class SRRVerifierTests : IDisposable
     }
 
     [Fact]
-    public void Verify_ValidSrr_ReturnsValid()
+    public void Verify_ValidSRR_ReturnsValid()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader(appName: "Test")
+            .AddSRRHeader(appName: "Test")
             .AddStoredFile("hello.txt", [1, 2, 3])
             .BuildToFile(_testDir, "ok.srr");
 
@@ -44,7 +44,7 @@ public class SRRVerifierTests : IDisposable
     public void Verify_TruncatedFile_ReportsError()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("hello.txt", [1, 2, 3])
             .BuildToFile(_testDir, "truncated.srr");
 
@@ -64,10 +64,10 @@ public class SRRVerifierTests : IDisposable
     }
 
     [Fact]
-    public void Verify_BadCrcSentinel_ReportsWarning()
+    public void Verify_BadCRCSentinel_ReportsWarning()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("hello.txt", [1, 2, 3])
             .BuildToFile(_testDir, "badcrc.srr");
 

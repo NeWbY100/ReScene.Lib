@@ -3,12 +3,12 @@ using ReScene.SRS;
 
 namespace ReScene.Tests;
 
-public class SRSFileFromSrrTests : IDisposable
+public class SRSFileFromSRRTests : IDisposable
 {
     private readonly string _testDataDir;
     private readonly string _tempDir;
 
-    public SRSFileFromSrrTests()
+    public SRSFileFromSRRTests()
     {
         _testDataDir = Path.Combine(AppContext.BaseDirectory, "TestData");
         _tempDir = Path.Combine(Path.GetTempPath(), $"srs_from_srr_{Guid.NewGuid():N}");
@@ -28,7 +28,7 @@ public class SRSFileFromSrrTests : IDisposable
     #region SRS Extraction and Loading
 
     [Fact]
-    public void Load_SrsFromSrr_DetectsContainerType()
+    public void Load_SRSFromSRR_DetectsContainerType()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -55,7 +55,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_HasFileData()
+    public void Load_SRSFromSRR_HasFileData()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -81,7 +81,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_FileDataHasNonEmptyFileName()
+    public void Load_SRSFromSRR_FileDataHasNonEmptyFileName()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -108,7 +108,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_FileDataHasNonZeroSampleSize()
+    public void Load_SRSFromSRR_FileDataHasNonZeroSampleSize()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -135,7 +135,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_FileDataHasNonZeroCrc32()
+    public void Load_SRSFromSRR_FileDataHasNonZeroCRC32()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -162,7 +162,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_FileDataHasNonEmptyAppName()
+    public void Load_SRSFromSRR_FileDataHasNonEmptyAppName()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -189,7 +189,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_HasTracks()
+    public void Load_SRSFromSRR_HasTracks()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -216,7 +216,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_TracksHaveNonZeroDataLength()
+    public void Load_SRSFromSRR_TracksHaveNonZeroDataLength()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -246,7 +246,7 @@ public class SRSFileFromSrrTests : IDisposable
     }
 
     [Fact]
-    public void Load_SrsFromSrr_TracksHave256ByteSignature()
+    public void Load_SRSFromSRR_TracksHave256ByteSignature()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",
@@ -280,7 +280,7 @@ public class SRSFileFromSrrTests : IDisposable
     #region SRR Without Embedded SRS Files
 
     [Fact]
-    public void StoreLittle_HasNoEmbeddedSrsFiles()
+    public void StoreLittle_HasNoEmbeddedSRSFiles()
     {
         string srrPath = Path.Combine(_testDataDir, "store_little", "store_little.srr");
         var srr = SRRFile.Load(srrPath);
@@ -297,7 +297,7 @@ public class SRSFileFromSrrTests : IDisposable
     #region All Embedded SRS Files in SRR
 
     [Fact]
-    public void Load_AllSrsFromSrr_AllHaveFileDataAndTracks()
+    public void Load_AllSRSFromSRR_AllHaveFileDataAndTracks()
     {
         string srrPath = Path.Combine(_testDataDir,
             "bug_detected_as_being_different3",

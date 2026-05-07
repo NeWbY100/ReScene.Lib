@@ -417,14 +417,14 @@ public static class RARDetailedParser
         long pos = blockStart;
 
         // HEAD_CRC (2 bytes)
-        ushort headCrc = reader.ReadUInt16();
+        ushort headCRC = reader.ReadUInt16();
         block.Fields.Add(new RARHeaderField
         {
             Name = "Header CRC",
             Offset = pos,
             Length = 2,
-            RawBytes = BitConverter.GetBytes(headCrc),
-            Value = $"0x{headCrc:X4}"
+            RawBytes = BitConverter.GetBytes(headCRC),
+            Value = $"0x{headCRC:X4}"
         });
         pos += 2;
 
@@ -828,14 +828,14 @@ public static class RARDetailedParser
         // FILE_CRC (4 bytes)
         if (pos + 4 <= headerEnd)
         {
-            uint fileCrc = reader.ReadUInt32();
+            uint fileCRC = reader.ReadUInt32();
             block.Fields.Add(new RARHeaderField
             {
                 Name = "File CRC32",
                 Offset = pos,
                 Length = 4,
-                RawBytes = BitConverter.GetBytes(fileCrc),
-                Value = $"0x{fileCrc:X8}"
+                RawBytes = BitConverter.GetBytes(fileCRC),
+                Value = $"0x{fileCRC:X8}"
             });
             pos += 4;
         }
@@ -1110,14 +1110,14 @@ public static class RARDetailedParser
         // Archive end flags
         if ((flags & 0x0002) != 0 && pos + 4 <= headerEnd)
         {
-            uint dataCrc = reader.ReadUInt32();
+            uint dataCRC = reader.ReadUInt32();
             block.Fields.Add(new RARHeaderField
             {
                 Name = "Archive Data CRC",
                 Offset = pos,
                 Length = 4,
-                RawBytes = BitConverter.GetBytes(dataCrc),
-                Value = $"0x{dataCrc:X8}"
+                RawBytes = BitConverter.GetBytes(dataCRC),
+                Value = $"0x{dataCRC:X8}"
             });
             pos += 4;
         }
@@ -1207,14 +1207,14 @@ public static class RARDetailedParser
         long pos = blockStart;
 
         // HEAD_CRC (4 bytes)
-        uint headCrc = reader.ReadUInt32();
+        uint headCRC = reader.ReadUInt32();
         block.Fields.Add(new RARHeaderField
         {
             Name = "Header CRC32",
             Offset = pos,
             Length = 4,
-            RawBytes = BitConverter.GetBytes(headCrc),
-            Value = $"0x{headCrc:X8}"
+            RawBytes = BitConverter.GetBytes(headCRC),
+            Value = $"0x{headCRC:X8}"
         });
         pos += 4;
 

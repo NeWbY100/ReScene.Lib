@@ -32,13 +32,13 @@ public static class FileComparer
     {
         var result = new CompareResult();
 
-        if (leftData is SRRFileData leftSrr && rightData is SRRFileData rightSrr)
+        if (leftData is SRRFileData leftSRR && rightData is SRRFileData rightSRR)
         {
-            CompareSRRFiles(leftSrr.SRRFile, rightSrr.SRRFile, result);
+            CompareSRRFiles(leftSRR.SRRFile, rightSRR.SRRFile, result);
         }
-        else if (leftData is SRSFile leftSrs && rightData is SRSFile rightSrs)
+        else if (leftData is SRSFile leftSRS && rightData is SRSFile rightSRS)
         {
-            CompareSRSFiles(leftSrs, rightSrs, result);
+            CompareSRSFiles(leftSRS, rightSRS, result);
         }
         else if (leftData is RARFileData leftRar && rightData is RARFileData rightRar)
         {
@@ -100,7 +100,7 @@ public static class FileComparer
         CompareProperty(result.ArchiveDifferences, "RAR Volumes Count", left.RARFiles.Count.ToString(), right.RARFiles.Count.ToString());
         CompareProperty(result.ArchiveDifferences, "Stored Files Count", left.StoredFiles.Count.ToString(), right.StoredFiles.Count.ToString());
         CompareProperty(result.ArchiveDifferences, "Archived Files Count", left.ArchivedFiles.Count.ToString(), right.ArchivedFiles.Count.ToString());
-        CompareProperty(result.ArchiveDifferences, "Header CRC Errors", left.HeaderCrcMismatches.ToString(), right.HeaderCrcMismatches.ToString());
+        CompareProperty(result.ArchiveDifferences, "Header CRC Errors", left.HeaderCRCMismatches.ToString(), right.HeaderCRCMismatches.ToString());
 
         // Compare archived files
         var leftFiles = new HashSet<string>(left.ArchivedFiles, StringComparer.OrdinalIgnoreCase);
@@ -123,17 +123,17 @@ public static class FileComparer
             }
             else
             {
-                left.ArchivedFileCrcs.TryGetValue(file, out var leftCrc);
-                right.ArchivedFileCrcs.TryGetValue(file, out var rightCrc);
+                left.ArchivedFileCrcs.TryGetValue(file, out var leftCRC);
+                right.ArchivedFileCrcs.TryGetValue(file, out var rightCRC);
 
-                if (!string.Equals(leftCrc, rightCrc, StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(leftCRC, rightCRC, StringComparison.OrdinalIgnoreCase))
                 {
                     fileDiff.Type = DifferenceType.Modified;
                     fileDiff.PropertyDifferences.Add(new PropertyDifference
                     {
                         PropertyName = "CRC",
-                        LeftValue = leftCrc ?? "N/A",
-                        RightValue = rightCrc ?? "N/A"
+                        LeftValue = leftCRC ?? "N/A",
+                        RightValue = rightCRC ?? "N/A"
                     });
                 }
 

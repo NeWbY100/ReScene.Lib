@@ -24,7 +24,7 @@ public enum EBMLLaceType : byte
     /// <summary>
     /// EBML lacing - delta-encoded sizes using EBML VINTs.
     /// </summary>
-    Ebml = 6
+    EBML = 6
 }
 
 /// <summary>
@@ -118,7 +118,7 @@ public static class EBMLLacing
 
                 break;
 
-            case EBMLLaceType.Ebml:
+            case EBMLLaceType.EBML:
                 for (int i = 0; i < frameCount; i++)
                 {
                     if (i == 0)

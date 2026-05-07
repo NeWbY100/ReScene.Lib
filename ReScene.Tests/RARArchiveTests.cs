@@ -108,7 +108,7 @@ public class RARArchiveTests
         using var br = new BinaryReader(fs, System.Text.Encoding.UTF8, leaveOpen: true);
 
         // Read embedded comment block header
-        ushort commCrc = br.ReadUInt16();
+        ushort commCRC = br.ReadUInt16();
         byte commType = br.ReadByte();
         if (commType != 0x75) // Not a comment block
         {
@@ -120,7 +120,7 @@ public class RARArchiveTests
         ushort unpSize = br.ReadUInt16();
         byte unpVer = br.ReadByte();
         byte method = br.ReadByte();
-        ushort dataCrc = br.ReadUInt16();
+        ushort dataCRC = br.ReadUInt16();
 
         // Comment data follows the 13-byte comment header
         int dataSize = commSize - 13;
@@ -166,7 +166,7 @@ public class RARArchiveTests
         ushort unpSize = br.ReadUInt16();
         byte unpVer = br.ReadByte();
         byte method = br.ReadByte();
-        ushort commCrc = br.ReadUInt16();
+        ushort commCRC = br.ReadUInt16();
 
         // Read compressed data
         dataSize = block.HeaderSize - 13; // Total - base header - extension fields
@@ -214,7 +214,7 @@ public class RARArchiveTests
         fs.Seek(block.BlockPosition + 13, SeekOrigin.Begin);
         using var br = new BinaryReader(fs, System.Text.Encoding.UTF8, leaveOpen: true);
 
-        ushort commCrc = br.ReadUInt16();
+        ushort commCRC = br.ReadUInt16();
         byte commType = br.ReadByte();
         Assert.Equal(0x75, commType); // Old comment block type
 
@@ -223,7 +223,7 @@ public class RARArchiveTests
         ushort unpSize = br.ReadUInt16();
         byte unpVer = br.ReadByte();
         byte method = br.ReadByte();
-        ushort dataCrc = br.ReadUInt16();
+        ushort dataCRC = br.ReadUInt16();
 
         // WinRAR 2.9 creates RAR 2.0 format (unpVer=20)
         Assert.Equal(20, unpVer);

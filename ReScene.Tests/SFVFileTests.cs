@@ -15,7 +15,7 @@ public class SFVFileTests
     #region store_split_folder.sfv
 
     [Fact]
-    public void ReadFile_StoreSplitFolderSfv_HasThreeEntries()
+    public void ReadFile_StoreSplitFolderSFV_HasThreeEntries()
     {
         var sfv = SFVFile.ReadFile(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.sfv"));
 
@@ -23,7 +23,7 @@ public class SFVFileTests
     }
 
     [Fact]
-    public void ReadFile_StoreSplitFolderSfv_EntriesHaveCorrectFileNames()
+    public void ReadFile_StoreSplitFolderSFV_EntriesHaveCorrectFileNames()
     {
         var sfv = SFVFile.ReadFile(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.sfv"));
 
@@ -33,7 +33,7 @@ public class SFVFileTests
     }
 
     [Fact]
-    public void ReadFile_StoreSplitFolderSfv_EntriesHaveEightCharCrc()
+    public void ReadFile_StoreSplitFolderSFV_EntriesHaveEightCharCRC()
     {
         var sfv = SFVFile.ReadFile(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.sfv"));
 
@@ -45,7 +45,7 @@ public class SFVFileTests
     #region checksum.sfv
 
     [Fact]
-    public void ReadFile_ChecksumSfv_ThrowsOnFilenameWithSpaces()
+    public void ReadFile_ChecksumSFV_ThrowsOnFilenameWithSpaces()
     {
         // checksum.sfv contains a Greek filename with spaces that the parser
         // cannot handle (it splits on space to find the CRC)
@@ -94,7 +94,7 @@ public class SFVFileTests
     #region CRC Format
 
     [Fact]
-    public void ReadFile_EntriesHaveLowercaseCrc()
+    public void ReadFile_EntriesHaveLowercaseCRC()
     {
         var sfv = SFVFile.ReadFile(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.sfv"));
 

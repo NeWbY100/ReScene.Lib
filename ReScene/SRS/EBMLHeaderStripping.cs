@@ -188,7 +188,7 @@ public static class EBMLHeaderStripping
             if (elemId == IdContentCompAlgo)
             {
                 // Read the algorithm value
-                long algo = ReadEbmlUIntValue(data.Slice(pos, elemDataLen));
+                long algo = ReadEBMLUIntValue(data.Slice(pos, elemDataLen));
                 isHeaderStripping = algo == 3;
             }
             else if (elemId == IdContentCompSettings)
@@ -240,7 +240,7 @@ public static class EBMLHeaderStripping
     /// <summary>
     /// Reads an unsigned integer value from raw EBML element data (big-endian, no VINT encoding).
     /// </summary>
-    private static long ReadEbmlUIntValue(ReadOnlySpan<byte> data)
+    private static long ReadEBMLUIntValue(ReadOnlySpan<byte> data)
     {
         long value = 0;
         for (int i = 0; i < data.Length; i++)

@@ -644,7 +644,7 @@ public class RARDetailedParserTests
     }
 
     [Fact]
-    public void Parse_RAR4EndBlock_WithDataCrcFlag_ParsesCrcField()
+    public void Parse_RAR4EndBlock_WithDataCRCFlag_ParsesCRCField()
     {
         // End block with DATA_CRC flag (0x0002): adds 4-byte CRC after base header
         ushort flags = 0x0002;
@@ -694,7 +694,7 @@ public class RARDetailedParserTests
     }
 
     [Fact]
-    public void Parse_RAR4EndBlock_FlagsShowDataCrcChild()
+    public void Parse_RAR4EndBlock_FlagsShowDataCRCChild()
     {
         ushort flags = 0x0002;
         int headerSize = 7 + 4;

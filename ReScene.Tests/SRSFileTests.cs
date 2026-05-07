@@ -31,9 +31,9 @@ public class SRSFileTests : IDisposable
     #region Container Type Detection
 
     [Fact]
-    public async Task Load_AviSrs_DetectsContainerType()
+    public async Task Load_AVISRS_DetectsContainerType()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_detect.avi"), "avi_detect.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_detect.avi"), "avi_detect.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -41,9 +41,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_MkvSrs_DetectsContainerType()
+    public async Task Load_MKVSRS_DetectsContainerType()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticMkv("mkv_detect.mkv"), "mkv_detect.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMKV("mkv_detect.mkv"), "mkv_detect.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -51,9 +51,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_Mp4Srs_DetectsContainerType()
+    public async Task Load_MP4SRS_DetectsContainerType()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticMp4("mp4_detect.mp4"), "mp4_detect.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMP4("mp4_detect.mp4"), "mp4_detect.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -61,9 +61,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_FlacSrs_DetectsContainerType()
+    public async Task Load_FlacSRS_DetectsContainerType()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticFlac("flac_detect.flac"), "flac_detect.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticFlac("flac_detect.flac"), "flac_detect.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -71,9 +71,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_Mp3Srs_DetectsContainerType()
+    public async Task Load_MP3SRS_DetectsContainerType()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticMp3("mp3_detect.mp3"), "mp3_detect.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMP3("mp3_detect.mp3"), "mp3_detect.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -81,9 +81,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_StreamSrs_DetectsContainerType()
+    public async Task Load_StreamSRS_DetectsContainerType()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticStream("stream_detect.vob"), "stream_detect.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticStream("stream_detect.vob"), "stream_detect.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -95,9 +95,9 @@ public class SRSFileTests : IDisposable
     #region FileData Block Properties
 
     [Fact]
-    public async Task Load_AviSrs_HasFileDataBlock()
+    public async Task Load_AVISRS_HasFileDataBlock()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_fd.avi"), "avi_fd.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_fd.avi"), "avi_fd.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -105,10 +105,10 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_FileDataHasCorrectFileName()
+    public async Task Load_AVISRS_FileDataHasCorrectFileName()
     {
-        string samplePath = BuildSyntheticAvi("avi_fname.avi");
-        string srsPath = await CreateSrsFromSynthetic(samplePath, "avi_fname.srs");
+        string samplePath = BuildSyntheticAVI("avi_fname.avi");
+        string srsPath = await CreateSRSFromSynthetic(samplePath, "avi_fname.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -117,9 +117,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_FileDataHasCorrectAppName()
+    public async Task Load_AVISRS_FileDataHasCorrectAppName()
     {
-        string samplePath = BuildSyntheticAvi("avi_app.avi");
+        string samplePath = BuildSyntheticAVI("avi_app.avi");
         string srsPath = Path.Combine(_tempDir, "avi_app.srs");
 
         var writer = new SRSWriter();
@@ -134,11 +134,11 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_FileDataHasCorrectSampleSize()
+    public async Task Load_AVISRS_FileDataHasCorrectSampleSize()
     {
-        string samplePath = BuildSyntheticAvi("avi_size.avi");
+        string samplePath = BuildSyntheticAVI("avi_size.avi");
         long expectedSize = new FileInfo(samplePath).Length;
-        string srsPath = await CreateSrsFromSynthetic(samplePath, "avi_size.srs");
+        string srsPath = await CreateSRSFromSynthetic(samplePath, "avi_size.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -147,9 +147,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_FileDataHasCorrectCrc32()
+    public async Task Load_AVISRS_FileDataHasCorrectCRC32()
     {
-        string samplePath = BuildSyntheticAvi("avi_crc.avi");
+        string samplePath = BuildSyntheticAVI("avi_crc.avi");
         string srsPath = Path.Combine(_tempDir, "avi_crc.srs");
 
         var writer = new SRSWriter();
@@ -159,13 +159,13 @@ public class SRSFileTests : IDisposable
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Equal(result.SampleCrc32, srs.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, srs.FileData!.CRC32);
     }
 
     [Fact]
-    public async Task Load_AviSrs_FileDataDefaultAppNameIsReSceneNET()
+    public async Task Load_AVISRS_FileDataDefaultAppNameIsReSceneNET()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_defapp.avi"), "avi_defapp.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_defapp.avi"), "avi_defapp.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -178,9 +178,9 @@ public class SRSFileTests : IDisposable
     #region Track Data Block Properties
 
     [Fact]
-    public async Task Load_AviSrs_HasAtLeastOneTrack()
+    public async Task Load_AVISRS_HasAtLeastOneTrack()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_tracks.avi"), "avi_tracks.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_tracks.avi"), "avi_tracks.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -188,9 +188,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_TracksHaveNonZeroDataLength()
+    public async Task Load_AVISRS_TracksHaveNonZeroDataLength()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_trklen.avi"), "avi_trklen.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_trklen.avi"), "avi_trklen.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -201,9 +201,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_TracksHave256ByteSignature()
+    public async Task Load_AVISRS_TracksHave256ByteSignature()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_sig.avi"), "avi_sig.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_sig.avi"), "avi_sig.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -215,9 +215,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_SignatureBytesAreNonEmpty()
+    public async Task Load_AVISRS_SignatureBytesAreNonEmpty()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_sigdata.avi"), "avi_sigdata.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_sigdata.avi"), "avi_sigdata.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -229,9 +229,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_MkvSrs_TracksHave256ByteSignature()
+    public async Task Load_MKVSRS_TracksHave256ByteSignature()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticMkv("mkv_sig.mkv"), "mkv_sig.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMKV("mkv_sig.mkv"), "mkv_sig.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -244,9 +244,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_FlacSrs_TracksHave256ByteSignature()
+    public async Task Load_FlacSRS_TracksHave256ByteSignature()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticFlac("flac_sig.flac"), "flac_sig.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticFlac("flac_sig.flac"), "flac_sig.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -263,9 +263,9 @@ public class SRSFileTests : IDisposable
     #region Container Chunks
 
     [Fact]
-    public async Task Load_AviSrs_HasContainerChunks()
+    public async Task Load_AVISRS_HasContainerChunks()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_chunks.avi"), "avi_chunks.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_chunks.avi"), "avi_chunks.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -273,9 +273,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_ContainerChunksHaveRiffLabel()
+    public async Task Load_AVISRS_ContainerChunksHaveRiffLabel()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_riff.avi"), "avi_riff.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_riff.avi"), "avi_riff.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -283,9 +283,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_MkvSrs_HasContainerChunks()
+    public async Task Load_MKVSRS_HasContainerChunks()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticMkv("mkv_chunks.mkv"), "mkv_chunks.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMKV("mkv_chunks.mkv"), "mkv_chunks.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -293,9 +293,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_MkvSrs_ContainerChunksHaveEbmlLabel()
+    public async Task Load_MKVSRS_ContainerChunksHaveEBMLLabel()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticMkv("mkv_ebml.mkv"), "mkv_ebml.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMKV("mkv_ebml.mkv"), "mkv_ebml.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -303,9 +303,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_FlacSrs_ContainerChunksHaveFlacMarker()
+    public async Task Load_FlacSRS_ContainerChunksHaveFlacMarker()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticFlac("flac_marker.flac"), "flac_marker.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticFlac("flac_marker.flac"), "flac_marker.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -315,7 +315,7 @@ public class SRSFileTests : IDisposable
     [Fact]
     public async Task Load_ContainerChunks_HaveValidPositionsAndSizes()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_pos.avi"), "avi_pos.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_pos.avi"), "avi_pos.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -353,7 +353,7 @@ public class SRSFileTests : IDisposable
 
         Assert.Equal(expectedType, srs.ContainerType);
         Assert.NotNull(srs.FileData);
-        Assert.Equal(result.SampleCrc32, srs.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, srs.FileData!.CRC32);
         Assert.Equal((ulong)result.SampleSize, srs.FileData.SampleSize);
         Assert.True(srs.Tracks.Count > 0, $"Expected tracks for format {format}");
         Assert.Equal(result.TrackCount, srs.Tracks.Count);
@@ -410,9 +410,9 @@ public class SRSFileTests : IDisposable
     #region FileData Block Position/Offset Fields
 
     [Fact]
-    public async Task Load_AviSrs_FileDataHasValidOffsets()
+    public async Task Load_AVISRS_FileDataHasValidOffsets()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_offsets.avi"), "avi_offsets.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_offsets.avi"), "avi_offsets.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -426,9 +426,9 @@ public class SRSFileTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_AviSrs_TrackDataHasValidOffsets()
+    public async Task Load_AVISRS_TrackDataHasValidOffsets()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_trkoff.avi"), "avi_trkoff.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_trkoff.avi"), "avi_trkoff.srs");
 
         var srs = SRSFile.Load(srsPath);
 
@@ -449,7 +449,7 @@ public class SRSFileTests : IDisposable
     [Fact]
     public async Task Load_CalledTwice_ReturnsSameResults()
     {
-        string srsPath = await CreateSrsFromSynthetic(BuildSyntheticAvi("avi_multi.avi"), "avi_multi.srs");
+        string srsPath = await CreateSRSFromSynthetic(BuildSyntheticAVI("avi_multi.avi"), "avi_multi.srs");
 
         var srs1 = SRSFile.Load(srsPath);
         var srs2 = SRSFile.Load(srsPath);
@@ -467,7 +467,7 @@ public class SRSFileTests : IDisposable
 
     #region Helpers
 
-    private async Task<string> CreateSrsFromSynthetic(string samplePath, string srsFileName)
+    private async Task<string> CreateSRSFromSynthetic(string samplePath, string srsFileName)
     {
         string srsPath = Path.Combine(_tempDir, srsFileName);
         var writer = new SRSWriter();
@@ -478,11 +478,11 @@ public class SRSFileTests : IDisposable
 
     private string BuildSyntheticByFormat(string format) => format switch
     {
-        "avi" => BuildSyntheticAvi($"rt_{format}.avi"),
-        "mkv" => BuildSyntheticMkv($"rt_{format}.mkv"),
-        "mp4" => BuildSyntheticMp4($"rt_{format}.mp4"),
+        "avi" => BuildSyntheticAVI($"rt_{format}.avi"),
+        "mkv" => BuildSyntheticMKV($"rt_{format}.mkv"),
+        "mp4" => BuildSyntheticMP4($"rt_{format}.mp4"),
         "flac" => BuildSyntheticFlac($"rt_{format}.flac"),
-        "mp3" => BuildSyntheticMp3($"rt_{format}.mp3"),
+        "mp3" => BuildSyntheticMP3($"rt_{format}.mp3"),
         "stream" => BuildSyntheticStream($"rt_{format}.vob"),
         _ => throw new ArgumentException($"Unknown format: {format}")
     };
@@ -499,7 +499,7 @@ public class SRSFileTests : IDisposable
 
     #region Synthetic File Builders
 
-    private string BuildSyntheticAvi(string fileName)
+    private string BuildSyntheticAVI(string fileName)
     {
         string path = Path.Combine(_tempDir, fileName);
         using var ms = new MemoryStream();
@@ -550,13 +550,13 @@ public class SRSFileTests : IDisposable
         return path;
     }
 
-    private string BuildSyntheticMkv(string fileName)
+    private string BuildSyntheticMKV(string fileName)
     {
         string path = Path.Combine(_tempDir, fileName);
         using var ms = new MemoryStream();
 
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(ms, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -566,23 +566,23 @@ public class SRSFileTests : IDisposable
         simpleBlockPayload[0] = 0x81;
         simpleBlockPayload[3] = 0x80;
         blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
 
         byte[] blockData2 = CreateTestData(256);
         byte[] simpleBlockPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
         simpleBlockPayload2[0] = 0x82;
         simpleBlockPayload2[3] = 0x80;
         blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload2);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
 
-    private string BuildSyntheticMp4(string fileName)
+    private string BuildSyntheticMP4(string fileName)
     {
         string path = Path.Combine(_tempDir, fileName);
         using var ms = new MemoryStream();
@@ -623,7 +623,7 @@ public class SRSFileTests : IDisposable
         return path;
     }
 
-    private string BuildSyntheticMp3(string fileName)
+    private string BuildSyntheticMP3(string fileName)
     {
         string path = Path.Combine(_tempDir, fileName);
         using var ms = new MemoryStream();
@@ -658,16 +658,16 @@ public class SRSFileTests : IDisposable
         return path;
     }
 
-    private static void WriteEbmlElement(Stream stream, ulong id, byte[] data)
+    private static void WriteEBMLElement(Stream stream, ulong id, byte[] data)
     {
-        byte[] idBytes = EncodeEbmlId(id);
+        byte[] idBytes = EncodeEBMLId(id);
         stream.Write(idBytes);
-        byte[] sizeBytes = EncodeEbmlSize(data.Length);
+        byte[] sizeBytes = EncodeEBMLSize(data.Length);
         stream.Write(sizeBytes);
         stream.Write(data);
     }
 
-    private static byte[] EncodeEbmlId(ulong id)
+    private static byte[] EncodeEBMLId(ulong id)
     {
         if (id < 0x100)
         {
@@ -687,7 +687,7 @@ public class SRSFileTests : IDisposable
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
-    private static byte[] EncodeEbmlSize(long value)
+    private static byte[] EncodeEBMLSize(long value)
     {
         if (value < 0x7F)
         {
@@ -717,14 +717,14 @@ public class SRSFileTests : IDisposable
         bw.Write(data);
     }
 
-    private static byte[] BuildEbmlHeaderContent()
+    private static byte[] BuildEBMLHeaderContent()
     {
         var ms = new MemoryStream();
-        WriteEbmlElement(ms, 0x4286, [1]);
-        WriteEbmlElement(ms, 0x42F7, [1]);
-        WriteEbmlElement(ms, 0x42F2, [4]);
-        WriteEbmlElement(ms, 0x42F3, [8]);
-        WriteEbmlElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
+        WriteEBMLElement(ms, 0x4286, [1]);
+        WriteEBMLElement(ms, 0x42F7, [1]);
+        WriteEBMLElement(ms, 0x42F2, [4]);
+        WriteEBMLElement(ms, 0x42F3, [8]);
+        WriteEBMLElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
         return ms.ToArray();
     }
 

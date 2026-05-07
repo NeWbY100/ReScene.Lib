@@ -22,7 +22,7 @@ internal class MP4ContainerHandler : IContainerHandler
         int currentTrackId = 0;
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ProfileMp4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc, ct);
+        ProfileMP4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc, ct);
 
         // For MP4, we need to reconstruct track data from stbl tables
         // In the simplest case, mdat is one big track
@@ -59,9 +59,9 @@ internal class MP4ContainerHandler : IContainerHandler
         return (trackMap.Values.ToList(), crc32, totalSize);
     }
 
-    public void WriteSrs(
+    public void WriteSRS(
         string outputPath, string samplePath,
-        List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
@@ -112,7 +112,7 @@ internal class MP4ContainerHandler : IContainerHandler
             if (type == "mdat")
             {
                 // Inject SRSF/SRST before mdat
-                WriteSrsfMov(outFs, samplePath, sampleSize, sampleCrc32, options);
+                WriteSrsfMov(outFs, samplePath, sampleSize, sampleCRC32, options);
                 foreach (TrackInfo track in tracks)
                 {
                     WriteSrstMov(outFs, track, sampleSize >= 0x80000000);
@@ -147,7 +147,7 @@ internal class MP4ContainerHandler : IContainerHandler
 
     #region Profiling
 
-    private static void ProfileMp4Atoms(
+    private static void ProfileMP4Atoms(
         Stream fs, long start, long end,
         SortedDictionary<int, TrackInfo> trackMap,
         ref long metaLength, ref long mdatSize,
@@ -284,7 +284,7 @@ internal class MP4ContainerHandler : IContainerHandler
             else if (_mP4ContainerAtoms.Contains(type))
             {
                 // Step into children
-                ProfileMp4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
+                ProfileMP4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
                     ref currentTrackId, crc, ct);
             }
             else
@@ -307,10 +307,10 @@ internal class MP4ContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfMov(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
+    private static void WriteSrsfMov(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
         Span<byte> header = stackalloc byte[8];
         BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + 8));
         header[4] = (byte)'S';

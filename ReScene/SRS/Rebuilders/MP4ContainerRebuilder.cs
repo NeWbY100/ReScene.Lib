@@ -28,10 +28,10 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
-        RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets, 0, srsFs.Length, ct);
+        RebuildMP4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets, 0, srsFs.Length, ct);
     }
 
-    private static void RebuildMp4Atoms(
+    private static void RebuildMP4Atoms(
         Stream srsFs, Stream outFs,
         Stream mediaFs,
         Dictionary<uint, SRSTrackDataBlock> tracks,
@@ -113,7 +113,7 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
             else if (_containerAtoms.Contains(type))
             {
                 // Recurse into container atoms
-                RebuildMp4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
+                RebuildMP4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,
                     payloadStart, atomEnd, ct);
                 srsFs.Position = atomEnd;
             }

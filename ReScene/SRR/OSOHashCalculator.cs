@@ -32,7 +32,7 @@ internal static class OSOHashCalculator
             return results;
         }
 
-        using RARArchive archive = RARArchive.Open(rarVolumePaths);
+        using var archive = RARArchive.Open(rarVolumePaths);
 
         foreach (RAREntry entry in archive.Files)
         {

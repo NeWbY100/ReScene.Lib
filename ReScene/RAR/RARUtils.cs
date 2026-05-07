@@ -28,7 +28,7 @@ public static class RARUtils
     /// <returns>
     /// 16-bit CRC value
     /// </returns>
-    public static ushort CalculateHeaderCrc(byte[] headerBytes)
+    public static ushort CalculateHeaderCRC(byte[] headerBytes)
     {
         if (headerBytes.Length < 3)
         {
@@ -43,7 +43,7 @@ public static class RARUtils
     /// <summary>
     /// Validates a RAR 4.x header CRC.
     /// </summary>
-    /// <param name="storedCrc">
+    /// <param name="storedCRC">
     /// CRC value stored in the header
     /// </param>
     /// <param name="headerBytes">
@@ -52,7 +52,7 @@ public static class RARUtils
     /// <returns>
     /// True if CRC matches, false otherwise
     /// </returns>
-    public static bool ValidateHeaderCrc(ushort storedCrc, byte[] headerBytes) => storedCrc == CalculateHeaderCrc(headerBytes);
+    public static bool ValidateHeaderCRC(ushort storedCRC, byte[] headerBytes) => storedCRC == CalculateHeaderCRC(headerBytes);
 
     #endregion
 

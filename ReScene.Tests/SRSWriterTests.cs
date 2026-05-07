@@ -31,9 +31,9 @@ public class SRSWriterTests : IDisposable
     #region AVI Tests
 
     [Fact]
-    public async Task CreateAsync_AviSample_ProducesValidSrs()
+    public async Task CreateAsync_AVISample_ProducesValidSRS()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -47,9 +47,9 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_AviSample_RoundTripsViaSrsFile()
+    public async Task CreateAsync_AVISample_RoundTripsViaSRSFile()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -61,7 +61,7 @@ public class SRSWriterTests : IDisposable
         Assert.NotNull(parsed.FileData);
         Assert.Equal("ReScene.NET", parsed.FileData!.AppName);
         Assert.Contains("test_sample.avi", parsed.FileData.FileName, StringComparison.Ordinal);
-        Assert.Equal(result.SampleCrc32, parsed.FileData.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData.CRC32);
         Assert.Equal((ulong)result.SampleSize, parsed.FileData.SampleSize);
         Assert.True(parsed.Tracks.Count > 0);
 
@@ -78,9 +78,9 @@ public class SRSWriterTests : IDisposable
     #region MKV Tests
 
     [Fact]
-    public async Task CreateAsync_MkvSample_ProducesValidSrs()
+    public async Task CreateAsync_MKVSample_ProducesValidSRS()
     {
-        string samplePath = BuildSyntheticMkv();
+        string samplePath = BuildSyntheticMKV();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -92,9 +92,9 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_MkvSample_RoundTripsViaSrsFile()
+    public async Task CreateAsync_MKVSample_RoundTripsViaSRSFile()
     {
-        string samplePath = BuildSyntheticMkv();
+        string samplePath = BuildSyntheticMKV();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -104,7 +104,7 @@ public class SRSWriterTests : IDisposable
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.MKV, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCrc32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
         Assert.True(parsed.Tracks.Count > 0);
     }
 
@@ -113,9 +113,9 @@ public class SRSWriterTests : IDisposable
     #region MP4 Tests
 
     [Fact]
-    public async Task CreateAsync_Mp4Sample_ProducesValidSrs()
+    public async Task CreateAsync_MP4Sample_ProducesValidSRS()
     {
-        string samplePath = BuildSyntheticMp4();
+        string samplePath = BuildSyntheticMP4();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -127,9 +127,9 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_Mp4Sample_RoundTripsViaSrsFile()
+    public async Task CreateAsync_MP4Sample_RoundTripsViaSRSFile()
     {
-        string samplePath = BuildSyntheticMp4();
+        string samplePath = BuildSyntheticMP4();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -139,7 +139,7 @@ public class SRSWriterTests : IDisposable
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.MP4, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCrc32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
     }
 
     #endregion
@@ -147,7 +147,7 @@ public class SRSWriterTests : IDisposable
     #region FLAC Tests
 
     [Fact]
-    public async Task CreateAsync_FlacSample_ProducesValidSrs()
+    public async Task CreateAsync_FlacSample_ProducesValidSRS()
     {
         string samplePath = BuildSyntheticFlac();
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -161,7 +161,7 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_FlacSample_RoundTripsViaSrsFile()
+    public async Task CreateAsync_FlacSample_RoundTripsViaSRSFile()
     {
         string samplePath = BuildSyntheticFlac();
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -173,7 +173,7 @@ public class SRSWriterTests : IDisposable
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.FLAC, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCrc32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
         Assert.True(parsed.Tracks.Count > 0);
     }
 
@@ -182,9 +182,9 @@ public class SRSWriterTests : IDisposable
     #region MP3 Tests
 
     [Fact]
-    public async Task CreateAsync_Mp3Sample_ProducesValidSrs()
+    public async Task CreateAsync_MP3Sample_ProducesValidSRS()
     {
-        string samplePath = BuildSyntheticMp3();
+        string samplePath = BuildSyntheticMP3();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -196,9 +196,9 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_Mp3Sample_RoundTripsViaSrsFile()
+    public async Task CreateAsync_MP3Sample_RoundTripsViaSRSFile()
     {
-        string samplePath = BuildSyntheticMp3();
+        string samplePath = BuildSyntheticMP3();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -208,7 +208,7 @@ public class SRSWriterTests : IDisposable
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.MP3, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCrc32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
     }
 
     #endregion
@@ -216,7 +216,7 @@ public class SRSWriterTests : IDisposable
     #region Stream Tests
 
     [Fact]
-    public async Task CreateAsync_StreamSample_ProducesValidSrs()
+    public async Task CreateAsync_StreamSample_ProducesValidSRS()
     {
         string samplePath = BuildSyntheticStream();
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -230,7 +230,7 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_StreamSample_RoundTripsViaSrsFile()
+    public async Task CreateAsync_StreamSample_RoundTripsViaSRSFile()
     {
         string samplePath = BuildSyntheticStream();
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -242,7 +242,7 @@ public class SRSWriterTests : IDisposable
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.Stream, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCrc32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
     }
 
     #endregion
@@ -264,7 +264,7 @@ public class SRSWriterTests : IDisposable
     [Fact]
     public async Task CreateAsync_CancellationToken_StopsCreation()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var cts = new CancellationTokenSource();
@@ -278,9 +278,9 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_CustomAppName_IsStoredInSrs()
+    public async Task CreateAsync_CustomAppName_IsStoredInSRS()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -293,25 +293,25 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public void DetectContainerType_Avi_DetectsCorrectly()
+    public void DetectContainerType_AVI_DetectsCorrectly()
     {
-        string path = BuildSyntheticAvi();
+        string path = BuildSyntheticAVI();
         SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.AVI, type);
     }
 
     [Fact]
-    public void DetectContainerType_Mkv_DetectsCorrectly()
+    public void DetectContainerType_MKV_DetectsCorrectly()
     {
-        string path = BuildSyntheticMkv();
+        string path = BuildSyntheticMKV();
         SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MKV, type);
     }
 
     [Fact]
-    public void DetectContainerType_Mp4_DetectsCorrectly()
+    public void DetectContainerType_MP4_DetectsCorrectly()
     {
-        string path = BuildSyntheticMp4();
+        string path = BuildSyntheticMP4();
         SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MP4, type);
     }
@@ -325,9 +325,9 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
-    public void DetectContainerType_Mp3_DetectsCorrectly()
+    public void DetectContainerType_MP3_DetectsCorrectly()
     {
-        string path = BuildSyntheticMp3();
+        string path = BuildSyntheticMP3();
         SRSContainerType type = SRSWriter.DetectContainerType(path);
         Assert.Equal(SRSContainerType.MP3, type);
     }
@@ -374,7 +374,7 @@ public class SRSWriterTests : IDisposable
     [Theory]
     [InlineData(".mov")]
     [InlineData(".m4v")]
-    public void DetectContainerType_QuickTimeExtensions_DetectAsMp4(string extension)
+    public void DetectContainerType_QuickTimeExtensions_DetectAsMP4(string extension)
     {
         // MOV/M4V files without ftyp atom fall back to extension-based detection
         string path = Path.Combine(_tempDir, $"test_sample{extension}");
@@ -389,7 +389,7 @@ public class SRSWriterTests : IDisposable
     [Fact]
     public async Task CreateAsync_ProgressEvents_AreFired()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
         string srsPath = Path.Combine(_tempDir, "test.srs");
 
         var writer = new SRSWriter();
@@ -411,7 +411,7 @@ public class SRSWriterTests : IDisposable
     /// Builds a minimal valid AVI file:
     /// RIFF AVI { LIST hdrl { ... }, LIST movi { 00dc(data), 01wb(data) } }
     /// </summary>
-    private string BuildSyntheticAvi()
+    private string BuildSyntheticAVI()
     {
         string path = Path.Combine(_tempDir, "test_sample.avi");
         using var ms = new MemoryStream();
@@ -473,14 +473,14 @@ public class SRSWriterTests : IDisposable
     /// <summary>
     /// Builds a minimal MKV file with EBML header + Segment + Cluster + SimpleBlock.
     /// </summary>
-    private string BuildSyntheticMkv()
+    private string BuildSyntheticMKV()
     {
         string path = Path.Combine(_tempDir, "test_sample.mkv");
         using var ms = new MemoryStream();
 
         // EBML Header element (ID: 0x1A45DFA3)
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(ms, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
 
         // Segment (ID: 0x18538067) containing a Cluster with SimpleBlocks
         var segContent = new MemoryStream();
@@ -496,7 +496,7 @@ public class SRSWriterTests : IDisposable
         simpleBlockPayload[2] = 0; // Timecode LSB
         simpleBlockPayload[3] = 0x80; // Flags (keyframe)
         blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
 
         // Second SimpleBlock for track 2
         byte[] blockData2 = CreateTestData(256);
@@ -506,11 +506,11 @@ public class SRSWriterTests : IDisposable
         simpleBlockPayload2[2] = 0;
         simpleBlockPayload2[3] = 0x80;
         blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload2);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -519,7 +519,7 @@ public class SRSWriterTests : IDisposable
     /// <summary>
     /// Builds a minimal MP4 file: ftyp + moov + mdat
     /// </summary>
-    private string BuildSyntheticMp4()
+    private string BuildSyntheticMP4()
     {
         string path = Path.Combine(_tempDir, "test_sample.mp4");
         using var ms = new MemoryStream();
@@ -573,7 +573,7 @@ public class SRSWriterTests : IDisposable
     /// <summary>
     /// Builds a minimal MP3 file: ID3v2 header + audio sync frames.
     /// </summary>
-    private string BuildSyntheticMp3()
+    private string BuildSyntheticMP3()
     {
         string path = Path.Combine(_tempDir, "test_sample.mp3");
         using var ms = new MemoryStream();
@@ -627,21 +627,21 @@ public class SRSWriterTests : IDisposable
         return data;
     }
 
-    private static void WriteEbmlElement(Stream stream, ulong id, byte[] data)
+    private static void WriteEBMLElement(Stream stream, ulong id, byte[] data)
     {
         // Write ID
-        byte[] idBytes = EncodeEbmlId(id);
+        byte[] idBytes = EncodeEBMLId(id);
         stream.Write(idBytes);
 
         // Write size as VINT
-        byte[] sizeBytes = EncodeEbmlSize(data.Length);
+        byte[] sizeBytes = EncodeEBMLSize(data.Length);
         stream.Write(sizeBytes);
 
         // Write data
         stream.Write(data);
     }
 
-    private static byte[] EncodeEbmlId(ulong id)
+    private static byte[] EncodeEBMLId(ulong id)
     {
         if (id < 0x100)
         {
@@ -661,7 +661,7 @@ public class SRSWriterTests : IDisposable
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
-    private static byte[] EncodeEbmlSize(long value)
+    private static byte[] EncodeEBMLSize(long value)
     {
         if (value < 0x7F)
         {
@@ -691,20 +691,20 @@ public class SRSWriterTests : IDisposable
         bw.Write(data);
     }
 
-    private static byte[] BuildEbmlHeaderContent()
+    private static byte[] BuildEBMLHeaderContent()
     {
         // Minimal EBML header: version=1, read version=1, max id length=4, max size length=8, doctype=matroska
         var ms = new MemoryStream();
         // EBMLVersion (0x4286) = 1
-        WriteEbmlElement(ms, 0x4286, [1]);
+        WriteEBMLElement(ms, 0x4286, [1]);
         // EBMLReadVersion (0x42F7) = 1
-        WriteEbmlElement(ms, 0x42F7, [1]);
+        WriteEBMLElement(ms, 0x42F7, [1]);
         // EBMLMaxIDLength (0x42F2) = 4
-        WriteEbmlElement(ms, 0x42F2, [4]);
+        WriteEBMLElement(ms, 0x42F2, [4]);
         // EBMLMaxSizeLength (0x42F3) = 8
-        WriteEbmlElement(ms, 0x42F3, [8]);
+        WriteEBMLElement(ms, 0x42F3, [8]);
         // DocType (0x4282) = "matroska"
-        WriteEbmlElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
+        WriteEBMLElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
         return ms.ToArray();
     }
 

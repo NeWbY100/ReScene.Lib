@@ -29,7 +29,7 @@ public class SRREditorTests : IDisposable
     public void RenameStoredFile_RewritesOnlyTargetBlock()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("old.nfo", [1, 2, 3])
             .AddStoredFile("keep.nfo", [4, 5])
             .BuildToFile(_testDir, "rename.srr");
@@ -47,7 +47,7 @@ public class SRREditorTests : IDisposable
     {
         byte[] payload = [10, 20, 30, 40, 50];
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("a.bin", payload)
             .BuildToFile(_testDir, "rename2.srr");
 
@@ -69,7 +69,7 @@ public class SRREditorTests : IDisposable
     public void RenameStoredFile_MissingName_Throws()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("a.nfo", [0])
             .BuildToFile(_testDir, "rename3.srr");
 
@@ -89,7 +89,7 @@ public class SRREditorTests : IDisposable
     public void MoveStoredFile_MovesUpByOne()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("a.nfo", [1])
             .AddStoredFile("b.nfo", [2])
             .AddStoredFile("c.nfo", [3])
@@ -105,7 +105,7 @@ public class SRREditorTests : IDisposable
     public void MoveStoredFile_MovesDownByOne()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("a.nfo", [1])
             .AddStoredFile("b.nfo", [2])
             .AddStoredFile("c.nfo", [3])
@@ -121,7 +121,7 @@ public class SRREditorTests : IDisposable
     public void MoveStoredFile_AtEdge_NoOp()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("a.nfo", [1])
             .AddStoredFile("b.nfo", [2])
             .BuildToFile(_testDir, "reorder3.srr");
@@ -136,7 +136,7 @@ public class SRREditorTests : IDisposable
     public void MoveStoredFile_MissingName_Throws()
     {
         string path = new SRRTestDataBuilder()
-            .AddSrrHeader()
+            .AddSRRHeader()
             .AddStoredFile("a.nfo", [1])
             .BuildToFile(_testDir, "reorder4.srr");
 

@@ -34,17 +34,17 @@ internal class AVIContainerHandler : IContainerHandler
         return (trackMap.Values.ToList(), crc32, totalSize);
     }
 
-    public void WriteSrs(
+    public void WriteSRS(
         string outputPath, string samplePath,
-        List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(inFs);
 
-        WriteRiffSrs(outFs, reader, inFs, 0, inFs.Length,
-            tracks, samplePath, sampleSize, sampleCrc32, options, moviInjected: false, ct);
+        WriteRiffSRS(outFs, reader, inFs, 0, inFs.Length,
+            tracks, samplePath, sampleSize, sampleCRC32, options, moviInjected: false, ct);
     }
 
     #region Profiling
@@ -159,10 +159,10 @@ internal class AVIContainerHandler : IContainerHandler
 
     #region Writing
 
-    private static void WriteRiffSrs(
+    private static void WriteRiffSRS(
         Stream outFs, BinaryReader reader, Stream inFs,
         long start, long end,
-        List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options,
         bool moviInjected,
         CancellationToken ct)
@@ -194,7 +194,7 @@ internal class AVIContainerHandler : IContainerHandler
                 // Inject SRSF/SRST as first children of LIST movi
                 if (fourcc == "LIST" && listType == "movi" && !moviInjected)
                 {
-                    WriteSrsfRiff(outFs, samplePath, sampleSize, sampleCrc32, options);
+                    WriteSrsfRiff(outFs, samplePath, sampleSize, sampleCRC32, options);
                     foreach (TrackInfo track in tracks)
                     {
                         WriteSrstRiff(outFs, track, sampleSize >= 0x80000000);
@@ -209,8 +209,8 @@ internal class AVIContainerHandler : IContainerHandler
                     childEnd = end;
                 }
 
-                WriteRiffSrs(outFs, reader, inFs, inFs.Position, childEnd,
-                    tracks, samplePath, sampleSize, sampleCrc32, options, moviInjected, ct);
+                WriteRiffSRS(outFs, reader, inFs, inFs.Position, childEnd,
+                    tracks, samplePath, sampleSize, sampleCRC32, options, moviInjected, ct);
 
                 inFs.Position = childEnd;
                 if (chunkSize % 2 != 0 && inFs.Position < end)
@@ -253,10 +253,10 @@ internal class AVIContainerHandler : IContainerHandler
         }
     }
 
-    private static void WriteSrsfRiff(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
+    private static void WriteSrsfRiff(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
         outFs.Write(Encoding.ASCII.GetBytes("SRSF"));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);

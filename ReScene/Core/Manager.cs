@@ -596,7 +596,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     private void FireFileCopyProgress(FileCopyProgressEventArgs e)
         => FileCopyProgress?.Invoke(this, e);
 
-    private void FireCrcValidationProgress(CRCValidationProgressEventArgs e)
+    private void FireCRCValidationProgress(CRCValidationProgressEventArgs e)
         => CRCValidationProgress?.Invoke(this, e);
 
     private void SetFileAttributes(IEnumerable<FileInfo> files, FileAttributes attribute, bool add)
@@ -1091,7 +1091,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             _cts.Token.ThrowIfCancellationRequested();
 
             string relativePath = entry.Key;
-            string expectedCrc = entry.Value;
+            string expectedCRC = entry.Value;
             string filePath = Path.Combine(inputDirectory, relativePath);
 
             if (!File.Exists(filePath))
@@ -1103,7 +1103,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             long fileSize = new FileInfo(filePath).Length;
             long baseBytes = cumulativeBytesVerified;
 
-            FireCrcValidationProgress(new CRCValidationProgressEventArgs
+            FireCRCValidationProgress(new CRCValidationProgressEventArgs
             {
                 FileName = relativePath,
                 FilesVerified = filesVerified,
@@ -1112,9 +1112,9 @@ public partial class Manager(IReSceneLogger? logger = null)
                 TotalBytes = totalBytes
             });
 
-            string actualCrc = CRC32.Calculate(filePath, bytesRead =>
+            string actualCRC = CRC32.Calculate(filePath, bytesRead =>
             {
-                FireCrcValidationProgress(new CRCValidationProgressEventArgs
+                FireCRCValidationProgress(new CRCValidationProgressEventArgs
                 {
                     FileName = relativePath,
                     FilesVerified = filesVerified,
@@ -1127,14 +1127,14 @@ public partial class Manager(IReSceneLogger? logger = null)
             cumulativeBytesVerified += fileSize;
             filesVerified++;
 
-            if (!string.Equals(actualCrc, expectedCrc, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(actualCRC, expectedCRC, StringComparison.OrdinalIgnoreCase))
             {
-                mismatched.Add($"{relativePath} (expected {expectedCrc}, got {actualCrc})");
+                mismatched.Add($"{relativePath} (expected {expectedCRC}, got {actualCRC})");
             }
         }
 
         // Fire final 100% event
-        FireCrcValidationProgress(new CRCValidationProgressEventArgs
+        FireCRCValidationProgress(new CRCValidationProgressEventArgs
         {
             FileName = "",
             FilesVerified = expectedCrcs.Count,
@@ -1328,7 +1328,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                         string blockDesc = result.BlockType == RAR4BlockType.Service
                             ? $"Service ({result.FileName ?? "?"})"
                             : $"File ({result.FileName ?? "?"})";
-                        _logger.Debug(this, $"Patched {blockDesc}: Host OS 0x{result.OriginalHostOS:X2} -> 0x{result.NewHostOS:X2}, Attrs 0x{result.OriginalAttributes:X8} -> 0x{result.NewAttributes:X8}, CRC 0x{result.OriginalCrc:X4} -> 0x{result.NewCrc:X4}", LogTarget.Phase2);
+                        _logger.Debug(this, $"Patched {blockDesc}: Host OS 0x{result.OriginalHostOS:X2} -> 0x{result.NewHostOS:X2}, Attrs 0x{result.OriginalAttributes:X8} -> 0x{result.NewAttributes:X8}, CRC 0x{result.OriginalCRC:X4} -> 0x{result.NewCRC:X4}", LogTarget.Phase2);
                     }
                 }
                 catch (Exception ex)

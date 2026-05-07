@@ -98,7 +98,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
                 uint addSize = 0;
                 bool hasLongBlock = (flags & FlagLongBlock) != 0;
 
-                if (IsSrrBlockType(blockType))
+                if (IsSRRBlockType(blockType))
                 {
                     // SRR blocks
                     if (hasLongBlock || blockType == SRRStoredFileType)
@@ -355,7 +355,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
         return allMatched;
     }
 
-    private static bool IsSrrBlockType(byte type) => type is SRRHeaderType or SRRStoredFileType or SRROsoHashType or SRRRarPaddingType or SRRRarFileType;
+    private static bool IsSRRBlockType(byte type) => type is SRRHeaderType or SRRStoredFileType or SRROsoHashType or SRRRarPaddingType or SRRRarFileType;
 
     private static string FindSourceFile(string inputDirectory, string archivedFileName)
     {

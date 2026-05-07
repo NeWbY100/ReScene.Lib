@@ -67,7 +67,7 @@ public class SRSCreationResult
     /// <summary>
     /// CRC32 checksum of the original sample file.
     /// </summary>
-    public uint SampleCrc32
+    public uint SampleCRC32
     {
         get; set;
     }
@@ -188,13 +188,13 @@ public class SRSWriter
                     "The sample may be corrupted or incomplete.");
             }
 
-            result.SampleCrc32 = crc32;
+            result.SampleCRC32 = crc32;
             result.SampleSize = sampleSize;
             result.TrackCount = tracks.Count;
 
             // Write the SRS file
             ReportProgress("Writing SRS file...");
-            await Task.Run(() => handler.WriteSrs(
+            await Task.Run(() => handler.WriteSRS(
                 outputPath, sampleFilePath,
                 tracks, sampleSize, crc32, options, ct), ct);
 

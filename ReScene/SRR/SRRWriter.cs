@@ -21,7 +21,7 @@ public class SRRCreationOptions
     /// <summary>
     /// Whether to compute and store OSO hashes for archived files.
     /// </summary>
-    public bool ComputeOsoHashes
+    public bool ComputeOSOHashes
     {
         get; set;
     }
@@ -215,7 +215,7 @@ public class SRRWriter
             using var writer = new BinaryWriter(outStream, Encoding.UTF8, leaveOpen: true);
 
             // 1. Write SRR Header block
-            WriteSrrHeader(writer, options.AppName);
+            WriteSRRHeader(writer, options.AppName);
 
             // 2. Write stored file blocks
             if (storedFiles != null)
@@ -246,12 +246,12 @@ public class SRRWriter
             }
 
             // 4. Optionally compute and write OSO hash blocks
-            if (options.ComputeOsoHashes)
+            if (options.ComputeOSOHashes)
             {
                 List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(rarVolumePaths);
                 foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
                 {
-                    WriteOsoHashBlock(writer, fileName, fileSize, hash);
+                    WriteOSOHashBlock(writer, fileName, fileSize, hash);
                 }
             }
 
@@ -319,7 +319,7 @@ public class SRRWriter
     /// <returns>
     /// Result of the creation operation.
     /// </returns>
-    public async Task<SRRCreationResult> CreateFromSfvAsync(
+    public async Task<SRRCreationResult> CreateFromSFVAsync(
         string outputPath,
         string sfvFilePath,
         IReadOnlyDictionary<string, string>? additionalFiles = null,
@@ -399,7 +399,7 @@ public class SRRWriter
 
     #region SRR Block Writers
 
-    private static void WriteSrrHeader(BinaryWriter writer, string? appName)
+    private static void WriteSRRHeader(BinaryWriter writer, string? appName)
     {
         ushort flags = appName != null ? (ushort)0x0001 : (ushort)0x0000;
 
@@ -452,7 +452,7 @@ public class SRRWriter
         writer.Write(nameBytes);
     }
 
-    private static void WriteOsoHashBlock(BinaryWriter writer, string fileName, ulong fileSize, byte[] osoHash)
+    private static void WriteOSOHashBlock(BinaryWriter writer, string fileName, ulong fileSize, byte[] osoHash)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
         // pyrescene field order: fileSize, hash, nameLen, name

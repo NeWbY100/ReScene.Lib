@@ -80,7 +80,7 @@ public class SRRFile
     /// </summary>
     public Dictionary<string, string> ArchivedFileCrcs { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    internal Dictionary<string, RARFileFlags> ArchivedFileCrcFlags { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal Dictionary<string, RARFileFlags> ArchivedFileCRCFlags { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the calculated RAR volume sizes in bytes for each volume.
@@ -210,7 +210,7 @@ public class SRRFile
     /// <summary>
     /// Gets the number of RAR header CRC mismatches detected during parsing.
     /// </summary>
-    public int HeaderCrcMismatches
+    public int HeaderCRCMismatches
     {
         get; internal set;
     }
@@ -440,7 +440,7 @@ public class SRRFile
             ushort headerSize = reader.ReadUInt16();
 
             // Check if this is an SRR block type
-            if (!SRRFileParser.IsSrrBlockType(typeRaw))
+            if (!SRRFileParser.IsSRRBlockType(typeRaw))
             {
                 // Unknown block, skip it
                 fs.Seek(startPos, SeekOrigin.Begin);
@@ -490,7 +490,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.OSOHash:
-                    SRROsoHashBlock? osoBlock = SRRFileParser.ParseOsoHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
+                    SRROsoHashBlock? osoBlock = SRRFileParser.ParseOSOHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
                     if (osoBlock != null)
                     {
                         srr.OSOHashBlocks.Add(osoBlock);

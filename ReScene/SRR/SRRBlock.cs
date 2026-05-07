@@ -101,7 +101,7 @@ public class SRRBlock
     /// <summary>
     /// Gets or sets the block CRC value.
     /// </summary>
-    public ushort Crc
+    public ushort CRC
     {
         get; set;
     }

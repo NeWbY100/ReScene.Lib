@@ -37,7 +37,7 @@ public class RARServiceBlockInfo
     /// <summary>
     /// Data CRC.
     /// </summary>
-    public uint DataCrc
+    public uint DataCRC
     {
         get; set;
     }
@@ -181,7 +181,7 @@ public class RARBlockReadResult
     /// <summary>
     /// Header CRC value.
     /// </summary>
-    public ushort HeaderCrc
+    public ushort HeaderCRC
     {
         get; set;
     }
@@ -311,14 +311,14 @@ public class RARHeaderReader
             Flags = flags,
             HeaderSize = headerSize,
             BlockPosition = blockStart,
-            HeaderCrc = crc
+            HeaderCRC = crc
         };
 
         // Validate CRC by reading entire header
         long currentPos = _stream.Position;
         _stream.Seek(blockStart, SeekOrigin.Begin);
         byte[] headerBytes = _reader.ReadBytes(headerSize);
-        result.CRCValid = RARUtils.ValidateHeaderCrc(crc, headerBytes);
+        result.CRCValid = RARUtils.ValidateHeaderCRC(crc, headerBytes);
         _stream.Seek(currentPos, SeekOrigin.Begin);
 
         // Read ADD_SIZE for file headers and service blocks (always present even without LONG_BLOCK flag)
@@ -390,7 +390,7 @@ public class RARHeaderReader
         return new RARArchiveHeader
         {
             BlockPosition = block.BlockPosition,
-            HeaderCrc = block.HeaderCrc,
+            HeaderCRC = block.HeaderCRC,
             HeaderSize = block.HeaderSize,
             Flags = (RARArchiveFlags)block.Flags,
             CRCValid = block.CRCValid
@@ -423,7 +423,7 @@ public class RARHeaderReader
         // Read remaining fields
         uint unpSize = _reader.ReadUInt32();
         byte hostOS = _reader.ReadByte();
-        uint fileCrc = _reader.ReadUInt32();
+        uint fileCRC = _reader.ReadUInt32();
         uint fileTime = _reader.ReadUInt32();
         byte unpVer = _reader.ReadByte();
 
@@ -465,13 +465,13 @@ public class RARHeaderReader
         return new RARFileHeader
         {
             BlockPosition = block.BlockPosition,
-            HeaderCrc = block.HeaderCrc,
+            HeaderCRC = block.HeaderCRC,
             HeaderSize = block.HeaderSize,
             Flags = flags,
             PackedSize = packedSize,
             UnpackedSize = unpackedSize,
             HostOS = hostOS,
-            FileCrc = fileCrc,
+            FileCRC = fileCRC,
             UnpackVersion = unpVer,
             CompressionMethod = method,
             DictionarySizeKB = RARUtils.GetDictionarySize(flags),
@@ -749,7 +749,7 @@ public class RARHeaderReader
         // Read service block fields (same layout as file header)
         uint unpSize = _reader.ReadUInt32();
         byte hostOS = _reader.ReadByte();
-        uint dataCrc = _reader.ReadUInt32();
+        uint dataCRC = _reader.ReadUInt32();
         uint subTime = _reader.ReadUInt32();
         byte unpVer = _reader.ReadByte();
         byte method = _reader.ReadByte();
@@ -855,7 +855,7 @@ public class RARHeaderReader
             PackedSize = packedSize,
             UnpackedSize = unpackedSize,
             CompressionMethod = method,
-            DataCrc = dataCrc,
+            DataCRC = dataCRC,
             DataOffset = block.HeaderSize,
             HostOS = hostOS,
             FileTimeDOS = subTime,

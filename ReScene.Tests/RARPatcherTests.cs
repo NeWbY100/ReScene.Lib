@@ -57,7 +57,7 @@ public class RARPatcherTests : IDisposable
     }
 
     [Fact]
-    public void PatchFile_HostOS_RecalculatesCrc()
+    public void PatchFile_HostOS_RecalculatesCRC()
     {
         string testFile = CopyTestFile("test_wrar40_m3.rar");
 
@@ -72,7 +72,7 @@ public class RARPatcherTests : IDisposable
         Assert.NotEmpty(results);
         foreach (PatchResult result in results)
         {
-            Assert.NotEqual(result.OriginalCrc, result.NewCrc);
+            Assert.NotEqual(result.OriginalCRC, result.NewCRC);
         }
 
         // Verify the file is still parseable after patching
@@ -229,7 +229,7 @@ public class RARPatcherTests : IDisposable
     }
 
     [Fact]
-    public void AnalyzeFile_NewCrcIsZero_InAnalysisMode()
+    public void AnalyzeFile_NewCRCIsZero_InAnalysisMode()
     {
         string testFile = CopyTestFile("test_wrar40_m3.rar");
 
@@ -240,7 +240,7 @@ public class RARPatcherTests : IDisposable
 
         List<PatchResult> results = RARPatcher.AnalyzeFile(testFile, options);
 
-        Assert.All(results, r => Assert.Equal((ushort)0, r.NewCrc));
+        Assert.All(results, r => Assert.Equal((ushort)0, r.NewCRC));
     }
 
     #endregion
@@ -345,8 +345,8 @@ public class RARPatcherTests : IDisposable
         BitConverter.GetBytes((ushort)0x0000).CopyTo(archiveHeader, 3); // flags
         BitConverter.GetBytes((ushort)7).CopyTo(archiveHeader, 5); // headerSize = 7
         // Compute CRC
-        uint archCrc = Crc32Algorithm.Compute(archiveHeader, 2, 5);
-        BitConverter.GetBytes((ushort)(archCrc & 0xFFFF)).CopyTo(archiveHeader, 0);
+        uint archCRC = Crc32Algorithm.Compute(archiveHeader, 2, 5);
+        BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
         writer.Write(archiveHeader);
 
         // File header
@@ -382,8 +382,8 @@ public class RARPatcherTests : IDisposable
         Array.Copy(nameBytes, 0, fileHeader, offset, nameBytes.Length);
 
         // Compute CRC
-        uint fileCrc32 = Crc32Algorithm.Compute(fileHeader, 2, fileHeader.Length - 2);
-        BitConverter.GetBytes((ushort)(fileCrc32 & 0xFFFF)).CopyTo(fileHeader, 0);
+        uint fileCRC32 = Crc32Algorithm.Compute(fileHeader, 2, fileHeader.Length - 2);
+        BitConverter.GetBytes((ushort)(fileCRC32 & 0xFFFF)).CopyTo(fileHeader, 0);
         writer.Write(fileHeader);
 
         // End of Archive block
@@ -391,8 +391,8 @@ public class RARPatcherTests : IDisposable
         endBlock[2] = 0x7B; // type = EndArchive
         BitConverter.GetBytes((ushort)0x4000).CopyTo(endBlock, 3); // SKIP_IF_UNKNOWN
         BitConverter.GetBytes((ushort)7).CopyTo(endBlock, 5); // headerSize = 7
-        uint endCrc = Crc32Algorithm.Compute(endBlock, 2, 5);
-        BitConverter.GetBytes((ushort)(endCrc & 0xFFFF)).CopyTo(endBlock, 0);
+        uint endCRC = Crc32Algorithm.Compute(endBlock, 2, 5);
+        BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
         writer.Write(endBlock);
 
         return ms.ToArray();
@@ -663,8 +663,8 @@ public class RARPatcherTests : IDisposable
         archiveHeader[2] = 0x73; // type = ArchiveHeader
         BitConverter.GetBytes((ushort)0x0000).CopyTo(archiveHeader, 3); // flags
         BitConverter.GetBytes((ushort)7).CopyTo(archiveHeader, 5); // headerSize
-        uint archCrc = Crc32Algorithm.Compute(archiveHeader, 2, 5);
-        BitConverter.GetBytes((ushort)(archCrc & 0xFFFF)).CopyTo(archiveHeader, 0);
+        uint archCRC = Crc32Algorithm.Compute(archiveHeader, 2, 5);
+        BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
         writer.Write(archiveHeader);
 
         // First file header - WITH LARGE flag and data
@@ -739,8 +739,8 @@ public class RARPatcherTests : IDisposable
         endBlock[2] = 0x7B; // type = EndArchive
         BitConverter.GetBytes((ushort)0x4000).CopyTo(endBlock, 3);
         BitConverter.GetBytes((ushort)7).CopyTo(endBlock, 5);
-        uint endCrc = Crc32Algorithm.Compute(endBlock, 2, 5);
-        BitConverter.GetBytes((ushort)(endCrc & 0xFFFF)).CopyTo(endBlock, 0);
+        uint endCRC = Crc32Algorithm.Compute(endBlock, 2, 5);
+        BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
         writer.Write(endBlock);
 
         return ms.ToArray();
@@ -764,8 +764,8 @@ public class RARPatcherTests : IDisposable
         archiveHeader[2] = 0x73;
         BitConverter.GetBytes((ushort)0x0000).CopyTo(archiveHeader, 3);
         BitConverter.GetBytes((ushort)7).CopyTo(archiveHeader, 5);
-        uint archCrc = Crc32Algorithm.Compute(archiveHeader, 2, 5);
-        BitConverter.GetBytes((ushort)(archCrc & 0xFFFF)).CopyTo(archiveHeader, 0);
+        uint archCRC = Crc32Algorithm.Compute(archiveHeader, 2, 5);
+        BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
         writer.Write(archiveHeader);
 
         // Service block with LARGE flag
@@ -838,8 +838,8 @@ public class RARPatcherTests : IDisposable
         endBlock[2] = 0x7B;
         BitConverter.GetBytes((ushort)0x4000).CopyTo(endBlock, 3);
         BitConverter.GetBytes((ushort)7).CopyTo(endBlock, 5);
-        uint endCrc = Crc32Algorithm.Compute(endBlock, 2, 5);
-        BitConverter.GetBytes((ushort)(endCrc & 0xFFFF)).CopyTo(endBlock, 0);
+        uint endCRC = Crc32Algorithm.Compute(endBlock, 2, 5);
+        BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
         writer.Write(endBlock);
 
         return ms.ToArray();
@@ -951,8 +951,8 @@ public class RARPatcherTests : IDisposable
         archiveHeader[2] = 0x73;
         BitConverter.GetBytes((ushort)0x0000).CopyTo(archiveHeader, 3);
         BitConverter.GetBytes((ushort)7).CopyTo(archiveHeader, 5);
-        uint archCrc = Crc32Algorithm.Compute(archiveHeader, 2, 5);
-        BitConverter.GetBytes((ushort)(archCrc & 0xFFFF)).CopyTo(archiveHeader, 0);
+        uint archCRC = Crc32Algorithm.Compute(archiveHeader, 2, 5);
+        BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
         writer.Write(archiveHeader);
 
         // File header with LARGE flag but headerSize = 32 (no HIGH fields, no filename)
@@ -1014,8 +1014,8 @@ public class RARPatcherTests : IDisposable
         endBlock[2] = 0x7B;
         BitConverter.GetBytes((ushort)0x4000).CopyTo(endBlock, 3);
         BitConverter.GetBytes((ushort)7).CopyTo(endBlock, 5);
-        uint endCrc = Crc32Algorithm.Compute(endBlock, 2, 5);
-        BitConverter.GetBytes((ushort)(endCrc & 0xFFFF)).CopyTo(endBlock, 0);
+        uint endCRC = Crc32Algorithm.Compute(endBlock, 2, 5);
+        BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
         writer.Write(endBlock);
 
         byte[] rarData = ms.ToArray();

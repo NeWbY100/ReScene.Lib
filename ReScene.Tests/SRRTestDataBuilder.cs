@@ -21,7 +21,7 @@ internal class SRRTestDataBuilder
     /// <summary>
     /// Writes an SRR header block (type 0x69).
     /// </summary>
-    public SRRTestDataBuilder AddSrrHeader(string? appName = null)
+    public SRRTestDataBuilder AddSRRHeader(string? appName = null)
     {
         ushort flags = appName != null ? (ushort)0x0001 : (ushort)0x0000;
 
@@ -96,7 +96,7 @@ internal class SRRTestDataBuilder
     /// <summary>
     /// Writes an SRR OSO hash block (type 0x6B).
     /// </summary>
-    public SRRTestDataBuilder AddOsoHash(string fileName, ulong fileSize, byte[] osoHash)
+    public SRRTestDataBuilder AddOSOHash(string fileName, ulong fileSize, byte[] osoHash)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
         ushort headerSize = (ushort)(7 + 8 + 8 + 2 + nameBytes.Length); // base + fileSize + hash + nameLen + name
@@ -190,7 +190,7 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         uint packedSize = 1024,
         uint unpackedSize = 1024,
         byte hostOS = 2,          // Windows
-        uint fileCrc = 0xDEADBEEF,
+        uint fileCRC = 0xDEADBEEF,
         uint fileTimeDOS = 0x5A8E3100, // ~2025-04-22 06:08:00
         byte unpVer = 29,
         byte method = 0x33,       // Normal
@@ -227,7 +227,7 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         BitConverter.GetBytes(packedSize).CopyTo(header, 7);    // ADD_SIZE = packed size
         BitConverter.GetBytes(unpackedSize).CopyTo(header, 11); // UNP_SIZE
         header[15] = hostOS;                                     // HOST_OS
-        BitConverter.GetBytes(fileCrc).CopyTo(header, 16);       // FILE_CRC
+        BitConverter.GetBytes(fileCRC).CopyTo(header, 16);       // FILE_CRC
         BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);   // FILE_TIME
         header[24] = unpVer;                                     // UNP_VER
         header[25] = method;                                     // METHOD
@@ -265,7 +265,7 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         uint unpackedSizeLow = 1024,
         uint unpackedSizeHigh = 0,
         byte hostOS = 2,
-        uint fileCrc = 0xDEADBEEF,
+        uint fileCRC = 0xDEADBEEF,
         uint fileTimeDOS = 0x5A8E3100,
         byte unpVer = 29,
         byte method = 0x33,
@@ -288,7 +288,7 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         BitConverter.GetBytes(packedSizeLow).CopyTo(header, 7);     // ADD_SIZE (low packed)
         BitConverter.GetBytes(unpackedSizeLow).CopyTo(header, 11);  // UNP_SIZE (low unpacked)
         header[15] = hostOS;
-        BitConverter.GetBytes(fileCrc).CopyTo(header, 16);
+        BitConverter.GetBytes(fileCRC).CopyTo(header, 16);
         BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);
         header[24] = unpVer;
         header[25] = method;

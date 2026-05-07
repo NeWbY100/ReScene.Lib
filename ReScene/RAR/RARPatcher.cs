@@ -66,7 +66,7 @@ public class PatchResult
     /// <summary>
     /// Header CRC before patching.
     /// </summary>
-    public ushort OriginalCrc
+    public ushort OriginalCRC
     {
         get; set;
     }
@@ -74,7 +74,7 @@ public class PatchResult
     /// <summary>
     /// Header CRC after patching (0 in analysis mode).
     /// </summary>
-    public ushort NewCrc
+    public ushort NewCRC
     {
         get; set;
     }
@@ -202,7 +202,7 @@ public class PatchOptions
 public static class RARPatcher
 {
     // RAR 4.x header field offsets (from block start)
-    private const int OffsetCrc = 0;
+    private const int OffsetCRC = 0;
     private const int OffsetType = 2;
     private const int OffsetFlags = 3;
     private const int OffsetHeaderSize = 5;
@@ -331,7 +331,7 @@ public static class RARPatcher
                 }
 
                 // Extract current values
-                ushort originalCrc = BitConverter.ToUInt16(fullHeader, OffsetCrc);
+                ushort originalCRC = BitConverter.ToUInt16(fullHeader, OffsetCRC);
                 byte originalHostOS = fullHeader[OffsetHostOS];
                 uint originalAttr = BitConverter.ToUInt32(fullHeader, OffsetAttr);
                 uint originalFileTime = BitConverter.ToUInt32(fullHeader, OffsetFileTime);
@@ -382,11 +382,11 @@ public static class RARPatcher
                 {
                     // Recalculate CRC (CRC32 of header bytes excluding CRC field, take lower 16 bits)
                     uint crc32 = Crc32Algorithm.Compute(fullHeader, 2, fullHeader.Length - 2);
-                    ushort newCrc = (ushort)(crc32 & 0xFFFF);
+                    ushort newCRC = (ushort)(crc32 & 0xFFFF);
 
                     // Update CRC in header
-                    byte[] crcBytes = BitConverter.GetBytes(newCrc);
-                    Array.Copy(crcBytes, 0, fullHeader, OffsetCrc, 2);
+                    byte[] crcBytes = BitConverter.GetBytes(newCRC);
+                    Array.Copy(crcBytes, 0, fullHeader, OffsetCRC, 2);
 
                     // Write modified header back
                     stream.Position = blockStart;
@@ -401,8 +401,8 @@ public static class RARPatcher
                         NewHostOS = newHostOS,
                         OriginalAttributes = originalAttr,
                         NewAttributes = newAttr,
-                        OriginalCrc = originalCrc,
-                        NewCrc = newCrc
+                        OriginalCRC = originalCRC,
+                        NewCRC = newCRC
                     });
                 }
 
@@ -460,10 +460,10 @@ public static class RARPatcher
         // The Archive Data CRC covers all bytes from offset 0 to the End of Archive block,
         // so it becomes stale after patching any header bytes within that range.
         if (results.Count > 0 && endArchivePosition >= 0 &&
-            (endArchiveFlags & (ushort)RAREndArchiveFlags.DataCrc) != 0 &&
+            (endArchiveFlags & (ushort)RAREndArchiveFlags.DataCRC) != 0 &&
             endArchiveHeaderSize >= 11) // 7 base + 4 Archive Data CRC minimum
         {
-            PatchEndOfArchiveCrc(stream, endArchivePosition, endArchiveHeaderSize);
+            PatchEndOfArchiveCRC(stream, endArchivePosition, endArchiveHeaderSize);
         }
     }
 
@@ -521,7 +521,7 @@ public static class RARPatcher
                     break;
                 }
 
-                ushort originalCrc = BitConverter.ToUInt16(fullHeader, OffsetCrc);
+                ushort originalCRC = BitConverter.ToUInt16(fullHeader, OffsetCRC);
                 byte originalHostOS = fullHeader[OffsetHostOS];
                 uint originalAttr = BitConverter.ToUInt32(fullHeader, OffsetAttr);
 
@@ -550,8 +550,8 @@ public static class RARPatcher
                         NewHostOS = targetHostOS ?? originalHostOS,
                         OriginalAttributes = originalAttr,
                         NewAttributes = targetAttr ?? originalAttr,
-                        OriginalCrc = originalCrc,
-                        NewCrc = 0 // Not calculated in analysis mode
+                        OriginalCRC = originalCRC,
+                        NewCRC = 0 // Not calculated in analysis mode
                     });
                 }
 
@@ -703,8 +703,8 @@ public static class RARPatcher
 
                     // Recalculate CRC
                     uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
-                    ushort newCrc = (ushort)(crc32 & 0xFFFF);
-                    BitConverter.GetBytes(newCrc).CopyTo(header, OffsetCrc);
+                    ushort newCRC = (ushort)(crc32 & 0xFFFF);
+                    BitConverter.GetBytes(newCRC).CopyTo(header, OffsetCRC);
 
                     // Write modified header
                     output.Write(header, 0, header.Length);
@@ -740,8 +740,8 @@ public static class RARPatcher
 
                         // Recalculate CRC
                         uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
-                        ushort newCrc = (ushort)(crc32 & 0xFFFF);
-                        BitConverter.GetBytes(newCrc).CopyTo(header, OffsetCrc);
+                        ushort newCRC = (ushort)(crc32 & 0xFFFF);
+                        BitConverter.GetBytes(newCRC).CopyTo(header, OffsetCRC);
 
                         // Write modified header
                         output.Write(header, 0, header.Length);
@@ -808,13 +808,13 @@ public static class RARPatcher
     /// Recalculates the Archive Data CRC in the End of Archive block.
     /// The Archive Data CRC is a CRC32 of all bytes from offset 0 to the start of the End of Archive block.
     /// </summary>
-    private static void PatchEndOfArchiveCrc(Stream stream, long endArchivePosition, ushort headerSize)
+    private static void PatchEndOfArchiveCRC(Stream stream, long endArchivePosition, ushort headerSize)
     {
         // Compute CRC32 of all bytes from offset 0 to the End of Archive block
         stream.Position = 0;
         byte[] buffer = new byte[80 * 1024];
         long remaining = endArchivePosition;
-        uint archiveDataCrc = 0;
+        uint archiveDataCRC = 0;
 
         while (remaining > 0)
         {
@@ -825,7 +825,7 @@ public static class RARPatcher
                 break;
             }
 
-            archiveDataCrc = Crc32Algorithm.Append(archiveDataCrc, buffer, 0, read);
+            archiveDataCRC = Crc32Algorithm.Append(archiveDataCRC, buffer, 0, read);
             remaining -= read;
         }
 
@@ -838,12 +838,12 @@ public static class RARPatcher
         }
 
         // Update Archive Data CRC at offset 7 (immediately after the 7-byte base header)
-        BitConverter.GetBytes(archiveDataCrc).CopyTo(endHeader, 7);
+        BitConverter.GetBytes(archiveDataCRC).CopyTo(endHeader, 7);
 
         // Recalculate the End of Archive header's own CRC
         uint crc32 = Crc32Algorithm.Compute(endHeader, 2, endHeader.Length - 2);
-        ushort newHeaderCrc = (ushort)(crc32 & 0xFFFF);
-        BitConverter.GetBytes(newHeaderCrc).CopyTo(endHeader, OffsetCrc);
+        ushort newHeaderCRC = (ushort)(crc32 & 0xFFFF);
+        BitConverter.GetBytes(newHeaderCRC).CopyTo(endHeader, OffsetCRC);
 
         // Write back
         stream.Position = endArchivePosition;

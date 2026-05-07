@@ -29,7 +29,7 @@ public class RARHeaderReaderTests
     /// Builds a minimal RAR4 file header block with valid CRC.
     /// </summary>
     private static byte[] BuildFileHeader(string fileName, byte hostOS = 2, uint packedSize = 100,
-        uint unpackedSize = 100, byte method = 0x33, byte unpVer = 29, uint fileCrc = 0,
+        uint unpackedSize = 100, byte method = 0x33, byte unpVer = 29, uint fileCRC = 0,
         uint fileTimeDOS = 0x5A8E3100, uint fileAttributes = 0x20,
         RARFileFlags extraFlags = RARFileFlags.ExtTime)
     {
@@ -47,7 +47,7 @@ public class RARHeaderReaderTests
         BitConverter.GetBytes(packedSize).CopyTo(header, 7);
         BitConverter.GetBytes(unpackedSize).CopyTo(header, 11);
         header[15] = hostOS;
-        BitConverter.GetBytes(fileCrc).CopyTo(header, 16);
+        BitConverter.GetBytes(fileCRC).CopyTo(header, 16);
         BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);
         header[24] = unpVer;
         header[25] = method;
@@ -216,7 +216,7 @@ public class RARHeaderReaderTests
     }
 
     [Fact]
-    public void ReadBlock_InvalidCrc_DetectedAsInvalid()
+    public void ReadBlock_InvalidCRC_DetectedAsInvalid()
     {
         byte[] header = BuildArchiveHeader();
         // Corrupt the CRC
@@ -470,7 +470,7 @@ public class RARHeaderReaderTests
     /// </summary>
     private static byte[] BuildLargeFileHeader(string fileName, uint packSizeLow, uint packSizeHigh,
         uint unpSizeLow, uint unpSizeHigh, byte hostOS = 2, byte method = 0x30, byte unpVer = 29,
-        uint fileCrc = 0, uint fileTimeDOS = 0x5A8E3100, uint fileAttributes = 0x20)
+        uint fileCRC = 0, uint fileTimeDOS = 0x5A8E3100, uint fileAttributes = 0x20)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
         ushort nameSize = (ushort)nameBytes.Length;
@@ -486,7 +486,7 @@ public class RARHeaderReaderTests
         BitConverter.GetBytes(packSizeLow).CopyTo(header, 7);   // ADD_SIZE / PACK_SIZE low
         BitConverter.GetBytes(unpSizeLow).CopyTo(header, 11);   // UNP_SIZE low
         header[15] = hostOS;
-        BitConverter.GetBytes(fileCrc).CopyTo(header, 16);
+        BitConverter.GetBytes(fileCRC).CopyTo(header, 16);
         BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);
         header[24] = unpVer;
         header[25] = method;
@@ -857,7 +857,7 @@ public class RARHeaderReaderTests
     #region CRC Mismatch Tests
 
     [Fact]
-    public void ReadBlock_FileHeaderCrcMismatch_IsValidCrcFalse()
+    public void ReadBlock_FileHeaderCRCMismatch_IsValidCRCFalse()
     {
         byte[] header = BuildFileHeader("test.txt");
         // Corrupt the CRC bytes
@@ -877,7 +877,7 @@ public class RARHeaderReaderTests
     }
 
     [Fact]
-    public void ReadBlock_ServiceBlockCrcMismatch_IsValidCrcFalse()
+    public void ReadBlock_ServiceBlockCRCMismatch_IsValidCRCFalse()
     {
         byte[] dummyData = [0x01, 0x02, 0x03];
         (byte[]? header, byte[]? data) = BuildServiceBlock("CMT", dummyData);
@@ -898,7 +898,7 @@ public class RARHeaderReaderTests
     }
 
     [Fact]
-    public void ReadBlock_EndArchiveCrcMismatch_IsValidCrcFalse()
+    public void ReadBlock_EndArchiveCRCMismatch_IsValidCRCFalse()
     {
         byte[] header = BuildEndArchive();
         header[0] ^= 0xFF; // Flip CRC bits

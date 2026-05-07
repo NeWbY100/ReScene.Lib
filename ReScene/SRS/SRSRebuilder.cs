@@ -8,8 +8,8 @@ namespace ReScene.SRS;
 public record SRSReconstructionResult(
     bool Success,
     bool CRCMatch,
-    uint ExpectedCrc,
-    uint ActualCrc,
+    uint ExpectedCRC,
+    uint ActualCRC,
     long ExpectedSize,
     long ActualSize,
     string? ErrorMessage);
@@ -175,7 +175,7 @@ public class SRSRebuilder
         SRSFileDataBlock fileData = srs.FileData;
         List<SRSTrackDataBlock> tracks = srs.Tracks;
         long expectedSize = (long)fileData.SampleSize;
-        uint expectedCrc = fileData.CRC32;
+        uint expectedCRC = fileData.CRC32;
 
         // Build a dictionary keyed by track number for easy lookup
         var trackDict = new Dictionary<uint, SRSTrackDataBlock>();
@@ -202,12 +202,12 @@ public class SRSRebuilder
         // Step 4: Verify CRC
         ReportProgress("Verifying CRC", 0, tracks.Count, 90);
         long actualSize = new FileInfo(outputPath).Length;
-        uint actualCrc = CRCUtility.ComputeFileCrc32(outputPath, ct);
+        uint actualCRC = CRCUtility.ComputeFileCRC32(outputPath, ct);
 
         // The SRSF CRC may be stored in either byte order depending on the tool
         // that created the SRS. Check both the direct value and byte-reversed.
-        bool crcMatch = actualCrc == expectedCrc
-            || actualCrc == BinaryPrimitives.ReverseEndianness(expectedCrc);
+        bool crcMatch = actualCRC == expectedCRC
+            || actualCRC == BinaryPrimitives.ReverseEndianness(expectedCRC);
         bool sizeMatch = actualSize == expectedSize;
 
         ReportProgress("Complete", 0, tracks.Count, 100);
@@ -215,12 +215,12 @@ public class SRSRebuilder
         return new SRSReconstructionResult(
             Success: crcMatch && sizeMatch,
             CRCMatch: crcMatch,
-            ExpectedCrc: expectedCrc,
-            ActualCrc: actualCrc,
+            ExpectedCRC: expectedCRC,
+            ActualCRC: actualCRC,
             ExpectedSize: expectedSize,
             ActualSize: actualSize,
             ErrorMessage: !crcMatch
-                ? $"CRC mismatch: expected 0x{expectedCrc:X8}, got 0x{actualCrc:X8} (size: {actualSize:N0}/{expectedSize:N0})"
+                ? $"CRC mismatch: expected 0x{expectedCRC:X8}, got 0x{actualCRC:X8} (size: {actualSize:N0}/{expectedSize:N0})"
                 : !sizeMatch
                     ? $"Size mismatch: expected {expectedSize:N0}, got {actualSize:N0}"
                     : null);

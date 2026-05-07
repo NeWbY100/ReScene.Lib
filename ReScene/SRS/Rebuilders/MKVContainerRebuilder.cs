@@ -50,7 +50,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             // - SimpleBlock/Block: full block header (with lacing) from SRS,
             //   frame data from per-track MemoryStreams
             // - AttachedFileData: data from media file attachments
-            RebuildEbmlFromSrs(srsFs, outFs, frameData, attachments, reportProgress, ct);
+            RebuildEBMLFromSRS(srsFs, outFs, frameData, attachments, reportProgress, ct);
         }
         finally
         {
@@ -93,10 +93,10 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             }
 
             long dataStart = fs.Position;
-            bool unknownSize = IsEbmlSizeUnknown(dataSize, sizeLen);
+            bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
 
             // Container elements: step into
-            if (unknownSize || IsEbmlContainerElement(elemId))
+            if (unknownSize || IsEBMLContainerElement(elemId))
             {
                 continue;
             }
@@ -199,7 +199,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             }
 
             long dataStart = fs.Position;
-            bool unknownSize = IsEbmlSizeUnknown(dataSize, sizeLen);
+            bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
 
             // SimpleBlock (0xA3) or Block (0xA1): extract frame data
             if (elemId is 0xA3 or 0xA1)
@@ -371,7 +371,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             }
 
             // Container elements or unknown sizes: step into
-            if (unknownSize || IsEbmlContainerElement(elemId))
+            if (unknownSize || IsEBMLContainerElement(elemId))
             {
                 if (!unknownSize)
                 {
@@ -412,7 +412,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
     /// then lacing + frame data from per-track MemoryStreams collected from the media file.
     /// AttachedFileData: data from media file attachments (stripped from SRS).
     /// </summary>
-    private static void RebuildEbmlFromSrs(
+    private static void RebuildEBMLFromSRS(
         Stream srsFs, Stream outFs,
         Dictionary<uint, MemoryStream> frameData,
         Queue<(string Name, byte[] Data)> attachments,
@@ -438,7 +438,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             }
 
             long dataStart = srsFs.Position;
-            bool unknownSize = IsEbmlSizeUnknown(dataSize, sizeLen);
+            bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
             int headerSize = idLen + sizeLen;
 
             // Skip ReSample container and SRS child elements
@@ -459,7 +459,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             outFs.Write(rawHeader);
 
             // Container elements: step into
-            if (IsEbmlContainerElement(elemId))
+            if (IsEBMLContainerElement(elemId))
             {
                 continue;
             }
@@ -510,7 +510,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                         {
                             srsFs.Position = probePos;
                             if (EBMLReader.TryReadId(srsFs, out ulong probeId, out _)
-                                && IsKnownMkvElementId(probeId))
+                                && IsKnownMKVElementId(probeId))
                             {
                                 srsHasLacing = false;
                             }
@@ -592,10 +592,10 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
     #region EBML Utilities
 
-    private static bool IsEbmlSizeUnknown(ulong value, int length)
+    private static bool IsEBMLSizeUnknown(ulong value, int length)
         => value == (1UL << (7 * length)) - 1;
 
-    private static bool IsEbmlContainerElement(ulong id) => id is
+    private static bool IsEBMLContainerElement(ulong id) => id is
         0x18538067 or // Segment
         0x1F43B675 or // Cluster
         0x1654AE6B or // Tracks
@@ -612,7 +612,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
     /// Used to probe whether the SRS includes lacing bytes after the base block header:
     /// if the bytes parse as a known element ID, the SRS has no lacing (pyrescene format).
     /// </summary>
-    private static bool IsKnownMkvElementId(ulong id) => id is
+    private static bool IsKnownMKVElementId(ulong id) => id is
         0x1A45DFA3 or // EBML
         0x18538067 or // Segment
         0x1F43B675 or // Cluster

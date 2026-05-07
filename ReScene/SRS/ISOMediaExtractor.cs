@@ -146,7 +146,7 @@ public static class ISOMediaExtractor
     /// <returns>
     /// True if the file extension indicates an ISO image.
     /// </returns>
-    public static bool IsIsoFile(string filePath)
+    public static bool IsISOFile(string filePath)
     {
         string ext = Path.GetExtension(filePath);
         return ext.Equals(".iso", StringComparison.OrdinalIgnoreCase)

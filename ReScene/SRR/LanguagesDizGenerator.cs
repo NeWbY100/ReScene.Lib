@@ -46,7 +46,7 @@ internal static class LanguagesDizGenerator
             return new Result(null, [], warnings);
         }
 
-        using RARArchive archive = RARArchive.Open(rarVolumePaths);
+        using var archive = RARArchive.Open(rarVolumePaths);
 
         var idxEntries = archive.Files
             .Where(e => e.FileName.EndsWith(".idx", StringComparison.OrdinalIgnoreCase))

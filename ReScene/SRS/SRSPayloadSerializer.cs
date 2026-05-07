@@ -12,7 +12,7 @@ internal static class SRSPayloadSerializer
     /// Serializes the SRSF (file data) payload - format matches pyrescene exactly.
     /// Layout: flags(2) + appNameLen(2) + appName + fileNameLen(2) + fileName + sampleSize(8) + crc32(4)
     /// </summary>
-    public static byte[] SerializeSrsf(string samplePath, long sampleSize, uint sampleCrc32,
+    public static byte[] SerializeSrsf(string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
         byte[] appNameBytes = Encoding.UTF8.GetBytes(options.AppName);
@@ -39,7 +39,7 @@ internal static class SRSPayloadSerializer
         BinaryPrimitives.WriteUInt64LittleEndian(buffer.AsSpan(pos), (ulong)sampleSize);
         pos += 8;
 
-        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(pos), sampleCrc32);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(pos), sampleCRC32);
 
         return buffer;
     }

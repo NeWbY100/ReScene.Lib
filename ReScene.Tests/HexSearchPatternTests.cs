@@ -10,28 +10,28 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Hex_NullInput_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse(null!, asHex: true);
+        var result = HexSearchPattern.TryParse(null!, asHex: true);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Hex_EmptyInput_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse(string.Empty, asHex: true);
+        var result = HexSearchPattern.TryParse(string.Empty, asHex: true);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Hex_WhitespaceInput_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("   ", asHex: true);
+        var result = HexSearchPattern.TryParse("   ", asHex: true);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Hex_ValidTwoBytes_ParsesCorrectly()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("5261", asHex: true);
+        var result = HexSearchPattern.TryParse("5261", asHex: true);
         Assert.NotNull(result);
         Assert.Equal(2, result!.Bytes.Length);
         Assert.Equal(0x52, result.Bytes[0]);
@@ -42,7 +42,7 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Hex_WithSpaces_ParsesCorrectly()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("52 61", asHex: true);
+        var result = HexSearchPattern.TryParse("52 61", asHex: true);
         Assert.NotNull(result);
         Assert.Equal(2, result!.Bytes.Length);
         Assert.Equal(0x52, result.Bytes[0]);
@@ -52,7 +52,7 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Hex_WithDashes_ParsesCorrectly()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("52-61", asHex: true);
+        var result = HexSearchPattern.TryParse("52-61", asHex: true);
         Assert.NotNull(result);
         Assert.Equal(2, result!.Bytes.Length);
         Assert.Equal(0x52, result.Bytes[0]);
@@ -62,21 +62,21 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Hex_OddLength_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("5", asHex: true);
+        var result = HexSearchPattern.TryParse("5", asHex: true);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Hex_NonHexChars_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("GZ", asHex: true);
+        var result = HexSearchPattern.TryParse("GZ", asHex: true);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Hex_DisplayTextIsTrimmedInput()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("  52 61  ", asHex: true);
+        var result = HexSearchPattern.TryParse("  52 61  ", asHex: true);
         Assert.NotNull(result);
         Assert.Equal("52 61", result!.DisplayText);
     }
@@ -88,28 +88,28 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Ascii_NullInput_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse(null!, asHex: false);
+        var result = HexSearchPattern.TryParse(null!, asHex: false);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Ascii_EmptyInput_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse(string.Empty, asHex: false);
+        var result = HexSearchPattern.TryParse(string.Empty, asHex: false);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Ascii_WhitespaceInput_ReturnsNull()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("   ", asHex: false);
+        var result = HexSearchPattern.TryParse("   ", asHex: false);
         Assert.Null(result);
     }
 
     [Fact]
     public void TryParse_Ascii_RarBang_ParsesCorrectUtf8Bytes()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("Rar!", asHex: false);
+        var result = HexSearchPattern.TryParse("Rar!", asHex: false);
         Assert.NotNull(result);
 
         byte[] expected = Encoding.UTF8.GetBytes("Rar!");
@@ -120,7 +120,7 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Ascii_DisplayTextIsPreserved()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("Rar!", asHex: false);
+        var result = HexSearchPattern.TryParse("Rar!", asHex: false);
         Assert.NotNull(result);
         Assert.Equal("Rar!", result!.DisplayText);
     }
@@ -128,7 +128,7 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Ascii_IsHexIsFalse()
     {
-        HexSearchPattern? result = HexSearchPattern.TryParse("hello", asHex: false);
+        var result = HexSearchPattern.TryParse("hello", asHex: false);
         Assert.NotNull(result);
         Assert.False(result!.IsHex);
     }

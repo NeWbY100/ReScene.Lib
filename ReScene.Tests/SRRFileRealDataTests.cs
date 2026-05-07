@@ -296,7 +296,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_StoreSplitFolder_HasOneStoredSfv()
+    public void Load_StoreSplitFolder_HasOneStoredSFV()
     {
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr"));
 
@@ -500,7 +500,7 @@ public class SRRFileRealDataTests : IDisposable
     #region incomplete_srr
 
     [Fact]
-    public void Load_IncompleteSrr_LoadsWithoutThrowing()
+    public void Load_IncompleteSRR_LoadsWithoutThrowing()
     {
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
@@ -509,7 +509,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_IncompleteSrr_ParsesAvailableRarFiles()
+    public void Load_IncompleteSRR_ParsesAvailableRarFiles()
     {
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
@@ -520,7 +520,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_IncompleteSrr_ParsesAvailableStoredFiles()
+    public void Load_IncompleteSRR_ParsesAvailableStoredFiles()
     {
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
@@ -531,7 +531,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_IncompleteSrr_ParsesAvailableArchivedFiles()
+    public void Load_IncompleteSRR_ParsesAvailableArchivedFiles()
     {
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
@@ -541,7 +541,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_IncompleteSrr_HasCorrectAppName()
+    public void Load_IncompleteSRR_HasCorrectAppName()
     {
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
@@ -611,15 +611,15 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_HashCapitals_BothHaveSameCrcMismatchCount()
+    public void Load_HashCapitals_BothHaveSameCRCMismatchCount()
     {
         var srrLower = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr"));
         var srrCaps = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
 
-        Assert.Equal(srrLower.HeaderCrcMismatches, srrCaps.HeaderCrcMismatches);
-        Assert.Equal(25, srrLower.HeaderCrcMismatches);
+        Assert.Equal(srrLower.HeaderCRCMismatches, srrCaps.HeaderCRCMismatches);
+        Assert.Equal(25, srrLower.HeaderCRCMismatches);
     }
 
     [Fact]
@@ -702,7 +702,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void Load_CleanupScript_007ViewToAKill_HasTwoArchivedAviFiles()
+    public void Load_CleanupScript_007ViewToAKill_HasTwoArchivedAVIFiles()
     {
         var srr = SRRFile.Load(TestFile("cleanup_script",
             "007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr"));
@@ -817,7 +817,7 @@ public class SRRFileRealDataTests : IDisposable
     [InlineData("no_files_stored/Burial.Ground.The.Nights.of.Terror.1981.DVDRip.XviD-spawny.srr")]
     [InlineData("incomplete_srr/Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr")]
     [InlineData("hash_capitals/Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr")]
-    public void Load_AllSrrFiles_HaveNonNullHeader(string relativePath)
+    public void Load_AllSRRFiles_HaveNonNullHeader(string relativePath)
     {
         var srr = SRRFile.Load(TestFile(relativePath.Split('/')));
 
@@ -834,7 +834,7 @@ public class SRRFileRealDataTests : IDisposable
     [InlineData("no_files_stored/Burial.Ground.The.Nights.of.Terror.1981.DVDRip.XviD-spawny.srr")]
     [InlineData("incomplete_srr/Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr")]
     [InlineData("hash_capitals/Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr")]
-    public void Load_AllSrrFiles_HaveAppName(string relativePath)
+    public void Load_AllSRRFiles_HaveAppName(string relativePath)
     {
         var srr = SRRFile.Load(TestFile(relativePath.Split('/')));
 
@@ -917,7 +917,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void ExtractStoredFile_SfvFromSplitFolder_ExtractsCorrectContent()
+    public void ExtractStoredFile_SFVFromSplitFolder_ExtractsCorrectContent()
     {
         string srrPath = TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr");
         var srr = SRRFile.Load(srrPath);
@@ -932,7 +932,7 @@ public class SRRFileRealDataTests : IDisposable
     }
 
     [Fact]
-    public void ExtractStoredFile_ExtractedSrrCanBeReloaded()
+    public void ExtractStoredFile_ExtractedSRRCanBeReloaded()
     {
         string srrPath = TestFile("store_little", "store_little_srrfile_with_path.srr");
         var srr = SRRFile.Load(srrPath);

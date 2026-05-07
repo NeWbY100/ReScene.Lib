@@ -110,10 +110,10 @@ public class SRSRebuilderTests : IDisposable
     #region AVI Round-Trip Tests
 
     [Fact]
-    public async Task Rebuild_AviSample_RoundTrip_CrcMatches()
+    public async Task Rebuild_AVISample_RoundTrip_CRCMatches()
     {
         // Build a synthetic AVI "sample"
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
 
         // Also build a synthetic "full movie" that contains the same data
         // For testing, the sample IS the media file (the signature will match)
@@ -131,14 +131,14 @@ public class SRSRebuilderTests : IDisposable
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
 
     [Fact]
-    public async Task Rebuild_AviSample_OutputFileMatchesOriginal()
+    public async Task Rebuild_AVISample_OutputFileMatchesOriginal()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
         string mediaPath = samplePath;
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -161,9 +161,9 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_AviSample_WithMultipleTracks_RoundTrip()
+    public async Task Rebuild_AVISample_WithMultipleTracks_RoundTrip()
     {
-        string samplePath = BuildSyntheticAviMultiTrack();
+        string samplePath = BuildSyntheticAVIMultiTrack();
 
         string srsPath = Path.Combine(_tempDir, "test_multi.srs");
         var writer = new SRSWriter();
@@ -177,7 +177,7 @@ public class SRSRebuilderTests : IDisposable
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
         // Verify file content matches byte-for-byte
@@ -192,7 +192,7 @@ public class SRSRebuilderTests : IDisposable
     #region Stream Round-Trip Tests
 
     [Fact]
-    public async Task Rebuild_StreamSample_RoundTrip_CrcMatches()
+    public async Task Rebuild_StreamSample_RoundTrip_CRCMatches()
     {
         string samplePath = BuildSyntheticStream();
         string mediaPath = samplePath;
@@ -221,9 +221,9 @@ public class SRSRebuilderTests : IDisposable
     #region MKV Round-Trip Tests
 
     [Fact]
-    public async Task Rebuild_MkvSample_RoundTrip_CrcMatches()
+    public async Task Rebuild_MKVSample_RoundTrip_CRCMatches()
     {
-        string samplePath = BuildSyntheticMkv();
+        string samplePath = BuildSyntheticMKV();
         string mediaPath = samplePath;
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -237,13 +237,13 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithAttachments_RoundTrip_CrcMatches()
+    public async Task Rebuild_MKVWithAttachments_RoundTrip_CRCMatches()
     {
-        string samplePath = BuildSyntheticMkvWithAttachments();
+        string samplePath = BuildSyntheticMKVWithAttachments();
         string mediaPath = samplePath;
 
         string srsPath = Path.Combine(_tempDir, "test_att.srs");
@@ -257,7 +257,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
         byte[] originalBytes = File.ReadAllBytes(samplePath);
@@ -267,12 +267,12 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvFromLargerMediaFile_CrcMatches()
+    public async Task Rebuild_MKVFromLargerMediaFile_CRCMatches()
     {
         // Simulate the real scenario: SRS is from a small sample,
         // media file is a larger "movie" that contains the same data
-        string samplePath = BuildSyntheticMkv();
-        string mediaPath = BuildSyntheticMovieMkv(samplePath);
+        string samplePath = BuildSyntheticMKV();
+        string mediaPath = BuildSyntheticMovieMKV(samplePath);
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
@@ -285,7 +285,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
 
         byte[] originalBytes = File.ReadAllBytes(samplePath);
@@ -295,12 +295,12 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvFromRealisticMediaFile_CrcMatches()
+    public async Task Rebuild_MKVFromRealisticMediaFile_CRCMatches()
     {
         // Simulates a real MKV movie: Segment with unknown size,
         // SeekHead, Void, Info, Tracks, many clusters, Cues at end
-        string samplePath = BuildSyntheticMkv();
-        string mediaPath = BuildRealisticMovieMkv();
+        string samplePath = BuildSyntheticMKV();
+        string mediaPath = BuildRealisticMovieMKV();
 
         string srsPath = Path.Combine(_tempDir, "test_realistic.srs");
         var writer = new SRSWriter();
@@ -313,7 +313,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
 
@@ -322,9 +322,9 @@ public class SRSRebuilderTests : IDisposable
     #region MP4 Round-Trip Tests
 
     [Fact]
-    public async Task Rebuild_Mp4Sample_RoundTrip_CrcMatches()
+    public async Task Rebuild_MP4Sample_RoundTrip_CRCMatches()
     {
-        string samplePath = BuildSyntheticMp4();
+        string samplePath = BuildSyntheticMP4();
         string mediaPath = samplePath;
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -337,7 +337,7 @@ public class SRSRebuilderTests : IDisposable
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
     }
 
     #endregion
@@ -345,7 +345,7 @@ public class SRSRebuilderTests : IDisposable
     #region FLAC Round-Trip Tests
 
     [Fact]
-    public async Task Rebuild_FlacSample_RoundTrip_CrcMatches()
+    public async Task Rebuild_FlacSample_RoundTrip_CRCMatches()
     {
         string samplePath = BuildSyntheticFlac();
         string mediaPath = samplePath;
@@ -360,7 +360,7 @@ public class SRSRebuilderTests : IDisposable
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
     }
 
     #endregion
@@ -368,9 +368,9 @@ public class SRSRebuilderTests : IDisposable
     #region MP3 Round-Trip Tests
 
     [Fact]
-    public async Task Rebuild_Mp3Sample_RoundTrip_CrcMatches()
+    public async Task Rebuild_MP3Sample_RoundTrip_CRCMatches()
     {
-        string samplePath = BuildSyntheticMp3();
+        string samplePath = BuildSyntheticMP3();
         string mediaPath = samplePath;
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
@@ -383,7 +383,7 @@ public class SRSRebuilderTests : IDisposable
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
         Assert.True(result.Success, result.ErrorMessage);
-        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
     }
 
     #endregion
@@ -391,7 +391,7 @@ public class SRSRebuilderTests : IDisposable
     #region CRC Verification Tests
 
     [Fact]
-    public async Task Rebuild_WithCorruptedMedia_CrcMismatch()
+    public async Task Rebuild_WithCorruptedMedia_CRCMismatch()
     {
         string samplePath = BuildSyntheticStream();
 
@@ -427,7 +427,7 @@ public class SRSRebuilderTests : IDisposable
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, corruptMediaPath, outputPath);
 
         Assert.False(result.CRCMatch);
-        Assert.NotEqual(result.ExpectedCrc, result.ActualCrc);
+        Assert.NotEqual(result.ExpectedCRC, result.ActualCRC);
     }
 
     #endregion
@@ -435,7 +435,7 @@ public class SRSRebuilderTests : IDisposable
     #region Error Handling Tests
 
     [Fact]
-    public async Task Rebuild_MissingSrsFile_ReturnsError()
+    public async Task Rebuild_MissingSRSFile_ReturnsError()
     {
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(
@@ -518,9 +518,9 @@ public class SRSRebuilderTests : IDisposable
     #region MKV Lacing Tests
 
     [Fact]
-    public async Task Rebuild_MkvWithXiphLacing_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithXiphLacing_RoundTrip_ByteMatch()
     {
-        string samplePath = BuildSyntheticMkvWithXiphLacing();
+        string samplePath = BuildSyntheticMKVWithXiphLacing();
 
         string srsPath = Path.Combine(_tempDir, "test_xiph.srs");
         var writer = new SRSWriter();
@@ -533,7 +533,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -542,9 +542,9 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithFixedSizeLacing_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithFixedSizeLacing_RoundTrip_ByteMatch()
     {
-        string samplePath = BuildSyntheticMkvWithFixedLacing();
+        string samplePath = BuildSyntheticMKVWithFixedLacing();
 
         string srsPath = Path.Combine(_tempDir, "test_fixed.srs");
         var writer = new SRSWriter();
@@ -557,7 +557,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -566,9 +566,9 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithEbmlLacing_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithEBMLLacing_RoundTrip_ByteMatch()
     {
-        string samplePath = BuildSyntheticMkvWithEbmlLacing();
+        string samplePath = BuildSyntheticMKVWithEBMLLacing();
 
         string srsPath = Path.Combine(_tempDir, "test_ebml.srs");
         var writer = new SRSWriter();
@@ -581,7 +581,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -590,10 +590,10 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithMixedLacing_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithMixedLacing_RoundTrip_ByteMatch()
     {
         // Mix of non-laced video blocks and Xiph-laced audio blocks
-        string samplePath = BuildSyntheticMkvWithMixedLacing();
+        string samplePath = BuildSyntheticMKVWithMixedLacing();
 
         string srsPath = Path.Combine(_tempDir, "test_mixed.srs");
         var writer = new SRSWriter();
@@ -607,7 +607,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -616,10 +616,10 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithXiphLacing_FromLargerMediaFile()
+    public async Task Rebuild_MKVWithXiphLacing_FromLargerMediaFile()
     {
-        string samplePath = BuildSyntheticMkvWithXiphLacing();
-        string mediaPath = BuildLargerMkvWithXiphLacing();
+        string samplePath = BuildSyntheticMKVWithXiphLacing();
+        string mediaPath = BuildLargerMKVWithXiphLacing();
 
         string srsPath = Path.Combine(_tempDir, "test_xiph_media.srs");
         var writer = new SRSWriter();
@@ -632,7 +632,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
 
@@ -641,9 +641,9 @@ public class SRSRebuilderTests : IDisposable
     #region MKV Multi-Cluster and Many-Block Tests
 
     [Fact]
-    public async Task Rebuild_MkvWithMultipleClusters_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithMultipleClusters_RoundTrip_ByteMatch()
     {
-        string samplePath = BuildSyntheticMkvMultiCluster();
+        string samplePath = BuildSyntheticMKVMultiCluster();
 
         string srsPath = Path.Combine(_tempDir, "test_multi_cluster.srs");
         var writer = new SRSWriter();
@@ -656,7 +656,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -665,10 +665,10 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithManyBlocks_RoundTrip_CrcMatches()
+    public async Task Rebuild_MKVWithManyBlocks_RoundTrip_CRCMatches()
     {
         // 50 blocks across 5 clusters — stress tests the SRS walk loop
-        string samplePath = BuildSyntheticMkvManyBlocks(clusterCount: 5, blocksPerCluster: 10);
+        string samplePath = BuildSyntheticMKVManyBlocks(clusterCount: 5, blocksPerCluster: 10);
 
         string srsPath = Path.Combine(_tempDir, "test_many.srs");
         var writer = new SRSWriter();
@@ -681,14 +681,14 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithTimestampElements_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithTimestampElements_RoundTrip_ByteMatch()
     {
-        string samplePath = BuildSyntheticMkvWithTimestamps();
+        string samplePath = BuildSyntheticMKVWithTimestamps();
 
         string srsPath = Path.Combine(_tempDir, "test_ts.srs");
         var writer = new SRSWriter();
@@ -701,7 +701,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -710,10 +710,10 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_MkvWithBlockGroup_RoundTrip_ByteMatch()
+    public async Task Rebuild_MKVWithBlockGroup_RoundTrip_ByteMatch()
     {
         // Uses Block (0xA1) inside BlockGroup (0xA0) instead of SimpleBlock
-        string samplePath = BuildSyntheticMkvWithBlockGroup();
+        string samplePath = BuildSyntheticMKVWithBlockGroup();
 
         string srsPath = Path.Combine(_tempDir, "test_bg.srs");
         var writer = new SRSWriter();
@@ -726,7 +726,7 @@ public class SRSRebuilderTests : IDisposable
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.True(result.CRCMatch,
-            $"CRC mismatch: expected 0x{result.ExpectedCrc:X8}, got 0x{result.ActualCrc:X8}");
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
 
         byte[] original = File.ReadAllBytes(samplePath);
         byte[] rebuilt = File.ReadAllBytes(outputPath);
@@ -739,9 +739,9 @@ public class SRSRebuilderTests : IDisposable
     #region Byte-for-Byte Verification Tests
 
     [Fact]
-    public async Task Rebuild_Mp4Sample_OutputFileMatchesOriginal()
+    public async Task Rebuild_MP4Sample_OutputFileMatchesOriginal()
     {
-        string samplePath = BuildSyntheticMp4();
+        string samplePath = BuildSyntheticMP4();
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
@@ -785,9 +785,9 @@ public class SRSRebuilderTests : IDisposable
     }
 
     [Fact]
-    public async Task Rebuild_Mp3Sample_OutputFileMatchesOriginal()
+    public async Task Rebuild_MP3Sample_OutputFileMatchesOriginal()
     {
-        string samplePath = BuildSyntheticMp3();
+        string samplePath = BuildSyntheticMP3();
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
@@ -835,9 +835,9 @@ public class SRSRebuilderTests : IDisposable
     #region Separate Media File Tests
 
     [Fact]
-    public async Task Rebuild_AviSample_FromSeparateMediaFile()
+    public async Task Rebuild_AVISample_FromSeparateMediaFile()
     {
-        string samplePath = BuildSyntheticAvi();
+        string samplePath = BuildSyntheticAVI();
 
         string srsPath = Path.Combine(_tempDir, "test.srs");
         var writer = new SRSWriter();
@@ -859,7 +859,7 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds a minimal valid AVI file with video (00dc) and audio (01wb) tracks.
     /// </summary>
-    private string BuildSyntheticAvi()
+    private string BuildSyntheticAVI()
     {
         string path = Path.Combine(_tempDir, "test_sample.avi");
         using var ms = new MemoryStream();
@@ -918,7 +918,7 @@ public class SRSRebuilderTests : IDisposable
     /// Each chunk must be at least 256 bytes so the track signature fits
     /// within a single contiguous chunk (enabling raw-scan signature matching).
     /// </summary>
-    private string BuildSyntheticAviMultiTrack()
+    private string BuildSyntheticAVIMultiTrack()
     {
         string path = Path.Combine(_tempDir, "test_multi_sample.avi");
         using var ms = new MemoryStream();
@@ -981,13 +981,13 @@ public class SRSRebuilderTests : IDisposable
         return path;
     }
 
-    private string BuildSyntheticMkv()
+    private string BuildSyntheticMKV()
     {
         string path = Path.Combine(_tempDir, "test_sample.mkv");
         using var ms = new MemoryStream();
 
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(ms, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -997,30 +997,30 @@ public class SRSRebuilderTests : IDisposable
         simpleBlockPayload[0] = 0x81; // Track 1
         simpleBlockPayload[3] = 0x80; // Keyframe
         blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
 
         byte[] blockData2 = CreateTestData(256, seed: 99);
         byte[] simpleBlockPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
         simpleBlockPayload2[0] = 0x82; // Track 2
         simpleBlockPayload2[3] = 0x80;
         blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload2);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
 
-    private string BuildSyntheticMkvWithAttachments()
+    private string BuildSyntheticMKVWithAttachments()
     {
         string path = Path.Combine(_tempDir, "test_sample_att.mkv");
         using var ms = new MemoryStream();
 
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(ms, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
 
         var segContent = new MemoryStream();
 
@@ -1032,37 +1032,37 @@ public class SRSRebuilderTests : IDisposable
         simpleBlockPayload[0] = 0x81; // Track 1
         simpleBlockPayload[3] = 0x80; // Keyframe
         blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
 
         byte[] blockData2 = CreateTestData(256, seed: 99);
         byte[] simpleBlockPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
         simpleBlockPayload2[0] = 0x82; // Track 2
         simpleBlockPayload2[3] = 0x80;
         blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload2);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
 
         // Attachments container (0x1941A469) with two AttachedFile children
         var attachmentsContent = new MemoryStream();
 
         // First attachment: font.ttf (1024 bytes)
         var attachedFile1 = new MemoryStream();
-        WriteEbmlElement(attachedFile1, 0x466E, Encoding.UTF8.GetBytes("font.ttf"));
-        WriteEbmlElement(attachedFile1, 0x4660, Encoding.UTF8.GetBytes("font/sfnt"));
-        WriteEbmlElement(attachedFile1, 0x465C, CreateTestData(1024, seed: 77));
-        WriteEbmlElement(attachmentsContent, 0x61A7, attachedFile1.ToArray());
+        WriteEBMLElement(attachedFile1, 0x466E, Encoding.UTF8.GetBytes("font.ttf"));
+        WriteEBMLElement(attachedFile1, 0x4660, Encoding.UTF8.GetBytes("font/sfnt"));
+        WriteEBMLElement(attachedFile1, 0x465C, CreateTestData(1024, seed: 77));
+        WriteEBMLElement(attachmentsContent, 0x61A7, attachedFile1.ToArray());
 
         // Second attachment: subtitle.ass (512 bytes)
         var attachedFile2 = new MemoryStream();
-        WriteEbmlElement(attachedFile2, 0x466E, Encoding.UTF8.GetBytes("subtitle.ass"));
-        WriteEbmlElement(attachedFile2, 0x4660, Encoding.UTF8.GetBytes("text/x-ssa"));
-        WriteEbmlElement(attachedFile2, 0x465C, CreateTestData(512, seed: 88));
-        WriteEbmlElement(attachmentsContent, 0x61A7, attachedFile2.ToArray());
+        WriteEBMLElement(attachedFile2, 0x466E, Encoding.UTF8.GetBytes("subtitle.ass"));
+        WriteEBMLElement(attachedFile2, 0x4660, Encoding.UTF8.GetBytes("text/x-ssa"));
+        WriteEBMLElement(attachedFile2, 0x465C, CreateTestData(512, seed: 88));
+        WriteEBMLElement(attachmentsContent, 0x61A7, attachedFile2.ToArray());
 
-        WriteEbmlElement(segContent, 0x1941A469, attachmentsContent.ToArray());
+        WriteEBMLElement(segContent, 0x1941A469, attachmentsContent.ToArray());
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1073,100 +1073,100 @@ public class SRSRebuilderTests : IDisposable
     /// the same block data that appears in the sample. This simulates
     /// a real media file where the sample data is embedded deep in the file.
     /// </summary>
-    private string BuildSyntheticMovieMkv(string samplePath)
+    private string BuildSyntheticMovieMKV(string samplePath)
     {
         string path = Path.Combine(_tempDir, "test_movie.mkv");
         using var ms = new MemoryStream();
 
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(ms, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
 
         var segContent = new MemoryStream();
 
         // Add Tracks metadata element (0x1654AE6B) like a real MKV
         var tracksContent = new MemoryStream();
         var track1Entry = new MemoryStream();
-        WriteEbmlElement(track1Entry, 0xD7, [1]); // TrackNumber = 1
-        WriteEbmlElement(track1Entry, 0x73C5, [1]); // TrackUID
-        WriteEbmlElement(track1Entry, 0x83, [1]); // TrackType = video
-        WriteEbmlElement(track1Entry, 0x86, Encoding.UTF8.GetBytes("V_MS/VFW/FOURCC")); // CodecID
-        WriteEbmlElement(tracksContent, 0xAE, track1Entry.ToArray());
+        WriteEBMLElement(track1Entry, 0xD7, [1]); // TrackNumber = 1
+        WriteEBMLElement(track1Entry, 0x73C5, [1]); // TrackUID
+        WriteEBMLElement(track1Entry, 0x83, [1]); // TrackType = video
+        WriteEBMLElement(track1Entry, 0x86, Encoding.UTF8.GetBytes("V_MS/VFW/FOURCC")); // CodecID
+        WriteEBMLElement(tracksContent, 0xAE, track1Entry.ToArray());
         var track2Entry = new MemoryStream();
-        WriteEbmlElement(track2Entry, 0xD7, [2]); // TrackNumber = 2
-        WriteEbmlElement(track2Entry, 0x73C5, [2]); // TrackUID
-        WriteEbmlElement(track2Entry, 0x83, [2]); // TrackType = audio
-        WriteEbmlElement(track2Entry, 0x86, Encoding.UTF8.GetBytes("A_AC3")); // CodecID
-        WriteEbmlElement(tracksContent, 0xAE, track2Entry.ToArray());
-        WriteEbmlElement(segContent, 0x1654AE6B, tracksContent.ToArray());
+        WriteEBMLElement(track2Entry, 0xD7, [2]); // TrackNumber = 2
+        WriteEBMLElement(track2Entry, 0x73C5, [2]); // TrackUID
+        WriteEBMLElement(track2Entry, 0x83, [2]); // TrackType = audio
+        WriteEBMLElement(track2Entry, 0x86, Encoding.UTF8.GetBytes("A_AC3")); // CodecID
+        WriteEBMLElement(tracksContent, 0xAE, track2Entry.ToArray());
+        WriteEBMLElement(segContent, 0x1654AE6B, tracksContent.ToArray());
 
         // Pre-sample clusters with different data (10 clusters)
         for (int c = 0; c < 10; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)c]); // Timecode
+            WriteEBMLElement(cluster, 0xE7, [(byte)c]); // Timecode
 
             byte[] preData1 = CreateTestData(512, seed: 200 + c);
             byte[] prePayload1 = new byte[1 + 2 + 1 + preData1.Length];
             prePayload1[0] = 0x81; // Track 1
             prePayload1[3] = 0x80;
             preData1.CopyTo(prePayload1, 4);
-            WriteEbmlElement(cluster, 0xA3, prePayload1);
+            WriteEBMLElement(cluster, 0xA3, prePayload1);
 
             byte[] preData2 = CreateTestData(256, seed: 300 + c);
             byte[] prePayload2 = new byte[1 + 2 + 1 + preData2.Length];
             prePayload2[0] = 0x82; // Track 2
             prePayload2[3] = 0x80;
             preData2.CopyTo(prePayload2, 4);
-            WriteEbmlElement(cluster, 0xA3, prePayload2);
+            WriteEBMLElement(cluster, 0xA3, prePayload2);
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
         // The cluster containing the SAME data as the sample
-        // (uses the same seeds as BuildSyntheticMkv)
+        // (uses the same seeds as BuildSyntheticMKV)
         var sampleCluster = new MemoryStream();
-        WriteEbmlElement(sampleCluster, 0xE7, [10]); // Timecode
+        WriteEBMLElement(sampleCluster, 0xE7, [10]); // Timecode
 
         byte[] blockData = CreateTestData(512); // seed: 42 — matches sample
         byte[] simpleBlockPayload = new byte[1 + 2 + 1 + blockData.Length];
         simpleBlockPayload[0] = 0x81; // Track 1
         simpleBlockPayload[3] = 0x80;
         blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEbmlElement(sampleCluster, 0xA3, simpleBlockPayload);
+        WriteEBMLElement(sampleCluster, 0xA3, simpleBlockPayload);
 
         byte[] blockData2 = CreateTestData(256, seed: 99); // matches sample
         byte[] simpleBlockPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
         simpleBlockPayload2[0] = 0x82; // Track 2
         simpleBlockPayload2[3] = 0x80;
         blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEbmlElement(sampleCluster, 0xA3, simpleBlockPayload2);
+        WriteEBMLElement(sampleCluster, 0xA3, simpleBlockPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, sampleCluster.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, sampleCluster.ToArray());
 
         // Post-sample clusters with different data (5 clusters)
         for (int c = 0; c < 5; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)(11 + c)]); // Timecode
+            WriteEBMLElement(cluster, 0xE7, [(byte)(11 + c)]); // Timecode
 
             byte[] postData1 = CreateTestData(512, seed: 400 + c);
             byte[] postPayload1 = new byte[1 + 2 + 1 + postData1.Length];
             postPayload1[0] = 0x81;
             postPayload1[3] = 0x80;
             postData1.CopyTo(postPayload1, 4);
-            WriteEbmlElement(cluster, 0xA3, postPayload1);
+            WriteEBMLElement(cluster, 0xA3, postPayload1);
 
             byte[] postData2 = CreateTestData(256, seed: 500 + c);
             byte[] postPayload2 = new byte[1 + 2 + 1 + postData2.Length];
             postPayload2[0] = 0x82;
             postPayload2[3] = 0x80;
             postData2.CopyTo(postPayload2, 4);
-            WriteEbmlElement(cluster, 0xA3, postPayload2);
+            WriteEBMLElement(cluster, 0xA3, postPayload2);
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1177,108 +1177,108 @@ public class SRSRebuilderTests : IDisposable
     /// SeekHead, Void padding, Info, Tracks, many clusters, and Cues.
     /// The sample data (seed 42 / seed 99) is embedded in a middle cluster.
     /// </summary>
-    private string BuildRealisticMovieMkv()
+    private string BuildRealisticMovieMKV()
     {
         string path = Path.Combine(_tempDir, "test_realistic_movie.mkv");
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
 
         // EBML Header
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(fs, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(fs, 0x1A45DFA3, ebmlContent);
 
         // Segment with unknown size (0xFF = 1-byte unknown VINT)
-        byte[] segId = EncodeEbmlId(0x18538067);
+        byte[] segId = EncodeEBMLId(0x18538067);
         fs.Write(segId);
         fs.WriteByte(0xFF); // Unknown size (1 byte, all data bits set)
 
         // SeekHead (0x114D9B74) — 64 bytes of dummy data
-        WriteEbmlElement(fs, 0x114D9B74, new byte[64]);
+        WriteEBMLElement(fs, 0x114D9B74, new byte[64]);
 
         // Void element (0xEC) — 256 bytes of padding
-        WriteEbmlElement(fs, 0xEC, new byte[256]);
+        WriteEBMLElement(fs, 0xEC, new byte[256]);
 
         // Info (0x1549A966) — 32 bytes of dummy data
-        WriteEbmlElement(fs, 0x1549A966, new byte[32]);
+        WriteEBMLElement(fs, 0x1549A966, new byte[32]);
 
         // Tracks (0x1654AE6B)
         var tracksContent = new MemoryStream();
         var track1Entry = new MemoryStream();
-        WriteEbmlElement(track1Entry, 0xD7, [1]); // TrackNumber
-        WriteEbmlElement(track1Entry, 0x73C5, [1]); // TrackUID
-        WriteEbmlElement(track1Entry, 0x83, [1]); // TrackType = video
-        WriteEbmlElement(track1Entry, 0x86, "V_MPEG4/ISO/AVC"u8.ToArray());
-        WriteEbmlElement(tracksContent, 0xAE, track1Entry.ToArray());
+        WriteEBMLElement(track1Entry, 0xD7, [1]); // TrackNumber
+        WriteEBMLElement(track1Entry, 0x73C5, [1]); // TrackUID
+        WriteEBMLElement(track1Entry, 0x83, [1]); // TrackType = video
+        WriteEBMLElement(track1Entry, 0x86, "V_MPEG4/ISO/AVC"u8.ToArray());
+        WriteEBMLElement(tracksContent, 0xAE, track1Entry.ToArray());
         var track2Entry = new MemoryStream();
-        WriteEbmlElement(track2Entry, 0xD7, [2]); // TrackNumber
-        WriteEbmlElement(track2Entry, 0x73C5, [2]); // TrackUID
-        WriteEbmlElement(track2Entry, 0x83, [2]); // TrackType = audio
-        WriteEbmlElement(track2Entry, 0x86, "A_AC3"u8.ToArray());
-        WriteEbmlElement(tracksContent, 0xAE, track2Entry.ToArray());
-        WriteEbmlElement(fs, 0x1654AE6B, tracksContent.ToArray());
+        WriteEBMLElement(track2Entry, 0xD7, [2]); // TrackNumber
+        WriteEBMLElement(track2Entry, 0x73C5, [2]); // TrackUID
+        WriteEBMLElement(track2Entry, 0x83, [2]); // TrackType = audio
+        WriteEBMLElement(track2Entry, 0x86, "A_AC3"u8.ToArray());
+        WriteEBMLElement(tracksContent, 0xAE, track2Entry.ToArray());
+        WriteEBMLElement(fs, 0x1654AE6B, tracksContent.ToArray());
 
         // 50 pre-sample clusters with different data
         for (int c = 0; c < 50; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)(c & 0xFF)]); // Timecode
+            WriteEBMLElement(cluster, 0xE7, [(byte)(c & 0xFF)]); // Timecode
 
             byte[] preData1 = CreateTestData(512, seed: 1000 + c);
             byte[] prePayload1 = new byte[1 + 2 + 1 + preData1.Length];
             prePayload1[0] = 0x81; // Track 1
             prePayload1[3] = 0x80; // Keyframe
             preData1.CopyTo(prePayload1, 4);
-            WriteEbmlElement(cluster, 0xA3, prePayload1);
+            WriteEBMLElement(cluster, 0xA3, prePayload1);
 
             byte[] preData2 = CreateTestData(256, seed: 2000 + c);
             byte[] prePayload2 = new byte[1 + 2 + 1 + preData2.Length];
             prePayload2[0] = 0x82; // Track 2
             prePayload2[3] = 0x80;
             preData2.CopyTo(prePayload2, 4);
-            WriteEbmlElement(cluster, 0xA3, prePayload2);
+            WriteEBMLElement(cluster, 0xA3, prePayload2);
 
-            WriteEbmlElement(fs, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(fs, 0x1F43B675, cluster.ToArray());
         }
 
-        // The cluster with sample data (same seeds as BuildSyntheticMkv)
+        // The cluster with sample data (same seeds as BuildSyntheticMKV)
         var sampleCluster = new MemoryStream();
-        WriteEbmlElement(sampleCluster, 0xE7, [50]); // Timecode
+        WriteEBMLElement(sampleCluster, 0xE7, [50]); // Timecode
         byte[] blockData = CreateTestData(512); // seed: 42
         byte[] sbPayload = new byte[1 + 2 + 1 + blockData.Length];
         sbPayload[0] = 0x81;
         sbPayload[3] = 0x80;
         blockData.CopyTo(sbPayload, 4);
-        WriteEbmlElement(sampleCluster, 0xA3, sbPayload);
+        WriteEBMLElement(sampleCluster, 0xA3, sbPayload);
         byte[] blockData2 = CreateTestData(256, seed: 99);
         byte[] sbPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
         sbPayload2[0] = 0x82;
         sbPayload2[3] = 0x80;
         blockData2.CopyTo(sbPayload2, 4);
-        WriteEbmlElement(sampleCluster, 0xA3, sbPayload2);
-        WriteEbmlElement(fs, 0x1F43B675, sampleCluster.ToArray());
+        WriteEBMLElement(sampleCluster, 0xA3, sbPayload2);
+        WriteEBMLElement(fs, 0x1F43B675, sampleCluster.ToArray());
 
         // 20 post-sample clusters
         for (int c = 0; c < 20; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)((51 + c) & 0xFF)]);
+            WriteEBMLElement(cluster, 0xE7, [(byte)((51 + c) & 0xFF)]);
 
             byte[] postData1 = CreateTestData(512, seed: 3000 + c);
             byte[] postPayload1 = new byte[1 + 2 + 1 + postData1.Length];
             postPayload1[0] = 0x81;
             postPayload1[3] = 0x80;
             postData1.CopyTo(postPayload1, 4);
-            WriteEbmlElement(cluster, 0xA3, postPayload1);
+            WriteEBMLElement(cluster, 0xA3, postPayload1);
 
-            WriteEbmlElement(fs, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(fs, 0x1F43B675, cluster.ToArray());
         }
 
         // Cues (0x1C53BB6B) — 128 bytes of dummy data at the end
-        WriteEbmlElement(fs, 0x1C53BB6B, new byte[128]);
+        WriteEBMLElement(fs, 0x1C53BB6B, new byte[128]);
 
         return path;
     }
 
-    private string BuildSyntheticMp4()
+    private string BuildSyntheticMP4()
     {
         string path = Path.Combine(_tempDir, "test_sample.mp4");
         using var ms = new MemoryStream();
@@ -1319,7 +1319,7 @@ public class SRSRebuilderTests : IDisposable
         return path;
     }
 
-    private string BuildSyntheticMp3()
+    private string BuildSyntheticMP3()
     {
         string path = Path.Combine(_tempDir, "test_sample.mp3");
         using var ms = new MemoryStream();
@@ -1358,12 +1358,12 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds an MKV with a SimpleBlock using Xiph lacing (2 frames per block).
     /// </summary>
-    private string BuildSyntheticMkvWithXiphLacing()
+    private string BuildSyntheticMKVWithXiphLacing()
     {
         string path = Path.Combine(_tempDir, "test_xiph_lacing.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -1374,22 +1374,22 @@ public class SRSRebuilderTests : IDisposable
         videoPayload[0] = 0x81; // Track 1
         videoPayload[3] = 0x80; // Keyframe, no lacing
         videoData.CopyTo(videoPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, videoPayload);
+        WriteEBMLElement(clusterContent, 0xA3, videoPayload);
 
         // Track 2: Xiph-laced audio block with 2 frames
         byte[] frame1 = CreateTestData(128, seed: 61);
         byte[] frame2 = CreateTestData(200, seed: 62);
         byte[] lacedPayload = BuildXiphLacedBlock(trackNum: 2, [frame1, frame2]);
-        WriteEbmlElement(clusterContent, 0xA3, lacedPayload);
+        WriteEBMLElement(clusterContent, 0xA3, lacedPayload);
 
         // Track 2: second laced block so signature is at least 256 bytes
         byte[] frame3 = CreateTestData(128, seed: 63);
         byte[] frame4 = CreateTestData(150, seed: 64);
         byte[] lacedPayload2 = BuildXiphLacedBlock(trackNum: 2, [frame3, frame4]);
-        WriteEbmlElement(clusterContent, 0xA3, lacedPayload2);
+        WriteEBMLElement(clusterContent, 0xA3, lacedPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1398,12 +1398,12 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds an MKV with a SimpleBlock using fixed-size lacing (3 equal frames).
     /// </summary>
-    private string BuildSyntheticMkvWithFixedLacing()
+    private string BuildSyntheticMKVWithFixedLacing()
     {
         string path = Path.Combine(_tempDir, "test_fixed_lacing.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -1414,17 +1414,17 @@ public class SRSRebuilderTests : IDisposable
         videoPayload[0] = 0x81;
         videoPayload[3] = 0x80;
         videoData.CopyTo(videoPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, videoPayload);
+        WriteEBMLElement(clusterContent, 0xA3, videoPayload);
 
         // Track 2: fixed-size laced block with 3 frames of 100 bytes each
         byte[] f1 = CreateTestData(100, seed: 71);
         byte[] f2 = CreateTestData(100, seed: 72);
         byte[] f3 = CreateTestData(100, seed: 73);
         byte[] lacedPayload = BuildFixedLacedBlock(trackNum: 2, [f1, f2, f3]);
-        WriteEbmlElement(clusterContent, 0xA3, lacedPayload);
+        WriteEBMLElement(clusterContent, 0xA3, lacedPayload);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1433,12 +1433,12 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds an MKV with a SimpleBlock using EBML lacing (2 frames).
     /// </summary>
-    private string BuildSyntheticMkvWithEbmlLacing()
+    private string BuildSyntheticMKVWithEBMLLacing()
     {
         string path = Path.Combine(_tempDir, "test_ebml_lacing.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -1449,16 +1449,16 @@ public class SRSRebuilderTests : IDisposable
         videoPayload[0] = 0x81;
         videoPayload[3] = 0x80;
         videoData.CopyTo(videoPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, videoPayload);
+        WriteEBMLElement(clusterContent, 0xA3, videoPayload);
 
         // Track 2: EBML-laced block with 2 frames
         byte[] f1 = CreateTestData(150, seed: 81);
         byte[] f2 = CreateTestData(200, seed: 82);
-        byte[] lacedPayload = BuildEbmlLacedBlock(trackNum: 2, [f1, f2]);
-        WriteEbmlElement(clusterContent, 0xA3, lacedPayload);
+        byte[] lacedPayload = BuildEBMLLacedBlock(trackNum: 2, [f1, f2]);
+        WriteEBMLElement(clusterContent, 0xA3, lacedPayload);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1468,12 +1468,12 @@ public class SRSRebuilderTests : IDisposable
     /// Builds an MKV with non-laced video (Track 1) and Xiph-laced audio (Track 2).
     /// Multiple interleaved blocks ensure each track has >= 256 bytes for signatures.
     /// </summary>
-    private string BuildSyntheticMkvWithMixedLacing()
+    private string BuildSyntheticMKVWithMixedLacing()
     {
         string path = Path.Combine(_tempDir, "test_mixed_lacing.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -1484,12 +1484,12 @@ public class SRSRebuilderTests : IDisposable
         vp1[0] = 0x81;
         vp1[3] = 0x80;
         v1.CopyTo(vp1, 4);
-        WriteEbmlElement(clusterContent, 0xA3, vp1);
+        WriteEBMLElement(clusterContent, 0xA3, vp1);
 
         // Audio block 1 (Xiph-laced, track 2, 2 frames)
         byte[] a1f1 = CreateTestData(128, seed: 91);
         byte[] a1f2 = CreateTestData(160, seed: 92);
-        WriteEbmlElement(clusterContent, 0xA3,
+        WriteEBMLElement(clusterContent, 0xA3,
             BuildXiphLacedBlock(trackNum: 2, [a1f1, a1f2]));
 
         // Video block 2 (non-laced, track 1)
@@ -1498,17 +1498,17 @@ public class SRSRebuilderTests : IDisposable
         vp2[0] = 0x81;
         vp2[3] = 0x80;
         v2.CopyTo(vp2, 4);
-        WriteEbmlElement(clusterContent, 0xA3, vp2);
+        WriteEBMLElement(clusterContent, 0xA3, vp2);
 
         // Audio block 2 (Xiph-laced, track 2, 3 frames)
         byte[] a2f1 = CreateTestData(100, seed: 94);
         byte[] a2f2 = CreateTestData(100, seed: 95);
         byte[] a2f3 = CreateTestData(120, seed: 96);
-        WriteEbmlElement(clusterContent, 0xA3,
+        WriteEBMLElement(clusterContent, 0xA3,
             BuildXiphLacedBlock(trackNum: 2, [a2f1, a2f2, a2f3]));
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1518,12 +1518,12 @@ public class SRSRebuilderTests : IDisposable
     /// Builds a larger MKV with the same Xiph-laced data as the sample
     /// embedded in a middle cluster, surrounded by other clusters with different data.
     /// </summary>
-    private string BuildLargerMkvWithXiphLacing()
+    private string BuildLargerMKVWithXiphLacing()
     {
         string path = Path.Combine(_tempDir, "test_xiph_movie.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
 
@@ -1531,63 +1531,63 @@ public class SRSRebuilderTests : IDisposable
         for (int c = 0; c < 5; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)c]);
+            WriteEBMLElement(cluster, 0xE7, [(byte)c]);
 
             byte[] preVideo = CreateTestData(512, seed: 500 + c);
             byte[] prePl = new byte[1 + 2 + 1 + preVideo.Length];
             prePl[0] = 0x81;
             prePl[3] = 0x80;
             preVideo.CopyTo(prePl, 4);
-            WriteEbmlElement(cluster, 0xA3, prePl);
+            WriteEBMLElement(cluster, 0xA3, prePl);
 
             byte[] preF1 = CreateTestData(128, seed: 600 + c);
             byte[] preF2 = CreateTestData(200, seed: 700 + c);
-            WriteEbmlElement(cluster, 0xA3,
+            WriteEBMLElement(cluster, 0xA3,
                 BuildXiphLacedBlock(trackNum: 2, [preF1, preF2]));
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
-        // The sample cluster — uses same seeds as BuildSyntheticMkvWithXiphLacing
+        // The sample cluster — uses same seeds as BuildSyntheticMKVWithXiphLacing
         var sampleCluster = new MemoryStream();
-        WriteEbmlElement(sampleCluster, 0xE7, [5]);
+        WriteEBMLElement(sampleCluster, 0xE7, [5]);
 
         byte[] videoData = CreateTestData(512, seed: 60);
         byte[] videoPayload = new byte[1 + 2 + 1 + videoData.Length];
         videoPayload[0] = 0x81;
         videoPayload[3] = 0x80;
         videoData.CopyTo(videoPayload, 4);
-        WriteEbmlElement(sampleCluster, 0xA3, videoPayload);
+        WriteEBMLElement(sampleCluster, 0xA3, videoPayload);
 
         byte[] frame1 = CreateTestData(128, seed: 61);
         byte[] frame2 = CreateTestData(200, seed: 62);
-        WriteEbmlElement(sampleCluster, 0xA3,
+        WriteEBMLElement(sampleCluster, 0xA3,
             BuildXiphLacedBlock(trackNum: 2, [frame1, frame2]));
 
         byte[] frame3 = CreateTestData(128, seed: 63);
         byte[] frame4 = CreateTestData(150, seed: 64);
-        WriteEbmlElement(sampleCluster, 0xA3,
+        WriteEBMLElement(sampleCluster, 0xA3,
             BuildXiphLacedBlock(trackNum: 2, [frame3, frame4]));
 
-        WriteEbmlElement(segContent, 0x1F43B675, sampleCluster.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, sampleCluster.ToArray());
 
         // 3 post-sample clusters
         for (int c = 0; c < 3; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)(6 + c)]);
+            WriteEBMLElement(cluster, 0xE7, [(byte)(6 + c)]);
 
             byte[] postVideo = CreateTestData(512, seed: 800 + c);
             byte[] postPl = new byte[1 + 2 + 1 + postVideo.Length];
             postPl[0] = 0x81;
             postPl[3] = 0x80;
             postVideo.CopyTo(postPl, 4);
-            WriteEbmlElement(cluster, 0xA3, postPl);
+            WriteEBMLElement(cluster, 0xA3, postPl);
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
@@ -1596,38 +1596,38 @@ public class SRSRebuilderTests : IDisposable
     /// Builds an MKV with 3 clusters, each containing a Timestamp element
     /// followed by interleaved video and audio blocks.
     /// </summary>
-    private string BuildSyntheticMkvMultiCluster()
+    private string BuildSyntheticMKVMultiCluster()
     {
         string path = Path.Combine(_tempDir, "test_multi_cluster.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
 
         for (int c = 0; c < 3; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)c]); // Timestamp
+            WriteEBMLElement(cluster, 0xE7, [(byte)c]); // Timestamp
 
             byte[] videoData = CreateTestData(512, seed: 100 + c);
             byte[] videoPayload = new byte[1 + 2 + 1 + videoData.Length];
             videoPayload[0] = 0x81;
             videoPayload[3] = 0x80;
             videoData.CopyTo(videoPayload, 4);
-            WriteEbmlElement(cluster, 0xA3, videoPayload);
+            WriteEBMLElement(cluster, 0xA3, videoPayload);
 
             byte[] audioData = CreateTestData(256, seed: 200 + c);
             byte[] audioPayload = new byte[1 + 2 + 1 + audioData.Length];
             audioPayload[0] = 0x82;
             audioPayload[3] = 0x80;
             audioData.CopyTo(audioPayload, 4);
-            WriteEbmlElement(cluster, 0xA3, audioPayload);
+            WriteEBMLElement(cluster, 0xA3, audioPayload);
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
@@ -1635,19 +1635,19 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds an MKV with many blocks for stress testing.
     /// </summary>
-    private string BuildSyntheticMkvManyBlocks(int clusterCount, int blocksPerCluster)
+    private string BuildSyntheticMKVManyBlocks(int clusterCount, int blocksPerCluster)
     {
         string path = Path.Combine(_tempDir, "test_many_blocks.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
 
         for (int c = 0; c < clusterCount; c++)
         {
             var cluster = new MemoryStream();
-            WriteEbmlElement(cluster, 0xE7, [(byte)(c & 0xFF)]); // Timestamp
+            WriteEBMLElement(cluster, 0xE7, [(byte)(c & 0xFF)]); // Timestamp
 
             for (int b = 0; b < blocksPerCluster; b++)
             {
@@ -1660,13 +1660,13 @@ public class SRSRebuilderTests : IDisposable
                 payload[0] = (byte)(0x80 | trackNum);
                 payload[3] = 0x80; // Keyframe
                 data.CopyTo(payload, 4);
-                WriteEbmlElement(cluster, 0xA3, payload);
+                WriteEBMLElement(cluster, 0xA3, payload);
             }
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
@@ -1675,12 +1675,12 @@ public class SRSRebuilderTests : IDisposable
     /// Builds an MKV with Timestamp elements in each cluster to verify
     /// that non-block elements between blocks are handled correctly.
     /// </summary>
-    private string BuildSyntheticMkvWithTimestamps()
+    private string BuildSyntheticMKVWithTimestamps()
     {
         string path = Path.Combine(_tempDir, "test_timestamps.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
 
@@ -1690,7 +1690,7 @@ public class SRSRebuilderTests : IDisposable
             var cluster = new MemoryStream();
             // Timestamp with 2-byte value
             byte[] tsValue = [(byte)(c >> 8), (byte)(c & 0xFF)];
-            WriteEbmlElement(cluster, 0xE7, tsValue);
+            WriteEBMLElement(cluster, 0xE7, tsValue);
 
             // 3 video blocks per cluster
             for (int b = 0; b < 3; b++)
@@ -1707,7 +1707,7 @@ public class SRSRebuilderTests : IDisposable
                 payload[2] = timecode[1];
                 payload[3] = 0x80; // Keyframe
                 data.CopyTo(payload, 4);
-                WriteEbmlElement(cluster, 0xA3, payload);
+                WriteEBMLElement(cluster, 0xA3, payload);
             }
 
             // 2 audio blocks per cluster
@@ -1718,13 +1718,13 @@ public class SRSRebuilderTests : IDisposable
                 payload[0] = 0x82; // Track 2
                 payload[3] = 0x80;
                 data.CopyTo(payload, 4);
-                WriteEbmlElement(cluster, 0xA3, payload);
+                WriteEBMLElement(cluster, 0xA3, payload);
             }
 
-            WriteEbmlElement(segContent, 0x1F43B675, cluster.ToArray());
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
         }
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
@@ -1732,12 +1732,12 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds an MKV using Block (0xA1) inside BlockGroup (0xA0) instead of SimpleBlock.
     /// </summary>
-    private string BuildSyntheticMkvWithBlockGroup()
+    private string BuildSyntheticMKVWithBlockGroup()
     {
         string path = Path.Combine(_tempDir, "test_blockgroup.mkv");
         using var ms = new MemoryStream();
 
-        WriteEbmlElement(ms, 0x1A45DFA3, BuildEbmlHeaderContent());
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
 
         var segContent = new MemoryStream();
         var clusterContent = new MemoryStream();
@@ -1750,9 +1750,9 @@ public class SRSRebuilderTests : IDisposable
         videoData.CopyTo(blockPayload, 4);
 
         var blockGroupContent = new MemoryStream();
-        WriteEbmlElement(blockGroupContent, 0xA1, blockPayload); // Block
-        WriteEbmlElement(blockGroupContent, 0x9B, [0x00, 0x21]); // BlockDuration = 33ms
-        WriteEbmlElement(clusterContent, 0xA0, blockGroupContent.ToArray());
+        WriteEBMLElement(blockGroupContent, 0xA1, blockPayload); // Block
+        WriteEBMLElement(blockGroupContent, 0x9B, [0x00, 0x21]); // BlockDuration = 33ms
+        WriteEBMLElement(clusterContent, 0xA0, blockGroupContent.ToArray());
 
         // Track 2: also in BlockGroup
         byte[] audioData = CreateTestData(256, seed: 121);
@@ -1762,11 +1762,11 @@ public class SRSRebuilderTests : IDisposable
         audioData.CopyTo(blockPayload2, 4);
 
         var blockGroupContent2 = new MemoryStream();
-        WriteEbmlElement(blockGroupContent2, 0xA1, blockPayload2);
-        WriteEbmlElement(clusterContent, 0xA0, blockGroupContent2.ToArray());
+        WriteEBMLElement(blockGroupContent2, 0xA1, blockPayload2);
+        WriteEBMLElement(clusterContent, 0xA0, blockGroupContent2.ToArray());
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -1783,16 +1783,16 @@ public class SRSRebuilderTests : IDisposable
         return data;
     }
 
-    private static void WriteEbmlElement(Stream stream, ulong id, byte[] data)
+    private static void WriteEBMLElement(Stream stream, ulong id, byte[] data)
     {
-        byte[] idBytes = EncodeEbmlId(id);
+        byte[] idBytes = EncodeEBMLId(id);
         stream.Write(idBytes);
-        byte[] sizeBytes = EncodeEbmlSize(data.Length);
+        byte[] sizeBytes = EncodeEBMLSize(data.Length);
         stream.Write(sizeBytes);
         stream.Write(data);
     }
 
-    private static byte[] EncodeEbmlId(ulong id)
+    private static byte[] EncodeEBMLId(ulong id)
     {
         if (id < 0x100)
         {
@@ -1812,7 +1812,7 @@ public class SRSRebuilderTests : IDisposable
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
-    private static byte[] EncodeEbmlSize(long value)
+    private static byte[] EncodeEBMLSize(long value)
     {
         if (value < 0x7F)
         {
@@ -1842,14 +1842,14 @@ public class SRSRebuilderTests : IDisposable
         bw.Write(data);
     }
 
-    private static byte[] BuildEbmlHeaderContent()
+    private static byte[] BuildEBMLHeaderContent()
     {
         var ms = new MemoryStream();
-        WriteEbmlElement(ms, 0x4286, [1]);
-        WriteEbmlElement(ms, 0x42F7, [1]);
-        WriteEbmlElement(ms, 0x42F2, [4]);
-        WriteEbmlElement(ms, 0x42F3, [8]);
-        WriteEbmlElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
+        WriteEBMLElement(ms, 0x4286, [1]);
+        WriteEBMLElement(ms, 0x42F7, [1]);
+        WriteEBMLElement(ms, 0x42F2, [4]);
+        WriteEBMLElement(ms, 0x42F3, [8]);
+        WriteEBMLElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
         return ms.ToArray();
     }
 
@@ -1916,7 +1916,7 @@ public class SRSRebuilderTests : IDisposable
     /// Builds a SimpleBlock payload with EBML lacing.
     /// Flags byte: 0x86 = keyframe + EBML lacing (bits 1-2 = 11).
     /// </summary>
-    private static byte[] BuildEbmlLacedBlock(int trackNum, byte[][] frames)
+    private static byte[] BuildEBMLLacedBlock(int trackNum, byte[][] frames)
     {
         using var ms = new MemoryStream();
         ms.WriteByte((byte)(0x80 | trackNum));
@@ -1927,13 +1927,13 @@ public class SRSRebuilderTests : IDisposable
         ms.WriteByte((byte)(frames.Length - 1)); // Lace count
 
         // First frame size as unsigned EBML VINT
-        WriteEbmlSizeVint(ms, frames[0].Length);
+        WriteEBMLSizeVint(ms, frames[0].Length);
 
         // Delta sizes for subsequent frames (not last)
         for (int i = 1; i < frames.Length - 1; i++)
         {
             int delta = frames[i].Length - frames[i - 1].Length;
-            WriteEbmlSignedVint(ms, delta);
+            WriteEBMLSignedVint(ms, delta);
         }
 
         foreach (byte[] frame in frames)
@@ -1944,13 +1944,13 @@ public class SRSRebuilderTests : IDisposable
         return ms.ToArray();
     }
 
-    private static void WriteEbmlSizeVint(Stream stream, long value)
+    private static void WriteEBMLSizeVint(Stream stream, long value)
     {
-        byte[] encoded = EncodeEbmlSize(value);
+        byte[] encoded = EncodeEBMLSize(value);
         stream.Write(encoded);
     }
 
-    private static void WriteEbmlSignedVint(Stream stream, int value)
+    private static void WriteEBMLSignedVint(Stream stream, int value)
     {
         // Encode as signed VINT: value + bias
         // 1-byte: bias = 63, range = -63..63

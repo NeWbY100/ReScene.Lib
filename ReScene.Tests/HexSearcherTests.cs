@@ -58,7 +58,7 @@ public class HexSearcherTests
     public void FindForward_EmptyPattern_ReturnsMinusOne()
     {
         using IHexDataSource src = Source([0x01, 0x02, 0x03]);
-        HexSearchPattern? pattern = HexSearchPattern.TryParse(string.Empty, asHex: true);
+        var pattern = HexSearchPattern.TryParse(string.Empty, asHex: true);
         Assert.Null(pattern);
     }
 

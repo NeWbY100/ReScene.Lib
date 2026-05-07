@@ -254,7 +254,7 @@ public class EBMLLacingTests
     #region EBML Lacing
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_TwoFramesSameSize()
+    public void GetFrameLengths_EBMLLacing_TwoFramesSameSize()
     {
         // EBML lacing: first byte = 1 (2 frames)
         // Frame 0: unsigned VINT = 400 -> 0x82 prefix? No. Let's calculate.
@@ -264,7 +264,7 @@ public class EBMLLacingTests
         byte[] data = [1, 0x41, 0x90]; // frameCount-1=1, first frame=400 (2-byte VINT)
         // totalDataLength = lacing header (3 bytes) + frame0 (400) + frame1 (remaining)
         int totalDataLength = 3 + 400 + 400;
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Equal(2, frameSizes.Length);
         Assert.Equal(400, frameSizes[0]);
@@ -273,7 +273,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_ThreeFramesDelta()
+    public void GetFrameLengths_EBMLLacing_ThreeFramesDelta()
     {
         // EBML lacing: first byte = 2 (3 frames)
         // Frame 0: unsigned VINT = 100 -> 1-byte: 0x80 | 100 = 0xE4
@@ -281,7 +281,7 @@ public class EBMLLacingTests
         // Frame 2: last frame, remaining
         byte[] data = [2, 0xE4, 0xBF]; // 3 frames, first=100, delta=0
         int totalDataLength = 3 + 100 + 100 + 50; // = 253
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -291,7 +291,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_ThreeFramesPositiveDelta()
+    public void GetFrameLengths_EBMLLacing_ThreeFramesPositiveDelta()
     {
         // EBML lacing: first byte = 2 (3 frames)
         // Frame 0: unsigned VINT = 100 -> 1-byte: 0x80 | 100 = 0xE4
@@ -299,7 +299,7 @@ public class EBMLLacingTests
         // Frame 2: last frame, remaining
         byte[] data = [2, 0xE4, 0xC9]; // 3 frames, first=100, delta=+10
         int totalDataLength = 3 + 100 + 110 + 200; // = 413
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -309,7 +309,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_ThreeFramesNegativeDelta()
+    public void GetFrameLengths_EBMLLacing_ThreeFramesNegativeDelta()
     {
         // EBML lacing: first byte = 2 (3 frames)
         // Frame 0: unsigned VINT = 200 -> 2-byte: 0x40 | (200 >> 8) = 0x40, 200 & 0xFF = 0xC8
@@ -317,7 +317,7 @@ public class EBMLLacingTests
         // Frame 2: last frame, remaining
         byte[] data = [2, 0x40, 0xC8, 0x8D]; // 3 frames, first=200, delta=-50
         int totalDataLength = 4 + 200 + 150 + 100; // = 454
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(200, frameSizes[0]);
@@ -327,7 +327,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_FourFramesMultipleDeltas()
+    public void GetFrameLengths_EBMLLacing_FourFramesMultipleDeltas()
     {
         // EBML lacing: 4 frames
         // Frame 0: 100 -> 1-byte VINT: 0x80 | 100 = 0xE4
@@ -336,7 +336,7 @@ public class EBMLLacingTests
         // Frame 3: last frame = remaining
         byte[] data = [3, 0xE4, 0xD3, 0xB5]; // 4 frames
         int totalDataLength = 4 + 100 + 120 + 110 + 66; // = 400
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Equal(4, frameSizes.Length);
         Assert.Equal(100, frameSizes[0]);
@@ -347,7 +347,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_SingleFrameInLacing()
+    public void GetFrameLengths_EBMLLacing_SingleFrameInLacing()
     {
         // Edge case: EBML lacing with frame count = 1 (first byte = 0)
         // Per the Matroska spec and pyrescene behavior, the single frame (i=0)
@@ -356,7 +356,7 @@ public class EBMLLacingTests
         // In practice, no encoder uses EBML lacing with a single frame.
         byte[] data = [0, 0x82]; // 0+1 = 1 frame, VINT size = 2
         int totalDataLength = 2 + 2; // 2 bytes header + 2 bytes frame data = 4
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Single(frameSizes);
         Assert.Equal(2, frameSizes[0]); // VINT value = 2
@@ -364,7 +364,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void GetFrameLengths_EbmlLacing_TwoByteSignedDelta()
+    public void GetFrameLengths_EBMLLacing_TwoByteSignedDelta()
     {
         // Test with 2-byte signed VINT delta
         // Frame 0: 1000 -> 2-byte VINT: 0x43, 0xE8 (0x4000 | 1000 = 0x43E8)
@@ -373,7 +373,7 @@ public class EBMLLacingTests
         // Frame 2: last frame = remaining
         byte[] data = [2, 0x43, 0xE8, 0x61, 0xF3];
         int totalDataLength = 5 + 1000 + 1500 + 500; // = 3005
-        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.Ebml, totalDataLength);
+        (int[]? frameSizes, int bytesConsumed) = EBMLLacing.GetFrameLengths(data, EBMLLaceType.EBML, totalDataLength);
 
         Assert.Equal(3, frameSizes.Length);
         Assert.Equal(1000, frameSizes[0]);
@@ -390,7 +390,7 @@ public class EBMLLacingTests
     public void DetectStrippedHeader_NoCompression_ReturnsNull()
     {
         // TrackEntry with just a TrackNumber element (0xD7), no ContentEncodings
-        byte[] trackEntryData = BuildEbmlElement(0xD7, [0x01]); // TrackNumber = 1
+        byte[] trackEntryData = BuildEBMLElement(0xD7, [0x01]); // TrackNumber = 1
         var result = EBMLHeaderStripping.DetectStrippedHeader(trackEntryData);
 
         Assert.Null(result);
@@ -404,15 +404,15 @@ public class EBMLLacingTests
 
         // Build from innermost out:
         // ContentCompAlgo = 3 (header stripping)
-        byte[] compAlgo = BuildEbmlElement(0x4254, [0x03]);
+        byte[] compAlgo = BuildEBMLElement(0x4254, [0x03]);
         // ContentCompSettings = strippedHeader
-        byte[] compSettings = BuildEbmlElement(0x4255, strippedHeader);
+        byte[] compSettings = BuildEBMLElement(0x4255, strippedHeader);
         // ContentCompression containing algo + settings
-        byte[] compression = BuildEbmlElement(0x5034, [.. compAlgo, .. compSettings]);
+        byte[] compression = BuildEBMLElement(0x5034, [.. compAlgo, .. compSettings]);
         // ContentEncoding containing compression
-        byte[] encoding = BuildEbmlElement(0x6240, compression);
+        byte[] encoding = BuildEBMLElement(0x6240, compression);
         // ContentEncodings containing encoding
-        byte[] encodings = BuildEbmlElement(0x6D80, encoding);
+        byte[] encodings = BuildEBMLElement(0x6D80, encoding);
 
         var result = EBMLHeaderStripping.DetectStrippedHeader(encodings);
 
@@ -424,11 +424,11 @@ public class EBMLLacingTests
     public void DetectStrippedHeader_ZlibCompression_ReturnsNull()
     {
         // ContentCompAlgo = 0 (zlib), not header stripping
-        byte[] compAlgo = BuildEbmlElement(0x4254, [0x00]);
-        byte[] compSettings = BuildEbmlElement(0x4255, [0x01, 0x02, 0x03]);
-        byte[] compression = BuildEbmlElement(0x5034, [.. compAlgo, .. compSettings]);
-        byte[] encoding = BuildEbmlElement(0x6240, compression);
-        byte[] encodings = BuildEbmlElement(0x6D80, encoding);
+        byte[] compAlgo = BuildEBMLElement(0x4254, [0x00]);
+        byte[] compSettings = BuildEBMLElement(0x4255, [0x01, 0x02, 0x03]);
+        byte[] compression = BuildEBMLElement(0x5034, [.. compAlgo, .. compSettings]);
+        byte[] encoding = BuildEBMLElement(0x6240, compression);
+        byte[] encodings = BuildEBMLElement(0x6D80, encoding);
 
         var result = EBMLHeaderStripping.DetectStrippedHeader(encodings);
 
@@ -441,13 +441,13 @@ public class EBMLLacingTests
         // TrackEntry with TrackNumber before ContentEncodings
         byte[] strippedHeader = [0xAA, 0xBB];
 
-        byte[] trackNumber = BuildEbmlElement(0xD7, [0x01]);
-        byte[] codecId = BuildEbmlElement(0x86, "V_MPEG4/ISO/AVC"u8.ToArray());
-        byte[] compAlgo = BuildEbmlElement(0x4254, [0x03]);
-        byte[] compSettings = BuildEbmlElement(0x4255, strippedHeader);
-        byte[] compression = BuildEbmlElement(0x5034, [.. compAlgo, .. compSettings]);
-        byte[] encoding = BuildEbmlElement(0x6240, compression);
-        byte[] encodings = BuildEbmlElement(0x6D80, encoding);
+        byte[] trackNumber = BuildEBMLElement(0xD7, [0x01]);
+        byte[] codecId = BuildEBMLElement(0x86, "V_MPEG4/ISO/AVC"u8.ToArray());
+        byte[] compAlgo = BuildEBMLElement(0x4254, [0x03]);
+        byte[] compSettings = BuildEBMLElement(0x4255, strippedHeader);
+        byte[] compression = BuildEBMLElement(0x5034, [.. compAlgo, .. compSettings]);
+        byte[] encoding = BuildEBMLElement(0x6240, compression);
+        byte[] encodings = BuildEBMLElement(0x6D80, encoding);
 
         byte[] fullData = [.. trackNumber, .. codecId, .. encodings];
         var result = EBMLHeaderStripping.DetectStrippedHeader(fullData);
@@ -545,10 +545,10 @@ public class EBMLLacingTests
     /// <summary>
     /// Builds a raw EBML element (ID + size VINT + data).
     /// </summary>
-    private static byte[] BuildEbmlElement(ulong id, byte[] data)
+    private static byte[] BuildEBMLElement(ulong id, byte[] data)
     {
-        byte[] idBytes = EncodeEbmlId(id);
-        byte[] sizeBytes = EncodeEbmlSize(data.Length);
+        byte[] idBytes = EncodeEBMLId(id);
+        byte[] sizeBytes = EncodeEBMLSize(data.Length);
         byte[] result = new byte[idBytes.Length + sizeBytes.Length + data.Length];
         idBytes.CopyTo(result, 0);
         sizeBytes.CopyTo(result, idBytes.Length);
@@ -556,7 +556,7 @@ public class EBMLLacingTests
         return result;
     }
 
-    private static byte[] EncodeEbmlId(ulong id)
+    private static byte[] EncodeEBMLId(ulong id)
     {
         if (id < 0x100)
         {
@@ -576,7 +576,7 @@ public class EBMLLacingTests
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
-    private static byte[] EncodeEbmlSize(long value)
+    private static byte[] EncodeEBMLSize(long value)
     {
         if (value < 0x7F)
         {

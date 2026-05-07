@@ -16,7 +16,7 @@ public class RARFileHeader
     /// <summary>
     /// Header CRC value.
     /// </summary>
-    public ushort HeaderCrc
+    public ushort HeaderCRC
     {
         get; set;
     }
@@ -64,7 +64,7 @@ public class RARFileHeader
     /// <summary>
     /// File CRC32.
     /// </summary>
-    public uint FileCrc
+    public uint FileCRC
     {
         get; set;
     }
@@ -243,7 +243,7 @@ public class RARArchiveHeader
     /// <summary>
     /// Header CRC value.
     /// </summary>
-    public ushort HeaderCrc
+    public ushort HeaderCRC
     {
         get; set;
     }

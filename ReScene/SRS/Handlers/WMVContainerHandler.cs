@@ -8,8 +8,8 @@ internal class WMVContainerHandler : IContainerHandler
 {
     private const int SignatureSize = 256;
 
-    private static readonly byte[] _guidSrsFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] _guidSrsTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
+    private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
 
     public SRSContainerType ContainerType => SRSContainerType.WMV;
 
@@ -131,9 +131,9 @@ internal class WMVContainerHandler : IContainerHandler
         return (trackMap.Values.ToList(), crc32, totalLength);
     }
 
-    public void WriteSrs(
+    public void WriteSRS(
         string outputPath, string samplePath,
-        List<TrackInfo> tracks, long sampleSize, uint sampleCrc32,
+        List<TrackInfo> tracks, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options, CancellationToken ct)
     {
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
@@ -197,10 +197,10 @@ internal class WMVContainerHandler : IContainerHandler
                 inFs.Position = objEnd;
 
                 // Inject SRSF/SRST after data object
-                WriteSrsfAsf(outFs, samplePath, sampleSize, sampleCrc32, options);
+                WriteSrsfASF(outFs, samplePath, sampleSize, sampleCRC32, options);
                 foreach (TrackInfo track in tracks)
                 {
-                    WriteSrstAsf(outFs, track, sampleSize >= 0x80000000);
+                    WriteSrstASF(outFs, track, sampleSize >= 0x80000000);
                 }
             }
             else
@@ -219,21 +219,21 @@ internal class WMVContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfAsf(Stream outFs, string samplePath, long sampleSize, uint sampleCrc32,
+    private static void WriteSrsfASF(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCrc32, options);
-        outFs.Write(_guidSrsFile);
+        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
+        outFs.Write(_guidSRSFile);
         Span<byte> sizeBytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }
 
-    private static void WriteSrstAsf(Stream outFs, TrackInfo track, bool bigFile)
+    private static void WriteSrstASF(Stream outFs, TrackInfo track, bool bigFile)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.Write(_guidSrsTrack);
+        outFs.Write(_guidSRSTrack);
         Span<byte> sizeBytes = stackalloc byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
         outFs.Write(sizeBytes);
