@@ -385,6 +385,7 @@ public sealed partial class RARProcess
     {
         try
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             return Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
         }
         catch (ArgumentException)
