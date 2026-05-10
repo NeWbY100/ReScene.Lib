@@ -266,7 +266,14 @@ public class RAROptions
     /// <summary>
     /// Returns true if any patching is needed.
     /// </summary>
-    public bool NeedsPatching => NeedsHostOSPatching || NeedsAttributePatching || NeedsLargePatching;
+    public bool NeedsPatching => NeedsHostOSPatching || NeedsAttributePatching || NeedsLargePatching || NeedsMtimePatching;
+
+    /// <summary>
+    /// Returns true if per-file modification-time patching is needed (the SRR provided
+    /// mtimes that should be stamped into the produced RAR headers regardless of what
+    /// WinRAR actually captured from the file system).
+    /// </summary>
+    public bool NeedsMtimePatching => EnableHostOSPatching && FileTimestamps.Count > 0;
 
     /// <summary>
     /// Returns true if Host OS patching is needed.

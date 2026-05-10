@@ -1277,6 +1277,11 @@ public partial class Manager(IReSceneLogger? logger = null)
                 _logger.Information(this, $"Patching LARGE flag: {(rarOptions.DetectedLargeFlag == true ? "adding" : "removing")} for {filesToPatch.Count} file(s)", LogTarget.Phase2);
             }
 
+            if (rarOptions.NeedsMtimePatching)
+            {
+                _logger.Information(this, $"Patching mtime (DOS FTIME + EXT_TIME remainder) for {rarOptions.FileTimestamps.Count} file(s) across {filesToPatch.Count} volume(s)", LogTarget.Phase2);
+            }
+
             // Build patch options
             var patchOptions = new PatchOptions
             {
@@ -1285,6 +1290,12 @@ public partial class Manager(IReSceneLogger? logger = null)
                 HighPackSize = rarOptions.DetectedHighPackSize ?? 0,
                 HighUnpSize = rarOptions.DetectedHighUnpSize ?? 0
             };
+
+            // Per-file mtime overrides — sidesteps file-system / WinRAR precision quirks.
+            if (rarOptions.NeedsMtimePatching)
+            {
+                patchOptions.FileModifiedTimes = rarOptions.FileTimestamps;
+            }
 
             // Set Host OS options if Host OS differs from current platform
             if (rarOptions.NeedsHostOSPatching)

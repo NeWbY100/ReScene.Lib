@@ -160,6 +160,23 @@ public class PatchOptions
         get; set;
     }
 
+    // ===== Per-file Modification Time Overrides =====
+
+    /// <summary>
+    /// Per-file target modification time, keyed by file name (case-insensitive).
+    /// When a file header's <c>FILE_NAME</c> matches a key, the patcher rewrites the
+    /// 4-byte DOS <c>FTIME</c> field and (if the <c>LHD_EXTTIME</c> flag is set and
+    /// the mtime entry is present in the EXT_TIME extension) the corresponding
+    /// sub-second remainder bytes — preserving the existing precision (byte count).
+    /// Files not present in this dictionary are left alone. Use this to bypass
+    /// file-system / WinRAR precision quirks that prevent the source file's mtime
+    /// from being faithfully captured into the produced archive.
+    /// </summary>
+    public Dictionary<string, DateTime>? FileModifiedTimes
+    {
+        get; set;
+    }
+
     // ===== Computed Properties =====
 
     /// <summary>
@@ -251,6 +268,126 @@ public static class RARPatcher
         }
 
         return addSize;
+    }
+
+    /// <summary>
+    /// Encodes a <see cref="DateTime"/> as a 32-bit DOS date+time value (high 16 bits = date,
+    /// low 16 bits = time). Seconds floor to even (DOS time has 2-second resolution); the
+    /// EXT_TIME +1s rounding flag is responsible for compensating odd-second values.
+    /// </summary>
+    private static uint EncodeDosDate(DateTime dt)
+    {
+        int year = Math.Clamp(dt.Year, 1980, 2107);
+        uint date = (((uint)(year - 1980) & 0x7F) << 9)
+                  | (((uint)dt.Month & 0xF) << 5)
+                  | ((uint)dt.Day & 0x1F);
+        uint time = (((uint)dt.Hour & 0x1F) << 11)
+                  | (((uint)dt.Minute & 0x3F) << 5)
+                  | (((uint)dt.Second & 0x3E) >> 1);
+        return (date << 16) | time;
+    }
+
+    /// <summary>
+    /// Computes the EXT_TIME +1s rounding flag and the sub-second remainder bytes for a
+    /// target <see cref="DateTime"/> at the given byte-count precision (0–3, where 3 means
+    /// 100ns / NTFS resolution). Mirrors the inverse of <c>RARHeaderReader.ReadExtendedTimes</c>.
+    /// </summary>
+    private static (bool NeedsRoundingFlag, int Remainder) EncodeMtimeFraction(DateTime dt, int byteCount)
+    {
+        int evenSecond = (dt.Second / 2) * 2;
+        var dosBase = new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, evenSecond, dt.Kind);
+        long ticksAbove = dt.Ticks - dosBase.Ticks;
+        bool needsRounding = ticksAbove >= TimeSpan.TicksPerSecond;
+        long remainderTicks = needsRounding ? ticksAbove - TimeSpan.TicksPerSecond : ticksAbove;
+        long mask = byteCount > 0 ? (1L << (byteCount * 8)) - 1 : 0;
+        return (needsRounding, (int)(remainderTicks & mask));
+    }
+
+    /// <summary>
+    /// Rewrites the DOS <c>FTIME</c> field and EXT_TIME mtime remainder for the given file
+    /// header bytes if the file name matches an entry in <paramref name="targetMtimes"/>.
+    /// Returns <see langword="true"/> when the header was modified.
+    /// </summary>
+    private static bool TryPatchFileMtime(
+        byte[] fullHeader,
+        string? fileName,
+        ushort nameSize,
+        Dictionary<string, DateTime>? targetMtimes)
+    {
+        if (targetMtimes is null || fileName is null
+            || !targetMtimes.TryGetValue(fileName, out DateTime targetMtime))
+        {
+            return false;
+        }
+
+        ushort flags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
+        bool hasExtTime = (flags & (ushort)RARFileFlags.ExtTime) != 0;
+        bool hasLarge = (flags & (ushort)RARFileFlags.Large) != 0;
+        bool hasSalt = (flags & (ushort)RARFileFlags.Salt) != 0;
+
+        bool modified = false;
+
+        // Always patch DOS FTIME — it's at a fixed offset, regardless of EXT_TIME presence.
+        uint targetDos = EncodeDosDate(targetMtime);
+        if (BitConverter.ToUInt32(fullHeader, OffsetFileTime) != targetDos)
+        {
+            byte[] dosBytes = BitConverter.GetBytes(targetDos);
+            Array.Copy(dosBytes, 0, fullHeader, OffsetFileTime, 4);
+            modified = true;
+        }
+
+        if (!hasExtTime)
+        {
+            return modified;
+        }
+
+        // EXT_TIME starts after FILE_NAME (and optional HIGH_* / SALT).
+        int extTimeOffset = 32 + (hasLarge ? 8 : 0) + nameSize + (hasSalt ? 8 : 0);
+        if (extTimeOffset + 2 > fullHeader.Length)
+        {
+            return modified;
+        }
+
+        ushort extFlags = BitConverter.ToUInt16(fullHeader, extTimeOffset);
+        int mtimeNibble = (extFlags >> 12) & 0xF;
+        bool mtimePresent = (mtimeNibble & 0x8) != 0;
+        int mtimeByteCount = mtimeNibble & 0x3;
+
+        if (!mtimePresent)
+        {
+            return modified;
+        }
+
+        (bool needsRounding, int remainder) = EncodeMtimeFraction(targetMtime, mtimeByteCount);
+
+        // Update the +1s rounding bit in the mtime nibble if it changed.
+        int newMtimeNibble = (mtimeNibble & ~0x4) | (needsRounding ? 0x4 : 0);
+        if (newMtimeNibble != mtimeNibble)
+        {
+            ushort newExtFlags = (ushort)((extFlags & 0x0FFF) | (newMtimeNibble << 12));
+            byte[] flagBytes = BitConverter.GetBytes(newExtFlags);
+            Array.Copy(flagBytes, 0, fullHeader, extTimeOffset, 2);
+            modified = true;
+        }
+
+        // Overwrite remainder bytes in-place. Encoding is LSB-first per
+        // RARHeaderReader.TryReadRemainder (`bytes[j] << ((j + 3 - count) * 8)` for count=3
+        // gives shifts 0/8/16, i.e. byte[0] is the lowest 8 bits of the remainder).
+        int remainderOffset = extTimeOffset + 2;
+        if (mtimeByteCount > 0 && remainderOffset + mtimeByteCount <= fullHeader.Length)
+        {
+            for (int i = 0; i < mtimeByteCount; i++)
+            {
+                byte newByte = (byte)((remainder >> (i * 8)) & 0xFF);
+                if (fullHeader[remainderOffset + i] != newByte)
+                {
+                    fullHeader[remainderOffset + i] = newByte;
+                    modified = true;
+                }
+            }
+        }
+
+        return modified;
     }
 
     /// <summary>
@@ -375,6 +512,12 @@ public static class RARPatcher
                 {
                     byte[] timeBytes = BitConverter.GetBytes(targetFileTime.Value);
                     Array.Copy(timeBytes, 0, fullHeader, OffsetFileTime, 4);
+                    modified = true;
+                }
+
+                // Patch per-file mtime (DOS FTIME + EXT_TIME remainder) for file headers.
+                if (isFileHeader && TryPatchFileMtime(fullHeader, fileName, nameSize, options.FileModifiedTimes))
+                {
                     modified = true;
                 }
 

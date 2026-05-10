@@ -1097,4 +1097,418 @@ public class RARPatcherTests : IDisposable
     }
 
     #endregion
+
+    #region File Modified Times (EXT_TIME mtime patching)
+
+    /// <summary>
+    /// Builds a minimal RAR4 archive with a single file header. When <paramref name="extMtimeBytes"/>
+    /// is non-null its length determines the EXT_TIME mtime byte-count (0–3); the EXT_FLAGS mtime
+    /// nibble is composed as (present:0x8 | rounding:0x4 if true | byteCount). When null, the
+    /// LHD_EXTTIME flag is omitted.
+    /// </summary>
+    private static byte[] BuildMinimalRar4(
+        string fileName,
+        uint dosFileTime,
+        byte[]? extMtimeBytes = null,
+        bool extMtimeNeedsRounding = false)
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+
+        writer.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 });
+
+        byte[] archiveHeader = new byte[7];
+        archiveHeader[2] = 0x73;
+        BitConverter.GetBytes((ushort)0x0000).CopyTo(archiveHeader, 3);
+        BitConverter.GetBytes((ushort)7).CopyTo(archiveHeader, 5);
+        uint archCRC = Crc32Algorithm.Compute(archiveHeader, 2, 5);
+        BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
+        writer.Write(archiveHeader);
+
+        byte[] nameBytes = System.Text.Encoding.ASCII.GetBytes(fileName);
+        bool hasExtTime = extMtimeBytes is not null;
+        int extTimeRegion = 0;
+        if (hasExtTime)
+        {
+            extTimeRegion = 2 + extMtimeBytes!.Length;
+        }
+
+        int headerSize = 32 + nameBytes.Length + extTimeRegion;
+        ushort flags = (ushort)(RARFileFlags.LongBlock | (hasExtTime ? RARFileFlags.ExtTime : 0));
+
+        byte[] fileHeader = new byte[headerSize];
+        fileHeader[2] = 0x74;
+        BitConverter.GetBytes(flags).CopyTo(fileHeader, 3);
+        BitConverter.GetBytes((ushort)headerSize).CopyTo(fileHeader, 5);
+        BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 7);
+        BitConverter.GetBytes((uint)100).CopyTo(fileHeader, 11);
+        fileHeader[15] = 2;
+        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(fileHeader, 16);
+        BitConverter.GetBytes(dosFileTime).CopyTo(fileHeader, 20);
+        fileHeader[24] = 29;
+        fileHeader[25] = 0x33;
+        BitConverter.GetBytes((ushort)nameBytes.Length).CopyTo(fileHeader, 26);
+        BitConverter.GetBytes((uint)0x00000020).CopyTo(fileHeader, 28);
+
+        Array.Copy(nameBytes, 0, fileHeader, 32, nameBytes.Length);
+
+        if (hasExtTime)
+        {
+            int extByteCount = extMtimeBytes!.Length;
+            int mtimeNibble = 0x8 | (extMtimeNeedsRounding ? 0x4 : 0) | (extByteCount & 0x3);
+            ushort extFlags = (ushort)(mtimeNibble << 12);
+            int extOffset = 32 + nameBytes.Length;
+            BitConverter.GetBytes(extFlags).CopyTo(fileHeader, extOffset);
+            Array.Copy(extMtimeBytes, 0, fileHeader, extOffset + 2, extByteCount);
+        }
+
+        uint fileCRC32 = Crc32Algorithm.Compute(fileHeader, 2, fileHeader.Length - 2);
+        BitConverter.GetBytes((ushort)(fileCRC32 & 0xFFFF)).CopyTo(fileHeader, 0);
+        writer.Write(fileHeader);
+
+        byte[] endBlock = new byte[7];
+        endBlock[2] = 0x7B;
+        BitConverter.GetBytes((ushort)0x4000).CopyTo(endBlock, 3);
+        BitConverter.GetBytes((ushort)7).CopyTo(endBlock, 5);
+        uint endCRC = Crc32Algorithm.Compute(endBlock, 2, 5);
+        BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
+        writer.Write(endBlock);
+
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Encodes a DateTime as a 32-bit DOS date+time (seconds floor to even).
+    /// </summary>
+    private static uint EncodeDosDateTimeForTest(DateTime dt)
+    {
+        uint date = (((uint)(dt.Year - 1980) & 0x7F) << 9)
+                  | (((uint)dt.Month & 0xF) << 5)
+                  | ((uint)dt.Day & 0x1F);
+        uint time = (((uint)dt.Hour & 0x1F) << 11)
+                  | (((uint)dt.Minute & 0x3F) << 5)
+                  | (((uint)dt.Second & 0x3E) >> 1);
+        return (date << 16) | time;
+    }
+
+    /// <summary>
+    /// Reads the file header of the first file block in the produced archive (after marker
+    /// + 7-byte minimal archive header) and returns the bytes for inspection.
+    /// </summary>
+    private static byte[] ExtractFileHeader(byte[] rarData)
+    {
+        int offset = 7 + 7;
+        ushort headerSize = BitConverter.ToUInt16(rarData, offset + 5);
+        byte[] header = new byte[headerSize];
+        Array.Copy(rarData, offset, header, 0, headerSize);
+        return header;
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_OverwritesDosTimeAndExtRemainder()
+    {
+        // Build a RAR with mtime 2026-04-20 09:02:04.7090000s — a 1ms-grained value
+        // similar to what WinRAR produced for the user.
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });    // 0x6C2F50 = 7,090,000
+
+        string testFile = Path.Combine(_testDir, "mtime_patch.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        // Target: the original sub-second value (0x6C4A30 = 7,096,880).
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
+
+        Assert.NotEmpty(results);
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+
+        // DOS FTIME unchanged in this case (target's whole-second part is identical).
+        Assert.Equal(EncodeDosDateTimeForTest(target), BitConverter.ToUInt32(header, 20));
+
+        // EXT_TIME remainder bytes should now be 0x6C4A30 LSB-first.
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        int extOffset = 32 + nameSize;
+        Assert.Equal(0x30, header[extOffset + 2]);
+        Assert.Equal(0x4A, header[extOffset + 3]);
+        Assert.Equal(0x6C, header[extOffset + 4]);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_RoundTripsThroughParser()
+    {
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F });    // 0x0F4240 = 1,000,000
+
+        string testFile = Path.Combine(_testDir, "mtime_roundtrip.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        RARPatcher.PatchFile(testFile, options);
+
+        // Parse the patched file and confirm the recovered DateTime matches target precisely.
+        using var fs = new FileStream(testFile, FileMode.Open, FileAccess.Read);
+        fs.Seek(7, SeekOrigin.Begin);
+        var reader = new RARHeaderReader(fs);
+        RARFileHeader? recovered = null;
+        while (reader.CanReadBaseHeader)
+        {
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block?.FileHeader is { } fh)
+            {
+                recovered = fh;
+                break;
+            }
+        }
+
+        Assert.NotNull(recovered);
+        Assert.Equal(target, recovered!.ModifiedTime);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_OddSecondTarget_SetsRoundingFlag()
+    {
+        // Initial mtime at an even second with rounding-flag OFF.
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C },
+            extMtimeNeedsRounding: false);
+
+        string testFile = Path.Combine(_testDir, "mtime_odd_second.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        // Target at an ODD second — encoder must flip the rounding bit on.
+        var target = new DateTime(2026, 04, 20, 09, 02, 05).AddTicks(1_234_567);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        RARPatcher.PatchFile(testFile, options);
+
+        using var fs = new FileStream(testFile, FileMode.Open, FileAccess.Read);
+        fs.Seek(7, SeekOrigin.Begin);
+        var reader = new RARHeaderReader(fs);
+        RARFileHeader? recovered = null;
+        while (reader.CanReadBaseHeader)
+        {
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block?.FileHeader is { } fh)
+            {
+                recovered = fh;
+                break;
+            }
+        }
+
+        Assert.NotNull(recovered);
+        Assert.Equal(target, recovered!.ModifiedTime);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_NameNotInDictionary_LeftAlone()
+    {
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        byte[] expectedExtBytes = new byte[] { 0x50, 0x2F, 0x6C };
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "other.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: expectedExtBytes);
+
+        string testFile = Path.Combine(_testDir, "mtime_no_match.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["different.idx"] = new DateTime(2030, 01, 01)
+            }
+        };
+
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
+
+        Assert.Empty(results);   // no match, no patch
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        int extOffset = 32 + nameSize;
+        Assert.Equal(expectedExtBytes[0], header[extOffset + 2]);
+        Assert.Equal(expectedExtBytes[1], header[extOffset + 3]);
+        Assert.Equal(expectedExtBytes[2], header[extOffset + 4]);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_NoExtTimeFlag_PatchesOnlyDosTime()
+    {
+        var initial = new DateTime(2025, 06, 15, 12, 00, 00);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "noext.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: null);
+
+        string testFile = Path.Combine(_testDir, "mtime_no_exttime.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        var target = new DateTime(2026, 04, 20, 09, 02, 04);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["noext.idx"] = target
+            }
+        };
+
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
+
+        Assert.NotEmpty(results);
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        Assert.Equal(EncodeDosDateTimeForTest(target), BitConverter.ToUInt32(header, 20));
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_RecomputesValidCRC()
+    {
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });
+
+        string testFile = Path.Combine(_testDir, "mtime_crc.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        RARPatcher.PatchFile(testFile, options);
+
+        // Re-parse — RARHeaderReader rejects blocks whose stored CRC doesn't match,
+        // so successful parse with CrcValid==true confirms the patcher recomputed it.
+        using var fs = new FileStream(testFile, FileMode.Open, FileAccess.Read);
+        fs.Seek(7, SeekOrigin.Begin);
+        var reader = new RARHeaderReader(fs);
+        bool sawValidFileHeader = false;
+        while (reader.CanReadBaseHeader)
+        {
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block?.BlockType == RAR4BlockType.FileHeader)
+            {
+                Assert.True(block.CRCValid);
+                sawValidFileHeader = true;
+                break;
+            }
+        }
+
+        Assert.True(sawValidFileHeader);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_MtimeNibblePresentBitClear_LeavesExtTimeAlone()
+    {
+        // Build with EXT_TIME header but mtime nibble = 0 (not present). The patcher should
+        // still update DOS FTIME but leave the EXT_TIME extension untouched.
+        byte[] nameBytes = System.Text.Encoding.ASCII.GetBytes("subs.idx");
+        var initial = new DateTime(2025, 06, 15, 12, 00, 00);
+
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+        writer.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 });
+
+        byte[] archiveHeader = new byte[7];
+        archiveHeader[2] = 0x73;
+        BitConverter.GetBytes((ushort)0x0000).CopyTo(archiveHeader, 3);
+        BitConverter.GetBytes((ushort)7).CopyTo(archiveHeader, 5);
+        uint archCRC = Crc32Algorithm.Compute(archiveHeader, 2, 5);
+        BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
+        writer.Write(archiveHeader);
+
+        // EXT_FLAGS = 0x0000 → mtime nibble = 0 (not present), no extra bytes.
+        int extTimeRegion = 2;
+        int headerSize = 32 + nameBytes.Length + extTimeRegion;
+        ushort flags = (ushort)(RARFileFlags.LongBlock | RARFileFlags.ExtTime);
+
+        byte[] fileHeader = new byte[headerSize];
+        fileHeader[2] = 0x74;
+        BitConverter.GetBytes(flags).CopyTo(fileHeader, 3);
+        BitConverter.GetBytes((ushort)headerSize).CopyTo(fileHeader, 5);
+        BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 7);
+        BitConverter.GetBytes((uint)100).CopyTo(fileHeader, 11);
+        fileHeader[15] = 2;
+        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(fileHeader, 16);
+        BitConverter.GetBytes(EncodeDosDateTimeForTest(initial)).CopyTo(fileHeader, 20);
+        fileHeader[24] = 29;
+        fileHeader[25] = 0x33;
+        BitConverter.GetBytes((ushort)nameBytes.Length).CopyTo(fileHeader, 26);
+        BitConverter.GetBytes((uint)0x00000020).CopyTo(fileHeader, 28);
+        Array.Copy(nameBytes, 0, fileHeader, 32, nameBytes.Length);
+        // EXT_FLAGS = 0x0000 already (zeroed array)
+        uint crc32 = Crc32Algorithm.Compute(fileHeader, 2, fileHeader.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(fileHeader, 0);
+        writer.Write(fileHeader);
+
+        byte[] endBlock = new byte[7];
+        endBlock[2] = 0x7B;
+        BitConverter.GetBytes((ushort)0x4000).CopyTo(endBlock, 3);
+        BitConverter.GetBytes((ushort)7).CopyTo(endBlock, 5);
+        uint endCRC = Crc32Algorithm.Compute(endBlock, 2, 5);
+        BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
+        writer.Write(endBlock);
+
+        string testFile = Path.Combine(_testDir, "mtime_nibble_clear.rar");
+        File.WriteAllBytes(testFile, ms.ToArray());
+
+        var target = new DateTime(2026, 04, 20, 09, 02, 04);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        RARPatcher.PatchFile(testFile, options);
+
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        Assert.Equal(EncodeDosDateTimeForTest(target), BitConverter.ToUInt32(header, 20));
+        // EXT_FLAGS unchanged at 0x0000.
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        Assert.Equal((ushort)0x0000, BitConverter.ToUInt16(header, 32 + nameSize));
+    }
+
+    #endregion
 }
