@@ -1,3 +1,4 @@
+using ReScene.Hex;
 using ReScene.RAR;
 using ReScene.SRR;
 using ReScene.SRS;
@@ -24,11 +25,18 @@ public static class FileComparer
     /// <param name="rightBlocks">
     /// Optional detailed RAR blocks for the right file.
     /// </param>
+    /// <param name="leftSource">
+    /// Optional byte-level data source for the left file, used to compare block payloads.
+    /// </param>
+    /// <param name="rightSource">
+    /// Optional byte-level data source for the right file, used to compare block payloads.
+    /// </param>
     /// <returns>
     /// A <see cref="CompareResult"/> containing all detected differences.
     /// </returns>
     public static CompareResult Compare(object? leftData, object? rightData,
-        List<RARDetailedBlock>? leftBlocks = null, List<RARDetailedBlock>? rightBlocks = null)
+        List<RARDetailedBlock>? leftBlocks = null, List<RARDetailedBlock>? rightBlocks = null,
+        IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         var result = new CompareResult();
 
@@ -42,7 +50,7 @@ public static class FileComparer
         }
         else if (leftData is RARFileData leftRar && rightData is RARFileData rightRar)
         {
-            CompareRARFiles(leftRar, rightRar, result, leftBlocks, rightBlocks);
+            CompareRARFiles(leftRar, rightRar, result, leftBlocks, rightBlocks, leftSource, rightSource);
         }
         else
         {
@@ -259,12 +267,19 @@ public static class FileComparer
     /// <param name="rightBlocks">
     /// Optional detailed blocks for the right file.
     /// </param>
+    /// <param name="leftSource">
+    /// Optional byte-level data source for the left file, used to compare block payloads.
+    /// </param>
+    /// <param name="rightSource">
+    /// Optional byte-level data source for the right file, used to compare block payloads.
+    /// </param>
     public static void CompareRARFiles(RARFileData left, RARFileData right, CompareResult result,
-        List<RARDetailedBlock>? leftBlocks, List<RARDetailedBlock>? rightBlocks)
+        List<RARDetailedBlock>? leftBlocks, List<RARDetailedBlock>? rightBlocks,
+        IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         if (leftBlocks != null && rightBlocks != null)
         {
-            CompareDetailedBlocks(leftBlocks, rightBlocks, result);
+            CompareDetailedBlocks(leftBlocks, rightBlocks, result, leftSource, rightSource);
             return;
         }
 
@@ -283,7 +298,14 @@ public static class FileComparer
     /// <param name="result">
     /// The result to populate with differences.
     /// </param>
-    public static void CompareDetailedBlocks(List<RARDetailedBlock> leftBlocks, List<RARDetailedBlock> rightBlocks, CompareResult result)
+    /// <param name="leftSource">
+    /// Optional byte-level data source for the left file, used to compare block payloads.
+    /// </param>
+    /// <param name="rightSource">
+    /// Optional byte-level data source for the right file, used to compare block payloads.
+    /// </param>
+    public static void CompareDetailedBlocks(List<RARDetailedBlock> leftBlocks, List<RARDetailedBlock> rightBlocks, CompareResult result,
+        IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         if (leftBlocks.Count != rightBlocks.Count)
         {
@@ -350,11 +372,108 @@ public static class FileComparer
                 }
             }
 
+            // Byte-compare the data payload when sources are available and both blocks have data of equal size.
+            // Different sizes are already surfaced via the Pack Size / Data Size header field comparison above.
+            if (leftSource is not null && rightSource is not null
+                && lb.HasData && rb.HasData
+                && lb.DataSize > 0 && lb.DataSize == rb.DataSize)
+            {
+                if (!BlockDataMatches(leftSource, lb.StartOffset + lb.HeaderSize,
+                                      rightSource, rb.StartOffset + rb.HeaderSize, lb.DataSize))
+                {
+                    var propDiff = new PropertyDifference
+                    {
+                        PropertyName = "Block Data",
+                        LeftValue = $"{lb.DataSize:N0} bytes (different)",
+                        RightValue = $"{rb.DataSize:N0} bytes (different)"
+                    };
+
+                    if (fileDiff != null)
+                    {
+                        fileDiff.Type = DifferenceType.Modified;
+                        fileDiff.PropertyDifferences.Add(propDiff);
+                    }
+                    else
+                    {
+                        result.ArchiveDifferences.Add(propDiff);
+                    }
+                }
+            }
+
             if (fileDiff != null && fileDiff.Type != DifferenceType.None)
             {
                 result.FileDifferences.Add(fileDiff);
             }
         }
+    }
+
+    private const int BlockDataCompareBufferSize = 64 * 1024;
+
+    /// <summary>
+    /// Returns whether the byte ranges at the given offsets in the two sources are identical.
+    /// </summary>
+    /// <param name="leftSource">
+    /// The left data source.
+    /// </param>
+    /// <param name="leftOffset">
+    /// Start offset in the left source.
+    /// </param>
+    /// <param name="rightSource">
+    /// The right data source.
+    /// </param>
+    /// <param name="rightOffset">
+    /// Start offset in the right source.
+    /// </param>
+    /// <param name="length">
+    /// Number of bytes to compare.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> if all bytes match; <see langword="false"/> on first mismatch
+    /// or if a source returns fewer bytes than requested.
+    /// </returns>
+    public static bool BlockDataMatches(IHexDataSource leftSource, long leftOffset,
+        IHexDataSource rightSource, long rightOffset, long length)
+    {
+        if (length <= 0)
+        {
+            return true;
+        }
+
+        if (leftOffset < 0 || rightOffset < 0
+            || leftOffset + length > leftSource.Length
+            || rightOffset + length > rightSource.Length)
+        {
+            return false;
+        }
+
+        byte[] leftBuf = new byte[BlockDataCompareBufferSize];
+        byte[] rightBuf = new byte[BlockDataCompareBufferSize];
+        long remaining = length;
+        long lPos = leftOffset;
+        long rPos = rightOffset;
+
+        while (remaining > 0)
+        {
+            int chunk = (int)Math.Min(remaining, BlockDataCompareBufferSize);
+            int leftRead = leftSource.Read(lPos, leftBuf, 0, chunk);
+            int rightRead = rightSource.Read(rPos, rightBuf, 0, chunk);
+
+            if (leftRead != chunk || rightRead != chunk)
+            {
+                return false;
+            }
+
+            if (!leftBuf.AsSpan(0, chunk).SequenceEqual(rightBuf.AsSpan(0, chunk)))
+            {
+                return false;
+            }
+
+            remaining -= chunk;
+            lPos += chunk;
+            rPos += chunk;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -382,6 +501,47 @@ public static class FileComparer
             RARHeaderField? lf = f < left.Fields.Count ? left.Fields[f] : null;
             RARHeaderField? rf = f < right.Fields.Count ? right.Fields[f] : null;
             if ((lf?.Value ?? "") != (rf?.Value ?? ""))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Returns whether two RAR detailed blocks differ in either header fields or, when data sources
+    /// are provided, in their data payload bytes.
+    /// </summary>
+    /// <param name="left">
+    /// The left detailed block.
+    /// </param>
+    /// <param name="right">
+    /// The right detailed block.
+    /// </param>
+    /// <param name="leftSource">
+    /// Optional byte-level data source for the left file.
+    /// </param>
+    /// <param name="rightSource">
+    /// Optional byte-level data source for the right file.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> if any header field, data size, or payload byte differs.
+    /// </returns>
+    public static bool HasBlockDifferences(RARDetailedBlock left, RARDetailedBlock right,
+        IHexDataSource? leftSource, IHexDataSource? rightSource)
+    {
+        if (HasFieldDifferences(left, right))
+        {
+            return true;
+        }
+
+        if (leftSource is not null && rightSource is not null
+            && left.HasData && right.HasData
+            && left.DataSize > 0 && left.DataSize == right.DataSize)
+        {
+            if (!BlockDataMatches(leftSource, left.StartOffset + left.HeaderSize,
+                                  rightSource, right.StartOffset + right.HeaderSize, left.DataSize))
             {
                 return true;
             }
