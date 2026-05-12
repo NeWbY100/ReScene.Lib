@@ -13,7 +13,10 @@ internal class MP4ContainerHandler : IContainerHandler
     private static readonly HashSet<string> _mP4ContainerAtoms =
         ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta", "meta", "ilst"];
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var trackMap = new SortedDictionary<int, TrackInfo>();
         long metaLength = 0;
@@ -22,7 +25,8 @@ internal class MP4ContainerHandler : IContainerHandler
         int currentTrackId = 0;
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ProfileMP4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc, ct);
+        ProfileMP4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc,
+            reportScanProgress, ct);
 
         // For MP4, we need to reconstruct track data from stbl tables
         // In the simplest case, mdat is one big track
@@ -153,13 +157,27 @@ internal class MP4ContainerHandler : IContainerHandler
         ref long metaLength, ref long mdatSize,
         ref int currentTrackId,
         Crc32 crc,
+        Action<long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         fs.Position = start;
+        long totalLength = fs.Length;
+        int lastPercent = -1;
 
         while (fs.Position + 8 <= end)
         {
             ct.ThrowIfCancellationRequested();
+
+            if (reportScanProgress is not null)
+            {
+                int pct = (int)(fs.Position * 100 / Math.Max(1L, totalLength));
+                if (pct != lastPercent)
+                {
+                    lastPercent = pct;
+                    reportScanProgress(fs.Position, totalLength, pct);
+                }
+            }
+
             long atomStart = fs.Position;
 
             byte[] header = new byte[8];
@@ -285,7 +303,7 @@ internal class MP4ContainerHandler : IContainerHandler
             {
                 // Step into children
                 ProfileMP4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
-                    ref currentTrackId, crc, ct);
+                    ref currentTrackId, crc, reportScanProgress, ct);
             }
             else
             {

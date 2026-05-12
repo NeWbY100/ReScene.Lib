@@ -10,7 +10,10 @@ internal class FlacContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.FLAC;
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var track = new TrackInfo { TrackNumber = 1 };
         long otherLength = 0;

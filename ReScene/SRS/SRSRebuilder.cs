@@ -184,9 +184,24 @@ public class SRSRebuilder
             trackDict[track.TrackNumber] = track;
         }
 
-        // Step 2: Find sample streams (locate signatures in media file)
+        // Step 2: Find sample streams (locate signatures in media file).
+        // Prefer the container-specific finder (MKV walks EBML so it can match
+        // signatures that span non-contiguous blocks, e.g. subtitle tracks).
+        // Fall back to the generic raw byte-signature scan for containers that
+        // don't implement one.
         ReportProgress("Finding tracks", 0, tracks.Count, 10);
-        Dictionary<uint, long> trackOffsets = FindSampleStreams(mediaFilePath, trackDict, ct);
+        Dictionary<uint, long>? trackOffsets = null;
+        if (_rebuilders.TryGetValue(srs.ContainerType, out IContainerRebuilder? rebuilderForFind))
+        {
+            trackOffsets = rebuilderForFind.FindSampleStreams(
+                mediaFilePath,
+                trackDict,
+                ReportProgress,
+                ReportScanProgress,
+                ct);
+        }
+
+        trackOffsets ??= FindSampleStreams(mediaFilePath, trackDict, ct);
 
         // Step 3: Rebuild the sample (reads track data directly from media file)
         ReportProgress("Rebuilding", 0, tracks.Count, 40);
@@ -360,7 +375,7 @@ public class SRSRebuilder
         }
 
         rebuilder.Rebuild(srsFilePath, tracks, mediaFilePath, trackOffsets, outputPath,
-            ReportProgress, ct);
+            ReportProgress, ReportScanProgress, ct);
     }
 
     #endregion

@@ -13,7 +13,10 @@ internal class WMVContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.WMV;
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var trackMap = new Dictionary<int, TrackInfo>();
         long totalLength = 0;

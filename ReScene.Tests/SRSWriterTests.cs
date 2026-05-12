@@ -387,6 +387,66 @@ public class SRSWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateAsync_MKV_WithMainFile_PopulatesMatchOffsets()
+    {
+        // Verify pyrescene-style -c behaviour: when a main file is provided,
+        // each track's MatchOffset is set to its first-frame-data offset in
+        // that main file. Using the sample as its own main file means the
+        // expected offsets are the byte positions of each track's first
+        // SimpleBlock frame data within the file.
+        string samplePath = BuildSyntheticMKV();
+        string srsPath = Path.Combine(_tempDir, "test_matchoffset.srs");
+
+        var writer = new SRSWriter();
+        var options = new SRSCreationOptions { MainFilePath = samplePath };
+        SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath, options);
+        Assert.True(result.Success, result.ErrorMessage);
+
+        var parsed = SRSFile.Load(srsPath);
+        Assert.True(parsed.Tracks.Count >= 2, "Expected at least 2 tracks");
+
+        foreach (SRSTrackDataBlock t in parsed.Tracks)
+        {
+            Assert.True(t.MatchOffset > 0,
+                $"Track {t.TrackNumber} MatchOffset should be > 0 when main file is provided, got 0x{t.MatchOffset:X}");
+        }
+    }
+
+    [Fact]
+    public async Task CreateAsync_MKV_WithoutMainFile_MatchOffsetsAreZero()
+    {
+        // Without -c, MatchOffset stays at 0 (mirrors pyrescene's default).
+        string samplePath = BuildSyntheticMKV();
+        string srsPath = Path.Combine(_tempDir, "test_no_matchoffset.srs");
+
+        var writer = new SRSWriter();
+        SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(result.Success, result.ErrorMessage);
+
+        var parsed = SRSFile.Load(srsPath);
+        foreach (SRSTrackDataBlock t in parsed.Tracks)
+        {
+            Assert.Equal(0UL, t.MatchOffset);
+        }
+    }
+
+    [Fact]
+    public async Task CreateAsync_MKV_WithNonexistentMainFile_WarnsButSucceeds()
+    {
+        // Main file path that doesn't exist should produce a warning, not a
+        // failure — the SRS itself is still valid, just without MatchOffsets.
+        string samplePath = BuildSyntheticMKV();
+        string srsPath = Path.Combine(_tempDir, "test_bad_main.srs");
+
+        var writer = new SRSWriter();
+        var options = new SRSCreationOptions { MainFilePath = @"Z:\does\not\exist.mkv" };
+        SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath, options);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Contains(result.Warnings, w => w.Contains("Main file not found", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task CreateAsync_ProgressEvents_AreFired()
     {
         string samplePath = BuildSyntheticAVI();

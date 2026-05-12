@@ -15,6 +15,7 @@ internal class StreamContainerRebuilder : IContainerRebuilder
         Dictionary<uint, long> trackOffsets,
         string outputPath,
         Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

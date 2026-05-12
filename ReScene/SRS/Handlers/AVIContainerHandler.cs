@@ -10,7 +10,10 @@ internal class AVIContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.AVI;
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var trackMap = new Dictionary<int, TrackInfo>();
         long otherLength = 0;
@@ -19,7 +22,8 @@ internal class AVIContainerHandler : IContainerHandler
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(fs);
 
-        ProfileRiffChunks(reader, fs, 0, fs.Length, trackMap, ref otherLength, crc, ct);
+        ProfileRiffChunks(reader, fs, 0, fs.Length, trackMap, ref otherLength, crc,
+            reportScanProgress, ct);
 
         long totalSize = otherLength;
         foreach (TrackInfo t in trackMap.Values)
@@ -55,13 +59,27 @@ internal class AVIContainerHandler : IContainerHandler
         Dictionary<int, TrackInfo> trackMap,
         ref long otherLength,
         Crc32 crc,
+        Action<long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         fs.Position = start;
+        long totalLength = fs.Length;
+        int lastPercent = -1;
 
         while (fs.Position + 8 <= end)
         {
             ct.ThrowIfCancellationRequested();
+
+            if (reportScanProgress is not null)
+            {
+                int pct = (int)(fs.Position * 100 / Math.Max(1L, totalLength));
+                if (pct != lastPercent)
+                {
+                    lastPercent = pct;
+                    reportScanProgress(fs.Position, totalLength, pct);
+                }
+            }
+
             long chunkStart = fs.Position;
 
             byte[] headerBytes = reader.ReadBytes(8);
@@ -89,7 +107,8 @@ internal class AVIContainerHandler : IContainerHandler
                     childEnd = end;
                 }
 
-                ProfileRiffChunks(reader, fs, fs.Position, childEnd, trackMap, ref otherLength, crc, ct);
+                ProfileRiffChunks(reader, fs, fs.Position, childEnd, trackMap, ref otherLength, crc,
+                    reportScanProgress, ct);
 
                 fs.Position = childEnd;
                 // Pad to even boundary

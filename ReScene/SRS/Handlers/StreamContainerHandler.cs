@@ -10,7 +10,10 @@ internal class StreamContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.Stream;
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         // For stream types, the entire file is essentially one track
         var track = new TrackInfo { TrackNumber = 1 };
@@ -22,10 +25,22 @@ internal class StreamContainerHandler : IContainerHandler
         long totalRead = 0;
         long fileLen = fs.Length;
         track.DataLength = fileLen;
+        int lastPercent = -1;
 
         while (totalRead < fileLen)
         {
             ct.ThrowIfCancellationRequested();
+
+            if (reportScanProgress is not null)
+            {
+                int pct = (int)(totalRead * 100 / Math.Max(1L, fileLen));
+                if (pct != lastPercent)
+                {
+                    lastPercent = pct;
+                    reportScanProgress(totalRead, fileLen, pct);
+                }
+            }
+
             int toRead = (int)Math.Min(buffer.Length, fileLen - totalRead);
             int actualRead = fs.Read(buffer, 0, toRead);
             if (actualRead <= 0)

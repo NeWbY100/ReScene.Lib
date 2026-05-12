@@ -317,6 +317,74 @@ public class SRSRebuilderTests : IDisposable
         Assert.Equal(result.ExpectedSize, result.ActualSize);
     }
 
+    [Fact]
+    public async Task Rebuild_MKVSubtitleStyleTrack_FromLargerMediaFile_CRCMatches()
+    {
+        // A track whose individual block payloads are smaller than the 256-byte
+        // signature size — like real-world MKV subtitle tracks — produces a
+        // signature that is the concatenation of many non-contiguous blocks in
+        // the file. A raw byte scan can never find such a signature; only an
+        // EBML-aware finder can. This test exercises that path.
+        string samplePath = BuildSyntheticMKVWithSubtitleStyleTrack();
+        string mediaPath = BuildLargerMKVWithSubtitleStyleTrack();
+
+        string srsPath = Path.Combine(_tempDir, "test_subs.srs");
+        var writer = new SRSWriter();
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        string outputPath = Path.Combine(_tempDir, "rebuilt_subs.mkv");
+        var rebuilder = new SRSRebuilder();
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(result.CRCMatch,
+            $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
+        Assert.Equal(result.ExpectedSize, result.ActualSize);
+
+        byte[] originalBytes = File.ReadAllBytes(samplePath);
+        byte[] rebuiltBytes = File.ReadAllBytes(outputPath);
+        Assert.True(originalBytes.AsSpan().SequenceEqual(rebuiltBytes),
+            "Rebuilt MKV with subtitle-style track does not match original.");
+    }
+
+    [Fact]
+    public async Task MKVFindSampleStreams_SubtitleStyleTrack_LocatesAllTracks()
+    {
+        // Direct test of the container-specific finder. Verifies it returns a
+        // valid offset for a track whose signature spans many small blocks,
+        // where the generic raw byte scan cannot find it.
+        string samplePath = BuildSyntheticMKVWithSubtitleStyleTrack();
+        string mediaPath = BuildLargerMKVWithSubtitleStyleTrack();
+
+        var writer = new SRSWriter();
+        string srsPath = Path.Combine(_tempDir, "test_subs_finder.srs");
+        SRSCreationResult cr = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(cr.Success, cr.ErrorMessage);
+
+        var srs = SRSFile.Load(srsPath);
+        var trackDict = new Dictionary<uint, SRSTrackDataBlock>();
+        foreach (SRSTrackDataBlock t in srs.Tracks)
+        {
+            trackDict[t.TrackNumber] = t;
+        }
+
+        var mkvRebuilder = new MKVContainerRebuilder();
+        Dictionary<uint, long>? offsets = mkvRebuilder.FindSampleStreams(
+            mediaPath, trackDict, null, null, CancellationToken.None);
+
+        Assert.NotNull(offsets);
+        Assert.True(offsets!.ContainsKey(1), "Video track (1) was not located.");
+        Assert.True(offsets.ContainsKey(2), "Subtitle-style track (2) was not located.");
+
+        // Sanity-check: the generic raw byte scan from SRSRebuilder cannot find
+        // the subtitle-style track's signature in the larger media file.
+        using var fs = new FileStream(mediaPath, FileMode.Open, FileAccess.Read);
+        byte[] subSig = trackDict[2].Signature;
+        long rawScanResult = new SRSRebuilder().FindSignature(fs, subSig, 0);
+        Assert.Equal(-1, rawScanResult);
+    }
+
     #endregion
 
     #region MP4 Round-Trip Tests
@@ -1732,6 +1800,179 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds an MKV using Block (0xA1) inside BlockGroup (0xA0) instead of SimpleBlock.
     /// </summary>
+    /// <summary>
+    /// Builds an MKV with two tracks where track 2 has many small block payloads
+    /// (30 bytes each) — mimicking a real-world subtitle track whose signature
+    /// must be reconstructed from the concatenation of multiple non-contiguous
+    /// blocks. The subtitle blocks are interleaved with track 1's video blocks
+    /// inside each cluster, so the concatenated signature does NOT appear as a
+    /// contiguous byte sequence anywhere in the file.
+    /// </summary>
+    private string BuildSyntheticMKVWithSubtitleStyleTrack()
+    {
+        string path = Path.Combine(_tempDir, "test_sub_sample.mkv");
+        using var ms = new MemoryStream();
+
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
+
+        var segContent = new MemoryStream();
+
+        // 4 clusters; each holds 1 video block + 3 subtitle blocks (interleaved).
+        // 12 subtitle blocks × 30 bytes = 360 bytes total, so the 256-byte
+        // signature for track 2 spans 9 separate blocks across ~3 clusters.
+        int subBlockIndex = 0;
+        for (int c = 0; c < 4; c++)
+        {
+            var cluster = new MemoryStream();
+            WriteEBMLElement(cluster, 0xE7, [(byte)c]); // Timecode
+
+            // Video block (track 1)
+            byte[] videoData = CreateTestData(512, seed: 1000 + c);
+            byte[] videoPayload = new byte[1 + 2 + 1 + videoData.Length];
+            videoPayload[0] = 0x81; // Track 1
+            videoPayload[3] = 0x80; // Keyframe
+            videoData.CopyTo(videoPayload, 4);
+            WriteEBMLElement(cluster, 0xA3, videoPayload);
+
+            // 3 subtitle-style blocks (track 2), interleaved AFTER the video
+            for (int i = 0; i < 3; i++)
+            {
+                byte[] subData = CreateTestData(30, seed: 2000 + subBlockIndex);
+                subBlockIndex++;
+                byte[] subPayload = new byte[1 + 2 + 1 + subData.Length];
+                subPayload[0] = 0x82; // Track 2
+                subPayload[3] = 0x00;
+                subData.CopyTo(subPayload, 4);
+                WriteEBMLElement(cluster, 0xA3, subPayload);
+            }
+
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
+        }
+
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    /// <summary>
+    /// Builds a larger "movie" MKV that contains the same sample clusters as
+    /// <see cref="BuildSyntheticMKVWithSubtitleStyleTrack"/>, plus surrounding
+    /// pre/post clusters with different data. Used to verify the EBML-aware
+    /// finder can locate a subtitle-style track's signature inside a media file
+    /// far larger than the original sample.
+    /// </summary>
+    private string BuildLargerMKVWithSubtitleStyleTrack()
+    {
+        string path = Path.Combine(_tempDir, "test_sub_movie.mkv");
+        using var ms = new MemoryStream();
+
+        WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
+
+        var segContent = new MemoryStream();
+
+        // Tracks metadata (mirrors a real MKV)
+        var tracksContent = new MemoryStream();
+        var track1Entry = new MemoryStream();
+        WriteEBMLElement(track1Entry, 0xD7, [1]);
+        WriteEBMLElement(track1Entry, 0x73C5, [1]);
+        WriteEBMLElement(track1Entry, 0x83, [1]);
+        WriteEBMLElement(track1Entry, 0x86, Encoding.UTF8.GetBytes("V_MS/VFW/FOURCC"));
+        WriteEBMLElement(tracksContent, 0xAE, track1Entry.ToArray());
+        var track2Entry = new MemoryStream();
+        WriteEBMLElement(track2Entry, 0xD7, [2]);
+        WriteEBMLElement(track2Entry, 0x73C5, [2]);
+        WriteEBMLElement(track2Entry, 0x83, [0x11]); // TrackType = subtitle
+        WriteEBMLElement(track2Entry, 0x86, Encoding.UTF8.GetBytes("S_TEXT/UTF8"));
+        WriteEBMLElement(tracksContent, 0xAE, track2Entry.ToArray());
+        WriteEBMLElement(segContent, 0x1654AE6B, tracksContent.ToArray());
+
+        // Pre-sample clusters with different data
+        for (int c = 0; c < 3; c++)
+        {
+            var cluster = new MemoryStream();
+            WriteEBMLElement(cluster, 0xE7, [(byte)c]);
+
+            byte[] preVid = CreateTestData(512, seed: 9000 + c);
+            byte[] preVidPayload = new byte[1 + 2 + 1 + preVid.Length];
+            preVidPayload[0] = 0x81;
+            preVidPayload[3] = 0x80;
+            preVid.CopyTo(preVidPayload, 4);
+            WriteEBMLElement(cluster, 0xA3, preVidPayload);
+
+            for (int i = 0; i < 3; i++)
+            {
+                byte[] preSub = CreateTestData(30, seed: 9500 + c * 10 + i);
+                byte[] preSubPayload = new byte[1 + 2 + 1 + preSub.Length];
+                preSubPayload[0] = 0x82;
+                preSubPayload[3] = 0x00;
+                preSub.CopyTo(preSubPayload, 4);
+                WriteEBMLElement(cluster, 0xA3, preSubPayload);
+            }
+
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
+        }
+
+        // The sample clusters — same seeds as BuildSyntheticMKVWithSubtitleStyleTrack
+        int subBlockIndex = 0;
+        for (int c = 0; c < 4; c++)
+        {
+            var cluster = new MemoryStream();
+            WriteEBMLElement(cluster, 0xE7, [(byte)(100 + c)]);
+
+            byte[] videoData = CreateTestData(512, seed: 1000 + c);
+            byte[] videoPayload = new byte[1 + 2 + 1 + videoData.Length];
+            videoPayload[0] = 0x81;
+            videoPayload[3] = 0x80;
+            videoData.CopyTo(videoPayload, 4);
+            WriteEBMLElement(cluster, 0xA3, videoPayload);
+
+            for (int i = 0; i < 3; i++)
+            {
+                byte[] subData = CreateTestData(30, seed: 2000 + subBlockIndex);
+                subBlockIndex++;
+                byte[] subPayload = new byte[1 + 2 + 1 + subData.Length];
+                subPayload[0] = 0x82;
+                subPayload[3] = 0x00;
+                subData.CopyTo(subPayload, 4);
+                WriteEBMLElement(cluster, 0xA3, subPayload);
+            }
+
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
+        }
+
+        // Post-sample clusters with different data
+        for (int c = 0; c < 3; c++)
+        {
+            var cluster = new MemoryStream();
+            WriteEBMLElement(cluster, 0xE7, [(byte)(200 + c)]);
+
+            byte[] postVid = CreateTestData(512, seed: 8000 + c);
+            byte[] postVidPayload = new byte[1 + 2 + 1 + postVid.Length];
+            postVidPayload[0] = 0x81;
+            postVidPayload[3] = 0x80;
+            postVid.CopyTo(postVidPayload, 4);
+            WriteEBMLElement(cluster, 0xA3, postVidPayload);
+
+            for (int i = 0; i < 3; i++)
+            {
+                byte[] postSub = CreateTestData(30, seed: 8500 + c * 10 + i);
+                byte[] postSubPayload = new byte[1 + 2 + 1 + postSub.Length];
+                postSubPayload[0] = 0x82;
+                postSubPayload[3] = 0x00;
+                postSub.CopyTo(postSubPayload, 4);
+                WriteEBMLElement(cluster, 0xA3, postSubPayload);
+            }
+
+            WriteEBMLElement(segContent, 0x1F43B675, cluster.ToArray());
+        }
+
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
     private string BuildSyntheticMKVWithBlockGroup()
     {
         string path = Path.Combine(_tempDir, "test_blockgroup.mkv");

@@ -25,18 +25,20 @@ internal class MKVContainerRebuilder : IContainerRebuilder
         Dictionary<uint, long> trackOffsets,
         string outputPath,
         Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         // Extract attachment data from the media file (fonts, etc.).
         // The SRS preserves attachment headers with original sizes but strips
         // the data, so we need to source it from the media file.
-        Queue<(string Name, byte[] Data)> attachments = ExtractMediaAttachments(mediaFilePath, ct);
+        Queue<(string Name, byte[] Data)> attachments =
+            ExtractMediaAttachments(mediaFilePath, reportScanProgress, ct);
 
         // Collect per-track frame data from the media file into MemoryStreams.
         // The SRS file preserves the original block headers (including lacing);
         // only the raw frame bytes come from the media file.
         Dictionary<uint, MemoryStream> frameData =
-            CollectMediaFrameData(mediaFilePath, trackOffsets, tracks, reportProgress, ct);
+            CollectMediaFrameData(mediaFilePath, trackOffsets, tracks, reportProgress, reportScanProgress, ct);
 
         try
         {
@@ -61,6 +63,289 @@ internal class MKVContainerRebuilder : IContainerRebuilder
         }
     }
 
+    #region Find Sample Streams
+
+    /// <summary>
+    /// Per-track signature match state used while walking the media file's EBML
+    /// structure. Tracks how many bytes of the signature have been matched so far
+    /// and the file offset where the match began.
+    /// </summary>
+    private sealed class TrackMatchState
+    {
+        public byte[] Signature = [];
+        public int MatchedLen;
+        public long MatchOffset = -1;
+    }
+
+    /// <summary>
+    /// Locates each track's signature in the media file by walking EBML
+    /// SimpleBlock/Block elements and accumulating per-track frame data until
+    /// each track's full signature has been matched.
+    ///
+    /// Unlike a raw byte scan, this works correctly for tracks whose signatures
+    /// span multiple non-contiguous blocks — subtitle tracks in particular,
+    /// where individual block payloads are typically smaller than the 256-byte
+    /// signature size and are interleaved with other tracks' blocks in the file.
+    /// </summary>
+    public Dictionary<uint, long>? FindSampleStreams(
+        string mediaFilePath,
+        Dictionary<uint, SRSTrackDataBlock> tracks,
+        Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
+        CancellationToken ct)
+    {
+        var signatures = new Dictionary<uint, byte[]>();
+        foreach ((uint tn, SRSTrackDataBlock track) in tracks)
+        {
+            signatures[tn] = track.Signature;
+        }
+
+        Dictionary<uint, long> offsets = FindTrackOffsetsByEBMLWalk(
+            mediaFilePath, signatures, reportProgress, reportScanProgress, ct);
+
+        // The rebuilder requires every non-empty-signature track to be located.
+        foreach ((uint tn, byte[] sig) in signatures)
+        {
+            if (sig.Length > 0 && !offsets.ContainsKey(tn))
+            {
+                throw new InvalidDataException(
+                    $"Unable to locate track signature for track {tn} in the media file.");
+            }
+        }
+
+        return offsets;
+    }
+
+    /// <summary>
+    /// Walks the media file's EBML structure and returns the file offset of the
+    /// first frame-data byte for each track whose signature was located. Tracks
+    /// not found are simply omitted from the result. Tracks with an empty
+    /// signature are returned with offset 0.
+    ///
+    /// This is the shared matching primitive used both for rebuilding samples
+    /// (where every track must be located) and for SRS creation verification
+    /// (where missing tracks just mean match offsets stay at 0).
+    /// </summary>
+    public static Dictionary<uint, long> FindTrackOffsetsByEBMLWalk(
+        string mediaFilePath,
+        Dictionary<uint, byte[]> trackSignatures,
+        Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
+        CancellationToken ct)
+    {
+        var offsets = new Dictionary<uint, long>();
+        var state = new Dictionary<uint, TrackMatchState>();
+        var unmatched = new HashSet<uint>();
+
+        foreach ((uint tn, byte[] sig) in trackSignatures)
+        {
+            if (sig.Length == 0)
+            {
+                offsets[tn] = 0;
+                continue;
+            }
+
+            state[tn] = new TrackMatchState { Signature = sig };
+            unmatched.Add(tn);
+        }
+
+        if (unmatched.Count == 0)
+        {
+            return offsets;
+        }
+
+        using var fs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+            bufferSize: 80 * 1024);
+
+        reportProgress?.Invoke("Finding tracks (EBML walk)", 0, trackSignatures.Count, 10);
+        int lastPercent = -1;
+
+        while (fs.Position < fs.Length && unmatched.Count > 0)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            int percent = (int)(fs.Position * 100 / Math.Max(1L, fs.Length));
+            if (percent != lastPercent)
+            {
+                lastPercent = percent;
+                reportScanProgress?.Invoke("Scanning media file (EBML)", fs.Position, fs.Length, percent);
+            }
+
+            if (!EBMLReader.TryReadId(fs, out ulong elemId, out int _))
+            {
+                break;
+            }
+
+            if (!EBMLReader.TryReadSize(fs, out ulong dataSize, out int sizeLen))
+            {
+                break;
+            }
+
+            long dataStart = fs.Position;
+            bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
+
+            // SimpleBlock (0xA3) or Block (0xA1): try to advance the match for this block's track
+            if (elemId is 0xA3 or 0xA1)
+            {
+                long blockStart = fs.Position;
+                if (EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
+                {
+                    uint tn = (uint)trackNum;
+
+                    if (unmatched.Contains(tn))
+                    {
+                        int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
+
+                        fs.Position = blockStart + vintLen + 2;
+                        int flagsByte = fs.ReadByte();
+                        if (flagsByte < 0)
+                        {
+                            break;
+                        }
+
+                        int lacingHeaderSize = ReadLacingHeaderSize(fs, blockStart, blockHeaderBase, flagsByte);
+
+                        long frameDataOffset = blockStart + blockHeaderBase + lacingHeaderSize;
+                        int frameDataLen = (int)((long)dataSize - blockHeaderBase - lacingHeaderSize);
+
+                        if (frameDataLen > 0)
+                        {
+                            TrackMatchState s = state[tn];
+
+                            // We only ever need to read up to the remaining signature length
+                            int needed = s.Signature.Length - s.MatchedLen;
+                            int readLen = Math.Min(frameDataLen, Math.Max(needed, s.Signature.Length));
+
+                            fs.Position = frameDataOffset;
+                            byte[] frameBuf = new byte[readLen];
+                            int read = StreamUtilities.ReadFully(fs, frameBuf, 0, readLen);
+
+                            if (read > 0)
+                            {
+                                TryAdvanceMatch(s, frameBuf.AsSpan(0, read), frameDataOffset);
+
+                                if (s.MatchedLen == s.Signature.Length)
+                                {
+                                    offsets[tn] = s.MatchOffset;
+                                    unmatched.Remove(tn);
+                                    reportProgress?.Invoke(
+                                        $"Track {tn} located at offset {s.MatchOffset:N0}",
+                                        0, 0, 30);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                fs.Position = dataStart + (long)dataSize;
+                continue;
+            }
+
+            // Container elements or unknown sizes: step into
+            if (unknownSize || IsEBMLContainerElement(elemId))
+            {
+                continue;
+            }
+
+            // Skip past anything else
+            fs.Position = dataStart + (long)dataSize;
+        }
+
+        return offsets;
+    }
+
+    /// <summary>
+    /// Attempts to advance a track's signature match using the given frame data.
+    /// Handles partial-match false positives by resetting and re-trying the same
+    /// frame as a fresh match start, mirroring pyrescene's _mkv_block_find logic.
+    /// </summary>
+    private static void TryAdvanceMatch(TrackMatchState s, ReadOnlySpan<byte> frameBytes, long frameOffset)
+    {
+        ReadOnlySpan<byte> sig = s.Signature;
+
+        if (s.MatchedLen > 0)
+        {
+            int need = sig.Length - s.MatchedLen;
+            int take = Math.Min(need, frameBytes.Length);
+            if (frameBytes[..take].SequenceEqual(sig.Slice(s.MatchedLen, take)))
+            {
+                s.MatchedLen += take;
+                return;
+            }
+
+            // Partial match failed — reset and try this frame as a fresh start
+            s.MatchedLen = 0;
+            s.MatchOffset = -1;
+        }
+
+        int freshTake = Math.Min(sig.Length, frameBytes.Length);
+        if (frameBytes[..freshTake].SequenceEqual(sig[..freshTake]))
+        {
+            s.MatchedLen = freshTake;
+            s.MatchOffset = frameOffset;
+        }
+    }
+
+    /// <summary>
+    /// Reads the lacing header (if any) after the base block header and returns
+    /// the number of bytes the lacing header occupies. Leaves the stream position
+    /// indeterminate.
+    /// </summary>
+    private static int ReadLacingHeaderSize(Stream fs, long blockStart, int blockHeaderBase, int flagsByte)
+    {
+        int laceType = (flagsByte >> 1) & 0x03;
+        if (laceType == 0)
+        {
+            return 0;
+        }
+
+        fs.Position = blockStart + blockHeaderBase;
+        int laceCount = fs.ReadByte();
+        if (laceCount < 0)
+        {
+            return 0;
+        }
+
+        int lacingHeaderSize = 1;
+
+        if (laceType == 1) // Xiph lacing
+        {
+            for (int i = 0; i < laceCount; i++)
+            {
+                int b;
+                do
+                {
+                    b = fs.ReadByte();
+                    if (b < 0)
+                    {
+                        return lacingHeaderSize;
+                    }
+
+                    lacingHeaderSize++;
+                } while (b == 255);
+            }
+        }
+        else if (laceType == 3) // EBML lacing
+        {
+            if (EBMLReader.TryReadSize(fs, out _, out int firstSizeLen))
+            {
+                lacingHeaderSize += firstSizeLen;
+                for (int i = 1; i < laceCount; i++)
+                {
+                    if (EBMLReader.TryReadSize(fs, out _, out int deltaLen))
+                    {
+                        lacingHeaderSize += deltaLen;
+                    }
+                }
+            }
+        }
+        // Fixed-size lacing (type 2) has only the lace count byte — no extra size data
+
+        return lacingHeaderSize;
+    }
+
+    #endregion
+
     #region Extract Attachments
 
     /// <summary>
@@ -70,7 +355,9 @@ internal class MKVContainerRebuilder : IContainerRebuilder
     /// strips the actual data, so we need to source it from the media file.
     /// </summary>
     private static Queue<(string Name, byte[] Data)> ExtractMediaAttachments(
-        string mediaFilePath, CancellationToken ct)
+        string mediaFilePath,
+        Action<string, long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var attachments = new Queue<(string, byte[])>();
         string? currentName = null;
@@ -78,9 +365,19 @@ internal class MKVContainerRebuilder : IContainerRebuilder
         using var fs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 80 * 1024);
 
+        long totalLength = fs.Length;
+        int lastPercent = -1;
+
         while (fs.Position < fs.Length)
         {
             ct.ThrowIfCancellationRequested();
+
+            int percent = (int)(fs.Position * 100 / Math.Max(1L, totalLength));
+            if (percent != lastPercent)
+            {
+                lastPercent = percent;
+                reportScanProgress?.Invoke("Scanning for attachments", fs.Position, totalLength, percent);
+            }
 
             if (!EBMLReader.TryReadId(fs, out ulong elemId, out int idLen))
             {
@@ -94,6 +391,15 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
             long dataStart = fs.Position;
             bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
+
+            // Clusters never contain attachments, but they hold the bulk of an
+            // MKV's bytes. Skipping past them turns this walk from O(file size)
+            // into O(metadata size).
+            if (elemId == 0x1F43B675 && !unknownSize)
+            {
+                fs.Position = dataStart + (long)dataSize;
+                continue;
+            }
 
             // Container elements: step into
             if (unknownSize || IsEBMLContainerElement(elemId))
@@ -147,6 +453,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
         Dictionary<uint, long> trackOffsets,
         Dictionary<uint, SRSTrackDataBlock> tracks,
         Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         var streams = new Dictionary<uint, MemoryStream>();
@@ -168,10 +475,18 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
         byte[] copyBuf = new byte[80 * 1024];
         int blocksMatched = 0;
+        int lastScanPercent = -1;
 
         while (fs.Position < fs.Length)
         {
             ct.ThrowIfCancellationRequested();
+
+            int scanPercent = (int)(fs.Position * 100 / Math.Max(1L, fs.Length));
+            if (scanPercent != lastScanPercent)
+            {
+                lastScanPercent = scanPercent;
+                reportScanProgress?.Invoke("Collecting frame data", fs.Position, fs.Length, scanPercent);
+            }
 
             bool allDone = true;
             foreach (long r in remaining.Values)

@@ -9,6 +9,18 @@ public class SRSCreationOptions
     /// Application name to embed in the SRS file.
     /// </summary>
     public string AppName { get; set; } = "ReScene.NET";
+
+    /// <summary>
+    /// Optional path to the full "main" media file (e.g. the unpacked full
+    /// movie) to verify the sample against. When set, the writer locates each
+    /// track's signature inside this file and records the offset as
+    /// <c>MatchOffset</c> in the SRS — mirroring the scene-tool behaviour
+    /// (pyrescene's <c>-c</c> flag). When unset, MatchOffset stays at 0.
+    /// </summary>
+    public string? MainFilePath
+    {
+        get; set;
+    }
 }
 
 /// <summary>
@@ -120,6 +132,12 @@ public class SRSWriter
     public event EventHandler<SRSCreationProgressEventArgs>? Progress;
 
     /// <summary>
+    /// Occurs during sample profiling to report byte-level scan progress
+    /// (bytes scanned, total bytes, percent).
+    /// </summary>
+    public event EventHandler<SRSScanProgressEventArgs>? ScanProgress;
+
+    /// <summary>
     /// Creates an SRS file from a sample media file.
     /// </summary>
     /// <param name="outputPath">
@@ -174,7 +192,7 @@ public class SRSWriter
             // Profile the sample to extract tracks and CRC
             ReportProgress("Profiling sample...");
             (List<TrackInfo>? tracks, uint crc32, long totalSize) = await Task.Run(
-                () => handler.Profile(sampleFilePath, ct), ct);
+                () => handler.Profile(sampleFilePath, ReportScanProgress, ct), ct);
 
             if (tracks.Count == 0)
             {
@@ -191,6 +209,23 @@ public class SRSWriter
             result.SampleCRC32 = crc32;
             result.SampleSize = sampleSize;
             result.TrackCount = tracks.Count;
+
+            // Optionally verify against the main file to populate per-track
+            // MatchOffset values (mirrors pyrescene's -c flag).
+            if (!string.IsNullOrWhiteSpace(options.MainFilePath))
+            {
+                if (!File.Exists(options.MainFilePath))
+                {
+                    result.Warnings.Add(
+                        $"Main file not found: {options.MainFilePath}. Match offsets will be 0.");
+                }
+                else
+                {
+                    ReportProgress($"Verifying sample against main file: {Path.GetFileName(options.MainFilePath)}");
+                    await Task.Run(() => VerifyAgainstMainFile(
+                        options.MainFilePath, containerType, tracks, result, ct), ct);
+                }
+            }
 
             // Write the SRS file
             ReportProgress("Writing SRS file...");
@@ -321,7 +356,101 @@ public class SRSWriter
 
     #region Utilities
 
+    /// <summary>
+    /// Locates each track's signature in <paramref name="mainFilePath"/> and
+    /// writes the byte offset into <c>TrackInfo.MatchOffset</c>. MKV uses an
+    /// EBML walker (handles subtitle-style tracks whose signatures span many
+    /// non-contiguous blocks); other containers use a raw byte-signature scan.
+    /// Tracks not located keep <c>MatchOffset</c> at 0 and produce a warning.
+    /// </summary>
+    private void VerifyAgainstMainFile(
+        string mainFilePath,
+        SRSContainerType containerType,
+        List<TrackInfo> tracks,
+        SRSCreationResult result,
+        CancellationToken ct)
+    {
+        Dictionary<uint, long> offsets;
+
+        if (containerType == SRSContainerType.MKV)
+        {
+            var sigs = new Dictionary<uint, byte[]>();
+            foreach (TrackInfo t in tracks)
+            {
+                sigs[(uint)t.TrackNumber] = t.SignatureBytes;
+            }
+
+            offsets = MKVContainerRebuilder.FindTrackOffsetsByEBMLWalk(
+                mainFilePath,
+                sigs,
+                reportProgress: null,
+                reportScanProgress: (phase, scanned, total, pct)
+                    => ReportScanProgress(scanned, total, pct),
+                ct);
+        }
+        else
+        {
+            offsets = new Dictionary<uint, long>();
+            using var fs = new FileStream(mainFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 80 * 1024);
+            long totalLen = fs.Length;
+            int lastPercent = -1;
+
+            foreach (TrackInfo t in tracks)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                if (t.SignatureBytes.Length == 0)
+                {
+                    offsets[(uint)t.TrackNumber] = 0;
+                    continue;
+                }
+
+                long found = SignatureScanner.Scan(fs, t.SignatureBytes, 0, fs.Length,
+                    (scanned, _, pct) =>
+                    {
+                        if (pct != lastPercent)
+                        {
+                            lastPercent = pct;
+                            ReportScanProgress(scanned, totalLen, pct);
+                        }
+                    },
+                    ct);
+
+                if (found >= 0)
+                {
+                    offsets[(uint)t.TrackNumber] = found;
+                }
+            }
+        }
+
+        int matched = 0;
+        foreach (TrackInfo t in tracks)
+        {
+            if (offsets.TryGetValue((uint)t.TrackNumber, out long offset) && offset > 0)
+            {
+                t.MatchOffset = offset;
+                matched++;
+            }
+        }
+
+        if (matched < tracks.Count(tr => tr.SignatureBytes.Length > 0))
+        {
+            result.Warnings.Add(
+                "Not every track was located in the main file — affected tracks keep MatchOffset = 0.");
+        }
+    }
+
     private void ReportProgress(string message) => Progress?.Invoke(this, new SRSCreationProgressEventArgs { Message = message });
+
+    private void ReportScanProgress(long bytesScanned, long bytesTotal, int percent)
+        => ScanProgress?.Invoke(this, new SRSScanProgressEventArgs
+        {
+            Phase = "Profiling sample",
+            BytesScanned = bytesScanned,
+            BytesTotal = bytesTotal,
+            Percent = percent
+        });
 
     #endregion
 }

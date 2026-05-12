@@ -63,14 +63,36 @@ internal class MKVContainerHandler : IContainerHandler
         }
     }
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var trackMap = new Dictionary<int, TrackInfo>();
         long otherLength = 0;
         var crc = new Crc32();
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        ProfileEBMLElements(fs, 0, fs.Length, trackMap, ref otherLength, crc, isSegmentLevel: false, ct);
+        long totalLength = fs.Length;
+        int lastPercent = -1;
+
+        void onPosition()
+        {
+            if (reportScanProgress is null)
+            {
+                return;
+            }
+
+            int pct = (int)(fs.Position * 100 / Math.Max(1L, totalLength));
+            if (pct != lastPercent)
+            {
+                lastPercent = pct;
+                reportScanProgress(fs.Position, totalLength, pct);
+            }
+        }
+
+        ProfileEBMLElements(fs, 0, fs.Length, trackMap, ref otherLength, crc,
+            isSegmentLevel: false, ct, onPosition: onPosition);
 
         long totalSize = otherLength;
         foreach (TrackInfo t in trackMap.Values)
@@ -106,7 +128,8 @@ internal class MKVContainerHandler : IContainerHandler
         Crc32 crc,
         bool isSegmentLevel,
         CancellationToken ct,
-        EBMLProfileState? state = null)
+        EBMLProfileState? state = null,
+        Action? onPosition = null)
     {
         state ??= new EBMLProfileState();
         fs.Position = start;
@@ -114,6 +137,7 @@ internal class MKVContainerHandler : IContainerHandler
         while (fs.Position < end)
         {
             ct.ThrowIfCancellationRequested();
+            onPosition?.Invoke();
             long elemStart = fs.Position;
 
             if (!EBMLReader.TryReadId(fs, out ulong elemId, out int idLen))
@@ -148,7 +172,7 @@ internal class MKVContainerHandler : IContainerHandler
 
                 // Step into container element
                 ProfileEBMLElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
-                    isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state);
+                    isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state, onPosition);
             }
             else if (elemId == _eBMLIdBlock || elemId == _eBMLIdBlockGroupBlock)
             {

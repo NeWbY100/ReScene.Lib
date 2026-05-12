@@ -17,6 +17,7 @@ internal class MP3ContainerRebuilder : IContainerRebuilder
         Dictionary<uint, long> trackOffsets,
         string outputPath,
         Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);

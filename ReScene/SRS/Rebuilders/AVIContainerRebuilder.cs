@@ -18,6 +18,7 @@ internal class AVIContainerRebuilder : IContainerRebuilder
         Dictionary<uint, long> trackOffsets,
         string outputPath,
         Action<string, int, int, double>? reportProgress,
+        Action<string, long, long, int>? reportScanProgress,
         CancellationToken ct)
     {
         // Index the media file's movi chunks near the signature area.

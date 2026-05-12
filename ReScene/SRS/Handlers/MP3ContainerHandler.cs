@@ -10,7 +10,10 @@ internal class MP3ContainerHandler : IContainerHandler
 
     public SRSContainerType ContainerType => SRSContainerType.MP3;
 
-    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(string samplePath, CancellationToken ct)
+    public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
+        string samplePath,
+        Action<long, long, int>? reportScanProgress,
+        CancellationToken ct)
     {
         var track = new TrackInfo { TrackNumber = 1 };
         var crc = new Crc32();
