@@ -54,6 +54,15 @@ public partial class Manager(IReSceneLogger? logger = null)
     public event EventHandler<CRCValidationProgressEventArgs>? CRCValidationProgress;
 
     /// <summary>
+    /// Occurs when preserving a source file's timestamps onto its copied
+    /// destination fails (e.g. denied by ACLs). The packed RAR's File Time
+    /// (DOS) for that file will reflect the copy time, not the source mtime,
+    /// unless the SRR carries explicit timestamps that override this.
+    /// The event argument is the destination file path.
+    /// </summary>
+    public event EventHandler<TimestampPreservationFailedEventArgs>? TimestampPreservationFailed;
+
+    /// <summary>
     /// Gets the current brute-force options, or null if no operation is in progress.
     /// </summary>
     public BruteForceOptions? BruteForceOptions
@@ -1016,10 +1025,17 @@ public partial class Manager(IReSceneLogger? logger = null)
         => FileOperations.DeleteRARFileAndVolumes(rarFilePath, _logger);
 
     private void CopyDirectory(string sourceDir, string destDir)
-        => FileOperations.CopyDirectory(sourceDir, destDir, _cts.Token, FireFileCopyProgress);
+        => FileOperations.CopyDirectory(sourceDir, destDir, _cts.Token, FireFileCopyProgress, _logger, FireTimestampPreservationFailed);
 
     private void CopySelectedEntries(string sourceDir, string destDir, HashSet<string> filePaths, HashSet<string> directoryPaths)
-        => FileOperations.CopySelectedEntries(sourceDir, destDir, filePaths, directoryPaths, _cts.Token, FireFileCopyProgress, _logger);
+        => FileOperations.CopySelectedEntries(sourceDir, destDir, filePaths, directoryPaths, _cts.Token, FireFileCopyProgress, _logger, FireTimestampPreservationFailed);
+
+    private void FireTimestampPreservationFailed(string destPath, string errorMessage)
+        => TimestampPreservationFailed?.Invoke(this, new TimestampPreservationFailedEventArgs
+        {
+            DestinationPath = destPath,
+            ErrorMessage = errorMessage
+        });
 
     /// <summary>
     /// Validates that all required input files from the SRR exist in the release directory

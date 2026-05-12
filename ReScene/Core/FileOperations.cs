@@ -157,12 +157,21 @@ internal static class FileOperations
     /// <param name="onProgress">
     /// Optional callback invoked after each buffer write and after file completion.
     /// </param>
+    /// <param name="logger">
+    /// Optional logger used to warn about timestamp-preservation failures.
+    /// </param>
+    /// <param name="onTimestampFailure">
+    /// Optional callback invoked with (destPath, errorMessage) when copying the
+    /// source file's timestamps onto the destination fails.
+    /// </param>
     public static void CopyFileWithProgress(
         string sourcePath, string destPath, string displayName,
         ref long bytesCopied, ref int filesCopied, int totalFiles, long totalBytes,
         string sourceDir, string destDir,
         CancellationToken ct,
-        Action<FileCopyProgressEventArgs>? onProgress = null)
+        Action<FileCopyProgressEventArgs>? onProgress = null,
+        IReSceneLogger? logger = null,
+        Action<string, string>? onTimestampFailure = null)
     {
         byte[] buffer = new byte[32 * 1024 * 1024];
 
@@ -187,6 +196,28 @@ internal static class FileOperations
                     DestinationDirectory = destDir
                 });
             }
+        }
+
+        // Preserve the source file's timestamps. When the SRR carries archived
+        // timestamps, ApplyFileTimestamps will later override these — same end
+        // result. When the SRR has none, these preserved values are what
+        // WinRAR ends up packing into FILE_HEAD's FTIME (instead of "now").
+        try
+        {
+            File.SetCreationTime(destPath, File.GetCreationTime(sourcePath));
+            File.SetLastAccessTime(destPath, File.GetLastAccessTime(sourcePath));
+            File.SetLastWriteTime(destPath, File.GetLastWriteTime(sourcePath));
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal — leave whatever timestamps the OS assigned, but warn
+            // the caller so the UI can surface this. The packed RAR's FTIME
+            // will end up reflecting the copy completion time instead of the
+            // source's mtime.
+            logger?.Warning(null,
+                $"Failed to preserve timestamps on {destPath}: {ex.Message}. " +
+                $"The reconstructed RAR's File Time (DOS) may not match the original.");
+            onTimestampFailure?.Invoke(destPath, ex.Message);
         }
 
         filesCopied++;
@@ -219,10 +250,19 @@ internal static class FileOperations
     /// <param name="onProgress">
     /// Optional callback invoked during file copy progress.
     /// </param>
+    /// <param name="logger">
+    /// Optional logger used to warn about timestamp-preservation failures.
+    /// </param>
+    /// <param name="onTimestampFailure">
+    /// Optional callback invoked with (destPath, errorMessage) when copying the
+    /// source file's timestamps onto the destination fails.
+    /// </param>
     public static void CopyDirectory(
         string sourceDir, string destDir,
         CancellationToken ct,
-        Action<FileCopyProgressEventArgs>? onProgress = null)
+        Action<FileCopyProgressEventArgs>? onProgress = null,
+        IReSceneLogger? logger = null,
+        Action<string, string>? onTimestampFailure = null)
     {
         // Enumerate all files upfront for progress tracking
         string[] allFiles = Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories);
@@ -260,7 +300,7 @@ internal static class FileOperations
             }
 
             CopyFileWithProgress(file, destFile, Path.GetFileName(file), ref bytesCopied, ref filesCopied,
-                allFiles.Length, totalBytes, sourceDir, destDir, ct, onProgress);
+                allFiles.Length, totalBytes, sourceDir, destDir, ct, onProgress, logger, onTimestampFailure);
         }
     }
 
@@ -288,12 +328,17 @@ internal static class FileOperations
     /// <param name="logger">
     /// Optional logger for warnings.
     /// </param>
+    /// <param name="onTimestampFailure">
+    /// Optional callback invoked with (destPath, errorMessage) when copying the
+    /// source file's timestamps onto the destination fails.
+    /// </param>
     public static void CopySelectedEntries(
         string sourceDir, string destDir,
         HashSet<string> filePaths, HashSet<string> directoryPaths,
         CancellationToken ct,
         Action<FileCopyProgressEventArgs>? onProgress = null,
-        IReSceneLogger? logger = null)
+        IReSceneLogger? logger = null,
+        Action<string, string>? onTimestampFailure = null)
     {
         string sourceRoot = Path.GetFullPath(sourceDir);
         string destRoot = Path.GetFullPath(destDir);
@@ -359,7 +404,7 @@ internal static class FileOperations
             }
 
             CopyFileWithProgress(sourcePath, destPath, Path.GetFileName(relativeFile), ref bytesCopied, ref filesCopied,
-                totalFiles, totalBytes, sourceDir, destDir, ct, onProgress);
+                totalFiles, totalBytes, sourceDir, destDir, ct, onProgress, logger, onTimestampFailure);
         }
 
         if (skippedEntries > 0)
