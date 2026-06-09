@@ -236,10 +236,14 @@ public static class FileComparer
                 $"{lt.DataLength:N0}", $"{rt.DataLength:N0}");
             CompareProperty(fileDiff.PropertyDifferences, "Match Offset",
                 $"0x{lt.MatchOffset:X}", $"0x{rt.MatchOffset:X}");
+            CompareProperty(fileDiff.PropertyDifferences, "Signature Size",
+                lt.SignatureSize.ToString(), rt.SignatureSize.ToString());
             CompareProperty(fileDiff.PropertyDifferences, "Signature",
                 Convert.ToHexString(lt.Signature), Convert.ToHexString(rt.Signature));
             CompareProperty(fileDiff.PropertyDifferences, "Flags",
                 $"0x{lt.Flags:X4}", $"0x{rt.Flags:X4}");
+            CompareProperty(fileDiff.PropertyDifferences, "Block Size",
+                $"{lt.BlockSize:N0}", $"{rt.BlockSize:N0}");
 
             if (fileDiff.PropertyDifferences.Count > 0)
             {
