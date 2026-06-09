@@ -7,6 +7,12 @@ internal class MKVContainerHandler : IContainerHandler
 {
     private const int SignatureSize = 256;
 
+    /// <summary>
+    /// Maximum signature length, in <see cref="SignatureSize"/>-byte steps (~10 KiB). Mirrors
+    /// pyrescene's <c>max_loops</c>; a signature that stays "ASCII" up to this cap falls back to one step.
+    /// </summary>
+    private const int MaxSignatureBlocks = 40;
+
     public SRSContainerType ContainerType => SRSContainerType.MKV;
 
     #region EBML Constants
@@ -248,13 +254,17 @@ internal class MKVContainerHandler : IContainerHandler
                 byte[] frameData = ReadExactly(fs, (int)Math.Min(frameDataLen, elemEnd - fs.Position));
                 crc.Append(frameData);
 
-                // Build signature from frame data
-                // As pyrescene notes: "we can completely ignore laces, because we know what
-                // we're looking for always starts at the beginning"
+                // Build the track signature. Mirrors pyrescene's minimum_signature_size: grow the
+                // signature in SignatureSize-byte steps while the data still looks like codec
+                // parameter-set bytes (the last 64 bytes of each step are ASCII, all < 0x80), stopping
+                // once real binary frame data appears — capped at MaxSignatureBlocks (~10 KiB), falling
+                // back to one step for all-ASCII (e.g. subtitle) tracks. A fixed 256-byte signature is
+                // not unique for x265 tracks whose long parameter sets would otherwise yield a wrong
+                // match offset. As pyrescene notes, we can ignore laces: what we want starts at the block start.
                 if (track.SignatureBytes.Length < SignatureSize)
                 {
-                    int need = SignatureSize - track.SignatureBytes.Length;
-                    int take = Math.Min(need, frameData.Length);
+                    int target = MinimumSignatureSize(frameData, track.SignatureBytes.Length);
+                    int take = Math.Min(target, frameData.Length);
                     if (take > 0)
                     {
                         byte[] newSig = new byte[track.SignatureBytes.Length + take];
@@ -590,6 +600,72 @@ internal class MKVContainerHandler : IContainerHandler
         idBytes.CopyTo(result, 0);
         sizeBytes.CopyTo(result, idBytes.Length);
         return result;
+    }
+
+    #endregion
+
+    #region Signature sizing
+
+    /// <summary>
+    /// pyrescene's <c>minimum_signature_size</c>: returns how many more bytes of
+    /// <paramref name="content"/> to append to a signature that already holds
+    /// <paramref name="alreadyInSig"/> bytes. The signature grows in <see cref="SignatureSize"/>-byte
+    /// steps while the last 64 bytes of each step are ASCII (all &lt; 0x80 — codec parameter-set data),
+    /// stopping at the first step that contains real binary frame data. Capped at
+    /// <see cref="MaxSignatureBlocks"/> steps; an all-ASCII run (e.g. subtitles) falls back to one step.
+    /// </summary>
+    internal static int MinimumSignatureSize(byte[] content, int alreadyInSig)
+    {
+        int loop;
+        for (loop = 1; loop <= MaxSignatureBlocks; loop++)
+        {
+            int offs = SignatureSize * loop - alreadyInSig;
+            if (!IsAsciiRange(content, offs - 64, offs))
+            {
+                break;
+            }
+        }
+
+        // Python's loop variable ends at MaxSignatureBlocks when the loop completes without breaking.
+        if (loop > MaxSignatureBlocks)
+        {
+            loop = MaxSignatureBlocks;
+        }
+
+        // Reaching the cap (or staying ASCII throughout) keeps the signature minimal.
+        int lsig = loop == MaxSignatureBlocks ? SignatureSize : SignatureSize * loop;
+        return lsig - alreadyInSig;
+    }
+
+    /// <summary>
+    /// True iff every byte of <paramref name="content"/> in Python's slice
+    /// <c>content[start:end]</c> is ASCII (&lt; 0x80). Replicates Python's slicing exactly: a negative
+    /// <paramref name="start"/> indexes from the end (<c>content.Length + start</c>, floored at 0), an
+    /// out-of-range <paramref name="end"/> is clamped, and an empty/inverted range is ASCII (matching
+    /// <c>b''.decode('ascii')</c>). The negative case arises only when a prior block already left
+    /// &gt;192 signature bytes; for a track's first block (start = 192) it never triggers.
+    /// </summary>
+    internal static bool IsAsciiRange(byte[] content, int start, int end)
+    {
+        if (start < 0)
+        {
+            start = Math.Max(0, content.Length + start);
+        }
+
+        if (end > content.Length)
+        {
+            end = content.Length;
+        }
+
+        for (int i = start; i < end; i++)
+        {
+            if (content[i] >= 0x80)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     #endregion
