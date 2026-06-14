@@ -206,7 +206,8 @@ public class RAROptions
     }
 
     /// <summary>
-    /// Gets or sets whether to rename matched output files to their original RAR filenames from the SRR.
+    /// Gets or sets whether to rename matched output files to the original RAR filenames in
+    /// <see cref="OriginalRarFileNames"/>.
     /// </summary>
     public bool RenameToOriginalNames
     {
@@ -214,7 +215,8 @@ public class RAROptions
     }
 
     /// <summary>
-    /// Gets or sets the original RAR volume filenames from the SRR file.
+    /// Gets or sets the original RAR volume filenames, in volume order. Typically sourced from
+    /// the SRR file, or from the verification SFV when no SRR is available.
     /// </summary>
     public List<string> OriginalRarFileNames { get; set; } = [];
 

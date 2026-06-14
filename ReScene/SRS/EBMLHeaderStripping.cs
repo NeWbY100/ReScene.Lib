@@ -106,7 +106,7 @@ public static class EBMLHeaderStripping
 
             if (elemId == IdContentEncoding)
             {
-                var result = SearchContentEncoding(data.Slice(pos, elemDataLen));
+                byte[]? result = SearchContentEncoding(data.Slice(pos, elemDataLen));
                 if (result != null)
                 {
                     return result;
@@ -145,7 +145,7 @@ public static class EBMLHeaderStripping
 
             if (elemId == IdContentCompression)
             {
-                var result = SearchContentCompression(data.Slice(pos, elemDataLen));
+                byte[]? result = SearchContentCompression(data.Slice(pos, elemDataLen));
                 if (result != null)
                 {
                     return result;

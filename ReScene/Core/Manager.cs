@@ -615,7 +615,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     {
         var validDirectories = new List<(string Path, int Version)>();
 
-        foreach (var dir in directories)
+        foreach (string dir in directories)
         {
             string rarExeFilePath = Path.Combine(dir, "rar.exe");
             if (!File.Exists(rarExeFilePath))
@@ -913,7 +913,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                     _logger.Information(this, "  Note:    RAR output was patched post-creation to match original headers", LogTarget.System);
                 }
 
-                // Move files to output directory
+                // Rename the matched file(s) to their final name inside the "output" subdirectory
                 string baseName = Path.GetFileNameWithoutExtension(rarFilePath);
                 string patchedBaseName = options.RAROptions.NeedsPatching ? baseName + "-patched" : baseName;
                 List<string> originalNames = options.RAROptions.OriginalRarFileNames;
@@ -933,7 +933,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                             PatchRARFilesHostOS(completedRarFilePath, options.RAROptions);
                         }
 
-                        // Move all volumes to output directory
+                        // Rename all volumes to their final names inside the "output" subdirectory
                         List<string> allVolumes = GetAllVolumeFiles(completedRarFilePath);
 
                         for (int i = 0; i < allVolumes.Count; i++)
@@ -941,10 +941,9 @@ public partial class Manager(IReSceneLogger? logger = null)
                             string outputFileName = useOriginalNames && i < originalNames.Count
                                 ? Path.GetFileName(originalNames[i])
                                 : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
-                            string outputPath = Path.Combine(options.OutputDirectoryPath, outputFileName);
-                            if (!File.Exists(outputPath))
+                            string outputPath = Path.Combine(rarOutputDir, outputFileName);
+                            if (MoveMatchedFile(allVolumes[i], outputPath))
                             {
-                                File.Move(allVolumes[i], outputPath);
                                 _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
                             }
                         }
@@ -954,15 +953,12 @@ public partial class Manager(IReSceneLogger? logger = null)
                 }
                 else
                 {
-                    // Standard behavior: just move the first .rar file
+                    // Standard behavior: just rename the first .rar file
                     string outputFileName = useOriginalNames
                         ? Path.GetFileName(originalNames[0])
                         : Path.GetFileName(actualRarFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
-                    string outputPath = Path.Combine(options.OutputDirectoryPath, outputFileName);
-                    if (!File.Exists(outputPath))
-                    {
-                        File.Move(actualRarFilePath, outputPath);
-                    }
+                    string outputPath = Path.Combine(rarOutputDir, outputFileName);
+                    MoveMatchedFile(actualRarFilePath, outputPath);
                 }
 
                 return (true, currentProgress);
@@ -974,6 +970,28 @@ public partial class Manager(IReSceneLogger? logger = null)
         }
 
         return (false, currentProgress);
+    }
+
+    /// <summary>
+    /// Moves a matched RAR file to its final path. Returns <see langword="true"/> when the file
+    /// ends up at <paramref name="destinationPath"/> — either moved there, or already there
+    /// because no rename was needed. Returns <see langword="false"/> when a different file
+    /// already occupies the destination (the source is left untouched).
+    /// </summary>
+    private static bool MoveMatchedFile(string sourcePath, string destinationPath)
+    {
+        if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (File.Exists(destinationPath))
+        {
+            return false;
+        }
+
+        File.Move(sourcePath, destinationPath);
+        return true;
     }
 
     private static string? FindCreatedRARFile(string expectedRarFilePath)
@@ -1684,7 +1702,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         // Version ranges
         if (opts.RARVersions.Count > 0)
         {
-            var versionRanges = string.Join(", ", opts.RARVersions.Select(v =>
+            string versionRanges = string.Join(", ", opts.RARVersions.Select(v =>
                 v.End > v.Start ? $"{v.Start}-{v.End}" : v.Start.ToString()));
             _logger.Information(this, $"  RAR version ranges: {versionRanges}", LogTarget.System);
         }
@@ -1699,7 +1717,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             foreach (RARCommandLineArgument[] args in opts.CommandLineArguments)
             {
-                var argStr = string.Join(" ", args.Select(a => a.Argument));
+                string argStr = string.Join(" ", args.Select(a => a.Argument));
                 _logger.Debug(this, $"    Args: {argStr}", LogTarget.System);
             }
         }

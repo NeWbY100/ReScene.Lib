@@ -84,7 +84,7 @@ public class RARHeaderReaderTests
     private static MemoryStream BuildStreamWithBlocks(params byte[][] blocks)
     {
         var ms = new MemoryStream();
-        foreach (var block in blocks)
+        foreach (byte[] block in blocks)
         {
             ms.Write(block);
         }

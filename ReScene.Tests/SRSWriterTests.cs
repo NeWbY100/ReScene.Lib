@@ -681,7 +681,7 @@ public class SRSWriterTests : IDisposable
 
     private static byte[] CreateTestData(int size)
     {
-        var data = new byte[size];
+        byte[] data = new byte[size];
         var rng = new Random(42); // deterministic for reproducibility
         rng.NextBytes(data);
         return data;

@@ -102,11 +102,11 @@ public class SRRWriterTests : IDisposable
         string nfoPath = CreateTextFile("release.nfo", "Release info\r\n");
         string srrPath = Path.Combine(_testDir, "output.srr");
 
-        var storedFiles = new Dictionary<string, string>
-        {
-            ["release.sfv"] = sfvPath,
-            ["release.nfo"] = nfoPath
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new("release.sfv", sfvPath),
+            new("release.nfo", nfoPath)
+        ];
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
@@ -128,7 +128,7 @@ public class SRRWriterTests : IDisposable
         string sfvPath = CreateTextFile("release.sfv", content);
         string srrPath = Path.Combine(_testDir, "output.srr");
 
-        var storedFiles = new Dictionary<string, string> { ["release.sfv"] = sfvPath };
+        List<StoredFileEntry> storedFiles = [new("release.sfv", sfvPath)];
 
         var writer = new SRRWriter();
         await writer.CreateAsync(srrPath, [rarPath], storedFiles);
@@ -257,7 +257,7 @@ public class SRRWriterTests : IDisposable
         string rarPath = CreateMinimalRar4File("test.rar");
         string srrPath = Path.Combine(_testDir, "output.srr");
 
-        var storedFiles = new Dictionary<string, string> { ["test.sfv"] = "/nonexistent/test.sfv" };
+        List<StoredFileEntry> storedFiles = [new("test.sfv", "/nonexistent/test.sfv")];
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
@@ -317,10 +317,10 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         var writer = new SRRWriter();
-        var storedFiles = new Dictionary<string, string>
-        {
-            [Path.GetFileName(sfvPath)] = sfvPath
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new(Path.GetFileName(sfvPath), sfvPath)
+        ];
         SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath, storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
@@ -428,11 +428,11 @@ public class SRRWriterTests : IDisposable
         string nfoPath = CreateTextFile("release.nfo", nfoContent);
         string srrPath = Path.Combine(_testDir, "roundtrip.srr");
 
-        var storedFiles = new Dictionary<string, string>
-        {
-            ["release.sfv"] = sfvPath,
-            ["release.nfo"] = nfoPath
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new("release.sfv", sfvPath),
+            new("release.nfo", nfoPath)
+        ];
 
         var writer = new SRRWriter();
         await writer.CreateAsync(srrPath, [rarPath], storedFiles);
@@ -713,11 +713,11 @@ public class SRRWriterTests : IDisposable
         string srrPath = Path.Combine(_testDir, "output.srr");
 
         // Use a path with directory component as the stored file name
-        var storedFiles = new Dictionary<string, string>
-        {
-            ["subdir/release.sfv"] = sfvPath,
-            ["another/dir/release.nfo"] = CreateTextFile("release.nfo", "NFO content\r\n")
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new("subdir/release.sfv", sfvPath),
+            new("another/dir/release.nfo", CreateTextFile("release.nfo", "NFO content\r\n"))
+        ];
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles,

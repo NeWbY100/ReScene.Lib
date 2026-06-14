@@ -498,7 +498,7 @@ internal class MKVContainerHandler : IContainerHandler
 
         // Total child size
         long childSize = srsfElement.Length;
-        foreach (var te in trackElements)
+        foreach (byte[] te in trackElements)
         {
             childSize += te.Length;
         }
@@ -507,7 +507,7 @@ internal class MKVContainerHandler : IContainerHandler
         byte[] resampleHeader = BuildEBMLElementHeader(0x1F697576, childSize);
         outFs.Write(resampleHeader);
         outFs.Write(srsfElement);
-        foreach (var te in trackElements)
+        foreach (byte[] te in trackElements)
         {
             outFs.Write(te);
         }
