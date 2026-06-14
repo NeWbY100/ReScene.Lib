@@ -110,7 +110,7 @@ public class RARFileData
 
             if (block.ServiceBlockInfo != null && block.ServiceBlockInfo.SubType == "CMT")
             {
-                var commentData = headerReader.ReadServiceBlockData(block);
+                byte[]? commentData = headerReader.ReadServiceBlockData(block);
                 if (commentData != null)
                 {
                     data.Comment = block.ServiceBlockInfo.IsStored
@@ -152,7 +152,7 @@ public class RARFileData
 
             if (block.ServiceBlockInfo != null && block.ServiceBlockInfo.SubType == "CMT")
             {
-                var commentData = headerReader.ReadServiceBlockData(block);
+                byte[]? commentData = headerReader.ReadServiceBlockData(block);
                 if (commentData != null)
                 {
                     data.Comment = block.ServiceBlockInfo.IsStored

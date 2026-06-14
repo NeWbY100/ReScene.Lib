@@ -157,7 +157,8 @@ public class SRRWriter
     /// Ordered list of RAR volume file paths.
     /// </param>
     /// <param name="storedFiles">
-    /// Optional dictionary of stored files (name -> path on disk).
+    /// Optional ordered list of stored files. Blocks are written in this order; a stored name that
+    /// repeats is written only once (first occurrence wins).
     /// </param>
     /// <param name="options">
     /// Creation options, or null for defaults.
@@ -171,7 +172,7 @@ public class SRRWriter
     public async Task<SRRCreationResult> CreateAsync(
         string outputPath,
         IReadOnlyList<string> rarVolumePaths,
-        IReadOnlyDictionary<string, string>? storedFiles = null,
+        IReadOnlyList<StoredFileEntry>? storedFiles = null,
         SRRCreationOptions? options = null,
         CancellationToken ct = default)
     {
@@ -196,11 +197,11 @@ public class SRRWriter
 
             if (storedFiles != null)
             {
-                foreach (KeyValuePair<string, string> kvp in storedFiles)
+                foreach (StoredFileEntry entry in storedFiles)
                 {
-                    if (!File.Exists(kvp.Value))
+                    if (!File.Exists(entry.FullPath))
                     {
-                        throw new FileNotFoundException($"Stored file not found: {kvp.Value}", kvp.Value);
+                        throw new FileNotFoundException($"Stored file not found: {entry.FullPath}", entry.FullPath);
                     }
                 }
             }
@@ -217,14 +218,22 @@ public class SRRWriter
             // 1. Write SRR Header block
             WriteSRRHeader(writer, options.AppName);
 
-            // 2. Write stored file blocks
+            // 2. Write stored file blocks, in the given order. A stored name can only appear once
+            //    in an SRR, so a repeat (after slash-normalization) is skipped (first wins).
             if (storedFiles != null)
             {
-                foreach (KeyValuePair<string, string> kvp in storedFiles)
+                var writtenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (StoredFileEntry entry in storedFiles)
                 {
                     ct.ThrowIfCancellationRequested();
-                    string storedName = kvp.Key.Replace('\\', '/');
-                    byte[] fileData = await File.ReadAllBytesAsync(kvp.Value, ct);
+                    string storedName = entry.StoredName.Replace('\\', '/');
+                    if (!writtenNames.Add(storedName))
+                    {
+                        Log($"Skipping duplicate stored name: {storedName}");
+                        continue;
+                    }
+
+                    byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct);
                     Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
                     WriteStoredFileBlock(writer, storedName, fileData);
                     result.StoredFileCount++;
@@ -313,7 +322,8 @@ public class SRRWriter
     /// Path to the SFV file.
     /// </param>
     /// <param name="additionalFiles">
-    /// Optional additional files to store. Keys are stored names, values are file paths on disk.
+    /// Optional ordered list of additional files to store (written before the RAR-derived blocks,
+    /// in this order). Entries whose source file is missing are skipped.
     /// </param>
     /// <param name="options">
     /// Creation options, or null for defaults.
@@ -327,7 +337,7 @@ public class SRRWriter
     public async Task<SRRCreationResult> CreateFromSFVAsync(
         string outputPath,
         string sfvFilePath,
-        IReadOnlyDictionary<string, string>? additionalFiles = null,
+        IReadOnlyList<StoredFileEntry>? additionalFiles = null,
         SRRCreationOptions? options = null,
         CancellationToken ct = default)
     {
@@ -375,19 +385,11 @@ public class SRRWriter
         // Sort volumes in correct order
         rarFiles.Sort(RARVolumeNameComparer.Instance);
 
-        // Build stored files dictionary — additional files first (preserves caller's sort order)
-        var storedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        if (additionalFiles != null)
-        {
-            foreach (KeyValuePair<string, string> kvp in additionalFiles)
-            {
-                if (File.Exists(kvp.Value))
-                {
-                    storedFiles.TryAdd(kvp.Key, kvp.Value);
-                }
-            }
-        }
+        // Keep the caller's order; skip entries whose source is missing. CreateAsync writes them
+        // before the RAR-derived blocks and drops any repeated stored name.
+        List<StoredFileEntry>? storedFiles = additionalFiles
+            ?.Where(e => File.Exists(e.FullPath))
+            .ToList();
 
         return await CreateAsync(outputPath, rarFiles, storedFiles, options, ct);
     }

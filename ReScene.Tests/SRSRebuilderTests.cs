@@ -2019,7 +2019,7 @@ public class SRSRebuilderTests : IDisposable
 
     private static byte[] CreateTestData(int size, int seed = 42)
     {
-        var data = new byte[size];
+        byte[] data = new byte[size];
         new Random(seed).NextBytes(data);
         return data;
     }

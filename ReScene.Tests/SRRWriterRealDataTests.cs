@@ -62,11 +62,11 @@ public class SRRWriterRealDataTests : IDisposable
 
         string srrPath = Path.Combine(_testDir, "store_little_stored.srr");
 
-        var storedFiles = new Dictionary<string, string>
-        {
-            ["little_file.txt"] = littleTxt,
-            ["empty_file.txt"] = emptyTxt
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new("little_file.txt", littleTxt),
+            new("empty_file.txt", emptyTxt)
+        ];
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], storedFiles);
@@ -254,10 +254,10 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_new.srr");
 
         var writer = new SRRWriter();
-        var storedFiles = new Dictionary<string, string>
-        {
-            [Path.GetFileName(sfvPath)] = sfvPath
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new(Path.GetFileName(sfvPath), sfvPath)
+        ];
         SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath, storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);
@@ -296,10 +296,10 @@ public class SRRWriterRealDataTests : IDisposable
         string srrPath = Path.Combine(_testDir, "from_sfv_old.srr");
 
         var writer = new SRRWriter();
-        var storedFiles = new Dictionary<string, string>
-        {
-            [Path.GetFileName(sfvPath)] = sfvPath
-        };
+        List<StoredFileEntry> storedFiles =
+        [
+            new(Path.GetFileName(sfvPath), sfvPath)
+        ];
         SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath, storedFiles);
 
         Assert.True(result.Success, result.ErrorMessage);

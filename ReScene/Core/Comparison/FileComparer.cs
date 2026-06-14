@@ -48,6 +48,10 @@ public static class FileComparer
         {
             CompareSRSFiles(leftSRS, rightSRS, result);
         }
+        else if (leftData is MKVFileData leftMkv && rightData is MKVFileData rightMkv)
+        {
+            CompareMKVFiles(leftMkv, rightMkv, result, leftSource, rightSource);
+        }
         else if (leftData is RARFileData leftRar && rightData is RARFileData rightRar)
         {
             CompareRARFiles(leftRar, rightRar, result, leftBlocks, rightBlocks, leftSource, rightSource);
@@ -78,6 +82,7 @@ public static class FileComparer
     {
         SRRFileData => "SRR File",
         SRSFile => "SRS File",
+        MKVFileData => "MKV File",
         RARFileData r => r.IsRAR5 ? "RAR 5.x" : "RAR 4.x",
         _ => "Unknown"
     };
@@ -114,7 +119,7 @@ public static class FileComparer
         var leftFiles = new HashSet<string>(left.ArchivedFiles, StringComparer.OrdinalIgnoreCase);
         var rightFiles = new HashSet<string>(right.ArchivedFiles, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var file in leftFiles.Union(rightFiles).OrderBy(f => f))
+        foreach (string? file in leftFiles.Union(rightFiles).OrderBy(f => f))
         {
             bool inLeft = leftFiles.Contains(file);
             bool inRight = rightFiles.Contains(file);
@@ -131,8 +136,8 @@ public static class FileComparer
             }
             else
             {
-                left.ArchivedFileCrcs.TryGetValue(file, out var leftCRC);
-                right.ArchivedFileCrcs.TryGetValue(file, out var rightCRC);
+                left.ArchivedFileCrcs.TryGetValue(file, out string? leftCRC);
+                right.ArchivedFileCrcs.TryGetValue(file, out string? rightCRC);
 
                 if (!string.Equals(leftCRC, rightCRC, StringComparison.OrdinalIgnoreCase))
                 {
@@ -170,7 +175,7 @@ public static class FileComparer
         var leftStored = left.StoredFiles.Select(s => s.FileName.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var rightStored = right.StoredFiles.Select(s => s.FileName.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var file in leftStored.Union(rightStored).OrderBy(f => f))
+        foreach (string? file in leftStored.Union(rightStored).OrderBy(f => f))
         {
             bool inLeft = leftStored.Contains(file);
             bool inRight = rightStored.Contains(file);
@@ -251,6 +256,171 @@ public static class FileComparer
                 result.FileDifferences.Add(fileDiff);
             }
         }
+    }
+
+    /// <summary>
+    /// Compares two MKV files element-by-element across their full EBML trees, populating the result
+    /// with per-element differences keyed by element path.
+    /// </summary>
+    /// <param name="left">
+    /// The left MKV file data.
+    /// </param>
+    /// <param name="right">
+    /// The right MKV file data.
+    /// </param>
+    /// <param name="result">
+    /// The result to populate with differences.
+    /// </param>
+    /// <param name="leftSource">
+    /// Optional byte-level data source for the left file, used to detect content changes that the
+    /// formatted element values cannot show (cluster payloads, truncated binary previews).
+    /// </param>
+    /// <param name="rightSource">
+    /// Optional byte-level data source for the right file.
+    /// </param>
+    public static void CompareMKVFiles(MKVFileData left, MKVFileData right, CompareResult result,
+        IHexDataSource? leftSource = null, IHexDataSource? rightSource = null) =>
+        CompareEBMLChildren("", left.Elements, right.Elements, result, leftSource, rightSource);
+
+    /// <summary>
+    /// Pairs and compares two lists of sibling EBML elements under the same parent path. Pairing is by
+    /// (Name, occurrence index among same-named siblings); recursion descends into master elements.
+    /// </summary>
+    private static void CompareEBMLChildren(string parentPath, List<EBMLElement> left, List<EBMLElement> right,
+        CompareResult result, IHexDataSource? leftSource, IHexDataSource? rightSource)
+    {
+        Dictionary<string, List<EBMLElement>> leftByName = GroupByName(left);
+        Dictionary<string, List<EBMLElement>> rightByName = GroupByName(right);
+
+        var allNames = new HashSet<string>(leftByName.Keys, StringComparer.Ordinal);
+        allNames.UnionWith(rightByName.Keys);
+
+        foreach (string name in allNames)
+        {
+            leftByName.TryGetValue(name, out List<EBMLElement>? leftGroup);
+            rightByName.TryGetValue(name, out List<EBMLElement>? rightGroup);
+
+            int leftN = leftGroup?.Count ?? 0;
+            int rightN = rightGroup?.Count ?? 0;
+            int max = Math.Max(leftN, rightN);
+
+            for (int i = 0; i < max; i++)
+            {
+                EBMLElement? le = i < leftN ? leftGroup![i] : null;
+                EBMLElement? re = i < rightN ? rightGroup![i] : null;
+
+                if (le is not null && re is not null)
+                {
+                    string path = ElementPath(parentPath, le, i);
+
+                    // Pairs without child nodes are compared directly: true leaves, and non-recursed
+                    // masters (Clusters), whose Value is only the first-Timestamp hint.
+                    bool leafLike = le.Children.Count == 0 && re.Children.Count == 0;
+
+                    if (!leafLike)
+                    {
+                        CompareEBMLChildren(path, le.Children, re.Children, result, leftSource, rightSource);
+                    }
+                    else if (!string.Equals(le.Value ?? "", re.Value ?? "", StringComparison.Ordinal))
+                    {
+                        AddElementDifference(result, path, "Value", le.Value ?? "", re.Value ?? "");
+                    }
+                    else if (le.DataSize != re.DataSize)
+                    {
+                        // Formatted values can collide while the payloads differ in length
+                        // (trimmed strings, cluster timestamp hints, truncated binary previews).
+                        AddElementDifference(result, path, "Data Size",
+                            $"{le.DataSize:N0} bytes", $"{re.DataSize:N0} bytes");
+                    }
+                    else if (leftSource is not null && rightSource is not null && le.DataSize > 0
+                        && !BlockDataMatches(leftSource, le.Position + le.HeaderSize,
+                                             rightSource, re.Position + re.HeaderSize, le.DataSize))
+                    {
+                        // Same size and same formatted value, but the raw bytes differ — typical for
+                        // cluster A/V payloads and binary fields longer than the hex preview.
+                        AddElementDifference(result, path, "Data", "(content differs)", "(content differs)");
+                    }
+                }
+                else if (le is not null)
+                {
+                    // Present on left, missing on right → Removed.
+                    result.FileDifferences.Add(new FileDifference
+                    {
+                        FileName = ElementPath(parentPath, le, i),
+                        Type = DifferenceType.Removed
+                    });
+                }
+                else if (re is not null)
+                {
+                    // Present on right, missing on left → Added.
+                    result.FileDifferences.Add(new FileDifference
+                    {
+                        FileName = ElementPath(parentPath, re, i),
+                        Type = DifferenceType.Added
+                    });
+                }
+            }
+        }
+    }
+
+    private static void AddElementDifference(CompareResult result, string path, string propertyName,
+        string leftValue, string rightValue)
+    {
+        result.FileDifferences.Add(new FileDifference
+        {
+            FileName = path,
+            Type = DifferenceType.Modified,
+            PropertyDifferences =
+            [
+                new PropertyDifference
+                {
+                    PropertyName = propertyName,
+                    LeftValue = leftValue,
+                    RightValue = rightValue
+                }
+            ]
+        });
+    }
+
+    private static Dictionary<string, List<EBMLElement>> GroupByName(List<EBMLElement> elements)
+    {
+        var map = new Dictionary<string, List<EBMLElement>>(StringComparer.Ordinal);
+        foreach (EBMLElement e in elements)
+        {
+            if (!map.TryGetValue(e.Name, out List<EBMLElement>? list))
+            {
+                list = [];
+                map[e.Name] = list;
+            }
+
+            list.Add(e);
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Builds the path key for an EBML element: <c>parentPath + "/" + Name</c>, plus a
+    /// <c>[index]</c> suffix when the element is not the first occurrence among same-named siblings.
+    /// Root elements use <paramref name="parentPath"/> = "". The ViewModel's tree population uses the
+    /// identical scheme so tree nodes align with the diff keys.
+    /// </summary>
+    /// <param name="parentPath">
+    /// The path of the parent element (empty for root elements).
+    /// </param>
+    /// <param name="element">
+    /// The element to build a path for.
+    /// </param>
+    /// <param name="occurrenceIndex">
+    /// The element's zero-based index among same-named siblings under the parent.
+    /// </param>
+    /// <returns>
+    /// The element's path key.
+    /// </returns>
+    public static string ElementPath(string parentPath, EBMLElement element, int occurrenceIndex)
+    {
+        string suffix = occurrenceIndex > 0 ? $"[{occurrenceIndex}]" : "";
+        return $"{parentPath}/{element.Name}{suffix}";
     }
 
     /// <summary>

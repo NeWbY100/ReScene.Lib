@@ -340,7 +340,7 @@ public class RARDetailedParserTests
     {
         var ms = new MemoryStream();
         ms.Write(RAR4Signature);
-        foreach (var block in blocks)
+        foreach (byte[] block in blocks)
         {
             ms.Write(block);
         }
@@ -932,7 +932,7 @@ public class RARDetailedParserTests
         headerBw.Flush();
         byte[] headerContent = headerMs.ToArray();
 
-        var headSizeVint = EncodeVInt((ulong)headerContent.Length);
+        byte[] headSizeVint = EncodeVInt((ulong)headerContent.Length);
 
         byte[] crcInput = new byte[headSizeVint.Length + headerContent.Length];
         Array.Copy(headSizeVint, 0, crcInput, 0, headSizeVint.Length);
@@ -969,7 +969,7 @@ public class RARDetailedParserTests
         headerBw.Flush();
         byte[] headerContent = headerMs.ToArray();
 
-        var headSizeVint = EncodeVInt((ulong)headerContent.Length);
+        byte[] headSizeVint = EncodeVInt((ulong)headerContent.Length);
 
         byte[] crcInput = new byte[headSizeVint.Length + headerContent.Length];
         Array.Copy(headSizeVint, 0, crcInput, 0, headSizeVint.Length);
@@ -1001,7 +1001,7 @@ public class RARDetailedParserTests
         byte[] mainBlock = BuildRAR5Block(1, 0, EncodeVInt(0));
         ms.Write(mainBlock);
 
-        foreach (var block in extraBlocks)
+        foreach (byte[] block in extraBlocks)
         {
             ms.Write(block);
         }

@@ -391,7 +391,7 @@ public class EBMLLacingTests
     {
         // TrackEntry with just a TrackNumber element (0xD7), no ContentEncodings
         byte[] trackEntryData = BuildEBMLElement(0xD7, [0x01]); // TrackNumber = 1
-        var result = EBMLHeaderStripping.DetectStrippedHeader(trackEntryData);
+        byte[]? result = EBMLHeaderStripping.DetectStrippedHeader(trackEntryData);
 
         Assert.Null(result);
     }
@@ -414,7 +414,7 @@ public class EBMLLacingTests
         // ContentEncodings containing encoding
         byte[] encodings = BuildEBMLElement(0x6D80, encoding);
 
-        var result = EBMLHeaderStripping.DetectStrippedHeader(encodings);
+        byte[]? result = EBMLHeaderStripping.DetectStrippedHeader(encodings);
 
         Assert.NotNull(result);
         Assert.Equal(strippedHeader, result);
@@ -430,7 +430,7 @@ public class EBMLLacingTests
         byte[] encoding = BuildEBMLElement(0x6240, compression);
         byte[] encodings = BuildEBMLElement(0x6D80, encoding);
 
-        var result = EBMLHeaderStripping.DetectStrippedHeader(encodings);
+        byte[]? result = EBMLHeaderStripping.DetectStrippedHeader(encodings);
 
         Assert.Null(result);
     }
@@ -450,7 +450,7 @@ public class EBMLLacingTests
         byte[] encodings = BuildEBMLElement(0x6D80, encoding);
 
         byte[] fullData = [.. trackNumber, .. codecId, .. encodings];
-        var result = EBMLHeaderStripping.DetectStrippedHeader(fullData);
+        byte[]? result = EBMLHeaderStripping.DetectStrippedHeader(fullData);
 
         Assert.NotNull(result);
         Assert.Equal(strippedHeader, result);
@@ -518,7 +518,7 @@ public class EBMLLacingTests
 
         Assert.Equal(5, frameSizes.Length);
         // 6 / 5 = 1 (integer division)
-        foreach (var size in frameSizes)
+        foreach (int size in frameSizes)
         {
             Assert.Equal(1, size);
         }
