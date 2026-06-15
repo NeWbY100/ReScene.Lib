@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
 using ReScene.Core.Cryptography;
@@ -70,15 +71,14 @@ public partial class Manager(IReSceneLogger? logger = null)
         get; private set;
     }
 
-    private readonly CancellationTokenSource _cts = new();
+    // Reassigned at the start of each brute-force run so it can be linked to the caller's
+    // cancellation token (see BruteForceRARVersionAsync). Stop() cancels it directly.
+    private CancellationTokenSource _cts = new();
 
-    private readonly Dictionary<RARProcess, StreamWriter> _processLogWriters = [];
-    private readonly HashSet<RARProcess> _activeProcesses = [];
-#if NET9_0_OR_GREATER
-    private readonly Lock _processLock = new();
-#else
-    private readonly object _processLock = new();
-#endif
+    // Written from the orchestration thread and read/closed from CliWrap's process-output
+    // callbacks (thread-pool threads), so it must be concurrency-safe; each writer is also
+    // guarded by its own lock because stdout/stderr can be delivered on separate threads.
+    private readonly ConcurrentDictionary<RARProcess, StreamWriter> _processLogWriters = new();
     private string? _commentFilePath = null;
 
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
@@ -159,8 +159,14 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <returns>
     /// <see langword="true"/> if a matching RAR archive was found.
     /// </returns>
-    public async Task<bool> BruteForceRARVersionAsync(BruteForceOptions options)
+    public async Task<bool> BruteForceRARVersionAsync(BruteForceOptions options, CancellationToken cancellationToken = default)
     {
+        // Link the internal cancellation source to the caller's token so the UI's Cancel
+        // (which cancels that token) actually reaches the running RAR processes, not just
+        // Stop(). The field-initialized source is replaced and disposed here.
+        _cts.Dispose();
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
         _logger.Information(this, $"=== Starting Brute-Force ===", LogTarget.System);
         _logger.Information(this, $"Release: {options.ReleaseDirectoryPath}", LogTarget.System);
         _logger.Information(this, $"Output: {options.OutputDirectoryPath}", LogTarget.System);
@@ -349,14 +355,8 @@ public partial class Manager(IReSceneLogger? logger = null)
         _logger.Information(this, "Stopping brute force operation and cancelling all RAR processes");
         _cts.Cancel();
 
-        // CliWrap will automatically kill processes when the cancellation token is cancelled
-        // The processes will clean themselves up in Process_ProcessStatusChanged
-
-        lock (_processLock)
-        {
-            _logger.Information(this, $"Active processes count: {_activeProcesses.Count}");
-            _activeProcesses.Clear();
-        }
+        // CliWrap automatically kills the running processes when the token is cancelled;
+        // each process then closes its log writer in Process_ProcessStatusChanged.
     }
 
     private static int CalculateBruteForceProgressSize(BruteForceOptions options, int filteredVersionCount = 0, int totalVersionCount = 0)
@@ -528,25 +528,25 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         RARProcessStatusChanged?.Invoke(this, new(process, e.OldStatus, e.NewStatus, e.CompletionStatus));
 
-        // When process completes, close and dispose the log writer
+        // When process completes, close and dispose the log writer. TryRemove is atomic, so a
+        // late ProcessOutput callback can no longer find the writer once it has been closed.
         if (e.NewStatus == OperationStatus.Completed)
         {
-            if (_processLogWriters.TryGetValue(process, out StreamWriter? writer))
+            if (_processLogWriters.TryRemove(process, out StreamWriter? writer))
             {
                 try
                 {
-                    writer.Close();
-                    writer.Dispose();
+                    lock (writer)
+                    {
+                        writer.Close();
+                        writer.Dispose();
+                    }
+
                     _logger.Information(this, $"Process log file closed", LogTarget.Phase2);
                 }
                 catch (Exception ex)
                 {
                     _logger.Information(this, $"Failed to close process log writer: {ex.Message}", LogTarget.Phase2);
-                }
-                finally
-                {
-                    // Clean up tracking dictionary
-                    _processLogWriters.Remove(process);
                 }
             }
         }
@@ -559,13 +559,18 @@ public partial class Manager(IReSceneLogger? logger = null)
             return;
         }
 
-        // Stream output directly to log file (auto-flushed)
+        // Stream output directly to log file (auto-flushed). The per-writer lock serializes
+        // concurrent stdout/stderr callbacks; a writer closed concurrently is handled by the
+        // catch (a caught ObjectDisposedException, never a crash or a corrupt dictionary).
         if (_processLogWriters.TryGetValue(process, out StreamWriter? writer))
         {
             try
             {
-                writer.WriteLine(e.Data);
-                // AutoFlush is enabled, so data is immediately written to disk
+                lock (writer)
+                {
+                    writer.WriteLine(e.Data);
+                    // AutoFlush is enabled, so data is immediately written to disk
+                }
             }
             catch (Exception ex)
             {
@@ -946,6 +951,10 @@ public partial class Manager(IReSceneLogger? logger = null)
                             {
                                 _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
                             }
+                            else
+                            {
+                                _logger.Warning(this, $"  Volume NOT written (a different file already occupies '{outputFileName}'); left at '{allVolumes[i]}'", LogTarget.System);
+                            }
                         }
 
                         _logger.Information(this, $"  Completed {allVolumes.Count} volume(s)", LogTarget.System);
@@ -958,7 +967,10 @@ public partial class Manager(IReSceneLogger? logger = null)
                         ? Path.GetFileName(originalNames[0])
                         : Path.GetFileName(actualRarFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
                     string outputPath = Path.Combine(rarOutputDir, outputFileName);
-                    MoveMatchedFile(actualRarFilePath, outputPath);
+                    if (!MoveMatchedFile(actualRarFilePath, outputPath))
+                    {
+                        _logger.Warning(this, $"Matched archive NOT written (a different file already occupies '{outputFileName}'); left at '{actualRarFilePath}'", LogTarget.System);
+                    }
                 }
 
                 return (true, currentProgress);
@@ -1546,6 +1558,8 @@ public partial class Manager(IReSceneLogger? logger = null)
         int totalTests = allRarDirectories.Count;
         int currentTest = 0;
         int matchCount = 0;
+        int errorCount = 0;
+        string? lastErrorMessage = null;
         DateTime phase1StartTime = DateTime.Now;
 
         // For Phase 1, use the CMT compression method (not file compression method)
@@ -1659,6 +1673,8 @@ public partial class Manager(IReSceneLogger? logger = null)
             }
             catch (Exception ex)
             {
+                errorCount++;
+                lastErrorMessage = ex.Message;
                 _logger.Debug(this, $"Phase 1 test failed for {versionName}: {ex.Message}", LogTarget.Phase1);
             }
         }
@@ -1674,7 +1690,22 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         if (matchedVersions.Count == 0)
         {
-            _logger.Warning(this, "Phase 1 found no matches - falling back to all versions for Phase 2", LogTarget.Phase1);
+            // Every test erroring (rather than simply not matching) points at a systemic problem
+            // — rar.exe failing to launch, no disk space, an unreadable comment file — that would
+            // otherwise be buried in Debug logs while Phase 2 silently retries the whole set.
+            if (errorCount == totalTests && totalTests > 0)
+            {
+                _logger.Warning(this, $"Phase 1 errored on all {totalTests} test(s) — likely a configuration or environment problem (last error: {lastErrorMessage}). Falling back to all versions for Phase 2.", LogTarget.System);
+            }
+            else if (errorCount > 0)
+            {
+                _logger.Warning(this, $"Phase 1 found no matches ({errorCount} of {totalTests} test(s) errored; last error: {lastErrorMessage}) - falling back to all versions for Phase 2", LogTarget.Phase1);
+            }
+            else
+            {
+                _logger.Warning(this, "Phase 1 found no matches - falling back to all versions for Phase 2", LogTarget.Phase1);
+            }
+
             return allRarDirectories;
         }
 
