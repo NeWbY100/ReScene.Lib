@@ -5,7 +5,7 @@ namespace ReScene.RAR;
 /// <summary>
 /// Result of a patching operation on a single block.
 /// </summary>
-public class PatchResult
+internal class PatchResult
 {
     /// <summary>
     /// Byte offset of the block within the RAR file.
@@ -83,7 +83,7 @@ public class PatchResult
 /// <summary>
 /// Options for patching RAR files. Supports exact values detected from SRR headers.
 /// </summary>
-public class PatchOptions
+internal class PatchOptions
 {
     // ===== File Header Options =====
 
@@ -216,7 +216,7 @@ public class PatchOptions
 /// Patches RAR 4.x files to modify Host OS, attributes, and other header fields
 /// while maintaining valid CRCs.
 /// </summary>
-public static class RARPatcher
+internal static class RARPatcher
 {
     // RAR 4.x header field offsets (from block start)
     private const int OffsetCRC = 0;

@@ -485,7 +485,7 @@ internal static class SRRFileParser
         }
     }
 
-    internal static (string? Comment, byte[]? Bytes) TryNativeDecompressComment(RARServiceBlockInfo serviceInfo, byte[] compressedData)
+    internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressComment(RARServiceBlockInfo serviceInfo, byte[] compressedData)
     {
         try
         {
@@ -635,7 +635,7 @@ internal static class SRRFileParser
         }
     }
 
-    internal static (string? Comment, byte[]? Bytes) TryNativeDecompressRar5Comment(RAR5ServiceBlockInfo serviceInfo, byte[] compressedData)
+    internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressRar5Comment(RAR5ServiceBlockInfo serviceInfo, byte[] compressedData)
     {
         try
         {

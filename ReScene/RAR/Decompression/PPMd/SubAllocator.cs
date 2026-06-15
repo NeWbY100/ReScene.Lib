@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression.PPMd;
 /// Memory sub-allocator for PPMd decompression.
 /// Ported from unrar suballoc.cpp/hpp by Dmitry Shkarin.
 /// </summary>
-public class SubAllocator
+internal class SubAllocator
 {
     private const int N1 = 4, N2 = 4, N3 = 4;
     private const int N4 = (128 + 3 - 1 * N1 - 2 * N2 - 3 * N3) / 4;

@@ -380,7 +380,7 @@ public class SRSRebuilderTests : IDisposable
         // Sanity-check: the generic raw byte scan from SRSRebuilder cannot find
         // the subtitle-style track's signature in the larger media file.
         using var fs = new FileStream(mediaPath, FileMode.Open, FileAccess.Read);
-        byte[] subSig = trackDict[2].Signature;
+        byte[] subSig = trackDict[2].Signature.ToArray();
         long rawScanResult = new SRSRebuilder().FindSignature(fs, subSig, 0);
         Assert.Equal(-1, rawScanResult);
     }

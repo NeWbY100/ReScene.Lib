@@ -5,7 +5,7 @@ namespace ReScene.SRS;
 /// When header stripping is used, common header bytes are removed from each frame
 /// and stored once in the TrackEntry's ContentCompSettings element.
 /// </summary>
-public static class EBMLHeaderStripping
+internal static class EBMLHeaderStripping
 {
     // EBML element IDs for header stripping detection within a TrackEntry
     private const ulong IdContentEncodings = 0x6D80;

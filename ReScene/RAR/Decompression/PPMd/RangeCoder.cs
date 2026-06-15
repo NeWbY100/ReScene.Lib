@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression.PPMd;
 /// Carryless range coder for PPMd decompression.
 /// Ported from unrar coder.cpp/hpp by Dmitry Subbotin.
 /// </summary>
-public class RangeCoder
+internal class RangeCoder
 {
     public const uint TOP = 1u << 24;
     public const uint BOT = 1u << 15;

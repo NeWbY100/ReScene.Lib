@@ -5,7 +5,7 @@ namespace ReScene.RAR.Decompression;
 /// Ported from unrar unpack50.cpp - simplified for comment decompression.
 /// Does not support filters (not needed for comments).
 /// </summary>
-public class Unpack50
+internal class Unpack50
 {
     private readonly BitInput _inp;
     private readonly UnpackBlockTables _tables = new();

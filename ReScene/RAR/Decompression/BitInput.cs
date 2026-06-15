@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression;
 /// Bit-level input stream reader for RAR decompression.
 /// Ported from unrar getbits.hpp.
 /// </summary>
-public class BitInput
+internal class BitInput
 {
     /// <summary>
     /// Size of input buffer (32KB).

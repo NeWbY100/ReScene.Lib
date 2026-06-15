@@ -6,7 +6,7 @@ namespace ReScene.RAR.Decompression;
 /// RAR 2.9/3.x decompressor.
 /// Ported from unrar unpack30.cpp - supports both LZSS and PPMd.
 /// </summary>
-public class Unpack29
+internal class Unpack29
 {
     private enum BlockType
     {

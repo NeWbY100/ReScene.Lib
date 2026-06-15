@@ -1,0 +1,746 @@
+class ReScene.Core.BruteForceOptions
+    ctor (String, String, String)
+    property HashSet<String> Hashes { get; }
+    property HashType HashType { get; set; }
+    property RAROptions RAROptions { get; set; }
+    property String OutputDirectoryPath { get; set; }
+    property String RARInstallationsDirectoryPath { get; set; }
+    property String ReleaseDirectoryPath { get; set; }
+class ReScene.Core.BruteForceProgressEventArgs
+    ctor (String, String, String, Int64, Int64, DateTime)
+    property String PhaseDescription { get; set; }
+    property String RARCommandLineArguments { get; }
+    property String RARVersionDirectoryPath { get; }
+    property String ReleaseDirectoryPath { get; }
+class ReScene.Core.BruteForceStatusChangedEventArgs
+    ctor (Nullable<OperationStatus>, OperationStatus)
+    ctor (Nullable<OperationStatus>, OperationStatus, Nullable<OperationCompletionStatus>)
+    ctor (OperationStatus)
+    ctor (OperationStatus, Nullable<OperationCompletionStatus>)
+class ReScene.Core.CRCValidationProgressEventArgs
+    ctor ()
+    property Int32 FilesVerified { get; set; }
+    property Int32 TotalFiles { get; set; }
+    property Int64 BytesVerified { get; set; }
+    property Int64 TotalBytes { get; set; }
+    property String FileName { get; set; }
+class ReScene.Core.Comparison.CompareResult
+    ctor ()
+    property IReadOnlyList<FileDifference> FileDifferences { get; }
+    property IReadOnlyList<FileDifference> StoredFileDifferences { get; }
+    property IReadOnlyList<PropertyDifference> ArchiveDifferences { get; }
+    property Int32 TotalDifferences { get; }
+enum ReScene.Core.Comparison.DifferenceType
+    field DifferenceType Added
+    field DifferenceType Modified
+    field DifferenceType None
+    field DifferenceType Removed
+    field Int32 value__
+class sealed ReScene.Core.Comparison.EBMLElement
+    ctor ()
+    property EBMLValueType ValueType { get; set; }
+    property IReadOnlyList<EBMLElement> Children { get; }
+    property Int32 HeaderSize { get; set; }
+    property Int64 DataSize { get; set; }
+    property Int64 Position { get; set; }
+    property Int64 TotalSize { get; set; }
+    property String Name { get; set; }
+    property String Value { get; set; }
+    property UInt64 ElementId { get; set; }
+enum ReScene.Core.Comparison.EBMLValueType
+    field EBMLValueType Binary
+    field EBMLValueType Date
+    field EBMLValueType Float
+    field EBMLValueType Master
+    field EBMLValueType SignedInt
+    field EBMLValueType String
+    field EBMLValueType Unknown
+    field EBMLValueType UnsignedInt
+    field EBMLValueType Utf8
+    field Int32 value__
+class static ReScene.Core.Comparison.FileComparer
+    method Boolean BlockDataMatches(IHexDataSource, Int64, IHexDataSource, Int64, Int64)
+    method Boolean HasBlockDifferences(RARDetailedBlock, RARDetailedBlock, IHexDataSource, IHexDataSource)
+    method Boolean HasFieldDifferences(RARDetailedBlock, RARDetailedBlock)
+    method CompareResult Compare(Object, Object, IReadOnlyList<RARDetailedBlock>, IReadOnlyList<RARDetailedBlock>, IHexDataSource, IHexDataSource)
+    method String ElementPath(String, EBMLElement, Int32)
+    method String FormatBool(Nullable<Boolean>)
+    method String FormatDictionarySize(Nullable<Int32>)
+    method String FormatRARVersion(Nullable<Int32>)
+    method String GetCompressionMethodName(Byte)
+    method String GetCompressionMethodName(Nullable<Int32>)
+    method String GetFileTypeName(Object)
+    method Void CompareDetailedBlocks(IReadOnlyList<RARDetailedBlock>, IReadOnlyList<RARDetailedBlock>, CompareResult, IHexDataSource, IHexDataSource)
+    method Void CompareMKVFiles(MKVFileData, MKVFileData, CompareResult, IHexDataSource, IHexDataSource)
+    method Void CompareProperty(IList<PropertyDifference>, String, String, String)
+    method Void CompareRARFiles(RARFileData, RARFileData, CompareResult, IReadOnlyList<RARDetailedBlock>, IReadOnlyList<RARDetailedBlock>, IHexDataSource, IHexDataSource)
+    method Void CompareSRRFiles(SRRFile, SRRFile, CompareResult)
+    method Void CompareSRSFiles(SRSFile, SRSFile, CompareResult)
+class ReScene.Core.Comparison.FileDifference
+    ctor ()
+    property DifferenceType Type { get; set; }
+    property IReadOnlyList<PropertyDifference> PropertyDifferences { get; }
+    property String FileName { get; set; }
+class sealed ReScene.Core.Comparison.MKVFileData
+    ctor ()
+    field Int32 DefaultMaxElements
+    field Int64 MaxLeafValueBytes
+    method MKVFileData Load(String, Int32)
+    property IReadOnlyList<EBMLElement> Elements { get; }
+    property Int32 TrackCount { get; set; }
+    property String FilePath { get; set; }
+class ReScene.Core.Comparison.PropertyDifference
+    ctor ()
+    property String LeftValue { get; set; }
+    property String PropertyName { get; set; }
+    property String RightValue { get; set; }
+class ReScene.Core.Comparison.RARFileData
+    ctor ()
+    method RARFileData Load(String)
+    property Boolean IsRAR5 { get; set; }
+    property IReadOnlyList<RAR5FileInfo> RAR5FileInfos { get; }
+    property IReadOnlyList<RARFileHeader> FileHeaders { get; }
+    property RAR5ArchiveInfo RAR5ArchiveInfo { get; set; }
+    property RARArchiveHeader ArchiveHeader { get; set; }
+    property String Comment { get; set; }
+    property String FilePath { get; set; }
+class ReScene.Core.Comparison.SRRFileData
+    ctor ()
+    method SRRFileData Load(String)
+    property Dictionary<String, List<RARDetailedBlock>> VolumeDetailedBlocks { get; set; }
+    property SRRFile SRRFile { get; set; }
+class static ReScene.Core.Cryptography.CRC32
+    method String Calculate(String)
+    method String Calculate(String, Action<Int64>, CancellationToken)
+enum ReScene.Core.Cryptography.HashType
+    field HashType CRC32
+    field HashType SHA1
+    field Int32 value__
+class static ReScene.Core.Cryptography.SHA1
+    method String Calculate(String)
+enum ReScene.Core.Diagnostics.RARArchiveVersion
+    field Int32 value__
+    field RARArchiveVersion RAR4
+    field RARArchiveVersion RAR5
+    field RARArchiveVersion RAR7
+class ReScene.Core.Diagnostics.RARCommandLineArgument
+    ctor (String, Int32, Int32, Nullable<RARArchiveVersion>)
+    ctor (String, Int32, Nullable<RARArchiveVersion>)
+    property Int32 MinimumVersion { get; set; }
+    property Nullable<Int32> MaximumVersion { get; set; }
+    property Nullable<RARArchiveVersion> ArchiveVersion { get; set; }
+    property String Argument { get; set; }
+class ReScene.Core.FileCopyProgressEventArgs
+    ctor ()
+    property Int32 FilesCopied { get; set; }
+    property Int32 TotalFiles { get; set; }
+    property Int64 BytesCopied { get; set; }
+    property Int64 TotalBytes { get; set; }
+    property String DestinationDirectory { get; set; }
+    property String FileName { get; set; }
+    property String SourceDirectory { get; set; }
+enum ReScene.Core.IO.OperationCompletionStatus
+    field Int32 value__
+    field OperationCompletionStatus Cancelled
+    field OperationCompletionStatus Error
+    field OperationCompletionStatus Success
+class ReScene.Core.IO.OperationProgressEventArgs
+    ctor (Int64, Int64, DateTime)
+    property DateTime EstimatedFinishDateTime { get; }
+    property DateTime StartDateTime { get; }
+    property Double Progress { get; }
+    property Int64 OperationProgressed { get; }
+    property Int64 OperationRemaining { get; }
+    property Int64 OperationSize { get; }
+    property Int64 OperationSpeed { get; }
+    property TimeSpan TimeElapsed { get; }
+    property TimeSpan TimeRemaining { get; }
+enum ReScene.Core.IO.OperationStatus
+    field Int32 value__
+    field OperationStatus Completed
+    field OperationStatus Paused
+    field OperationStatus Running
+class ReScene.Core.IO.OperationStatusChangedEventArgs
+    ctor (Nullable<OperationStatus>, OperationStatus)
+    ctor (Nullable<OperationStatus>, OperationStatus, Nullable<OperationCompletionStatus>)
+    ctor (OperationStatus)
+    ctor (OperationStatus, Nullable<OperationCompletionStatus>)
+    property Nullable<OperationCompletionStatus> CompletionStatus { get; }
+    property Nullable<OperationStatus> OldStatus { get; }
+    property OperationStatus NewStatus { get; }
+class ReScene.Core.IO.SFVFile
+    ctor ()
+    ctor (FileInfo)
+    method SFVFile ReadFile(String)
+    property FileInfo FileInfo { get; set; }
+    property IList<SFVFileEntry> Entries { get; }
+class ReScene.Core.IO.SFVFileEntry
+    ctor (String, String)
+    property String CRC { get; set; }
+    property String FileName { get; set; }
+class ReScene.Core.IO.SHA1File
+    ctor ()
+    ctor (FileInfo)
+    method SHA1File ReadFile(String)
+    method Void WriteFile(String)
+    property FileInfo FileInfo { get; set; }
+    property IList<SHA1FileEntry> Entries { get; }
+class ReScene.Core.IO.SHA1FileEntry
+    ctor (String, String)
+    property String FileName { get; set; }
+    property String SHA1 { get; set; }
+interface ReScene.Core.IReSceneLogger
+    method Void Debug(Object, String, LogTarget)
+    method Void Error(Object, Exception, String, LogTarget)
+    method Void Error(Object, String, LogTarget)
+    method Void Information(Object, String, LogTarget)
+    method Void Verbose(Object, String)
+    method Void Warning(Object, String, LogTarget)
+class ReScene.Core.LogEventArgs
+    ctor (String, LogTarget)
+    property LogTarget Target { get; }
+    property String Message { get; }
+enum ReScene.Core.LogTarget
+    field Int32 value__
+    field LogTarget Phase1
+    field LogTarget Phase2
+    field LogTarget System
+class ReScene.Core.Manager
+    ctor (IReSceneLogger)
+    event EventHandler<BruteForceProgressEventArgs> BruteForceProgress
+    event EventHandler<BruteForceStatusChangedEventArgs> BruteForceStatusChanged
+    event EventHandler<CRCValidationProgressEventArgs> CRCValidationProgress
+    event EventHandler<FileCopyProgressEventArgs> FileCopyProgress
+    event EventHandler<TimestampPreservationFailedEventArgs> TimestampPreservationFailed
+    method Int32 ParseRARVersion(String)
+    method RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[], Int32)
+    method Task<Boolean> BruteForceRARVersionAsync(BruteForceOptions, CancellationToken)
+    method Void Stop()
+    property BruteForceOptions BruteForceOptions { get; }
+class ReScene.Core.RAROptions
+    ctor ()
+    property Boolean CanUseCommentPhase { get; }
+    property Boolean CompleteAllVolumes { get; set; }
+    property Boolean DeleteDuplicateCRCFiles { get; set; }
+    property Boolean DeleteRARFiles { get; set; }
+    property Boolean EnableHostOSPatching { get; set; }
+    property Boolean HasArchiveFileList { get; }
+    property Boolean NeedsAttributePatching { get; }
+    property Boolean NeedsHostOSPatching { get; }
+    property Boolean NeedsLargePatching { get; }
+    property Boolean NeedsMtimePatching { get; }
+    property Boolean NeedsPatching { get; }
+    property Boolean RenameToOriginalNames { get; set; }
+    property Boolean StopOnFirstMatch { get; set; }
+    property Boolean UseOldVolumeNaming { get; set; }
+    property CustomPackerType CustomPackerDetected { get; set; }
+    property Dictionary<String, DateTime> DirectoryAccessTimes { get; set; }
+    property Dictionary<String, DateTime> DirectoryCreationTimes { get; set; }
+    property Dictionary<String, DateTime> DirectoryTimestamps { get; set; }
+    property Dictionary<String, DateTime> FileAccessTimes { get; set; }
+    property Dictionary<String, DateTime> FileCreationTimes { get; set; }
+    property Dictionary<String, DateTime> FileTimestamps { get; set; }
+    property Dictionary<String, String> ArchiveFileCrcs { get; set; }
+    property HashSet<String> ArchiveDirectoryPaths { get; set; }
+    property HashSet<String> ArchiveFilePaths { get; set; }
+    property IReadOnlyList<RARCommandLineArgument[]> CommandLineArguments { get; set; }
+    property IReadOnlyList<String> OriginalRarFileNames { get; set; }
+    property IReadOnlyList<VersionRange> RARVersions { get; set; }
+    property Nullable<Boolean> DetectedLargeFlag { get; set; }
+    property Nullable<Byte> CmtCompressionMethod { get; set; }
+    property Nullable<Byte> DetectedCmtHostOS { get; set; }
+    property Nullable<Byte> DetectedFileHostOS { get; set; }
+    property Nullable<ReadOnlyMemory<Byte>> ArchiveCommentBytes { get; set; }
+    property Nullable<ReadOnlyMemory<Byte>> CmtCompressedData { get; set; }
+    property Nullable<UInt32> DetectedCmtFileAttributes { get; set; }
+    property Nullable<UInt32> DetectedCmtFileTime { get; set; }
+    property Nullable<UInt32> DetectedFileAttributes { get; set; }
+    property Nullable<UInt32> DetectedHighPackSize { get; set; }
+    property Nullable<UInt32> DetectedHighUnpSize { get; set; }
+    property String ArchiveComment { get; set; }
+    property String SRRFilePath { get; set; }
+    property TriState SetFileArchiveAttribute { get; set; }
+    property TriState SetFileNotContentIndexedAttribute { get; set; }
+class ReScene.Core.TimestampPreservationFailedEventArgs
+    ctor ()
+    property String DestinationPath { get; set; }
+    property String ErrorMessage { get; set; }
+enum ReScene.Core.TriState
+    field Int32 value__
+    field TriState Checked
+    field TriState Indeterminate
+    field TriState Unchecked
+class ReScene.Core.VersionRange
+    ctor ()
+    ctor (Int32, Int32)
+    method Boolean InRange(Int32)
+    property Int32 End { get; set; }
+    property Int32 Start { get; set; }
+struct ReScene.Hex.HexMatchRange
+    ctor (Int64, Int32)
+    method Boolean Equals(HexMatchRange)
+    method Boolean Equals(Object)
+    method Boolean op_Equality(HexMatchRange, HexMatchRange)
+    method Boolean op_Inequality(HexMatchRange, HexMatchRange)
+    method Int32 GetHashCode()
+    method String ToString()
+    method Void Deconstruct(Int64&, Int32&)
+    property Int32 Length { get; set; }
+    property Int64 Offset { get; set; }
+class sealed ReScene.Hex.HexSearchPattern
+    method HexSearchPattern TryParse(String, Boolean)
+    property Boolean IsHex { get; }
+    property ReadOnlyMemory<Byte> Bytes { get; }
+    property String DisplayText { get; }
+class static ReScene.Hex.HexSearcher
+    method IReadOnlyList<Int64> FindAll(IHexDataSource, HexSearchPattern, Int32)
+    method Int64 FindBackward(IHexDataSource, HexSearchPattern, Int64)
+    method Int64 FindForward(IHexDataSource, HexSearchPattern, Int64)
+interface ReScene.Hex.IHexDataSource
+    method Int32 Read(Int64, Byte[], Int32, Int32)
+    property Int64 Length { get; }
+enum ReScene.RAR.Decompression.RARVersion
+    field Int32 value__
+    field RARVersion RAR15
+    field RARVersion RAR20
+    field RARVersion RAR29
+    field RARVersion RAR50
+class ReScene.RAR.RAR5ArchiveInfo
+    ctor ()
+    property Boolean HasRecoveryRecord { get; }
+    property Boolean HasVolumeNumber { get; }
+    property Boolean IsLocked { get; }
+    property Boolean IsSolid { get; }
+    property Boolean IsVolume { get; }
+    property Nullable<UInt64> VolumeNumber { get; set; }
+    property UInt64 ArchiveFlags { get; set; }
+class ReScene.RAR.RAR5FileInfo
+    ctor ()
+    property Boolean IsDirectory { get; }
+    property Boolean IsSplitAfter { get; set; }
+    property Boolean IsSplitBefore { get; set; }
+    property Boolean IsStored { get; }
+    property Int32 CompressionMethod { get; }
+    property Int32 DictSizePower { get; }
+    property Int32 DictionarySizeKB { get; }
+    property Nullable<UInt32> FileCRC { get; set; }
+    property Nullable<UInt32> ModificationTime { get; set; }
+    property String FileName { get; set; }
+    property UInt64 Attributes { get; set; }
+    property UInt64 CompressionInfo { get; set; }
+    property UInt64 FileFlags { get; set; }
+    property UInt64 HostOS { get; set; }
+    property UInt64 UnpackedSize { get; set; }
+class ReScene.RAR.RARArchiveHeader
+    ctor ()
+    property Boolean CRCValid { get; set; }
+    property Boolean HasEncryptedHeaders { get; }
+    property Boolean HasNewVolumeNaming { get; }
+    property Boolean HasRecoveryRecord { get; }
+    property Boolean IsFirstVolume { get; }
+    property Boolean IsLocked { get; }
+    property Boolean IsSolid { get; }
+    property Boolean IsVolume { get; }
+    property Int64 BlockPosition { get; set; }
+    property UInt16 HeaderCRC { get; set; }
+    property UInt16 HeaderSize { get; set; }
+class ReScene.RAR.RARDetailedBlock
+    ctor ()
+    property Boolean HasData { get; set; }
+    property Byte BlockTypeValue { get; set; }
+    property IList<RARHeaderField> Fields { get; }
+    property Int32 HeaderSize { get; set; }
+    property Int64 DataSize { get; set; }
+    property Int64 StartOffset { get; set; }
+    property Int64 TotalSize { get; set; }
+    property String BlockType { get; set; }
+    property String ItemName { get; set; }
+class static ReScene.RAR.RARDetailedParser
+    method IReadOnlyList<RARDetailedBlock> Parse(Stream, Boolean)
+    method IReadOnlyList<RARDetailedBlock> Parse(String, Boolean)
+    method IReadOnlyList<RARDetailedBlock> ParseFromPosition(Stream)
+enum ReScene.RAR.RARFileFlags
+    field RARFileFlags Comment
+    field RARFileFlags DictSize1024
+    field RARFileFlags DictSize128
+    field RARFileFlags DictSize2048
+    field RARFileFlags DictSize256
+    field RARFileFlags DictSize4096
+    field RARFileFlags DictSize512
+    field RARFileFlags DictSize64
+    field RARFileFlags Directory
+    field RARFileFlags ExtTime
+    field RARFileFlags Large
+    field RARFileFlags LongBlock
+    field RARFileFlags None
+    field RARFileFlags Password
+    field RARFileFlags Salt
+    field RARFileFlags SkipIfUnknown
+    field RARFileFlags Solid
+    field RARFileFlags SplitAfter
+    field RARFileFlags SplitBefore
+    field RARFileFlags Unicode
+    field RARFileFlags Version
+    field UInt16 value__
+class ReScene.RAR.RARFileHeader
+    ctor ()
+    property Boolean CRCValid { get; set; }
+    property Boolean HasExtendedTime { get; }
+    property Boolean HasLargeSize { get; }
+    property Boolean HasUnicodeName { get; }
+    property Boolean IsDirectory { get; set; }
+    property Boolean IsEncrypted { get; }
+    property Boolean IsSplitAfter { get; }
+    property Boolean IsSplitBefore { get; }
+    property Byte CompressionMethod { get; set; }
+    property Byte HostOS { get; set; }
+    property Byte UnpackVersion { get; set; }
+    property Int32 DictionarySizeKB { get; set; }
+    property Int64 BlockPosition { get; set; }
+    property Nullable<DateTime> AccessTime { get; set; }
+    property Nullable<DateTime> CreationTime { get; set; }
+    property Nullable<DateTime> ModifiedTime { get; set; }
+    property RARFileFlags Flags { get; set; }
+    property String FileName { get; set; }
+    property TimestampPrecision AtimePrecision { get; set; }
+    property TimestampPrecision CtimePrecision { get; set; }
+    property TimestampPrecision MtimePrecision { get; set; }
+    property UInt16 HeaderCRC { get; set; }
+    property UInt16 HeaderSize { get; set; }
+    property UInt32 FileAttributes { get; set; }
+    property UInt32 FileCRC { get; set; }
+    property UInt32 FileTimeDOS { get; set; }
+    property UInt32 HighPackSize { get; set; }
+    property UInt32 HighUnpSize { get; set; }
+    property UInt64 PackedSize { get; set; }
+    property UInt64 UnpackedSize { get; set; }
+class ReScene.RAR.RARHeaderField
+    ctor ()
+    method String ToString()
+    property IList<RARHeaderField> Children { get; }
+    property Int32 Length { get; set; }
+    property Int64 Offset { get; set; }
+    property ReadOnlyMemory<Byte> RawBytes { get; set; }
+    property String Description { get; set; }
+    property String Name { get; set; }
+    property String Value { get; set; }
+enum ReScene.RAR.TimestampPrecision
+    field Byte value__
+    field TimestampPrecision HighPrecision1
+    field TimestampPrecision HighPrecision2
+    field TimestampPrecision NotSaved
+    field TimestampPrecision NtfsPrecision
+    field TimestampPrecision OneSecond
+enum ReScene.SRR.CustomPackerType
+    field CustomPackerType AllOnesWithLargeFlag
+    field CustomPackerType MaxUint32WithoutLargeFlag
+    field CustomPackerType None
+    field Int32 value__
+class static ReScene.SRR.RARVolumeIdentifier
+    method Boolean IsRarVolume(String)
+class ReScene.SRR.RARVolumeNameComparer
+    ctor ()
+    method Int32 Compare(String, String)
+    property RARVolumeNameComparer Instance { get; }
+class ReScene.SRR.SRRBlock
+    ctor ()
+    property Int64 BlockPosition { get; set; }
+    property SRRBlockType BlockType { get; set; }
+    property UInt16 CRC { get; set; }
+    property UInt16 Flags { get; set; }
+    property UInt16 HeaderSize { get; set; }
+    property UInt32 AddSize { get; set; }
+enum ReScene.SRR.SRRBlockFlags
+    field SRRBlockFlags LongBlock
+    field SRRBlockFlags None
+    field SRRBlockFlags SkipIfUnknown
+    field UInt16 value__
+enum ReScene.SRR.SRRBlockType
+    field Byte value__
+    field SRRBlockType Header
+    field SRRBlockType OSOHash
+    field SRRBlockType RARFile
+    field SRRBlockType RARPadding
+    field SRRBlockType StoredFile
+class ReScene.SRR.SRRCreationOptions
+    ctor ()
+    property Boolean AllowCompressed { get; set; }
+    property Boolean ComputeOSOHashes { get; set; }
+    property Boolean GenerateLanguagesDiz { get; set; }
+    property String AppName { get; set; }
+class ReScene.SRR.SRRCreationProgressEventArgs
+    ctor ()
+    property Int32 CurrentVolume { get; set; }
+    property Int32 ProgressPercent { get; set; }
+    property Int32 TotalVolumes { get; set; }
+    property String Message { get; set; }
+class ReScene.SRR.SRRCreationResult
+    ctor ()
+    property Boolean Success { get; set; }
+    property IList<String> LanguagesDizIdxFiles { get; }
+    property IList<String> Warnings { get; }
+    property Int32 StoredFileCount { get; set; }
+    property Int32 VolumeCount { get; set; }
+    property Int64 SRRFileSize { get; set; }
+    property String ErrorMessage { get; set; }
+    property String OutputPath { get; set; }
+class static ReScene.SRR.SRREditor
+    method Void AddStoredFiles(String, IReadOnlyList<ValueTuple<String, String>>)
+    method Void MoveStoredFile(String, String, Int32)
+    method Void RemoveStoredFiles(String, IReadOnlyList<String>)
+    method Void RenameStoredFile(String, String, String)
+class ReScene.SRR.SRRFile
+    ctor ()
+    method SRRFile Load(String)
+    method String ExtractStoredFile(String, String, Func<String, Boolean>)
+    property Boolean CmtHasZeroedFileTime { get; }
+    property Boolean HasCustomPackerHeaders { get; }
+    property CustomPackerType CustomPackerDetected { get; }
+    property Dictionary<String, DateTime> ArchivedDirectoryAccessTimes { get; }
+    property Dictionary<String, DateTime> ArchivedDirectoryCreationTimes { get; }
+    property Dictionary<String, DateTime> ArchivedDirectoryTimestamps { get; }
+    property Dictionary<String, DateTime> ArchivedFileAccessTimes { get; }
+    property Dictionary<String, DateTime> ArchivedFileCreationTimes { get; }
+    property Dictionary<String, DateTime> ArchivedFileTimestamps { get; }
+    property Dictionary<String, String> ArchivedFileCrcs { get; }
+    property HashSet<String> ArchivedDirectories { get; }
+    property HashSet<String> ArchivedFiles { get; }
+    property IReadOnlyList<Int64> RARVolumeSizes { get; }
+    property IReadOnlyList<SRROsoHashBlock> OSOHashBlocks { get; }
+    property IReadOnlyList<SRRRarFileBlock> RARFiles { get; }
+    property IReadOnlyList<SRRRarPaddingBlock> RARPaddingBlocks { get; }
+    property IReadOnlyList<SRRStoredFileBlock> StoredFiles { get; }
+    property Int32 HeaderCRCMismatches { get; }
+    property Nullable<Boolean> HasEncryptedHeaders { get; }
+    property Nullable<Boolean> HasExtendedTime { get; }
+    property Nullable<Boolean> HasFirstVolumeFlag { get; }
+    property Nullable<Boolean> HasLargeFiles { get; }
+    property Nullable<Boolean> HasNewVolumeNaming { get; }
+    property Nullable<Boolean> HasRecoveryRecord { get; }
+    property Nullable<Boolean> HasUnicodeNames { get; }
+    property Nullable<Boolean> IsSolidArchive { get; }
+    property Nullable<Boolean> IsVolumeArchive { get; }
+    property Nullable<Byte> CmtCompressionMethod { get; }
+    property Nullable<Byte> CmtHostOS { get; }
+    property Nullable<Byte> DetectedHostOS { get; }
+    property Nullable<Int32> CompressionMethod { get; }
+    property Nullable<Int32> DictionarySize { get; }
+    property Nullable<Int32> RARVersion { get; }
+    property Nullable<Int64> VolumeSizeBytes { get; }
+    property Nullable<ReadOnlyMemory<Byte>> ArchiveCommentBytes { get; }
+    property Nullable<ReadOnlyMemory<Byte>> CmtCompressedData { get; }
+    property Nullable<TimestampPrecision> CmtAtimePrecision { get; }
+    property Nullable<TimestampPrecision> CmtCtimePrecision { get; }
+    property Nullable<TimestampPrecision> CmtMtimePrecision { get; }
+    property Nullable<TimestampPrecision> FileAtimePrecision { get; }
+    property Nullable<TimestampPrecision> FileCtimePrecision { get; }
+    property Nullable<TimestampPrecision> FileMtimePrecision { get; }
+    property Nullable<UInt32> CmtFileAttributes { get; }
+    property Nullable<UInt32> CmtFileTimeDOS { get; }
+    property Nullable<UInt32> DetectedFileAttributes { get; }
+    property Nullable<UInt32> DetectedHighPackSize { get; }
+    property Nullable<UInt32> DetectedHighUnpSize { get; }
+    property SRRHeaderBlock HeaderBlock { get; }
+    property String ArchiveComment { get; }
+    property String CmtHostOSName { get; }
+    property String CmtTimestampMode { get; }
+    property String DetectedHostOSName { get; }
+class ReScene.SRR.SRRHeaderBlock
+    ctor ()
+    property Boolean HasAppName { get; }
+    property String AppName { get; set; }
+class ReScene.SRR.SRROsoHashBlock
+    ctor ()
+    property ReadOnlyMemory<Byte> OSOHash { get; set; }
+    property String FileName { get; set; }
+    property UInt64 FileSize { get; set; }
+class ReScene.SRR.SRRRarFileBlock
+    ctor ()
+    property String FileName { get; set; }
+class ReScene.SRR.SRRRarPaddingBlock
+    ctor ()
+    property String RARFileName { get; set; }
+    property UInt32 PaddingSize { get; set; }
+class ReScene.SRR.SRRStoredFileBlock
+    ctor ()
+    property Int64 DataOffset { get; set; }
+    property String FileName { get; set; }
+    property UInt32 FileLength { get; set; }
+class static ReScene.SRR.SRRVerifier
+    method SRRVerifyResult Verify(String)
+class sealed ReScene.SRR.SRRVerifyIssue
+    ctor ()
+    property Int64 Offset { get; set; }
+    property Nullable<Byte> BlockType { get; set; }
+    property SRRVerifyIssueSeverity Severity { get; set; }
+    property String Message { get; set; }
+enum ReScene.SRR.SRRVerifyIssueSeverity
+    field Int32 value__
+    field SRRVerifyIssueSeverity Error
+    field SRRVerifyIssueSeverity Info
+    field SRRVerifyIssueSeverity Warning
+class sealed ReScene.SRR.SRRVerifyResult
+    ctor ()
+    property Boolean IsValid { get; set; }
+    property IReadOnlyList<SRRVerifyIssue> Issues { get; set; }
+    property Int32 BlocksScanned { get; set; }
+    property Int64 FileSize { get; set; }
+class ReScene.SRR.SRRWriter
+    ctor ()
+    event EventHandler<SRRCreationProgressEventArgs> Progress
+    method Task<SRRCreationResult> CreateAsync(String, IReadOnlyList<String>, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
+    method Task<SRRCreationResult> CreateFromSFVAsync(String, String, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
+class sealed ReScene.SRR.StoredFileEntry
+    ctor (String, String)
+    method Boolean Equals(Object)
+    method Boolean Equals(StoredFileEntry)
+    method Boolean op_Equality(StoredFileEntry, StoredFileEntry)
+    method Boolean op_Inequality(StoredFileEntry, StoredFileEntry)
+    method Int32 GetHashCode()
+    method StoredFileEntry <Clone>$()
+    method String ToString()
+    method Void Deconstruct(String&, String&)
+    property String FullPath { get; set; }
+    property String StoredName { get; set; }
+class static ReScene.SRS.ISOMediaExtractor
+    method Boolean IsISOFile(String)
+    method IReadOnlyList<String> ListMediaFiles(String)
+    method Task ExtractFileAsync(String, String, String, Action<Int32>, CancellationToken)
+    method Task<Boolean> ExtractMatchingVobSetAsync(String, String, String, Action<ISOProgress>, CancellationToken)
+class ReScene.SRS.ISOMediaExtractor+ISOProgress
+    ctor ()
+    property Int32 CurrentPercent { get; set; }
+    property Int32 FileCount { get; set; }
+    property Int32 FileIndex { get; set; }
+    property Int32 OverallPercent { get; set; }
+    property Int64 BytesProcessed { get; set; }
+    property Int64 BytesTotal { get; set; }
+    property Int64 CurrentBytesProcessed { get; set; }
+    property Int64 CurrentBytesTotal { get; set; }
+    property String CurrentFile { get; set; }
+    property String Phase { get; set; }
+class ReScene.SRS.SRSContainerChunk
+    ctor ()
+    property Int32 HeaderSize { get; set; }
+    property Int64 BlockPosition { get; set; }
+    property Int64 BlockSize { get; set; }
+    property Int64 PayloadSize { get; set; }
+    property String ChunkId { get; set; }
+    property String Label { get; set; }
+enum ReScene.SRS.SRSContainerType
+    field Int32 value__
+    field SRSContainerType AVI
+    field SRSContainerType FLAC
+    field SRSContainerType MKV
+    field SRSContainerType MP3
+    field SRSContainerType MP4
+    field SRSContainerType Stream
+    field SRSContainerType WMV
+class ReScene.SRS.SRSCreationOptions
+    ctor ()
+    property String AppName { get; set; }
+    property String MainFilePath { get; set; }
+class ReScene.SRS.SRSCreationProgressEventArgs
+    ctor ()
+    property String Message { get; set; }
+class ReScene.SRS.SRSCreationResult
+    ctor ()
+    property Boolean Success { get; set; }
+    property IList<String> Warnings { get; }
+    property Int32 TrackCount { get; set; }
+    property Int64 SRSFileSize { get; set; }
+    property Int64 SampleSize { get; set; }
+    property SRSContainerType ContainerType { get; set; }
+    property String ErrorMessage { get; set; }
+    property String OutputPath { get; set; }
+    property UInt32 SampleCRC32 { get; set; }
+class ReScene.SRS.SRSFile
+    ctor ()
+    method SRSFile Load(String)
+    property IReadOnlyList<SRSContainerChunk> ContainerChunks { get; }
+    property IReadOnlyList<SRSTrackDataBlock> Tracks { get; }
+    property SRSContainerType ContainerType { get; }
+    property SRSFileDataBlock FileData { get; }
+class ReScene.SRS.SRSFileDataBlock
+    ctor ()
+    property Int32 FrameHeaderSize { get; set; }
+    property Int64 AppNameOffset { get; set; }
+    property Int64 AppNameSizeOffset { get; set; }
+    property Int64 BlockPosition { get; set; }
+    property Int64 BlockSize { get; set; }
+    property Int64 CRC32Offset { get; set; }
+    property Int64 FileNameOffset { get; set; }
+    property Int64 FileNameSizeOffset { get; set; }
+    property Int64 FlagsOffset { get; set; }
+    property Int64 FrameOffset { get; set; }
+    property Int64 SampleSizeOffset { get; set; }
+    property String AppName { get; set; }
+    property String FileName { get; set; }
+    property UInt16 AppNameSize { get; set; }
+    property UInt16 FileNameSize { get; set; }
+    property UInt16 Flags { get; set; }
+    property UInt32 CRC32 { get; set; }
+    property UInt64 SampleSize { get; set; }
+class ReScene.SRS.SRSRebuilder
+    ctor ()
+    event EventHandler<SRSReconstructionProgressEventArgs> Progress
+    event EventHandler<SRSScanProgressEventArgs> ScanProgress
+    method Task<SRSReconstructionResult> RebuildAsync(String, String, String, CancellationToken)
+class ReScene.SRS.SRSReconstructionProgressEventArgs
+    ctor ()
+    property Double ProgressPercent { get; set; }
+    property Int32 TotalTracks { get; set; }
+    property Int32 TrackNumber { get; set; }
+    property String Phase { get; set; }
+class ReScene.SRS.SRSReconstructionResult
+    ctor (Boolean, Boolean, UInt32, UInt32, Int64, Int64, String)
+    ctor (SRSReconstructionResult)
+    method Boolean Equals(Object)
+    method Boolean Equals(SRSReconstructionResult)
+    method Boolean PrintMembers(StringBuilder)
+    method Boolean op_Equality(SRSReconstructionResult, SRSReconstructionResult)
+    method Boolean op_Inequality(SRSReconstructionResult, SRSReconstructionResult)
+    method Int32 GetHashCode()
+    method SRSReconstructionResult <Clone>$()
+    method String ToString()
+    method Void Deconstruct(Boolean&, Boolean&, UInt32&, UInt32&, Int64&, Int64&, String&)
+    property Boolean CRCMatch { get; set; }
+    property Boolean Success { get; set; }
+    property Int64 ActualSize { get; set; }
+    property Int64 ExpectedSize { get; set; }
+    property String ErrorMessage { get; set; }
+    property Type EqualityContract { get; }
+    property UInt32 ActualCRC { get; set; }
+    property UInt32 ExpectedCRC { get; set; }
+class ReScene.SRS.SRSScanProgressEventArgs
+    ctor ()
+    property Int32 Percent { get; set; }
+    property Int64 BytesScanned { get; set; }
+    property Int64 BytesTotal { get; set; }
+    property String Phase { get; set; }
+class ReScene.SRS.SRSTrackDataBlock
+    ctor ()
+    property Int32 DataLengthFieldSize { get; set; }
+    property Int32 FrameHeaderSize { get; set; }
+    property Int32 TrackNumberFieldSize { get; set; }
+    property Int64 BlockPosition { get; set; }
+    property Int64 BlockSize { get; set; }
+    property Int64 DataLengthOffset { get; set; }
+    property Int64 FlagsOffset { get; set; }
+    property Int64 FrameOffset { get; set; }
+    property Int64 MatchOffsetOffset { get; set; }
+    property Int64 SignatureOffset { get; set; }
+    property Int64 SignatureSizeOffset { get; set; }
+    property Int64 TrackNumberOffset { get; set; }
+    property ReadOnlyMemory<Byte> Signature { get; set; }
+    property UInt16 Flags { get; set; }
+    property UInt16 SignatureSize { get; set; }
+    property UInt32 TrackNumber { get; set; }
+    property UInt64 DataLength { get; set; }
+    property UInt64 MatchOffset { get; set; }
+class ReScene.SRS.SRSWriter
+    ctor ()
+    event EventHandler<SRSCreationProgressEventArgs> Progress
+    event EventHandler<SRSScanProgressEventArgs> ScanProgress
+    method SRSContainerType DetectContainerType(String)
+    method Task<SRSCreationResult> CreateAsync(String, String, SRSCreationOptions, CancellationToken)

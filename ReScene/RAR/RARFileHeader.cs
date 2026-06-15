@@ -259,7 +259,7 @@ public class RARArchiveHeader
     /// <summary>
     /// Raw flags from the header.
     /// </summary>
-    public RARArchiveFlags Flags
+    internal RARArchiveFlags Flags
     {
         get; set;
     }

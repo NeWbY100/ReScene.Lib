@@ -3,7 +3,7 @@ namespace ReScene.RAR;
 /// <summary>
 /// Parsed service sub-block info (0x7A blocks like CMT, RR, etc.)
 /// </summary>
-public class RARServiceBlockInfo
+internal class RARServiceBlockInfo
 {
     /// <summary>
     /// Sub-block type name (e.g., "CMT", "RR", "AV").
@@ -136,7 +136,7 @@ public class RARServiceBlockInfo
 /// <summary>
 /// Result of reading a RAR block header.
 /// </summary>
-public class RARBlockReadResult
+internal class RARBlockReadResult
 {
     /// <summary>
     /// Block type (RAR 4.x).
@@ -222,7 +222,7 @@ public class RARBlockReadResult
 /// <summary>
 /// Reads RAR 4.x headers from a stream.
 /// </summary>
-public class RARHeaderReader
+internal class RARHeaderReader
 {
     private readonly BinaryReader _reader;
     private readonly Stream _stream;

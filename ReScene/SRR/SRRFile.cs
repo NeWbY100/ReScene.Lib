@@ -18,22 +18,30 @@ public class SRRFile
     /// <summary>
     /// Gets the OSO hash blocks from the SRR file.
     /// </summary>
-    public List<SRROsoHashBlock> OSOHashBlocks { get; internal set; } = [];
+    public IReadOnlyList<SRROsoHashBlock> OSOHashBlocks => _osoHashBlocks;
+
+    internal List<SRROsoHashBlock> _osoHashBlocks { get; } = [];
 
     /// <summary>
     /// Gets the RAR padding blocks from the SRR file.
     /// </summary>
-    public List<SRRRarPaddingBlock> RARPaddingBlocks { get; internal set; } = [];
+    public IReadOnlyList<SRRRarPaddingBlock> RARPaddingBlocks => _rarPaddingBlocks;
+
+    internal List<SRRRarPaddingBlock> _rarPaddingBlocks { get; } = [];
 
     /// <summary>
     /// Gets the RAR file reference blocks from the SRR file.
     /// </summary>
-    public List<SRRRarFileBlock> RARFiles { get; internal set; } = [];
+    public IReadOnlyList<SRRRarFileBlock> RARFiles => _rarFiles;
+
+    internal List<SRRRarFileBlock> _rarFiles { get; } = [];
 
     /// <summary>
     /// Gets the stored file blocks (SFV, NFO, etc.) from the SRR file.
     /// </summary>
-    public List<SRRStoredFileBlock> StoredFiles { get; internal set; } = [];
+    public IReadOnlyList<SRRStoredFileBlock> StoredFiles => _storedFiles;
+
+    internal List<SRRStoredFileBlock> _storedFiles { get; } = [];
 
     /// <summary>
     /// Gets the set of archived file paths (normalized, case-insensitive).
@@ -85,7 +93,9 @@ public class SRRFile
     /// <summary>
     /// Gets the calculated RAR volume sizes in bytes for each volume.
     /// </summary>
-    public List<long> RARVolumeSizes { get; internal set; } = [];
+    public IReadOnlyList<long> RARVolumeSizes => _rarVolumeSizes;
+
+    internal List<long> _rarVolumeSizes { get; } = [];
 
     /// <summary>
     /// Gets the most common volume size in bytes (for multi-volume archives).
@@ -245,7 +255,7 @@ public class SRRFile
     /// <summary>
     /// Raw archive comment bytes (for exact reconstruction).
     /// </summary>
-    public byte[]? ArchiveCommentBytes
+    public ReadOnlyMemory<byte>? ArchiveCommentBytes
     {
         get; internal set;
     }
@@ -253,7 +263,7 @@ public class SRRFile
     /// <summary>
     /// Raw CMT block compressed data (for Phase 1 brute-force comparison).
     /// </summary>
-    public byte[]? CmtCompressedData
+    public ReadOnlyMemory<byte>? CmtCompressedData
     {
         get; internal set;
     }
@@ -485,7 +495,7 @@ public class SRRFile
                         goto exitLoop;
                     }
 
-                    srr.StoredFiles.Add(storedBlock);
+                    srr._storedFiles.Add(storedBlock);
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
                     break;
 
@@ -493,7 +503,7 @@ public class SRRFile
                     SRROsoHashBlock? osoBlock = SRRFileParser.ParseOSOHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
                     if (osoBlock != null)
                     {
-                        srr.OSOHashBlocks.Add(osoBlock);
+                        srr._osoHashBlocks.Add(osoBlock);
                     }
 
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
@@ -503,7 +513,7 @@ public class SRRFile
                     SRRRarPaddingBlock? paddingBlock = SRRFileParser.ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (paddingBlock != null)
                     {
-                        srr.RARPaddingBlocks.Add(paddingBlock);
+                        srr._rarPaddingBlocks.Add(paddingBlock);
                     }
 
                     fs.Seek(blockEndPos, SeekOrigin.Begin);
@@ -516,13 +526,13 @@ public class SRRFile
                         goto exitLoop;
                     }
 
-                    srr.RARFiles.Add(rarBlock);
+                    srr._rarFiles.Add(rarBlock);
 
                     // Parse embedded RAR headers that follow
                     long volumeTotalSize = SRRFileParser.ParseEmbeddedRarHeaders(reader, fs, srr);
                     if (volumeTotalSize > 0)
                     {
-                        srr.RARVolumeSizes.Add(volumeTotalSize);
+                        srr._rarVolumeSizes.Add(volumeTotalSize);
                     }
 
                     break;

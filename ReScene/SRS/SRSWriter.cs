@@ -95,7 +95,7 @@ public class SRSCreationResult
     /// <summary>
     /// Non-fatal warnings encountered during creation.
     /// </summary>
-    public List<string> Warnings { get; set; } = [];
+    public IList<string> Warnings { get; } = [];
 }
 
 /// <summary>

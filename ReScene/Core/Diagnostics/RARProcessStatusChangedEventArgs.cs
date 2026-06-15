@@ -5,7 +5,7 @@ namespace ReScene.Core.Diagnostics;
 /// <summary>
 /// Provides data for RAR process status change events, including the associated RAR process.
 /// </summary>
-public class RARProcessStatusChangedEventArgs : OperationStatusChangedEventArgs
+internal class RARProcessStatusChangedEventArgs : OperationStatusChangedEventArgs
 {
     /// <summary>
     /// Gets the RAR process associated with this status change.

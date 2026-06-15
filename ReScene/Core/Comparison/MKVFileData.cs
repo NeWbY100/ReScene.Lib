@@ -126,7 +126,9 @@ public sealed class EBMLElement
     /// <summary>
     /// Gets the child elements (populated only for master elements).
     /// </summary>
-    public List<EBMLElement> Children { get; } = [];
+    public IReadOnlyList<EBMLElement> Children => _children;
+
+    internal List<EBMLElement> _children { get; } = [];
 }
 
 /// <summary>
@@ -161,7 +163,9 @@ public sealed class MKVFileData
     /// <summary>
     /// Gets the top-level EBML elements (typically the EBML header and the Segment).
     /// </summary>
-    public List<EBMLElement> Elements { get; } = [];
+    public IReadOnlyList<EBMLElement> Elements => _elements;
+
+    internal List<EBMLElement> _elements { get; } = [];
 
     /// <summary>
     /// Gets or sets the number of TrackEntry elements found, used for the root label.
@@ -195,7 +199,7 @@ public sealed class MKVFileData
         try
         {
             using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            ParseElements(fs, fs.Length, data.Elements, maxElements, ref elementCount, ref trackCount);
+            ParseElements(fs, fs.Length, data._elements, maxElements, ref elementCount, ref trackCount);
         }
         catch (IOException)
         {
@@ -286,7 +290,7 @@ public sealed class MKVFileData
                 }
                 else
                 {
-                    ParseElements(stream, dataEnd, element.Children, maxElements, ref elementCount, ref trackCount);
+                    ParseElements(stream, dataEnd, element._children, maxElements, ref elementCount, ref trackCount);
                 }
             }
             else
@@ -532,7 +536,7 @@ public sealed class MKVFileData
 /// <summary>
 /// Maps known Matroska/EBML element IDs to a display name and interpreted value type.
 /// </summary>
-public static class EbmlElementRegistry
+internal static class EbmlElementRegistry
 {
     private static readonly Dictionary<ulong, (string Name, EBMLValueType Type)> _map = new()
     {

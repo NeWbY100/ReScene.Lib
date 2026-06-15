@@ -58,7 +58,7 @@ public enum SRRBlockType : byte
 /// SRR header block flags.
 /// </summary>
 [Flags]
-public enum SRRHeaderFlags : ushort
+internal enum SRRHeaderFlags : ushort
 {
     /// <summary>
     /// No flags set.
@@ -229,7 +229,7 @@ public class SRROsoHashBlock : SRRBlock
     /// <summary>
     /// Gets or sets the 8-byte OSO hash value.
     /// </summary>
-    public byte[] OSOHash { get; set; } = [];
+    public ReadOnlyMemory<byte> OSOHash { get; set; }
 }
 
 /// <summary>

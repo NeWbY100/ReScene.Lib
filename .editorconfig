@@ -187,8 +187,8 @@ dotnet_diagnostic.CS1591.severity = none
 # CA1305: Specify IFormatProvider (not needed for internal display formatting)
 dotnet_diagnostic.CA1305.severity = none
 
-# CA1515: Make class sealed (design choice — ViewModels are partial for source generators)
-dotnet_diagnostic.CA1515.severity = none
+# CA1515: Consider making public types internal — library keeps only its intended API public
+dotnet_diagnostic.CA1515.severity = warning
 
 # CA1031: Do not catch general exception (intentional for error handling patterns)
 dotnet_diagnostic.CA1031.severity = none
@@ -199,17 +199,17 @@ dotnet_diagnostic.CA2007.severity = none
 # CA1062: Validate arguments of public methods (nullable reference types handle this)
 dotnet_diagnostic.CA1062.severity = none
 
-# CA1002: Do not expose generic lists (internal API, ObservableCollection pattern)
-dotnet_diagnostic.CA1002.severity = none
+# CA1002: Do not expose generic List<T> on the public API of a library
+dotnet_diagnostic.CA1002.severity = warning
 
-# CA2227: Collection properties should be read-only (MVVM pattern requires settable)
-dotnet_diagnostic.CA2227.severity = none
+# CA2227: Collection properties should be read-only on a library's public API
+dotnet_diagnostic.CA2227.severity = warning
 
 # CA1308: Normalize to upper case (lower case is intentional)
 dotnet_diagnostic.CA1308.severity = none
 
-# CA1819: Properties should not return arrays (binary data properties)
-dotnet_diagnostic.CA1819.severity = none
+# CA1819: Properties should not return arrays on a library's public API
+dotnet_diagnostic.CA1819.severity = warning
 
 # CA1028: Enum storage should be Int32 (format-specific byte/ushort enums)
 dotnet_diagnostic.CA1028.severity = none
@@ -241,8 +241,8 @@ dotnet_diagnostic.CA1725.severity = none
 # CA1724: Type names should not match namespaces (project naming convention)
 dotnet_diagnostic.CA1724.severity = none
 
-# CA1051: Do not declare visible instance fields (ObservableProperty fields are source-generated)
-dotnet_diagnostic.CA1051.severity = none
+# CA1051: Do not declare visible instance fields on a library's public API
+dotnet_diagnostic.CA1051.severity = warning
 
 # CA1008: Enums should have zero value (format-specific enums)
 dotnet_diagnostic.CA1008.severity = none

@@ -16,7 +16,7 @@ public class SRRFileData
     /// <summary>
     /// Detailed RAR blocks per volume, keyed by volume filename.
     /// </summary>
-    public Dictionary<string, List<RARDetailedBlock>> VolumeDetailedBlocks { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, List<RARDetailedBlock>> VolumeDetailedBlocks { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Loads and parses an SRR file, including detailed RAR block data for each embedded volume.
@@ -44,7 +44,7 @@ public class SRRFileData
                         long embeddedStart = rarFile.BlockPosition + rarFile.HeaderSize;
                         fs.Position = embeddedStart;
 
-                        List<RARDetailedBlock> detailedBlocks = RARDetailedParser.ParseFromPosition(fs);
+                        List<RARDetailedBlock> detailedBlocks = [.. RARDetailedParser.ParseFromPosition(fs)];
                         volumeBlocks[rarFile.FileName] = detailedBlocks;
                     }
                     catch

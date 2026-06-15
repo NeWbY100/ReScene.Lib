@@ -17,22 +17,22 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// <summary>
     /// Occurs when a RAR process writes output.
     /// </summary>
-    public event EventHandler<RARProcessDataEventArgs>? RARProcessOutput;
+    internal event EventHandler<RARProcessDataEventArgs>? RARProcessOutput;
 
     /// <summary>
     /// Occurs when a RAR process status changes.
     /// </summary>
-    public event EventHandler<RARProcessStatusChangedEventArgs>? RARProcessStatusChanged;
+    internal event EventHandler<RARProcessStatusChangedEventArgs>? RARProcessStatusChanged;
 
     /// <summary>
     /// Occurs when RAR compression progress updates.
     /// </summary>
-    public event EventHandler<RARCompressionProgressEventArgs>? RARCompressionProgress;
+    internal event EventHandler<RARCompressionProgressEventArgs>? RARCompressionProgress;
 
     /// <summary>
     /// Occurs when RAR compression status changes.
     /// </summary>
-    public event EventHandler<RARCompressionStatusChangedEventArgs>? RARCompressionStatusChanged;
+    internal event EventHandler<RARCompressionStatusChangedEventArgs>? RARCompressionStatusChanged;
 
     /// <summary>
     /// Occurs when brute-force progress updates (version/argument combination being tested).
@@ -942,7 +942,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                 // Rename the matched file(s) to their final name inside the "output" subdirectory
                 string baseName = Path.GetFileNameWithoutExtension(rarFilePath);
                 string patchedBaseName = options.RAROptions.NeedsPatching ? baseName + "-patched" : baseName;
-                List<string> originalNames = options.RAROptions.OriginalRarFileNames;
+                IReadOnlyList<string> originalNames = options.RAROptions.OriginalRarFileNames;
                 bool useOriginalNames = options.RAROptions.RenameToOriginalNames &&
                                         options.RAROptions.StopOnFirstMatch &&
                                         originalNames.Count > 0;
@@ -1280,15 +1280,15 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         // Create comment file if archive has a comment
         _commentFilePath = null;
-        if (options.RAROptions.ArchiveCommentBytes != null && options.RAROptions.ArchiveCommentBytes.Length > 0)
+        if (options.RAROptions.ArchiveCommentBytes is { Length: > 0 } archiveCommentBytes)
         {
             // Use raw bytes for exact reconstruction
             string commentFilePath = Path.Combine(options.OutputDirectoryPath, "comment.txt");
             try
             {
-                File.WriteAllBytes(commentFilePath, options.RAROptions.ArchiveCommentBytes);
+                File.WriteAllBytes(commentFilePath, archiveCommentBytes.ToArray());
                 _commentFilePath = commentFilePath;
-                _logger.Information(this, $"Created comment file: {commentFilePath} ({options.RAROptions.ArchiveCommentBytes.Length} bytes)");
+                _logger.Information(this, $"Created comment file: {commentFilePath} ({archiveCommentBytes.Length} bytes)");
             }
             catch (Exception ex)
             {
@@ -1536,7 +1536,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         List<(string Path, int Version)> allRarDirectories)
     {
         var matchedVersions = new List<(string Path, int Version)>();
-        byte[]? expectedCmtData = options.RAROptions.CmtCompressedData;
+        byte[]? expectedCmtData = options.RAROptions.CmtCompressedData?.ToArray();
 
         if (expectedCmtData == null || expectedCmtData.Length == 0)
         {
@@ -1564,9 +1564,9 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         // Create comment file
         string commentFilePath = Path.Combine(phase1Dir, "comment.txt");
-        if (options.RAROptions.ArchiveCommentBytes != null)
+        if (options.RAROptions.ArchiveCommentBytes is { } phase1CommentBytes)
         {
-            File.WriteAllBytes(commentFilePath, options.RAROptions.ArchiveCommentBytes);
+            File.WriteAllBytes(commentFilePath, phase1CommentBytes.ToArray());
         }
         else if (!string.IsNullOrEmpty(options.RAROptions.ArchiveComment))
         {

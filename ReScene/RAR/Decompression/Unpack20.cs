@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression;
 /// RAR 2.0 decompressor.
 /// Ported from unrar unpack20.cpp - LZ compression only (no audio mode for comments).
 /// </summary>
-public class Unpack20
+internal class Unpack20
 {
     // Distance decode tables for RAR 2.0 (48 entries) - unique to RAR 2.0
     private static readonly int[] _dDecode =

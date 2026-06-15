@@ -16,7 +16,9 @@ public class FileDifference
     public DifferenceType Type { get; set; } = DifferenceType.None;
 
     /// <summary>
-    /// Gets or sets the property-level differences within this file entry.
+    /// Gets the property-level differences within this file entry.
     /// </summary>
-    public List<PropertyDifference> PropertyDifferences { get; set; } = [];
+    public IReadOnlyList<PropertyDifference> PropertyDifferences => _propertyDifferences;
+
+    internal List<PropertyDifference> _propertyDifferences { get; init; } = [];
 }

@@ -31,7 +31,7 @@ public class RARHeaderField
     /// <summary>
     /// Raw bytes of this field.
     /// </summary>
-    public byte[] RawBytes { get; set; } = [];
+    public ReadOnlyMemory<byte> RawBytes { get; set; }
 
     /// <summary>
     /// Formatted display value.
@@ -49,7 +49,7 @@ public class RARHeaderField
     /// <summary>
     /// Child fields (for nested structures like flags).
     /// </summary>
-    public List<RARHeaderField> Children { get; set; } = [];
+    public IList<RARHeaderField> Children { get; } = [];
 
     public override string ToString() => $"{Name}: {Value}";
 }
@@ -99,7 +99,7 @@ public class RARDetailedBlock
     /// <summary>
     /// All fields in this block header.
     /// </summary>
-    public List<RARHeaderField> Fields { get; set; } = [];
+    public IList<RARHeaderField> Fields { get; } = [];
 
     /// <summary>
     /// True if this block has associated data after the header.
@@ -143,7 +143,7 @@ public static class RARDetailedParser
     /// <returns>
     /// A list of parsed detailed blocks.
     /// </returns>
-    public static List<RARDetailedBlock> Parse(string filePath, bool enableSfx = false)
+    public static IReadOnlyList<RARDetailedBlock> Parse(string filePath, bool enableSfx = false)
     {
         using FileStream fs = File.OpenRead(filePath);
         return Parse(fs, enableSfx);
@@ -161,7 +161,7 @@ public static class RARDetailedParser
     /// <returns>
     /// A list of parsed detailed blocks.
     /// </returns>
-    public static List<RARDetailedBlock> Parse(Stream stream, bool enableSfx = false)
+    public static IReadOnlyList<RARDetailedBlock> Parse(Stream stream, bool enableSfx = false)
     {
         var blocks = new List<RARDetailedBlock>();
 
@@ -210,7 +210,7 @@ public static class RARDetailedParser
     /// <returns>
     /// A list of parsed detailed blocks.
     /// </returns>
-    public static List<RARDetailedBlock> ParseFromPosition(Stream stream)
+    public static IReadOnlyList<RARDetailedBlock> ParseFromPosition(Stream stream)
     {
         var blocks = new List<RARDetailedBlock>();
 
@@ -542,7 +542,7 @@ public static class RARDetailedParser
         // Check if this is a CMT block and if the data is stored (method byte 0x30 = Store)
         if (block.ItemName == "CMT" && block.DataSize <= 1_000_000)
         {
-            bool isStored = block.Fields.Exists(f =>
+            bool isStored = block.Fields.Any(f =>
                 f.Name == "Compression Method" && f.Value == "0x30");
 
             if (block.DataSize > int.MaxValue)
@@ -1762,8 +1762,8 @@ public static class RARDetailedParser
         if (block.ItemName == "CMT" && block.DataSize <= 1_000_000)
         {
             // Check if stored (method=0) by finding the METHOD child of Compression Info
-            bool isStored = block.Fields.Exists(f =>
-                f.Name == "Compression Info" && f.Children.Exists(c =>
+            bool isStored = block.Fields.Any(f =>
+                f.Name == "Compression Info" && f.Children.Any(c =>
                     c.Name == "METHOD" && c.Value.StartsWith("0 ", StringComparison.Ordinal)));
 
             if (block.DataSize > int.MaxValue)

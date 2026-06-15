@@ -9,7 +9,7 @@ namespace ReScene.Core.Diagnostics;
 /// <summary>
 /// Wraps a RAR command-line process, parsing its output for compression progress and status events.
 /// </summary>
-public sealed partial class RARProcess
+internal sealed partial class RARProcess
 {
     /// <summary>
     /// Occurs when the RAR process writes output (stdout or stderr).

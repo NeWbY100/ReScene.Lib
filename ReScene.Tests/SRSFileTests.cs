@@ -223,7 +223,7 @@ public class SRSFileTests : IDisposable
 
         foreach (SRSTrackDataBlock track in srs.Tracks)
         {
-            Assert.False(track.Signature.All(b => b == 0),
+            Assert.False(track.Signature.ToArray().All(b => b == 0),
                 $"Track {track.TrackNumber} signature is all zeros");
         }
     }

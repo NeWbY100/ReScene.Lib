@@ -7,7 +7,7 @@ namespace ReScene.RAR;
 /// <summary>
 /// Utility methods for RAR format handling.
 /// </summary>
-public static class RARUtils
+internal static class RARUtils
 {
     private static readonly Encoding _rarNameEncoding = GetRarNameEncoding();
 

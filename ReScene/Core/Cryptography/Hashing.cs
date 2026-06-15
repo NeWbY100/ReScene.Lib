@@ -3,7 +3,7 @@ namespace ReScene.Core.Cryptography;
 /// <summary>
 /// Provides high-performance hash conversion utilities.
 /// </summary>
-public static class Hashing
+internal static class Hashing
 {
     private static readonly uint[] _lookup32UpperCase = CreateLookup32(true);
 

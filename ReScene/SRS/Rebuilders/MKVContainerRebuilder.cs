@@ -97,7 +97,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
         var signatures = new Dictionary<uint, byte[]>();
         foreach ((uint tn, SRSTrackDataBlock track) in tracks)
         {
-            signatures[tn] = track.Signature;
+            signatures[tn] = track.Signature.ToArray();
         }
 
         Dictionary<uint, long> offsets = FindTrackOffsetsByEBMLWalk(
@@ -615,7 +615,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                                 // Verify frame data matches the expected signature
                                 // at the appropriate offset within it.
                                 int sigOffset = (int)(frameDataOffset - trackStart);
-                                byte[] sig = tracks[tn].Signature;
+                                ReadOnlyMemory<byte> sig = tracks[tn].Signature;
                                 int verifyLen = Math.Min(sig.Length - sigOffset, frameDataLen);
 
                                 if (verifyLen > 0)
@@ -628,7 +628,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
                                     include = read == verifyLen
                                         && verifyBuf.AsSpan(0, read)
-                                            .SequenceEqual(sig.AsSpan(sigOffset, read));
+                                            .SequenceEqual(sig.Span.Slice(sigOffset, read));
                                 }
                                 else
                                 {

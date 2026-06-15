@@ -26,14 +26,14 @@ public class RAROptions
     }
 
     /// <summary>
-    /// Gets or sets the command line arguments.
+    /// Gets the command line arguments.
     /// </summary>
-    public List<RARCommandLineArgument[]> CommandLineArguments { get; set; } = [];
+    public IReadOnlyList<RARCommandLineArgument[]> CommandLineArguments { get; init; } = [];
 
     /// <summary>
-    /// Gets or sets the RAR versions to try.
+    /// Gets the RAR versions to try.
     /// </summary>
-    public List<VersionRange> RARVersions { get; set; } = [];
+    public IReadOnlyList<VersionRange> RARVersions { get; init; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether to delete the RAR files if checksum does not match.
@@ -62,49 +62,49 @@ public class RAROptions
     }
 
     /// <summary>
-    /// Gets or sets expected CRC32 values for archived files (relative paths).
+    /// Gets expected CRC32 values for archived files (relative paths).
     /// </summary>
-    public Dictionary<string, string> ArchiveFileCrcs { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, string> ArchiveFileCrcs { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets the file paths to include when an SRR file list is present.
+    /// Gets the file paths to include when an SRR file list is present.
     /// </summary>
-    public HashSet<string> ArchiveFilePaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> ArchiveFilePaths { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets the directory paths to include when an SRR file list is present.
+    /// Gets the directory paths to include when an SRR file list is present.
     /// </summary>
-    public HashSet<string> ArchiveDirectoryPaths { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> ArchiveDirectoryPaths { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets directory modified times (mtime) keyed by relative path.
+    /// Gets directory modified times (mtime) keyed by relative path.
     /// </summary>
-    public Dictionary<string, DateTime> DirectoryTimestamps { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DateTime> DirectoryTimestamps { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets directory creation times (ctime) keyed by relative path.
+    /// Gets directory creation times (ctime) keyed by relative path.
     /// </summary>
-    public Dictionary<string, DateTime> DirectoryCreationTimes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DateTime> DirectoryCreationTimes { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets directory access times (atime) keyed by relative path.
+    /// Gets directory access times (atime) keyed by relative path.
     /// </summary>
-    public Dictionary<string, DateTime> DirectoryAccessTimes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DateTime> DirectoryAccessTimes { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets file modified times (mtime) keyed by relative path.
+    /// Gets file modified times (mtime) keyed by relative path.
     /// </summary>
-    public Dictionary<string, DateTime> FileTimestamps { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DateTime> FileTimestamps { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets file creation times (ctime) keyed by relative path.
+    /// Gets file creation times (ctime) keyed by relative path.
     /// </summary>
-    public Dictionary<string, DateTime> FileCreationTimes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DateTime> FileCreationTimes { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Gets or sets file access times (atime) keyed by relative path.
+    /// Gets file access times (atime) keyed by relative path.
     /// </summary>
-    public Dictionary<string, DateTime> FileAccessTimes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, DateTime> FileAccessTimes { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets a value indicating whether the SRR file list restricts inputs.
@@ -120,19 +120,19 @@ public class RAROptions
     }
 
     /// <summary>
-    /// Gets or sets the raw archive comment bytes for exact reconstruction.
+    /// Gets the raw archive comment bytes for exact reconstruction.
     /// </summary>
-    public byte[]? ArchiveCommentBytes
+    public ReadOnlyMemory<byte>? ArchiveCommentBytes
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
-    /// Gets or sets the raw CMT block compressed data from the SRR.
+    /// Gets the raw CMT block compressed data from the SRR.
     /// </summary>
-    public byte[]? CmtCompressedData
+    public ReadOnlyMemory<byte>? CmtCompressedData
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -147,7 +147,7 @@ public class RAROptions
     /// <summary>
     /// Gets a value indicating whether Phase 1 (comment brute-force) can be used.
     /// </summary>
-    public bool CanUseCommentPhase => CmtCompressedData != null && CmtCompressedData.Length > 0;
+    public bool CanUseCommentPhase => CmtCompressedData is { Length: > 0 };
 
     /// <summary>
     /// Gets or sets whether to enable Host OS patching.
@@ -215,10 +215,10 @@ public class RAROptions
     }
 
     /// <summary>
-    /// Gets or sets the original RAR volume filenames, in volume order. Typically sourced from
+    /// Gets the original RAR volume filenames, in volume order. Typically sourced from
     /// the SRR file, or from the verification SFV when no SRR is available.
     /// </summary>
-    public List<string> OriginalRarFileNames { get; set; } = [];
+    public IReadOnlyList<string> OriginalRarFileNames { get; init; } = [];
 
     /// <summary>
     /// Gets or sets whether the LARGE flag was detected in SRR file headers.

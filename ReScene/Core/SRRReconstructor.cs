@@ -8,7 +8,7 @@ namespace ReScene.Core;
 /// Used when the SRR indicates a custom packer (not WinRAR) created the original RARs,
 /// making brute-force reconstruction impossible.
 /// </summary>
-public class SRRReconstructor(IReSceneLogger? logger = null)
+internal class SRRReconstructor(IReSceneLogger? logger = null)
 {
     /// <summary>
     /// Occurs when reconstruction progress updates.
@@ -43,7 +43,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
         string srrFilePath,
         string inputDirectory,
         string outputDirectory,
-        List<string> originalRarFileNames,
+        IReadOnlyList<string> originalRarFileNames,
         HashSet<string> hashes,
         HashType hashType,
         CancellationToken cancellationToken)

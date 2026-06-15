@@ -14,9 +14,9 @@ public class SFVFile
     }
 
     /// <summary>
-    /// Gets or sets the parsed SFV entries.
+    /// Gets the parsed SFV entries.
     /// </summary>
-    public List<SFVFileEntry> Entries { get; set; } = [];
+    public IList<SFVFileEntry> Entries { get; } = [];
 
     /// <summary>
     /// Initializes a new empty SFV file.

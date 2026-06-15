@@ -8,7 +8,7 @@ namespace ReScene.SRS;
 /// Supports ID3v2, ID3v1, Lyrics3v1, Lyrics3v2, APEv1, and APEv2 tags.
 /// Based on pyrescene mp3.py implementation.
 /// </summary>
-public static class MP3TagReader
+internal static class MP3TagReader
 {
     private const int Id3v2HeaderSize = 10;
     private const int Id3v1TagSize = 128;

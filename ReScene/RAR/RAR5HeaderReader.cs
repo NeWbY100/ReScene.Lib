@@ -5,7 +5,7 @@ namespace ReScene.RAR;
 /// <summary>
 /// Result of reading a RAR 5.0 block header.
 /// </summary>
-public class RAR5BlockReadResult
+internal class RAR5BlockReadResult
 {
     /// <summary>
     /// Block type (RAR 5.0).
@@ -254,7 +254,7 @@ public class RAR5FileInfo
 /// <summary>
 /// Parsed service block info for RAR 5.0.
 /// </summary>
-public class RAR5ServiceBlockInfo
+internal class RAR5ServiceBlockInfo
 {
     /// <summary>
     /// Service data type (e.g., 0x03 for CMT comment).
@@ -330,7 +330,7 @@ public class RAR5ServiceBlockInfo
 /// RAR 5.0 common header flags (HFL_*) from unrar headers.hpp
 /// </summary>
 [Flags]
-public enum RAR5HeaderFlags : ulong
+internal enum RAR5HeaderFlags : ulong
 {
     /// <summary>
     /// Extra area is present (HFL_EXTRA).
@@ -372,7 +372,7 @@ public enum RAR5HeaderFlags : ulong
 /// RAR 5.0 file/service block flags.
 /// </summary>
 [Flags]
-public enum RAR5FileFlags : ulong
+internal enum RAR5FileFlags : ulong
 {
     /// <summary>
     /// Entry is a directory.
@@ -398,7 +398,7 @@ public enum RAR5FileFlags : ulong
 /// <summary>
 /// RAR 5.0 service data types.
 /// </summary>
-public enum RAR5ServiceType : ulong
+internal enum RAR5ServiceType : ulong
 {
     /// <summary>
     /// Archive comment (CMT).
@@ -412,7 +412,7 @@ public enum RAR5ServiceType : ulong
 /// <remarks>
 /// Creates a new RAR 5.0 header reader.
 /// </remarks>
-public class RAR5HeaderReader(Stream stream)
+internal class RAR5HeaderReader(Stream stream)
 {
     /// <summary>
     /// RAR 5.0 marker bytes.

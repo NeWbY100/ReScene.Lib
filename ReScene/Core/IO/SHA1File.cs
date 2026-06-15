@@ -16,9 +16,9 @@ public class SHA1File
     }
 
     /// <summary>
-    /// Gets or sets the parsed SHA-1 entries.
+    /// Gets the parsed SHA-1 entries.
     /// </summary>
-    public List<SHA1FileEntry> Entries { get; set; } = [];
+    public IList<SHA1FileEntry> Entries { get; } = [];
 
     /// <summary>
     /// Initializes a new empty SHA-1 file.

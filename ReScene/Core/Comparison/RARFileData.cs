@@ -38,14 +38,18 @@ public class RARFileData
     }
 
     /// <summary>
-    /// Gets or sets the RAR 4.x file headers found in the archive.
+    /// Gets the RAR 4.x file headers found in the archive.
     /// </summary>
-    public List<RARFileHeader> FileHeaders { get; set; } = [];
+    public IReadOnlyList<RARFileHeader> FileHeaders => _fileHeaders;
+
+    internal List<RARFileHeader> _fileHeaders { get; } = [];
 
     /// <summary>
-    /// Gets or sets the RAR 5.x file info entries found in the archive.
+    /// Gets the RAR 5.x file info entries found in the archive.
     /// </summary>
-    public List<RAR5FileInfo> RAR5FileInfos { get; set; } = [];
+    public IReadOnlyList<RAR5FileInfo> RAR5FileInfos => _rar5FileInfos;
+
+    internal List<RAR5FileInfo> _rar5FileInfos { get; } = [];
 
     /// <summary>
     /// Gets or sets the archive comment text, if present.
@@ -105,7 +109,7 @@ public class RARFileData
 
             if (block.FileHeader != null)
             {
-                data.FileHeaders.Add(block.FileHeader);
+                data._fileHeaders.Add(block.FileHeader);
             }
 
             if (block.ServiceBlockInfo != null && block.ServiceBlockInfo.SubType == "CMT")
@@ -147,7 +151,7 @@ public class RARFileData
 
             if (block.FileInfo != null)
             {
-                data.RAR5FileInfos.Add(block.FileInfo);
+                data._rar5FileInfos.Add(block.FileInfo);
             }
 
             if (block.ServiceBlockInfo != null && block.ServiceBlockInfo.SubType == "CMT")

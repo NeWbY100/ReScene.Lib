@@ -3,7 +3,7 @@ namespace ReScene.Core.Diagnostics;
 /// <summary>
 /// Provides data for RAR process output events, including the associated RAR process.
 /// </summary>
-public class RARProcessDataEventArgs : ProcessDataEventArgs
+internal class RARProcessDataEventArgs : ProcessDataEventArgs
 {
     /// <summary>
     /// Gets the RAR process that produced the output.

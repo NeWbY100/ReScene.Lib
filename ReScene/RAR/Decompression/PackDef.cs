@@ -3,7 +3,7 @@ namespace ReScene.RAR.Decompression;
 /// <summary>
 /// Pack/unpack constants and lookup tables from unrar compress.hpp.
 /// </summary>
-public static class PackDef
+internal static class PackDef
 {
     #region Shared Lookup Tables
 

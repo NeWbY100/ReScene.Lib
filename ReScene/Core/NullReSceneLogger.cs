@@ -3,7 +3,7 @@ namespace ReScene.Core;
 /// <summary>
 /// A no-op logger implementation used as default when no logger is provided.
 /// </summary>
-public sealed class NullReSceneLogger : IReSceneLogger
+internal sealed class NullReSceneLogger : IReSceneLogger
 {
     /// <summary>
     /// Gets the singleton instance of the null logger.

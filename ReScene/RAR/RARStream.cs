@@ -24,7 +24,7 @@ internal record RARVolume(string ArchivePath, long LogicalStart, long LogicalEnd
 /// Only stored (m0) files are guaranteed to return correct content; compressed
 /// files will return the raw compressed bytes.
 /// </summary>
-public class RARStream : Stream
+internal class RARStream : Stream
 {
     private static readonly byte[] _rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 

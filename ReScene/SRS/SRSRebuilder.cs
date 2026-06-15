@@ -173,7 +173,7 @@ public class SRSRebuilder
         }
 
         SRSFileDataBlock fileData = srs.FileData;
-        List<SRSTrackDataBlock> tracks = srs.Tracks;
+        IReadOnlyList<SRSTrackDataBlock> tracks = srs.Tracks;
         long expectedSize = (long)fileData.SampleSize;
         uint expectedCRC = fileData.CRC32;
 
@@ -270,7 +270,7 @@ public class SRSRebuilder
                 continue;
             }
 
-            long foundOffset = FindSignature(fs, track.Signature, (long)track.MatchOffset, ct);
+            long foundOffset = FindSignature(fs, track.Signature.ToArray(), (long)track.MatchOffset, ct);
 
             if (foundOffset < 0)
             {

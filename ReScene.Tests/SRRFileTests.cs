@@ -511,7 +511,7 @@ public class SRRFileTests : IDisposable
         Assert.Single(srr.OSOHashBlocks);
         Assert.Equal("video.avi", srr.OSOHashBlocks[0].FileName);
         Assert.Equal(734003200UL, srr.OSOHashBlocks[0].FileSize);
-        Assert.Equal(osoHash, srr.OSOHashBlocks[0].OSOHash);
+        Assert.Equal(osoHash, srr.OSOHashBlocks[0].OSOHash.ToArray());
     }
 
     #endregion
@@ -759,7 +759,7 @@ public class SRRFileTests : IDisposable
         // With method 0x33, the synthetic data isn't actually compressed,
         // so decompression via native decompressor may or may not succeed.
         // But CmtCompressedData should always be populated.
-        Assert.True(srr.CmtCompressedData!.Length > 0);
+        Assert.True(srr.CmtCompressedData!.Value.Length > 0);
     }
 
     [Fact]

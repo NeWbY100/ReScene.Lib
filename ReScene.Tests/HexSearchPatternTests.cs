@@ -34,8 +34,8 @@ public class HexSearchPatternTests
         var result = HexSearchPattern.TryParse("5261", asHex: true);
         Assert.NotNull(result);
         Assert.Equal(2, result!.Bytes.Length);
-        Assert.Equal(0x52, result.Bytes[0]);
-        Assert.Equal(0x61, result.Bytes[1]);
+        Assert.Equal(0x52, result.Bytes.Span[0]);
+        Assert.Equal(0x61, result.Bytes.Span[1]);
         Assert.True(result.IsHex);
     }
 
@@ -45,8 +45,8 @@ public class HexSearchPatternTests
         var result = HexSearchPattern.TryParse("52 61", asHex: true);
         Assert.NotNull(result);
         Assert.Equal(2, result!.Bytes.Length);
-        Assert.Equal(0x52, result.Bytes[0]);
-        Assert.Equal(0x61, result.Bytes[1]);
+        Assert.Equal(0x52, result.Bytes.Span[0]);
+        Assert.Equal(0x61, result.Bytes.Span[1]);
     }
 
     [Fact]
@@ -55,8 +55,8 @@ public class HexSearchPatternTests
         var result = HexSearchPattern.TryParse("52-61", asHex: true);
         Assert.NotNull(result);
         Assert.Equal(2, result!.Bytes.Length);
-        Assert.Equal(0x52, result.Bytes[0]);
-        Assert.Equal(0x61, result.Bytes[1]);
+        Assert.Equal(0x52, result.Bytes.Span[0]);
+        Assert.Equal(0x61, result.Bytes.Span[1]);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class HexSearchPatternTests
         Assert.NotNull(result);
 
         byte[] expected = Encoding.UTF8.GetBytes("Rar!");
-        Assert.Equal(expected, result!.Bytes);
+        Assert.Equal(expected, result!.Bytes.ToArray());
         Assert.False(result.IsHex);
     }
 

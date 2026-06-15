@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression;
 /// Huffman decode table for RAR decompression.
 /// Ported from unrar unpack.hpp DecodeTable struct.
 /// </summary>
-public class DecodeTable
+internal class DecodeTable
 {
     /// <summary>
     /// Real size of DecodeNum table (alphabet size).
@@ -78,7 +78,7 @@ public class DecodeTable
 /// <summary>
 /// Collection of decode tables used during unpacking.
 /// </summary>
-public class UnpackBlockTables
+internal class UnpackBlockTables
 {
     /// <summary>
     /// Decode literals.

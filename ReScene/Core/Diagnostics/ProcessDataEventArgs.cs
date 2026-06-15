@@ -3,7 +3,7 @@ namespace ReScene.Core.Diagnostics;
 /// <summary>
 /// Provides data for process output events, including the output text and whether it is an error.
 /// </summary>
-public class ProcessDataEventArgs(string? data) : EventArgs
+internal class ProcessDataEventArgs(string? data) : EventArgs
 {
     /// <summary>
     /// Gets the output data text.

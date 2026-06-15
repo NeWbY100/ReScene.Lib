@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression;
 /// Huffman decoding functions for RAR decompression.
 /// Ported from unrar unpack.cpp and unpackinline.cpp.
 /// </summary>
-public static class HuffmanDecoder
+internal static class HuffmanDecoder
 {
     /// <summary>
     /// Builds decode tables from a bit length table.

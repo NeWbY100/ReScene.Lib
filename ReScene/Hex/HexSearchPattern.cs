@@ -9,7 +9,7 @@ namespace ReScene.Hex;
 /// </summary>
 public sealed class HexSearchPattern
 {
-    public byte[] Bytes { get; }
+    public ReadOnlyMemory<byte> Bytes { get; }
 
     public string DisplayText { get; }
 

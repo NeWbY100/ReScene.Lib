@@ -3,7 +3,7 @@ namespace ReScene.Core;
 /// <summary>
 /// Provides general utility methods for the application.
 /// </summary>
-public static class Utility
+internal static class Utility
 {
     private static readonly string[] _sizeUnits = ["b", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
 

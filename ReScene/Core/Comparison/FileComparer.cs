@@ -35,7 +35,7 @@ public static class FileComparer
     /// A <see cref="CompareResult"/> containing all detected differences.
     /// </returns>
     public static CompareResult Compare(object? leftData, object? rightData,
-        List<RARDetailedBlock>? leftBlocks = null, List<RARDetailedBlock>? rightBlocks = null,
+        IReadOnlyList<RARDetailedBlock>? leftBlocks = null, IReadOnlyList<RARDetailedBlock>? rightBlocks = null,
         IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         var result = new CompareResult();
@@ -58,7 +58,7 @@ public static class FileComparer
         }
         else
         {
-            result.ArchiveDifferences.Add(new PropertyDifference
+            result._archiveDifferences.Add(new PropertyDifference
             {
                 PropertyName = "File Type",
                 LeftValue = GetFileTypeName(leftData),
@@ -101,19 +101,19 @@ public static class FileComparer
     /// </param>
     public static void CompareSRRFiles(SRRFile left, SRRFile right, CompareResult result)
     {
-        CompareProperty(result.ArchiveDifferences, "App Name", left.HeaderBlock?.AppName, right.HeaderBlock?.AppName);
-        CompareProperty(result.ArchiveDifferences, "RAR Version", FormatRARVersion(left.RARVersion), FormatRARVersion(right.RARVersion));
-        CompareProperty(result.ArchiveDifferences, "Compression Method", GetCompressionMethodName(left.CompressionMethod), GetCompressionMethodName(right.CompressionMethod));
-        CompareProperty(result.ArchiveDifferences, "Dictionary Size", FormatDictionarySize(left.DictionarySize), FormatDictionarySize(right.DictionarySize));
-        CompareProperty(result.ArchiveDifferences, "Solid Archive", FormatBool(left.IsSolidArchive), FormatBool(right.IsSolidArchive));
-        CompareProperty(result.ArchiveDifferences, "Volume Archive", FormatBool(left.IsVolumeArchive), FormatBool(right.IsVolumeArchive));
-        CompareProperty(result.ArchiveDifferences, "Recovery Record", FormatBool(left.HasRecoveryRecord), FormatBool(right.HasRecoveryRecord));
-        CompareProperty(result.ArchiveDifferences, "Encrypted Headers", FormatBool(left.HasEncryptedHeaders), FormatBool(right.HasEncryptedHeaders));
-        CompareProperty(result.ArchiveDifferences, "Has Comment", FormatBool(!string.IsNullOrEmpty(left.ArchiveComment)), FormatBool(!string.IsNullOrEmpty(right.ArchiveComment)));
-        CompareProperty(result.ArchiveDifferences, "RAR Volumes Count", left.RARFiles.Count.ToString(), right.RARFiles.Count.ToString());
-        CompareProperty(result.ArchiveDifferences, "Stored Files Count", left.StoredFiles.Count.ToString(), right.StoredFiles.Count.ToString());
-        CompareProperty(result.ArchiveDifferences, "Archived Files Count", left.ArchivedFiles.Count.ToString(), right.ArchivedFiles.Count.ToString());
-        CompareProperty(result.ArchiveDifferences, "Header CRC Errors", left.HeaderCRCMismatches.ToString(), right.HeaderCRCMismatches.ToString());
+        CompareProperty(result._archiveDifferences, "App Name", left.HeaderBlock?.AppName, right.HeaderBlock?.AppName);
+        CompareProperty(result._archiveDifferences, "RAR Version", FormatRARVersion(left.RARVersion), FormatRARVersion(right.RARVersion));
+        CompareProperty(result._archiveDifferences, "Compression Method", GetCompressionMethodName(left.CompressionMethod), GetCompressionMethodName(right.CompressionMethod));
+        CompareProperty(result._archiveDifferences, "Dictionary Size", FormatDictionarySize(left.DictionarySize), FormatDictionarySize(right.DictionarySize));
+        CompareProperty(result._archiveDifferences, "Solid Archive", FormatBool(left.IsSolidArchive), FormatBool(right.IsSolidArchive));
+        CompareProperty(result._archiveDifferences, "Volume Archive", FormatBool(left.IsVolumeArchive), FormatBool(right.IsVolumeArchive));
+        CompareProperty(result._archiveDifferences, "Recovery Record", FormatBool(left.HasRecoveryRecord), FormatBool(right.HasRecoveryRecord));
+        CompareProperty(result._archiveDifferences, "Encrypted Headers", FormatBool(left.HasEncryptedHeaders), FormatBool(right.HasEncryptedHeaders));
+        CompareProperty(result._archiveDifferences, "Has Comment", FormatBool(!string.IsNullOrEmpty(left.ArchiveComment)), FormatBool(!string.IsNullOrEmpty(right.ArchiveComment)));
+        CompareProperty(result._archiveDifferences, "RAR Volumes Count", left.RARFiles.Count.ToString(), right.RARFiles.Count.ToString());
+        CompareProperty(result._archiveDifferences, "Stored Files Count", left.StoredFiles.Count.ToString(), right.StoredFiles.Count.ToString());
+        CompareProperty(result._archiveDifferences, "Archived Files Count", left.ArchivedFiles.Count.ToString(), right.ArchivedFiles.Count.ToString());
+        CompareProperty(result._archiveDifferences, "Header CRC Errors", left.HeaderCRCMismatches.ToString(), right.HeaderCRCMismatches.ToString());
 
         // Compare archived files
         var leftFiles = new HashSet<string>(left.ArchivedFiles, StringComparer.OrdinalIgnoreCase);
@@ -142,7 +142,7 @@ public static class FileComparer
                 if (!string.Equals(leftCRC, rightCRC, StringComparison.OrdinalIgnoreCase))
                 {
                     fileDiff.Type = DifferenceType.Modified;
-                    fileDiff.PropertyDifferences.Add(new PropertyDifference
+                    fileDiff._propertyDifferences.Add(new PropertyDifference
                     {
                         PropertyName = "CRC",
                         LeftValue = leftCRC ?? "N/A",
@@ -156,7 +156,7 @@ public static class FileComparer
                 if (leftTime != rightTime)
                 {
                     fileDiff.Type = DifferenceType.Modified;
-                    fileDiff.PropertyDifferences.Add(new PropertyDifference
+                    fileDiff._propertyDifferences.Add(new PropertyDifference
                     {
                         PropertyName = "Modified Time",
                         LeftValue = leftTime.ToString("yyyy-MM-dd HH:mm:ss"),
@@ -167,7 +167,7 @@ public static class FileComparer
 
             if (fileDiff.Type != DifferenceType.None)
             {
-                result.FileDifferences.Add(fileDiff);
+                result._fileDifferences.Add(fileDiff);
             }
         }
 
@@ -182,7 +182,7 @@ public static class FileComparer
 
             if (inLeft != inRight)
             {
-                result.StoredFileDifferences.Add(new FileDifference
+                result._storedFileDifferences.Add(new FileDifference
                 {
                     FileName = file,
                     Type = inLeft ? DifferenceType.Removed : DifferenceType.Added
@@ -207,13 +207,13 @@ public static class FileComparer
     {
         if (left.FileData is { } leftFd && right.FileData is { } rightFd)
         {
-            CompareProperty(result.ArchiveDifferences, "App Name", leftFd.AppName, rightFd.AppName);
-            CompareProperty(result.ArchiveDifferences, "File Name", leftFd.FileName, rightFd.FileName);
-            CompareProperty(result.ArchiveDifferences, "Sample Size",
+            CompareProperty(result._archiveDifferences, "App Name", leftFd.AppName, rightFd.AppName);
+            CompareProperty(result._archiveDifferences, "File Name", leftFd.FileName, rightFd.FileName);
+            CompareProperty(result._archiveDifferences, "Sample Size",
                 $"{leftFd.SampleSize:N0} bytes", $"{rightFd.SampleSize:N0} bytes");
-            CompareProperty(result.ArchiveDifferences, "CRC32",
+            CompareProperty(result._archiveDifferences, "CRC32",
                 leftFd.CRC32.ToString("X8"), rightFd.CRC32.ToString("X8"));
-            CompareProperty(result.ArchiveDifferences, "Flags",
+            CompareProperty(result._archiveDifferences, "Flags",
                 $"0x{leftFd.Flags:X4}", $"0x{rightFd.Flags:X4}");
         }
 
@@ -227,7 +227,7 @@ public static class FileComparer
 
             if (lt is null || rt is null)
             {
-                result.FileDifferences.Add(new FileDifference
+                result._fileDifferences.Add(new FileDifference
                 {
                     FileName = trackName,
                     Type = lt is null ? DifferenceType.Added : DifferenceType.Removed
@@ -237,23 +237,23 @@ public static class FileComparer
 
             var fileDiff = new FileDifference { FileName = trackName };
 
-            CompareProperty(fileDiff.PropertyDifferences, "Data Length",
+            CompareProperty(fileDiff._propertyDifferences, "Data Length",
                 $"{lt.DataLength:N0}", $"{rt.DataLength:N0}");
-            CompareProperty(fileDiff.PropertyDifferences, "Match Offset",
+            CompareProperty(fileDiff._propertyDifferences, "Match Offset",
                 $"0x{lt.MatchOffset:X}", $"0x{rt.MatchOffset:X}");
-            CompareProperty(fileDiff.PropertyDifferences, "Signature Size",
+            CompareProperty(fileDiff._propertyDifferences, "Signature Size",
                 lt.SignatureSize.ToString(), rt.SignatureSize.ToString());
-            CompareProperty(fileDiff.PropertyDifferences, "Signature",
-                Convert.ToHexString(lt.Signature), Convert.ToHexString(rt.Signature));
-            CompareProperty(fileDiff.PropertyDifferences, "Flags",
+            CompareProperty(fileDiff._propertyDifferences, "Signature",
+                Convert.ToHexString(lt.Signature.Span), Convert.ToHexString(rt.Signature.Span));
+            CompareProperty(fileDiff._propertyDifferences, "Flags",
                 $"0x{lt.Flags:X4}", $"0x{rt.Flags:X4}");
-            CompareProperty(fileDiff.PropertyDifferences, "Block Size",
+            CompareProperty(fileDiff._propertyDifferences, "Block Size",
                 $"{lt.BlockSize:N0}", $"{rt.BlockSize:N0}");
 
             if (fileDiff.PropertyDifferences.Count > 0)
             {
                 fileDiff.Type = DifferenceType.Modified;
-                result.FileDifferences.Add(fileDiff);
+                result._fileDifferences.Add(fileDiff);
             }
         }
     }
@@ -286,7 +286,7 @@ public static class FileComparer
     /// Pairs and compares two lists of sibling EBML elements under the same parent path. Pairing is by
     /// (Name, occurrence index among same-named siblings); recursion descends into master elements.
     /// </summary>
-    private static void CompareEBMLChildren(string parentPath, List<EBMLElement> left, List<EBMLElement> right,
+    private static void CompareEBMLChildren(string parentPath, IReadOnlyList<EBMLElement> left, IReadOnlyList<EBMLElement> right,
         CompareResult result, IHexDataSource? leftSource, IHexDataSource? rightSource)
     {
         Dictionary<string, List<EBMLElement>> leftByName = GroupByName(left);
@@ -344,7 +344,7 @@ public static class FileComparer
                 else if (le is not null)
                 {
                     // Present on left, missing on right → Removed.
-                    result.FileDifferences.Add(new FileDifference
+                    result._fileDifferences.Add(new FileDifference
                     {
                         FileName = ElementPath(parentPath, le, i),
                         Type = DifferenceType.Removed
@@ -353,7 +353,7 @@ public static class FileComparer
                 else if (re is not null)
                 {
                     // Present on right, missing on left → Added.
-                    result.FileDifferences.Add(new FileDifference
+                    result._fileDifferences.Add(new FileDifference
                     {
                         FileName = ElementPath(parentPath, re, i),
                         Type = DifferenceType.Added
@@ -366,11 +366,11 @@ public static class FileComparer
     private static void AddElementDifference(CompareResult result, string path, string propertyName,
         string leftValue, string rightValue)
     {
-        result.FileDifferences.Add(new FileDifference
+        result._fileDifferences.Add(new FileDifference
         {
             FileName = path,
             Type = DifferenceType.Modified,
-            PropertyDifferences =
+            _propertyDifferences =
             [
                 new PropertyDifference
                 {
@@ -382,7 +382,7 @@ public static class FileComparer
         });
     }
 
-    private static Dictionary<string, List<EBMLElement>> GroupByName(List<EBMLElement> elements)
+    private static Dictionary<string, List<EBMLElement>> GroupByName(IReadOnlyList<EBMLElement> elements)
     {
         var map = new Dictionary<string, List<EBMLElement>>(StringComparer.Ordinal);
         foreach (EBMLElement e in elements)
@@ -448,7 +448,7 @@ public static class FileComparer
     /// Optional byte-level data source for the right file, used to compare block payloads.
     /// </param>
     public static void CompareRARFiles(RARFileData left, RARFileData right, CompareResult result,
-        List<RARDetailedBlock>? leftBlocks, List<RARDetailedBlock>? rightBlocks,
+        IReadOnlyList<RARDetailedBlock>? leftBlocks, IReadOnlyList<RARDetailedBlock>? rightBlocks,
         IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         if (leftBlocks != null && rightBlocks != null)
@@ -457,7 +457,7 @@ public static class FileComparer
             return;
         }
 
-        CompareProperty(result.ArchiveDifferences, "Format", left.IsRAR5 ? "RAR 5.x" : "RAR 4.x", right.IsRAR5 ? "RAR 5.x" : "RAR 4.x");
+        CompareProperty(result._archiveDifferences, "Format", left.IsRAR5 ? "RAR 5.x" : "RAR 4.x", right.IsRAR5 ? "RAR 5.x" : "RAR 4.x");
     }
 
     /// <summary>
@@ -478,12 +478,12 @@ public static class FileComparer
     /// <param name="rightSource">
     /// Optional byte-level data source for the right file, used to compare block payloads.
     /// </param>
-    public static void CompareDetailedBlocks(List<RARDetailedBlock> leftBlocks, List<RARDetailedBlock> rightBlocks, CompareResult result,
+    public static void CompareDetailedBlocks(IReadOnlyList<RARDetailedBlock> leftBlocks, IReadOnlyList<RARDetailedBlock> rightBlocks, CompareResult result,
         IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         if (leftBlocks.Count != rightBlocks.Count)
         {
-            result.ArchiveDifferences.Add(new PropertyDifference
+            result._archiveDifferences.Add(new PropertyDifference
             {
                 PropertyName = "Block Count",
                 LeftValue = leftBlocks.Count.ToString(),
@@ -537,11 +537,11 @@ public static class FileComparer
                     if (fileDiff != null)
                     {
                         fileDiff.Type = DifferenceType.Modified;
-                        fileDiff.PropertyDifferences.Add(propDiff);
+                        fileDiff._propertyDifferences.Add(propDiff);
                     }
                     else
                     {
-                        result.ArchiveDifferences.Add(propDiff);
+                        result._archiveDifferences.Add(propDiff);
                     }
                 }
             }
@@ -565,18 +565,18 @@ public static class FileComparer
                     if (fileDiff != null)
                     {
                         fileDiff.Type = DifferenceType.Modified;
-                        fileDiff.PropertyDifferences.Add(propDiff);
+                        fileDiff._propertyDifferences.Add(propDiff);
                     }
                     else
                     {
-                        result.ArchiveDifferences.Add(propDiff);
+                        result._archiveDifferences.Add(propDiff);
                     }
                 }
             }
 
             if (fileDiff != null && fileDiff.Type != DifferenceType.None)
             {
-                result.FileDifferences.Add(fileDiff);
+                result._fileDifferences.Add(fileDiff);
             }
         }
     }
@@ -739,7 +739,7 @@ public static class FileComparer
     /// <param name="rightValue">
     /// The right value.
     /// </param>
-    public static void CompareProperty(List<PropertyDifference> diffs, string name, string? leftValue, string? rightValue)
+    public static void CompareProperty(IList<PropertyDifference> diffs, string name, string? leftValue, string? rightValue)
     {
         if (!string.Equals(leftValue ?? "", rightValue ?? "", StringComparison.Ordinal))
         {

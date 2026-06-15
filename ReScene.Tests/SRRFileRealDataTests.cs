@@ -377,7 +377,7 @@ public class SRRFileRealDataTests : IDisposable
         var srr = SRRFile.Load(TestFile("store_utf8_comment", "store_utf8_comment.srr"));
 
         Assert.NotNull(srr.ArchiveCommentBytes);
-        Assert.Equal(13, srr.ArchiveCommentBytes!.Length);
+        Assert.Equal(13, srr.ArchiveCommentBytes!.Value.Length);
     }
 
     [Fact]

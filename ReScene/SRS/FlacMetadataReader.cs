@@ -11,7 +11,7 @@ namespace ReScene.SRS;
 ///   4 = VORBIS_COMMENT, 5 = CUESHEET, 6 = PICTURE
 /// All numbers in FLAC are big-endian and unsigned unless otherwise specified.
 /// </remarks>
-public static class FlacMetadataReader
+internal static class FlacMetadataReader
 {
     private const int Id3v2HeaderSize = 10;
 

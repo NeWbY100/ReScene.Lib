@@ -6,14 +6,16 @@ public class RARFlagsTests
 {
     #region RAR4BlockType Tests
 
-    [Theory]
-    [InlineData(RAR4BlockType.Marker, 0x72)]
-    [InlineData(RAR4BlockType.ArchiveHeader, 0x73)]
-    [InlineData(RAR4BlockType.FileHeader, 0x74)]
-    [InlineData(RAR4BlockType.Comment, 0x75)]
-    [InlineData(RAR4BlockType.Service, 0x7A)]
-    [InlineData(RAR4BlockType.EndArchive, 0x7B)]
-    public void RAR4BlockType_HasExpectedValues(RAR4BlockType type, byte expectedValue) => Assert.Equal(expectedValue, (byte)type);
+    [Fact]
+    public void RAR4BlockType_HasExpectedValues()
+    {
+        Assert.Equal(0x72, (byte)RAR4BlockType.Marker);
+        Assert.Equal(0x73, (byte)RAR4BlockType.ArchiveHeader);
+        Assert.Equal(0x74, (byte)RAR4BlockType.FileHeader);
+        Assert.Equal(0x75, (byte)RAR4BlockType.Comment);
+        Assert.Equal(0x7A, (byte)RAR4BlockType.Service);
+        Assert.Equal(0x7B, (byte)RAR4BlockType.EndArchive);
+    }
 
     #endregion
 

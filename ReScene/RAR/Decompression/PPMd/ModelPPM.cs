@@ -4,7 +4,7 @@ namespace ReScene.RAR.Decompression.PPMd;
 /// PPMd prediction model for RAR decompression.
 /// Ported from unrar model.cpp/hpp by Dmitry Shkarin.
 /// </summary>
-public class ModelPPM
+internal class ModelPPM
 {
     private const int INT_BITS = 7;
     private const int PERIOD_BITS = 7;

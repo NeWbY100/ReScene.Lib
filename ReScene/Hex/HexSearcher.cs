@@ -62,7 +62,7 @@ public static class HexSearcher
             return -1;
         }
 
-        byte[] needle = pattern.Bytes;
+        ReadOnlySpan<byte> needle = pattern.Bytes.Span;
         int overlap = needle.Length - 1;
         int take = ChunkSize + overlap;
         byte[] buffer = new byte[take];
@@ -123,7 +123,7 @@ public static class HexSearcher
             return -1;
         }
 
-        byte[] needle = pattern.Bytes;
+        ReadOnlySpan<byte> needle = pattern.Bytes.Span;
         int overlap = needle.Length - 1;
         int take = ChunkSize + overlap;
         byte[] buffer = new byte[take];
@@ -167,7 +167,7 @@ public static class HexSearcher
         return -1;
     }
 
-    private static int IndexOf(byte[] haystack, int haystackLength, byte[] needle)
+    private static int IndexOf(byte[] haystack, int haystackLength, ReadOnlySpan<byte> needle)
     {
         int limit = haystackLength - needle.Length;
 
@@ -193,7 +193,7 @@ public static class HexSearcher
         return -1;
     }
 
-    private static int LastIndexOf(byte[] haystack, int haystackLength, byte[] needle)
+    private static int LastIndexOf(byte[] haystack, int haystackLength, ReadOnlySpan<byte> needle)
     {
         int limit = haystackLength - needle.Length;
 

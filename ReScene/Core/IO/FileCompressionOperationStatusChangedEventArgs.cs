@@ -3,7 +3,7 @@ namespace ReScene.Core.IO;
 /// <summary>
 /// Provides data for file compression status change events, including the path to the compressed file.
 /// </summary>
-public class FileCompressionOperationStatusChangedEventArgs : OperationStatusChangedEventArgs
+internal class FileCompressionOperationStatusChangedEventArgs : OperationStatusChangedEventArgs
 {
     /// <summary>
     /// Gets the path to the compressed file associated with this status change.

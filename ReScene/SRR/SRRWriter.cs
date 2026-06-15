@@ -91,12 +91,12 @@ public class SRRCreationResult
     /// <summary>
     /// Non-fatal warnings encountered during creation.
     /// </summary>
-    public List<string> Warnings { get; set; } = [];
+    public IList<string> Warnings { get; } = [];
 
     /// <summary>
     /// Names of VobSub .idx files discovered when generating languages.diz, in archive order.
     /// </summary>
-    public List<string> LanguagesDizIdxFiles { get; set; } = [];
+    public IList<string> LanguagesDizIdxFiles { get; } = [];
 }
 
 /// <summary>
@@ -272,8 +272,15 @@ public class SRRWriter
             {
                 Log("Scanning RAR archive for VobSub .idx files...");
                 LanguagesDizGenerator.Result dizResult = LanguagesDizGenerator.Generate(rarVolumePaths);
-                result.LanguagesDizIdxFiles.AddRange(dizResult.IdxFileNames);
-                result.Warnings.AddRange(dizResult.Warnings);
+                foreach (string idxFileName in dizResult.IdxFileNames)
+                {
+                    result.LanguagesDizIdxFiles.Add(idxFileName);
+                }
+
+                foreach (string warning in dizResult.Warnings)
+                {
+                    result.Warnings.Add(warning);
+                }
 
                 if (dizResult.Data is not null)
                 {

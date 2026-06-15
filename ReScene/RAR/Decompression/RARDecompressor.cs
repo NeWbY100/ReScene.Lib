@@ -3,7 +3,7 @@ namespace ReScene.RAR.Decompression;
 /// <summary>
 /// RAR compression methods.
 /// </summary>
-public enum RARMethod
+internal enum RARMethod
 {
     /// <summary>
     /// Store (no compression)
@@ -67,7 +67,7 @@ public enum RARVersion
 /// Automatically selects the appropriate algorithm based on RAR version and compression method.
 /// Supports both LZSS and PPMd compression natively in C#.
 /// </summary>
-public static class RARDecompressor
+internal static class RARDecompressor
 {
     /// <summary>
     /// Decompresses RAR data.

@@ -27,7 +27,7 @@ public static class ISOMediaExtractor
     /// <returns>
     /// List of file paths inside the ISO.
     /// </returns>
-    public static List<string> ListMediaFiles(string isoPath)
+    public static IReadOnlyList<string> ListMediaFiles(string isoPath)
     {
         var mediaFiles = new List<string>();
 
@@ -247,7 +247,7 @@ public static class ISOMediaExtractor
                 return false;
             }
 
-            byte[] signature = srs.Tracks[0].Signature;
+            byte[] signature = srs.Tracks[0].Signature.ToArray();
             long hintOffset = (long)srs.Tracks[0].MatchOffset;
 
             using var isoStream = new FileStream(isoPath, FileMode.Open, FileAccess.Read, FileShare.Read);

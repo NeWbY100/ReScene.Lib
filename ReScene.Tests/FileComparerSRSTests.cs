@@ -12,7 +12,7 @@ public class FileComparerSRSTests
     private static SRSFile SrsWithTrack(ushort signatureSize, long blockSize, byte[] signature)
     {
         var srs = new SRSFile();
-        srs.Tracks.Add(new SRSTrackDataBlock
+        srs._tracks.Add(new SRSTrackDataBlock
         {
             TrackNumber = 1,
             DataLength = 1000,

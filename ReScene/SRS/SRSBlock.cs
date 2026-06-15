@@ -330,7 +330,7 @@ public class SRSTrackDataBlock
     /// <summary>
     /// First bytes of the track's stream data, used for verification during rebuild.
     /// </summary>
-    public byte[] Signature { get; set; } = [];
+    public ReadOnlyMemory<byte> Signature { get; set; }
 }
 
 /// <summary>

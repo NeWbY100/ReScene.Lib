@@ -33,9 +33,9 @@ public class BruteForceOptions(string rarInstallationsDirectoryPath, string rele
     public string OutputDirectoryPath { get; set; } = outputDirectoryPath;
 
     /// <summary>
-    /// Gets or sets the hashes which contain the expected hash of the RAR file(s).
+    /// Gets the hashes which contain the expected hash of the RAR file(s).
     /// </summary>
-    public HashSet<string> Hashes { get; set; } = [];
+    public HashSet<string> Hashes { get; } = [];
 
     /// <summary>
     /// Gets or sets the type of the hash in the <see cref="Hashes"/> set.

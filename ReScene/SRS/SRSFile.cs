@@ -27,12 +27,16 @@ public class SRSFile
     /// <summary>
     /// Gets the parsed SRST (track data) blocks.
     /// </summary>
-    public List<SRSTrackDataBlock> Tracks { get; private set; } = [];
+    public IReadOnlyList<SRSTrackDataBlock> Tracks => _tracks;
+
+    internal List<SRSTrackDataBlock> _tracks { get; } = [];
 
     /// <summary>
     /// Gets the container-native chunks (non-SRS elements) found in the file.
     /// </summary>
-    public List<SRSContainerChunk> ContainerChunks { get; private set; } = [];
+    public IReadOnlyList<SRSContainerChunk> ContainerChunks => _containerChunks;
+
+    internal List<SRSContainerChunk> _containerChunks { get; } = [];
 
     /// <summary>
     /// Loads and parses an SRS file from the specified path.
@@ -305,11 +309,11 @@ public class SRSFile
             }
             else if (tag == "SRST")
             {
-                srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
+                srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
             }
             else
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -336,7 +340,7 @@ public class SRSFile
             (bool found, int size) = MP3TagReader.DetectId3v2(fs);
             if (found)
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = headerEnd,
                     BlockSize = size,
@@ -383,11 +387,11 @@ public class SRSFile
                 }
                 else if (tag == "SRST")
                 {
-                    srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
+                    srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 }
                 else
                 {
-                    srs.ContainerChunks.Add(new SRSContainerChunk
+                    srs._containerChunks.Add(new SRSContainerChunk
                     {
                         BlockPosition = frameOffset,
                         BlockSize = totalSize,
@@ -414,7 +418,7 @@ public class SRSFile
         (bool id3v1Found, int id3v1Size) = MP3TagReader.DetectId3v1(fs);
         if (id3v1Found)
         {
-            srs.ContainerChunks.Add(new SRSContainerChunk
+            srs._containerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = endOffset - id3v1Size,
                 BlockSize = id3v1Size,
@@ -430,7 +434,7 @@ public class SRSFile
         (bool lyrics3v2Found, int lyrics3v2Size) = MP3TagReader.DetectLyrics3v2(fs, endOffset);
         if (lyrics3v2Found)
         {
-            srs.ContainerChunks.Add(new SRSContainerChunk
+            srs._containerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = endOffset - lyrics3v2Size,
                 BlockSize = lyrics3v2Size,
@@ -447,7 +451,7 @@ public class SRSFile
             (bool lyrics3v1Found, int lyrics3v1Size) = MP3TagReader.DetectLyrics3v1(fs, endOffset);
             if (lyrics3v1Found)
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = endOffset - lyrics3v1Size,
                     BlockSize = lyrics3v1Size,
@@ -464,7 +468,7 @@ public class SRSFile
         (bool apeFound, int apeSize) = MP3TagReader.DetectApeTag(fs, endOffset);
         if (apeFound)
         {
-            srs.ContainerChunks.Add(new SRSContainerChunk
+            srs._containerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = endOffset - apeSize,
                 BlockSize = apeSize,
@@ -484,7 +488,7 @@ public class SRSFile
         (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
         if (id3Found)
         {
-            srs.ContainerChunks.Add(new SRSContainerChunk
+            srs._containerChunks.Add(new SRSContainerChunk
             {
                 BlockPosition = 0,
                 BlockSize = id3Size,
@@ -504,7 +508,7 @@ public class SRSFile
         long markerPos = fs.Position;
         fs.Position += 4;
 
-        srs.ContainerChunks.Add(new SRSContainerChunk
+        srs._containerChunks.Add(new SRSContainerChunk
         {
             BlockPosition = markerPos,
             BlockSize = 4,
@@ -528,13 +532,13 @@ public class SRSFile
             }
             else if (type == 0x74) // 't' = SRST
             {
-                srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
+                srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
             }
             else
             {
                 string label = FlacMetadataReader.GetBlockTypeName(type);
 
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = headerSize + payloadSize,
@@ -576,7 +580,7 @@ public class SRSFile
                 string label = $"{fourcc} {subType}";
 
                 long totalSize = headerSize + payloadSize;
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -616,7 +620,7 @@ public class SRSFile
             else if (fourcc == "SRST")
             {
                 long payloadStart = fs.Position;
-                srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
+                srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
                 fs.Position = payloadStart + payloadSize;
                 if (payloadSize % 2 != 0 && fs.Position < end)
                 {
@@ -625,7 +629,7 @@ public class SRSFile
             }
             else
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = headerSize + payloadSize,
@@ -706,12 +710,12 @@ public class SRSFile
             }
             else if (type == "SRST")
             {
-                srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
+                srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 fs.Position = frameOffset + totalSize;
             }
             else if (_mP4ContainerAtoms.Contains(type))
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -733,7 +737,7 @@ public class SRSFile
             }
             else
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,
@@ -777,13 +781,13 @@ public class SRSFile
             }
             else if (GuidEquals(guid, _guidSRSTrack))
             {
-                srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
+                srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
             }
             else
             {
                 string label = GuidEquals(guid, _guidSRSPadding) ? "SRS Padding" : FormatGuid(guid);
 
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = (long)totalSize,
@@ -856,7 +860,7 @@ public class SRSFile
             if (elementId == 0x1F697576)
             {
                 // Parse children of ReSample element
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -872,7 +876,7 @@ public class SRSFile
             }
             else if (elementId == 0x18538067) // Segment
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -890,7 +894,7 @@ public class SRSFile
             else
             {
                 string label = GetEBMLElementName(elementId);
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -933,7 +937,7 @@ public class SRSFile
 
             if (elementId == 0x1F697576) // ReSample
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -949,7 +953,7 @@ public class SRSFile
             else
             {
                 string label = GetEBMLElementName(elementId);
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = actualTotal,
@@ -992,11 +996,11 @@ public class SRSFile
             }
             else if (elementId == 0x6B75) // RESAMPLE_TRACK
             {
-                srs.Tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
+                srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
             }
             else
             {
-                srs.ContainerChunks.Add(new SRSContainerChunk
+                srs._containerChunks.Add(new SRSContainerChunk
                 {
                     BlockPosition = frameOffset,
                     BlockSize = totalSize,

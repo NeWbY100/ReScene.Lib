@@ -36,7 +36,7 @@ namespace ReScene.RAR;
 /// <param name="IsRar5">
 /// True for entries discovered in a RAR5-format archive.
 /// </param>
-public sealed record RAREntry(
+internal sealed record RAREntry(
     string FileName,
     bool IsStored,
     bool IsSplit,
@@ -55,7 +55,7 @@ public sealed record RAREntry(
 /// extracted (split, solid+compressed, unsupported method) surface a <c>skipReason</c>
 /// from <see cref="TryReadAllBytes"/>.
 /// </summary>
-public sealed class RARArchive : IDisposable
+internal sealed class RARArchive : IDisposable
 {
     private readonly string _firstVolumePath;
     private bool _disposed;

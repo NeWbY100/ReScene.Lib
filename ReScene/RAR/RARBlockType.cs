@@ -3,7 +3,7 @@ namespace ReScene.RAR;
 /// <summary>
 /// RAR 4.x (RAR 1.5-4.x) block header types from unrar headers.hpp
 /// </summary>
-public enum RAR4BlockType : byte
+internal enum RAR4BlockType : byte
 {
     /// <summary>
     /// RAR signature block (HEAD3_MARK).
@@ -59,7 +59,7 @@ public enum RAR4BlockType : byte
 /// <summary>
 /// RAR 5.0+ block header types from unrar headers.hpp
 /// </summary>
-public enum RAR5BlockType : byte
+internal enum RAR5BlockType : byte
 {
     /// <summary>
     /// RAR 5.0 signature (HEAD_MARK).

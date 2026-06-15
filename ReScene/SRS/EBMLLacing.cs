@@ -4,7 +4,7 @@ namespace ReScene.SRS;
 /// Lacing mode for MKV Block/SimpleBlock elements.
 /// Values correspond to the 2-bit lacing field in the block flags byte (bits 1-2).
 /// </summary>
-public enum EBMLLaceType : byte
+internal enum EBMLLaceType : byte
 {
     /// <summary>
     /// No lacing - single frame per block.
@@ -31,7 +31,7 @@ public enum EBMLLaceType : byte
 /// Parses lacing headers from MKV Block/SimpleBlock elements to determine
 /// individual frame sizes within a laced block.
 /// </summary>
-public static class EBMLLacing
+internal static class EBMLLacing
 {
     /// <summary>
     /// Parses the lacing information from block data to get individual frame sizes.
@@ -158,7 +158,7 @@ public static class EBMLLacing
 /// <summary>
 /// Helper methods for reading EBML variable-length integers (VINTs).
 /// </summary>
-public static class EBMLVInt
+internal static class EBMLVInt
 {
     /// <summary>
     /// Reads an unsigned EBML VINT from the given data.

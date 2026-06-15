@@ -4,7 +4,7 @@ namespace ReScene.RAR;
 /// RAR 4.x main archive header flags (MHD_*) from unrar headers.hpp
 /// </summary>
 [Flags]
-public enum RARArchiveFlags : ushort
+internal enum RARArchiveFlags : ushort
 {
     /// <summary>
     /// No flags set.
@@ -177,7 +177,7 @@ public enum RARFileFlags : ushort
 /// RAR 4.x end archive flags (EARC_*) from unrar headers.hpp
 /// </summary>
 [Flags]
-public enum RAREndArchiveFlags : ushort
+internal enum RAREndArchiveFlags : ushort
 {
     /// <summary>
     /// No flags set.
@@ -208,7 +208,7 @@ public enum RAREndArchiveFlags : ushort
 /// <summary>
 /// Mask constants for extracting flag values
 /// </summary>
-public static class RARFlagMasks
+internal static class RARFlagMasks
 {
     /// <summary>
     /// Mask for dictionary size bits (bits 5-7)
