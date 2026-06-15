@@ -77,9 +77,19 @@ public partial class Manager(IReSceneLogger? logger = null)
 
     // Written from the orchestration thread and read/closed from CliWrap's process-output
     // callbacks (thread-pool threads), so it must be concurrency-safe; each writer is also
-    // guarded by its own lock because stdout/stderr can be delivered on separate threads.
-    private readonly ConcurrentDictionary<RARProcess, StreamWriter> _processLogWriters = new();
+    // guarded by its own gate because stdout/stderr can be delivered on separate threads.
+    private readonly ConcurrentDictionary<RARProcess, ProcessLog> _processLogs = new();
     private string? _commentFilePath = null;
+
+    /// <summary>A per-process log writer paired with the gate that serializes access to it.</summary>
+    private sealed class ProcessLog(StreamWriter writer)
+    {
+        public StreamWriter Writer { get; } = writer;
+
+        // A dedicated gate object — never lock on the StreamWriter itself (CA2002: it derives
+        // from MarshalByRefObject and has weak identity).
+        public object Gate { get; } = new();
+    }
 
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
 
@@ -151,10 +161,40 @@ public partial class Manager(IReSceneLogger? logger = null)
     }
 
     /// <summary>
+    /// Filters candidate RAR command-line arguments down to those applicable to the given RAR
+    /// version and archive format — honoring each argument's minimum/maximum version and its
+    /// required archive version — and returns the argument strings.
+    /// </summary>
+    internal static List<string> FilterArgumentsForVersion(IEnumerable<RARCommandLineArgument> commandLineArguments, int version, RARArchiveVersion archiveVersion)
+        => commandLineArguments
+            .Where(a => version >= a.MinimumVersion
+                && (!a.MaximumVersion.HasValue || version <= a.MaximumVersion.Value)
+                && (!a.ArchiveVersion.HasValue || a.ArchiveVersion.Value.HasFlag(archiveVersion)))
+            .Select(a => a.Argument)
+            .ToList();
+
+    /// <summary>
+    /// RAR 6.x does not honor timestamp options (-tsc/-tsa) when producing RAR4-format archives,
+    /// so those combinations must be skipped to avoid wrong extended-time header flags. RAR 7.x is
+    /// excluded because it only creates RAR7 archives and handles timestamps natively.
+    /// </summary>
+    internal static bool ShouldSkipRar6TimestampCombination(int version, RARArchiveVersion archiveVersion, IReadOnlyList<string> filteredArguments)
+    {
+        bool hasTimestampOptions = filteredArguments.Any(a => a.StartsWith("-ts", StringComparison.Ordinal));
+        bool isRAR4Format = archiveVersion == RARArchiveVersion.RAR4
+            || (version >= 550 && version < 700 && !filteredArguments.Contains("-ma5"));
+        return version >= 600 && version < 700 && isRAR4Format && hasTimestampOptions;
+    }
+
+    /// <summary>
     /// Runs the brute-force RAR reconstruction, testing version and argument combinations until a hash match is found.
     /// </summary>
     /// <param name="options">
     /// The brute-force configuration options.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// Cancels the operation; the internal source is linked to it so cancellation reaches the
+    /// running RAR processes.
     /// </param>
     /// <returns>
     /// <see langword="true"/> if a matching RAR archive was found.
@@ -387,19 +427,10 @@ public partial class Manager(IReSceneLogger? logger = null)
                     Parallel.ForEach(options.RAROptions.CommandLineArguments, (commandLineArguments, s2, j) =>
                     {
                         RARArchiveVersion archiveVersion = ParseRARArchiveVersion(commandLineArguments, version);
-
-                        // Filter arguments by RAR version and RAR archive version
-                        IEnumerable<string> filteredArguments = commandLineArguments.Where(
-                            a => version >= a.MinimumVersion &&
-                            (!a.MaximumVersion.HasValue || version <= a.MaximumVersion.Value) &&
-                            (!a.ArchiveVersion.HasValue || a.ArchiveVersion.Value.HasFlag(archiveVersion))
-                        ).Select(a => a.Argument);
+                        List<string> filteredArguments = FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
 
                         // Apply same RAR 6.x timestamp skip as the main loop
-                        bool hasTimestampOptions = filteredArguments.Any(arg => arg.StartsWith("-ts", StringComparison.Ordinal));
-                        bool isRAR4Format = archiveVersion == RARArchiveVersion.RAR4 ||
-                                           (version >= 550 && version < 700 && !filteredArguments.Contains("-ma5"));
-                        if (version >= 600 && version < 700 && isRAR4Format && hasTimestampOptions)
+                        if (ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments))
                         {
                             return;
                         }
@@ -442,7 +473,7 @@ public partial class Manager(IReSceneLogger? logger = null)
             {
                 AutoFlush = true
             };
-            _processLogWriters[process] = writer;
+            _processLogs[process] = new ProcessLog(writer);
 
             _logger.Information(this, $"Opened log file for streaming: {logFilePath}", LogTarget.Phase2);
         }
@@ -532,14 +563,14 @@ public partial class Manager(IReSceneLogger? logger = null)
         // late ProcessOutput callback can no longer find the writer once it has been closed.
         if (e.NewStatus == OperationStatus.Completed)
         {
-            if (_processLogWriters.TryRemove(process, out StreamWriter? writer))
+            if (_processLogs.TryRemove(process, out ProcessLog? log))
             {
                 try
                 {
-                    lock (writer)
+                    lock (log.Gate)
                     {
-                        writer.Close();
-                        writer.Dispose();
+                        log.Writer.Close();
+                        log.Writer.Dispose();
                     }
 
                     _logger.Information(this, $"Process log file closed", LogTarget.Phase2);
@@ -559,16 +590,16 @@ public partial class Manager(IReSceneLogger? logger = null)
             return;
         }
 
-        // Stream output directly to log file (auto-flushed). The per-writer lock serializes
+        // Stream output directly to log file (auto-flushed). The per-writer gate serializes
         // concurrent stdout/stderr callbacks; a writer closed concurrently is handled by the
         // catch (a caught ObjectDisposedException, never a crash or a corrupt dictionary).
-        if (_processLogWriters.TryGetValue(process, out StreamWriter? writer))
+        if (_processLogs.TryGetValue(process, out ProcessLog? log))
         {
             try
             {
-                lock (writer)
+                lock (log.Gate)
                 {
-                    writer.WriteLine(e.Data);
+                    log.Writer.WriteLine(e.Data);
                     // AutoFlush is enabled, so data is immediately written to disk
                 }
             }
@@ -681,24 +712,14 @@ public partial class Manager(IReSceneLogger? logger = null)
             }
 
             RARArchiveVersion archiveVersion = ParseRARArchiveVersion(commandLineArguments, version);
-
-            // Filter arguments by RAR version and RAR archive version
-            IEnumerable<string> filteredArguments = commandLineArguments.Where(
-                a => version >= a.MinimumVersion &&
-                (!a.MaximumVersion.HasValue || version <= a.MaximumVersion.Value) &&
-                (!a.ArchiveVersion.HasValue || a.ArchiveVersion.Value.HasFlag(archiveVersion))
-            ).Select(a => a.Argument);
+            List<string> filteredArguments = FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
 
             string joinedArguments = string.Join("", filteredArguments);
             string displayArguments = string.Join(" ", filteredArguments);
 
-            // RAR 6.x doesn't honor timestamp options (-tsc0/-tsa0) for RAR4 format archives
-            // Skip this combination to avoid creating archives with wrong extended time flags
-            // RAR 7.x is excluded: it only creates RAR7 format and handles timestamps natively
-            bool hasTimestampOptions = filteredArguments.Any(a => a.StartsWith("-ts", StringComparison.Ordinal));
-            bool isRAR4Format = archiveVersion == RARArchiveVersion.RAR4 ||
-                               (version >= 550 && version < 700 && !filteredArguments.Contains("-ma5"));
-            if (version >= 600 && version < 700 && isRAR4Format && hasTimestampOptions)
+            // RAR 6.x doesn't honor timestamp options (-tsc0/-tsa0) for RAR4 format archives, so
+            // skip the combination to avoid creating archives with wrong extended-time flags.
+            if (ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments))
             {
                 if (!loggedRAR6TimestampSkip)
                 {
@@ -990,7 +1011,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// because no rename was needed. Returns <see langword="false"/> when a different file
     /// already occupies the destination (the source is left untouched).
     /// </summary>
-    private static bool MoveMatchedFile(string sourcePath, string destinationPath)
+    internal static bool MoveMatchedFile(string sourcePath, string destinationPath)
     {
         if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -1006,7 +1027,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         return true;
     }
 
-    private static string? FindCreatedRARFile(string expectedRarFilePath)
+    internal static string? FindCreatedRARFile(string expectedRarFilePath)
     {
         // Check if the expected file exists (non-volume case)
         if (File.Exists(expectedRarFilePath))

@@ -357,7 +357,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
 
     private static bool IsSRRBlockType(byte type) => type is SRRHeaderType or SRRStoredFileType or SRROsoHashType or SRRRarPaddingType or SRRRarFileType;
 
-    private static string FindSourceFile(string inputDirectory, string archivedFileName)
+    internal static string FindSourceFile(string inputDirectory, string archivedFileName)
     {
         string directPath = Path.Combine(inputDirectory, archivedFileName);
         if (File.Exists(directPath))
@@ -398,7 +398,7 @@ public class SRRReconstructor(IReSceneLogger? logger = null)
         throw new FileNotFoundException($"Source file not found for archived entry: {archivedFileName}", archivedFileName);
     }
 
-    private static async Task CopyBytesAsync(Stream source, Stream destination, long count, CancellationToken cancellationToken)
+    internal static async Task CopyBytesAsync(Stream source, Stream destination, long count, CancellationToken cancellationToken)
     {
         byte[] buffer = new byte[80 * 1024];
         long remaining = count;
