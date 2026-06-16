@@ -488,38 +488,8 @@ internal class Unpack29
 
         _inp.AddBits(2);
 
-        // Read bit lengths for the bit length alphabet
-        byte[] bitLength = new byte[PackDef.BC30];
-        for (int i = 0; i < PackDef.BC30; i++)
-        {
-            int length = (int)(_inp.GetBits() >> 12);
-            _inp.AddBits(4);
-
-            if (length == 15)
-            {
-                int zeroCount = (int)(_inp.GetBits() >> 12);
-                _inp.AddBits(4);
-
-                if (zeroCount == 0)
-                {
-                    bitLength[i] = 15;
-                }
-                else
-                {
-                    zeroCount += 2;
-                    while (zeroCount-- > 0 && i < bitLength.Length)
-                    {
-                        bitLength[i++] = 0;
-                    }
-
-                    i--;
-                }
-            }
-            else
-            {
-                bitLength[i] = (byte)length;
-            }
-        }
+        // Read bit lengths for the bit length alphabet (shared with Unpack50)
+        byte[] bitLength = HuffmanTableReader.ReadBitLengthTable(_inp, PackDef.BC30);
 
         HuffmanDecoder.MakeDecodeTables(bitLength, _tables.BD, PackDef.BC30);
 
@@ -580,20 +550,8 @@ internal class Unpack29
             }
         }
 
-        // Build decode tables for each alphabet
-        HuffmanDecoder.MakeDecodeTables(table, _tables.LD, PackDef.NC30);
-
-        byte[] ddTable = new byte[PackDef.DC30];
-        Array.Copy(table, PackDef.NC30, ddTable, 0, PackDef.DC30);
-        HuffmanDecoder.MakeDecodeTables(ddTable, _tables.DD, PackDef.DC30);
-
-        byte[] lddTable = new byte[PackDef.LDC30];
-        Array.Copy(table, PackDef.NC30 + PackDef.DC30, lddTable, 0, PackDef.LDC30);
-        HuffmanDecoder.MakeDecodeTables(lddTable, _tables.LDD, PackDef.LDC30);
-
-        byte[] rdTable = new byte[PackDef.RC30];
-        Array.Copy(table, PackDef.NC30 + PackDef.DC30 + PackDef.LDC30, rdTable, 0, PackDef.RC30);
-        HuffmanDecoder.MakeDecodeTables(rdTable, _tables.RD, PackDef.RC30);
+        // Build decode tables for each alphabet (shared with Unpack50)
+        HuffmanTableReader.BuildDecodeTables(table, _tables, PackDef.NC30, PackDef.DC30, PackDef.LDC30, PackDef.RC30);
 
         // Save old table for delta encoding
         Array.Copy(table, _unpOldTable, PackDef.HuffTableSize30);
