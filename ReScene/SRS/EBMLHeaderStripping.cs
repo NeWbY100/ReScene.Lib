@@ -28,33 +28,13 @@ internal static class EBMLHeaderStripping
     {
         // Walk top-level children of TrackEntry looking for ContentEncodings (0x6D80)
         int pos = 0;
-        while (pos < trackEntryData.Length)
+        while (TryNextChild(trackEntryData, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            (ulong elemId, int idLen) = ReadElementId(trackEntryData[pos..]);
-            if (idLen == 0)
-            {
-                break;
-            }
-
-            pos += idLen;
-
-            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(trackEntryData[pos..]);
-            if (sizeLen == 0)
-            {
-                break;
-            }
-
-            pos += sizeLen;
-
-            int elemDataLen = (int)Math.Min(dataSize, trackEntryData.Length - pos);
-
             if (elemId == IdContentEncodings)
             {
                 // Found ContentEncodings - search inside it
-                return SearchContentEncodings(trackEntryData.Slice(pos, elemDataLen));
+                return SearchContentEncodings(child);
             }
-
-            pos += elemDataLen;
         }
 
         return null;
@@ -84,36 +64,16 @@ internal static class EBMLHeaderStripping
     {
         // Look for ContentEncoding (0x6240) children
         int pos = 0;
-        while (pos < data.Length)
+        while (TryNextChild(data, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            (ulong elemId, int idLen) = ReadElementId(data[pos..]);
-            if (idLen == 0)
-            {
-                break;
-            }
-
-            pos += idLen;
-
-            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
-            if (sizeLen == 0)
-            {
-                break;
-            }
-
-            pos += sizeLen;
-
-            int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
-
             if (elemId == IdContentEncoding)
             {
-                byte[]? result = SearchContentEncoding(data.Slice(pos, elemDataLen));
+                byte[]? result = SearchContentEncoding(child);
                 if (result != null)
                 {
                     return result;
                 }
             }
-
-            pos += elemDataLen;
         }
 
         return null;
@@ -123,36 +83,16 @@ internal static class EBMLHeaderStripping
     {
         // Look for ContentCompression (0x5034) children
         int pos = 0;
-        while (pos < data.Length)
+        while (TryNextChild(data, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            (ulong elemId, int idLen) = ReadElementId(data[pos..]);
-            if (idLen == 0)
-            {
-                break;
-            }
-
-            pos += idLen;
-
-            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
-            if (sizeLen == 0)
-            {
-                break;
-            }
-
-            pos += sizeLen;
-
-            int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
-
             if (elemId == IdContentCompression)
             {
-                byte[]? result = SearchContentCompression(data.Slice(pos, elemDataLen));
+                byte[]? result = SearchContentCompression(child);
                 if (result != null)
                 {
                     return result;
                 }
             }
-
-            pos += elemDataLen;
         }
 
         return null;
@@ -165,76 +105,59 @@ internal static class EBMLHeaderStripping
         byte[]? settings = null;
 
         int pos = 0;
-        while (pos < data.Length)
+        while (TryNextChild(data, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            (ulong elemId, int idLen) = ReadElementId(data[pos..]);
-            if (idLen == 0)
-            {
-                break;
-            }
-
-            pos += idLen;
-
-            (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
-            if (sizeLen == 0)
-            {
-                break;
-            }
-
-            pos += sizeLen;
-
-            int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
-
             if (elemId == IdContentCompAlgo)
             {
                 // Read the algorithm value
-                long algo = ReadEBMLUIntValue(data.Slice(pos, elemDataLen));
+                long algo = ReadEBMLUIntValue(child);
                 isHeaderStripping = algo == 3;
             }
             else if (elemId == IdContentCompSettings)
             {
-                settings = data.Slice(pos, elemDataLen).ToArray();
+                settings = child.ToArray();
             }
-
-            pos += elemDataLen;
         }
 
         return isHeaderStripping ? settings : null;
     }
 
     /// <summary>
-    /// Reads an EBML element ID (preserves the marker bit, unlike size VINTs).
+    /// Reads the next child element (ID + size VINT + bounded data) starting at
+    /// <paramref name="pos"/>, advancing <paramref name="pos"/> past the child's data.
+    /// Returns <see langword="false"/> when no further valid child can be read.
     /// </summary>
-    private static (ulong id, int length) ReadElementId(ReadOnlySpan<byte> data)
+    private static bool TryNextChild(ReadOnlySpan<byte> data, ref int pos, out ulong id, out ReadOnlySpan<byte> child)
     {
-        if (data.Length < 1)
+        id = 0;
+        child = default;
+
+        if (pos >= data.Length)
         {
-            return (0, 0);
+            return false;
         }
 
-        byte first = data[0];
-        int idLen = 0;
-        for (int i = 0; i < 8; i++)
+        (ulong elemId, int idLen) = EBMLVInt.ReadId(data[pos..]);
+        if (idLen == 0)
         {
-            if ((first & (0x80 >> i)) != 0)
-            {
-                idLen = i + 1;
-                break;
-            }
+            return false;
         }
 
-        if (idLen == 0 || idLen > data.Length)
+        pos += idLen;
+
+        (long dataSize, int sizeLen) = EBMLVInt.ReadUnsigned(data[pos..]);
+        if (sizeLen == 0)
         {
-            return (0, 0);
+            return false;
         }
 
-        ulong id = first;
-        for (int i = 1; i < idLen; i++)
-        {
-            id = (id << 8) | data[i];
-        }
+        pos += sizeLen;
 
-        return (id, idLen);
+        int elemDataLen = (int)Math.Min(dataSize, data.Length - pos);
+        id = elemId;
+        child = data.Slice(pos, elemDataLen);
+        pos += elemDataLen;
+        return true;
     }
 
     /// <summary>

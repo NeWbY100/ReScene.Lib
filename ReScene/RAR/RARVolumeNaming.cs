@@ -18,6 +18,88 @@ internal static partial class RARVolumeNaming
     }
 
     /// <summary>
+    /// Extracts the archive base name from a volume file name by stripping a
+    /// <c>.partNN</c> segment when the file is a <c>.partNN.rar</c> volume. For all
+    /// other names (including old-style <c>.rNN</c> volumes and plain <c>.rar</c>)
+    /// the file name without its extension is returned.
+    /// </summary>
+    /// <param name="fileName">
+    /// A file name (not a full path), e.g. <c>release.part01.rar</c> or <c>release.rar</c>.
+    /// </param>
+    public static string GetBaseName(string fileName)
+    {
+        if (fileName.Contains(".part", StringComparison.OrdinalIgnoreCase)
+            && fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            int partIndex = fileName.IndexOf(".part", StringComparison.OrdinalIgnoreCase);
+            if (partIndex > 0)
+            {
+                return fileName[..partIndex];
+            }
+        }
+
+        return Path.GetFileNameWithoutExtension(fileName);
+    }
+
+    /// <summary>
+    /// Enumerates all RAR volume files belonging to the archive set with the given
+    /// <paramref name="baseName"/> in <paramref name="directory"/>, ordered by name.
+    /// Handles both new-style (<c>base.partNN.rar</c>) and old-style
+    /// (<c>base.rar</c> + <c>base.rNN</c>) naming. Returns an empty list when none exist.
+    /// </summary>
+    public static List<string> EnumerateVolumes(string directory, string baseName)
+    {
+        var files = new List<string>();
+
+        // New-style: base.partXX.rar
+        string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
+        if (partFiles.Length > 0)
+        {
+            files.AddRange(partFiles.OrderBy(f => f));
+            return files;
+        }
+
+        // Old-style: base.rar + base.rXX
+        string mainRar = Path.Combine(directory, $"{baseName}.rar");
+        if (File.Exists(mainRar))
+        {
+            files.Add(mainRar);
+        }
+
+        // .r?? matches .r00-.r99 but also .rar - exclude .rar to avoid duplicates
+        string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
+        if (rxxFiles.Length > 0)
+        {
+            files.AddRange(rxxFiles
+                .Where(f => !f.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f));
+        }
+
+        return files;
+    }
+
+    /// <summary>
+    /// Returns the candidate second-volume file paths to probe when monitoring an
+    /// in-progress compression for early termination. Uses candidate-path probing
+    /// (not globbing) so the 100ms poll stays cheap and never matches in-progress
+    /// volume writes. Covers zero-padded (<c>.part02.rar</c>, <c>.part002.rar</c>),
+    /// non-padded (<c>.part2.rar</c>) and old-style (<c>.r00</c>) second volumes.
+    /// </summary>
+    /// <param name="directory">
+    /// The output directory.
+    /// </param>
+    /// <param name="baseName">
+    /// The expected output base name without extension (not stripped of <c>.part</c>).
+    /// </param>
+    public static string[] SecondVolumeCandidates(string directory, string baseName) =>
+    [
+        Path.Combine(directory, $"{baseName}.part02.rar"),  // zero-padded, 2 digits
+        Path.Combine(directory, $"{baseName}.part002.rar"), // zero-padded, 3 digits
+        Path.Combine(directory, $"{baseName}.part2.rar"),   // non-padded
+        Path.Combine(directory, $"{baseName}.r00"),         // old format
+    ];
+
+    /// <summary>
     /// Old-style naming: .rar -> .r00 -> .r01 -> ... -> .r99 -> .s00 -> ...
     /// Also handles: .001 -> .002 -> ...
     /// </summary>

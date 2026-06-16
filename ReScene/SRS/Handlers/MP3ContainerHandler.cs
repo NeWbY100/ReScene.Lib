@@ -6,8 +6,6 @@ namespace ReScene.SRS;
 
 internal class MP3ContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
-
     public SRSContainerType ContainerType => SRSContainerType.MP3;
 
     public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
@@ -44,19 +42,14 @@ internal class MP3ContainerHandler : IContainerHandler
             crc.Append(buffer.AsSpan(0, actualRead));
 
             // Build signature from audio data
-            if (totalRead + actualRead > audioStart && track.SignatureBytes.Length < SignatureSize)
+            if (totalRead + actualRead > audioStart && track.SignatureBytes.Length < TrackInfo.SignatureSize)
             {
                 long sigStart = Math.Max(audioStart, totalRead);
                 int offset = (int)(sigStart - totalRead);
                 int available = actualRead - offset;
                 if (available > 0)
                 {
-                    int need = SignatureSize - track.SignatureBytes.Length;
-                    int take = Math.Min(need, available);
-                    byte[] newSig = new byte[track.SignatureBytes.Length + take];
-                    track.SignatureBytes.CopyTo(newSig, 0);
-                    Array.Copy(buffer, offset, newSig, track.SignatureBytes.Length, take);
-                    track.SignatureBytes = newSig;
+                    track.AppendSignature(buffer.AsSpan(offset, available), TrackInfo.SignatureSize);
                 }
             }
 

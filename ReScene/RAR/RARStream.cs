@@ -26,8 +26,6 @@ internal record RARVolume(string ArchivePath, long LogicalStart, long LogicalEnd
 /// </summary>
 internal class RARStream : Stream
 {
-    private static ReadOnlySpan<byte> Rar5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
-
     private readonly List<RARVolume> _volumes = [];
     private readonly Dictionary<string, FileStream> _openStreams = new(StringComparer.OrdinalIgnoreCase);
     private long _length;
@@ -276,7 +274,7 @@ internal class RARStream : Stream
     private static void ValidateFirstVolume(string path)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        bool isRar5 = IsRar5(fs);
+        bool isRar5 = RAR5HeaderReader.IsRAR5(fs);
         fs.Position = isRar5 ? 8 : 7; // skip marker
 
         if (isRar5)
@@ -343,7 +341,7 @@ internal class RARStream : Stream
     private bool ProcessVolume(string volumePath, ref string? packedFileName, bool? previousNamingStyle)
     {
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        bool isRar5 = IsRar5(fs);
+        bool isRar5 = RAR5HeaderReader.IsRAR5(fs);
         fs.Position = isRar5 ? 8 : 7; // skip marker
 
         if (isRar5)
@@ -460,25 +458,6 @@ internal class RARStream : Stream
     #endregion
 
     #region Helpers
-
-    /// <summary>
-    /// Checks whether the stream starts with the RAR5 signature.
-    /// </summary>
-    private static bool IsRar5(Stream stream)
-    {
-        if (stream.Length < 8)
-        {
-            return false;
-        }
-
-        long pos = stream.Position;
-        stream.Position = 0;
-        Span<byte> marker = stackalloc byte[8];
-        stream.ReadExactly(marker);
-        stream.Position = pos;
-
-        return marker.SequenceEqual(Rar5Marker);
-    }
 
     /// <summary>
     /// Updates _currentVolume to the volume containing _position.

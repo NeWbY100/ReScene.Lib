@@ -400,18 +400,13 @@ public partial class Manager : IDisposable
             string directory = Path.GetDirectoryName(expectedRarFilePath) ?? string.Empty;
             string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(expectedRarFilePath);
 
-            // Determine which second volume filename to look for
-            // Check .part02.rar (zero-padded)
-            string secondVolumePart02 = Path.Combine(directory, $"{fileNameWithoutExtension}.part02.rar");
-            // Check .part2.rar (non-padded)
-            string secondVolumePart2 = Path.Combine(directory, $"{fileNameWithoutExtension}.part2.rar");
-            // Check .r00 (old format)
-            string secondVolumeR00 = Path.Combine(directory, $"{fileNameWithoutExtension}.r00");
+            // Candidate second-volume names (covers .part02/.part002/.part2/.r00).
+            string[] secondVolumeCandidates = RARVolumeNaming.SecondVolumeCandidates(directory, fileNameWithoutExtension);
 
             // Poll for second volume existence
             while (!cts.Token.IsCancellationRequested)
             {
-                if (File.Exists(secondVolumePart02) || File.Exists(secondVolumePart2) || File.Exists(secondVolumeR00))
+                if (secondVolumeCandidates.Any(File.Exists))
                 {
                     // Second volume detected! Return to trigger early termination
                     return;

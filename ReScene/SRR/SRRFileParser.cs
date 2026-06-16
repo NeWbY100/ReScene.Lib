@@ -471,11 +471,19 @@ internal static class SRRFileParser
     }
 
     internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressComment(RARServiceBlockInfo serviceInfo, byte[] compressedData)
+        // RAR4 service blocks store an already RAR4-encoded method byte.
+        => TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, serviceInfo.CompressionMethod, isRar5: false);
+
+    /// <summary>
+    /// Shared compressed-comment decode tail for RAR4 and RAR5. The caller supplies a
+    /// pre-normalized RAR4-encoded <paramref name="method"/> byte and the
+    /// <paramref name="isRar5"/> flag used to select the native decompressor variant.
+    /// </summary>
+    private static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryDecompressComment(
+        int uncompressedSize, byte[] compressedData, byte method, bool isRar5)
     {
         try
         {
-            // Get the uncompressed size from the service block info
-            int uncompressedSize = (int)serviceInfo.UnpackedSize;
             if (uncompressedSize is <= 0 or > (1024 * 1024)) // Sanity check: max 1MB
             {
                 return (null, null);
@@ -485,8 +493,8 @@ internal static class SRRFileParser
             byte[]? rawBytes = RARDecompressor.DecompressCommentBytes(
                 compressedData,
                 uncompressedSize,
-                serviceInfo.CompressionMethod,
-                isRAR5: false); // SRR files typically use RAR4 format
+                method,
+                isRAR5: isRar5);
 
             if (rawBytes == null)
             {
@@ -595,40 +603,9 @@ internal static class SRRFileParser
 
     internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressRar5Comment(RAR5ServiceBlockInfo serviceInfo, byte[] compressedData)
     {
-        try
-        {
-            // Get the uncompressed size from the service block info
-            int uncompressedSize = (int)serviceInfo.UnpackedSize;
-            if (uncompressedSize is <= 0 or > (1024 * 1024)) // Sanity check: max 1MB
-            {
-                return (null, null);
-            }
-
-            // Map RAR5 method to RARMethod enum (RAR5 method 0=store, 1-5=compression)
-            byte method = (byte)(serviceInfo.CompressionMethod == 0 ? 0x30 : 0x30 + serviceInfo.CompressionMethod);
-
-            // Use native decompressor with RAR5 version to get raw bytes
-            byte[]? rawBytes = RARDecompressor.DecompressCommentBytes(
-                compressedData,
-                uncompressedSize,
-                method,
-                isRAR5: true);
-
-            if (rawBytes == null)
-            {
-                return (null, null);
-            }
-
-            // Convert bytes to string for display (with TrimEnd for readability)
-            string? comment = DecodeText(rawBytes, trimNulls: true);
-
-            return (comment, rawBytes);
-        }
-        catch
-        {
-            // Native decompression failed
-            return (null, null);
-        }
+        // Map RAR5 method to the RAR4-encoded method byte (RAR5 method 0=store, 1-5=compression).
+        byte method = (byte)(serviceInfo.CompressionMethod == 0 ? 0x30 : 0x30 + serviceInfo.CompressionMethod);
+        return TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, method, isRar5: true);
     }
 
     /// <summary>

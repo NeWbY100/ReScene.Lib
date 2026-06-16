@@ -1,3 +1,5 @@
+using ReScene.RAR;
+
 namespace ReScene.Core;
 
 /// <summary>
@@ -18,45 +20,10 @@ internal static class FileOperations
     /// </returns>
     public static List<string> GetAllVolumeFiles(string firstVolumePath)
     {
-        var files = new List<string>();
         string directory = Path.GetDirectoryName(firstVolumePath) ?? string.Empty;
-        string fileName = Path.GetFileName(firstVolumePath);
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(firstVolumePath);
+        string baseName = RARVolumeNaming.GetBaseName(Path.GetFileName(firstVolumePath));
 
-        // Determine the base name (remove .partXX if present)
-        string baseName = fileNameWithoutExtension;
-        if (fileName.Contains(".part", StringComparison.OrdinalIgnoreCase) && fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
-        {
-            int partIndex = fileName.IndexOf(".part", StringComparison.OrdinalIgnoreCase);
-            if (partIndex > 0)
-            {
-                baseName = fileName[..partIndex];
-            }
-        }
-
-        // Check for partXX.rar format volumes
-        string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
-        if (partFiles.Length > 0)
-        {
-            files.AddRange(partFiles.OrderBy(f => f));
-            return files;
-        }
-
-        // Check for .rar + .rXX format volumes
-        string mainRar = Path.Combine(directory, $"{baseName}.rar");
-        if (File.Exists(mainRar))
-        {
-            files.Add(mainRar);
-        }
-
-        // .r?? matches .r00-.r99 but also .rar - exclude .rar to avoid duplicates
-        string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
-        if (rxxFiles.Length > 0)
-        {
-            files.AddRange(rxxFiles
-                .Where(f => !f.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f));
-        }
+        List<string> files = RARVolumeNaming.EnumerateVolumes(directory, baseName);
 
         // If no volumes found, just return the original file
         if (files.Count == 0 && File.Exists(firstVolumePath))
@@ -621,27 +588,11 @@ internal static class FileOperations
         try
         {
             string directory = Path.GetDirectoryName(rarFilePath) ?? string.Empty;
-            string fileName = Path.GetFileName(rarFilePath);
-            string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(rarFilePath);
+            string baseName = RARVolumeNaming.GetBaseName(Path.GetFileName(rarFilePath));
 
-            // Determine the base name (remove .partXX.rar or .rXX suffix if present)
-            string baseName = fileNameWithoutExtension;
-
-            // Check if this is a volume file and extract base name
-            if (fileName.Contains(".part", StringComparison.Ordinal) && fileName.EndsWith(".rar", StringComparison.Ordinal))
-            {
-                // Format: filename.part01.rar - remove .part01
-                int partIndex = fileName.IndexOf(".part", StringComparison.Ordinal);
-                if (partIndex > 0)
-                {
-                    baseName = fileName[..partIndex];
-                }
-            }
-
-            // Delete all related volume files using pattern matching
-            // Pattern 1: filename.partXX.rar (zero-padded)
-            string[] partFiles = Directory.GetFiles(directory, $"{baseName}.part*.rar");
-            foreach (string file in partFiles)
+            // Delete every volume in the set (both new-style partNN.rar and
+            // old-style .rar + .rNN naming).
+            foreach (string file in RARVolumeNaming.EnumerateVolumes(directory, baseName))
             {
                 try
                 {
@@ -651,36 +602,6 @@ internal static class FileOperations
                 catch (Exception ex)
                 {
                     logger?.Information(null, $"Failed to delete volume file {file}: {ex.Message}", LogTarget.Phase2);
-                }
-            }
-
-            // Pattern 2: filename.rXX (old format - r00, r01, r02, etc.)
-            string[] rxxFiles = Directory.GetFiles(directory, $"{baseName}.r??");
-            foreach (string file in rxxFiles)
-            {
-                try
-                {
-                    File.Delete(file);
-                    logger?.Debug(null, $"Deleted volume file: {file}", LogTarget.Phase2);
-                }
-                catch (Exception ex)
-                {
-                    logger?.Information(null, $"Failed to delete volume file {file}: {ex.Message}", LogTarget.Phase2);
-                }
-            }
-
-            // Also delete the main .rar file if it exists (old format first volume)
-            string mainRarFile = Path.Combine(directory, $"{baseName}.rar");
-            if (File.Exists(mainRarFile))
-            {
-                try
-                {
-                    File.Delete(mainRarFile);
-                    logger?.Debug(null, $"Deleted main RAR file: {mainRarFile}", LogTarget.Phase2);
-                }
-                catch (Exception ex)
-                {
-                    logger?.Information(null, $"Failed to delete main RAR file {mainRarFile}: {ex.Message}", LogTarget.Phase2);
                 }
             }
         }

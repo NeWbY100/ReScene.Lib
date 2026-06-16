@@ -5,7 +5,7 @@ namespace ReScene.SRS;
 
 internal class MKVContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
+    private const int SignatureSize = TrackInfo.SignatureSize;
 
     /// <summary>
     /// Maximum signature length, in <see cref="SignatureSize"/>-byte steps (~10 KiB). Mirrors
@@ -16,23 +16,6 @@ internal class MKVContainerHandler : IContainerHandler
     public SRSContainerType ContainerType => SRSContainerType.MKV;
 
     #region EBML Constants
-
-    /// <summary>
-    /// Container element IDs that we step into (no data of their own).
-    /// </summary>
-    private static readonly HashSet<ulong> _eBMLContainerElements =
-    [
-        0x18538067, // Segment
-        0x1F43B675, // Cluster
-        0x1654AE6B, // Tracks
-        0xAE,       // TrackEntry
-        0x6D80,     // ContentEncodings
-        0x6240,     // ContentEncoding
-        0x5034,     // ContentCompression
-        0xA0,       // BlockGroup
-        0x1941A469, // Attachments
-        0x61A7,     // AttachedFile
-    ];
 
     private static readonly ulong _eBMLIdBlock = 0xA3;             // SimpleBlock
     private static readonly ulong _eBMLIdBlockGroupBlock = 0xA1;  // Block inside BlockGroup
@@ -167,7 +150,7 @@ internal class MKVContainerHandler : IContainerHandler
             otherLength += headerSize;
             crc.Append(rawHeader);
 
-            if (_eBMLContainerElements.Contains(elemId))
+            if (EBMLIds.IsContainer(elemId))
             {
                 // When entering ContentCompression (0x5034), mark that compression is present
                 if (elemId == 0x5034 && trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? compTrack))
@@ -213,7 +196,7 @@ internal class MKVContainerHandler : IContainerHandler
                 if (laceType != EBMLLaceType.None && dataAfterBaseHeader > 0)
                 {
                     // Read the lacing header data to parse it
-                    byte[] lacingData = ReadExactly(fs, Math.Min(dataAfterBaseHeader, 256)); // lacing headers are small
+                    byte[] lacingData = StreamUtilities.ReadAtMost(fs, Math.Min(dataAfterBaseHeader, 256)); // lacing headers are small
                     (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
                         lacingData, laceType, dataAfterBaseHeader);
                     lacingHeaderSize = bytesConsumed;
@@ -251,7 +234,7 @@ internal class MKVContainerHandler : IContainerHandler
 
                 // Read frame data for CRC and signature
                 fs.Position = dataStart + fullBlockHeaderSize;
-                byte[] frameData = ReadExactly(fs, (int)Math.Min(frameDataLen, elemEnd - fs.Position));
+                byte[] frameData = StreamUtilities.ReadAtMost(fs, (int)Math.Min(frameDataLen, elemEnd - fs.Position));
                 crc.Append(frameData);
 
                 // Build the track signature. Mirrors pyrescene's minimum_signature_size: grow the
@@ -280,7 +263,7 @@ internal class MKVContainerHandler : IContainerHandler
                 long remaining = elemEnd - fs.Position;
                 if (remaining > 0)
                 {
-                    byte[] data = ReadExactly(fs, (int)remaining);
+                    byte[] data = StreamUtilities.ReadAtMost(fs, (int)remaining);
                     otherLength += remaining;
                     crc.Append(data);
 
@@ -305,7 +288,7 @@ internal class MKVContainerHandler : IContainerHandler
                 long remaining = elemEnd - fs.Position;
                 if (remaining > 0)
                 {
-                    byte[] data = ReadExactly(fs, (int)remaining);
+                    byte[] data = StreamUtilities.ReadAtMost(fs, (int)remaining);
                     otherLength += remaining;
                     crc.Append(data);
 
@@ -329,7 +312,7 @@ internal class MKVContainerHandler : IContainerHandler
                 long remaining = elemEnd - fs.Position;
                 if (remaining > 0)
                 {
-                    byte[] data = ReadExactly(fs, (int)remaining);
+                    byte[] data = StreamUtilities.ReadAtMost(fs, (int)remaining);
                     otherLength += remaining;
                     crc.Append(data);
 
@@ -346,7 +329,7 @@ internal class MKVContainerHandler : IContainerHandler
                 long remaining = elemEnd - fs.Position;
                 if (remaining > 0)
                 {
-                    byte[] data = ReadExactly(fs, (int)remaining);
+                    byte[] data = StreamUtilities.ReadAtMost(fs, (int)remaining);
                     otherLength += remaining;
                     crc.Append(data);
                 }
@@ -447,7 +430,7 @@ internal class MKVContainerHandler : IContainerHandler
                             int dataAfterBase = (int)((long)dataSize - blockHeaderBase);
                             if (dataAfterBase > 0)
                             {
-                                byte[] lacingPeek = ReadExactly(inFs, Math.Min(dataAfterBase, 256));
+                                byte[] lacingPeek = StreamUtilities.ReadAtMost(inFs, Math.Min(dataAfterBase, 256));
                                 (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
                                     lacingPeek, laceType, dataAfterBase);
                                 lacingHeaderSize = bytesConsumed;
@@ -486,14 +469,14 @@ internal class MKVContainerHandler : IContainerHandler
     {
         // Build the file and track sub-elements
         byte[] srsfPayload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        byte[] srsfElement = BuildEBMLElement(0x6A75, srsfPayload); // RESAMPLE_FILE
+        byte[] srsfElement = EBMLWriter.BuildEBMLElement(EBMLIds.ResampleFile, srsfPayload); // RESAMPLE_FILE
 
         bool bigFile = sampleSize >= 0x80000000;
         var trackElements = new List<byte[]>();
         foreach (TrackInfo track in tracks)
         {
             byte[] srstPayload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-            trackElements.Add(BuildEBMLElement(0x6B75, srstPayload)); // RESAMPLE_TRACK
+            trackElements.Add(EBMLWriter.BuildEBMLElement(EBMLIds.ResampleTrack, srstPayload)); // RESAMPLE_TRACK
         }
 
         // Total child size
@@ -504,102 +487,13 @@ internal class MKVContainerHandler : IContainerHandler
         }
 
         // Write the ReSample container element (ID: 0x1F697576)
-        byte[] resampleHeader = BuildEBMLElementHeader(0x1F697576, childSize);
+        byte[] resampleHeader = EBMLWriter.BuildEBMLElementHeader(EBMLIds.ReSampleContainer, childSize);
         outFs.Write(resampleHeader);
         outFs.Write(srsfElement);
         foreach (byte[] te in trackElements)
         {
             outFs.Write(te);
         }
-    }
-
-    #endregion
-
-    #region EBML Helpers
-
-    private static byte[] MakeEBMLUInt(long value)
-    {
-        // Encode value as EBML variable-length unsigned integer (size descriptor)
-        if (value < 0x7F)
-        {
-            return [(byte)(0x80 | value)];
-        }
-
-        if (value < 0x3FFF)
-        {
-            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        }
-
-        if (value < 0x1FFFFF)
-        {
-            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-        }
-
-        if (value < 0x0FFFFFFF)
-        {
-            return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-        }
-
-        // 5+ bytes
-        var result = new List<byte>();
-        int width = 5;
-        long max = 0x07FFFFFFFF;
-        while (value > max && width < 8)
-        {
-            width++;
-            max = (max << 8) | 0xFF;
-        }
-
-        byte marker = (byte)(1 << (8 - width));
-        result.Add((byte)(marker | (byte)(value >> ((width - 1) * 8))));
-        for (int i = width - 2; i >= 0; i--)
-        {
-            result.Add((byte)((value >> (i * 8)) & 0xFF));
-        }
-
-        return result.ToArray();
-    }
-
-    private static byte[] MakeEBMLId(ulong id)
-    {
-        // Encode element ID as big-endian bytes (preserve marker bit)
-        if (id < 0x100)
-        {
-            return [(byte)id];
-        }
-
-        if (id < 0x10000)
-        {
-            return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        }
-
-        if (id < 0x1000000)
-        {
-            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
-        }
-
-        return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
-    }
-
-    private static byte[] BuildEBMLElement(ulong id, byte[] data)
-    {
-        byte[] idBytes = MakeEBMLId(id);
-        byte[] sizeBytes = MakeEBMLUInt(data.Length);
-        byte[] result = new byte[idBytes.Length + sizeBytes.Length + data.Length];
-        idBytes.CopyTo(result, 0);
-        sizeBytes.CopyTo(result, idBytes.Length);
-        data.CopyTo(result, idBytes.Length + sizeBytes.Length);
-        return result;
-    }
-
-    private static byte[] BuildEBMLElementHeader(ulong id, long dataSize)
-    {
-        byte[] idBytes = MakeEBMLId(id);
-        byte[] sizeBytes = MakeEBMLUInt(dataSize);
-        byte[] result = new byte[idBytes.Length + sizeBytes.Length];
-        idBytes.CopyTo(result, 0);
-        sizeBytes.CopyTo(result, idBytes.Length);
-        return result;
     }
 
     #endregion
@@ -666,38 +560,6 @@ internal class MKVContainerHandler : IContainerHandler
         }
 
         return true;
-    }
-
-    #endregion
-
-    #region Utilities
-
-    private static byte[] ReadExactly(Stream stream, int count)
-    {
-        if (count <= 0)
-        {
-            return [];
-        }
-
-        byte[] buffer = new byte[count];
-        int totalRead = 0;
-        while (totalRead < count)
-        {
-            int read = stream.Read(buffer, totalRead, count - totalRead);
-            if (read <= 0)
-            {
-                break;
-            }
-
-            totalRead += read;
-        }
-
-        if (totalRead < count)
-        {
-            Array.Resize(ref buffer, totalRead);
-        }
-
-        return buffer;
     }
 
     #endregion

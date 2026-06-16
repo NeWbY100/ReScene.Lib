@@ -628,52 +628,87 @@ internal class RAR5HeaderReader(Stream stream)
         return result;
     }
 
-    private RAR5ServiceBlockInfo? ParseServiceBlock(long headerEnd)
+    /// <summary>
+    /// The raw file/service header fields shared by RAR5 FILE (0x02) and SERVICE (0x03)
+    /// blocks, read in their on-disk order. Optional fields (governed by
+    /// <see cref="RAR5FileFlags"/>) are read identically for both block kinds.
+    /// </summary>
+    private readonly record struct Rar5FileFields(
+        ulong FileFlags,
+        ulong UnpackedSize,
+        ulong Attributes,
+        uint? ModificationTime,
+        uint? FileCRC,
+        ulong CompressionInfo,
+        ulong HostOS,
+        string Name);
+
+    /// <summary>
+    /// Reads the eight common RAR5 file-block fields (flags, unpacked size, attributes,
+    /// mtime, CRC, compression info, host OS, and name) in order. Callers map the raw
+    /// values and perform their own compression-bit unpacking / type checks.
+    /// </summary>
+    private Rar5FileFields ReadRar5FileFields(long headerEnd)
     {
-        var info = new RAR5ServiceBlockInfo
-        {
-            // Read file flags
-            FileFlags = ReadVInt()
-        };
+        ulong fileFlags = ReadVInt();
 
-        // Read unpacked size (unless UNKNOWN_SIZE flag is set)
-        if ((info.FileFlags & (ulong)RAR5FileFlags.UnknownSize) == 0)
+        // Unpacked size (unless UNKNOWN_SIZE flag is set)
+        ulong unpackedSize = 0;
+        if ((fileFlags & (ulong)RAR5FileFlags.UnknownSize) == 0)
         {
-            info.UnpackedSize = ReadVInt();
+            unpackedSize = ReadVInt();
         }
 
-        // Skip file attributes
-        _ = ReadVInt();
+        // File attributes
+        ulong attributes = ReadVInt();
 
-        // Skip mtime if present
-        if ((info.FileFlags & (ulong)RAR5FileFlags.TimePresent) != 0)
+        // mtime if present — stays null when the flag is clear (modern RAR5 often carries it
+        // in the FHEXTRA extra area instead), so callers don't record a bogus 1970 timestamp.
+        uint? mtime = null;
+        if ((fileFlags & (ulong)RAR5FileFlags.TimePresent) != 0)
         {
-            _reader.ReadUInt32();
+            mtime = _reader.ReadUInt32();
         }
 
-        // Skip CRC if present
-        if ((info.FileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
+        // CRC if present — stays null when the flag is clear (don't record a bogus 00000000).
+        uint? fileCRC = null;
+        if ((fileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
         {
-            _reader.ReadUInt32();
+            fileCRC = _reader.ReadUInt32();
         }
 
-        // Read compression info
+        // Compression info
         ulong compressionInfo = ReadVInt();
-        info.CompressionVersion = (int)(compressionInfo & 0x3F);
-        info.CompressionMethod = (int)((compressionInfo >> 7) & 0x07);
-        info.DictSize = (int)((compressionInfo >> 10) & 0x0F);
-        info.IsStored = info.CompressionMethod == 0;
 
-        // Skip host OS
-        _ = ReadVInt();
+        // Host OS
+        ulong hostOS = ReadVInt();
 
-        // Read name length and name
+        // Name length and name
+        string name = string.Empty;
         ulong nameLen = ReadVInt();
         if (nameLen > 0 && _stream.Position + (long)nameLen <= headerEnd)
         {
             byte[] nameBytes = _reader.ReadBytes((int)nameLen);
-            info.SubType = Encoding.UTF8.GetString(nameBytes);
+            name = Encoding.UTF8.GetString(nameBytes);
         }
+
+        return new Rar5FileFields(fileFlags, unpackedSize, attributes, mtime, fileCRC, compressionInfo, hostOS, name);
+    }
+
+    private RAR5ServiceBlockInfo? ParseServiceBlock(long headerEnd)
+    {
+        Rar5FileFields fields = ReadRar5FileFields(headerEnd);
+
+        var info = new RAR5ServiceBlockInfo
+        {
+            FileFlags = fields.FileFlags,
+            UnpackedSize = fields.UnpackedSize,
+            CompressionVersion = (int)(fields.CompressionInfo & 0x3F),
+            CompressionMethod = (int)((fields.CompressionInfo >> 7) & 0x07),
+            DictSize = (int)((fields.CompressionInfo >> 10) & 0x0F),
+            SubType = fields.Name
+        };
+        info.IsStored = info.CompressionMethod == 0;
 
         // Check for CMT type
         if (info.SubType == "CMT" || info.SubType.StartsWith("CMT", StringComparison.Ordinal))
@@ -703,50 +738,21 @@ internal class RAR5HeaderReader(Stream stream)
 
     private RAR5FileInfo ParseFileBlock(long headerEnd, bool isSplitBefore, bool isSplitAfter)
     {
-        var info = new RAR5FileInfo
+        Rar5FileFields fields = ReadRar5FileFields(headerEnd);
+
+        return new RAR5FileInfo
         {
             IsSplitBefore = isSplitBefore,
             IsSplitAfter = isSplitAfter,
-            // Read file flags
-            FileFlags = ReadVInt()
+            FileFlags = fields.FileFlags,
+            UnpackedSize = fields.UnpackedSize,
+            Attributes = fields.Attributes,
+            ModificationTime = fields.ModificationTime,
+            FileCRC = fields.FileCRC,
+            CompressionInfo = fields.CompressionInfo,
+            HostOS = fields.HostOS,
+            FileName = fields.Name
         };
-
-        // Read unpacked size (unless UNKNOWN_SIZE flag is set)
-        if ((info.FileFlags & (ulong)RAR5FileFlags.UnknownSize) == 0)
-        {
-            info.UnpackedSize = ReadVInt();
-        }
-
-        // Read file attributes
-        info.Attributes = ReadVInt();
-
-        // Read mtime if present
-        if ((info.FileFlags & (ulong)RAR5FileFlags.TimePresent) != 0)
-        {
-            info.ModificationTime = _reader.ReadUInt32();
-        }
-
-        // Read CRC if present
-        if ((info.FileFlags & (ulong)RAR5FileFlags.CRC32Present) != 0)
-        {
-            info.FileCRC = _reader.ReadUInt32();
-        }
-
-        // Read compression info
-        info.CompressionInfo = ReadVInt();
-
-        // Read host OS
-        info.HostOS = ReadVInt();
-
-        // Read name length and name
-        ulong nameLen = ReadVInt();
-        if (nameLen > 0 && _stream.Position + (long)nameLen <= headerEnd)
-        {
-            byte[] nameBytes = _reader.ReadBytes((int)nameLen);
-            info.FileName = Encoding.UTF8.GetString(nameBytes);
-        }
-
-        return info;
     }
 
     /// <summary>

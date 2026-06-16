@@ -6,8 +6,6 @@ namespace ReScene.SRS;
 
 internal class FlacContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
-
     public SRSContainerType ContainerType => SRSContainerType.FLAC;
 
     public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
@@ -27,7 +25,7 @@ internal class FlacContainerHandler : IContainerHandler
         {
             // CRC and account for the ID3v2 wrapper
             fs.Position = 0;
-            byte[] id3Data = ReadExactly(fs, id3Size);
+            byte[] id3Data = StreamUtilities.ReadAtMost(fs, id3Size);
             otherLength += id3Size;
             crc.Append(id3Data);
         }
@@ -64,7 +62,7 @@ internal class FlacContainerHandler : IContainerHandler
 
             if (payloadSize > 0)
             {
-                byte[] data = ReadExactly(fs, payloadSize);
+                byte[] data = StreamUtilities.ReadAtMost(fs, payloadSize);
                 crc.Append(data);
 
                 if (blockType > 6)
@@ -98,15 +96,7 @@ internal class FlacContainerHandler : IContainerHandler
 
                         crc.Append(buffer.AsSpan(0, actualRead));
 
-                        if (track.SignatureBytes.Length < SignatureSize)
-                        {
-                            int need = SignatureSize - track.SignatureBytes.Length;
-                            int take = Math.Min(need, actualRead);
-                            byte[] newSig = new byte[track.SignatureBytes.Length + take];
-                            track.SignatureBytes.CopyTo(newSig, 0);
-                            Array.Copy(buffer, 0, newSig, track.SignatureBytes.Length, take);
-                            track.SignatureBytes = newSig;
-                        }
+                        track.AppendSignature(buffer.AsSpan(0, actualRead), TrackInfo.SignatureSize);
 
                         totalRead += actualRead;
                     }
@@ -226,34 +216,6 @@ internal class FlacContainerHandler : IContainerHandler
 
         byte[] data = reader.ReadBytes(count);
         return data;
-    }
-
-    private static byte[] ReadExactly(Stream stream, int count)
-    {
-        if (count <= 0)
-        {
-            return [];
-        }
-
-        byte[] buffer = new byte[count];
-        int totalRead = 0;
-        while (totalRead < count)
-        {
-            int read = stream.Read(buffer, totalRead, count - totalRead);
-            if (read <= 0)
-            {
-                break;
-            }
-
-            totalRead += read;
-        }
-
-        if (totalRead < count)
-        {
-            Array.Resize(ref buffer, totalRead);
-        }
-
-        return buffer;
     }
 
     #endregion

@@ -520,6 +520,10 @@ public class RAR5HeaderReaderTests
         Assert.Equal(largeUnpackedSize, block.FileInfo!.UnpackedSize);
         Assert.Equal(fileName, block.FileInfo.FileName);
         Assert.True(block.FileInfo.IsStored);
+        // CRC32 flag set -> value present; time flag clear -> stays null (NOT 0), so the SRR
+        // doesn't record a bogus 1970 timestamp for RAR5 archives that omit the base-header mtime.
+        Assert.Equal(0xDEADBEEFu, block.FileInfo.FileCRC);
+        Assert.Null(block.FileInfo.ModificationTime);
     }
 
     [Fact]

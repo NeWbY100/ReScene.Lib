@@ -233,7 +233,7 @@ public static class RARDetailedParser
         return blocks;
     }
 
-    private static ReadOnlySpan<byte> Rar4Signature => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static ReadOnlySpan<byte> Rar4Signature => RARUtils.Rar4Marker;
 
     /// <summary>
     /// Formats a value as a zero-padded hex string based on the field's byte length.

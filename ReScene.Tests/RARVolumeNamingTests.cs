@@ -73,4 +73,119 @@ public class RARVolumeNamingTests
     {
         Assert.Null(RARVolumeNaming.GetNextVolumePath(input, isOldNaming: false));
     }
+
+    #region GetBaseName
+
+    [Theory]
+    [InlineData("release.part01.rar", "release")]
+    [InlineData("release.part1.rar", "release")]
+    [InlineData("release.part001.rar", "release")]
+    [InlineData("RELEASE.PART01.RAR", "RELEASE")]
+    [InlineData("my.show.s01e01.part02.rar", "my.show.s01e01")]
+    public void GetBaseName_StripsPartSegment(string fileName, string expected)
+    {
+        Assert.Equal(expected, RARVolumeNaming.GetBaseName(fileName));
+    }
+
+    [Theory]
+    [InlineData("release.rar", "release")]
+    [InlineData("release.r00", "release")]
+    [InlineData("release.001", "release")]
+    [InlineData("my.show.s01e01.rar", "my.show.s01e01")]
+    public void GetBaseName_NonPartNames_DropExtensionOnly(string fileName, string expected)
+    {
+        Assert.Equal(expected, RARVolumeNaming.GetBaseName(fileName));
+    }
+
+    #endregion
+
+    #region SecondVolumeCandidates
+
+    [Fact]
+    public void SecondVolumeCandidates_IncludesAllNamingForms()
+    {
+        string[] candidates = RARVolumeNaming.SecondVolumeCandidates(@"C:\out", "release");
+
+        Assert.Contains(Path.Combine(@"C:\out", "release.part02.rar"), candidates);
+        Assert.Contains(Path.Combine(@"C:\out", "release.part002.rar"), candidates);
+        Assert.Contains(Path.Combine(@"C:\out", "release.part2.rar"), candidates);
+        Assert.Contains(Path.Combine(@"C:\out", "release.r00"), candidates);
+    }
+
+    [Fact]
+    public void SecondVolumeCandidates_CoversThreeDigitPadding_RegressionForPart002()
+    {
+        // Prior bug: the monitor only probed .part02.rar (2-digit) and missed
+        // 3-digit zero-padded second volumes (.part002.rar).
+        string[] candidates = RARVolumeNaming.SecondVolumeCandidates(@"C:\out", "release");
+        Assert.Contains(Path.Combine(@"C:\out", "release.part002.rar"), candidates);
+    }
+
+    #endregion
+
+    #region EnumerateVolumes
+
+    [Fact]
+    public void EnumerateVolumes_NewStyle_ReturnsAllPartsOrdered()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "rvn_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "rel.part03.rar"), "c");
+            File.WriteAllText(Path.Combine(dir, "rel.part01.rar"), "a");
+            File.WriteAllText(Path.Combine(dir, "rel.part02.rar"), "b");
+
+            List<string> vols = RARVolumeNaming.EnumerateVolumes(dir, "rel");
+
+            Assert.Equal(
+                ["rel.part01.rar", "rel.part02.rar", "rel.part03.rar"],
+                vols.Select(Path.GetFileName));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EnumerateVolumes_OldStyle_ReturnsMainRarThenRxxOrdered()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "rvn_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "rel.rar"), "main");
+            File.WriteAllText(Path.Combine(dir, "rel.r01"), "1");
+            File.WriteAllText(Path.Combine(dir, "rel.r00"), "0");
+
+            List<string> vols = RARVolumeNaming.EnumerateVolumes(dir, "rel");
+
+            // .rar first (main), then .r00, .r01 (the .r?? glob excludes .rar)
+            Assert.Equal(
+                ["rel.rar", "rel.r00", "rel.r01"],
+                vols.Select(Path.GetFileName));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EnumerateVolumes_NoVolumes_ReturnsEmpty()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "rvn_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            Assert.Empty(RARVolumeNaming.EnumerateVolumes(dir, "missing"));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    #endregion
 }

@@ -6,8 +6,6 @@ namespace ReScene.SRS;
 
 internal class WMVContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
-
     private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
     private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
 
@@ -57,7 +55,7 @@ internal class WMVContainerHandler : IContainerHandler
             if (isDataObject && dataSize >= 26)
             {
                 // Data object has: file ID (16 bytes) + total packets (8 bytes) + reserved (2 bytes)
-                byte[] dataHeader = ReadExactly(fs, 26);
+                byte[] dataHeader = StreamUtilities.ReadAtMost(fs, 26);
                 totalLength += 26;
                 crc.Append(dataHeader);
 
@@ -70,7 +68,7 @@ internal class WMVContainerHandler : IContainerHandler
 
                     for (ulong i = 0; i < totalPackets && fs.Position + packetSize <= objEnd; i++)
                     {
-                        byte[] packetData = ReadExactly(fs, packetSize);
+                        byte[] packetData = StreamUtilities.ReadAtMost(fs, packetSize);
                         crc.Append(packetData);
 
                         // For signature purposes, accumulate all packet data as one track.
@@ -84,22 +82,14 @@ internal class WMVContainerHandler : IContainerHandler
 
                         track.DataLength += packetSize;
 
-                        if (track.SignatureBytes.Length < SignatureSize)
-                        {
-                            int need = SignatureSize - track.SignatureBytes.Length;
-                            int take = Math.Min(need, packetData.Length);
-                            byte[] newSig = new byte[track.SignatureBytes.Length + take];
-                            track.SignatureBytes.CopyTo(newSig, 0);
-                            Array.Copy(packetData, 0, newSig, track.SignatureBytes.Length, take);
-                            track.SignatureBytes = newSig;
-                        }
+                        track.AppendSignature(packetData, TrackInfo.SignatureSize);
                     }
                 }
 
                 // Read any remaining
                 if (fs.Position < objEnd)
                 {
-                    byte[] rest = ReadExactly(fs, (int)(objEnd - fs.Position));
+                    byte[] rest = StreamUtilities.ReadAtMost(fs, (int)(objEnd - fs.Position));
                     totalLength += rest.Length;
                     crc.Append(rest);
                 }
@@ -109,7 +99,7 @@ internal class WMVContainerHandler : IContainerHandler
                 // Non-data object: read and CRC
                 if (dataSize > 0)
                 {
-                    byte[] data = ReadExactly(fs, (int)Math.Min(dataSize, objEnd - fs.Position));
+                    byte[] data = StreamUtilities.ReadAtMost(fs, (int)Math.Min(dataSize, objEnd - fs.Position));
                     totalLength += data.Length;
                     crc.Append(data);
                 }
@@ -216,38 +206,6 @@ internal class WMVContainerHandler : IContainerHandler
         BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
-    }
-
-    #endregion
-
-    #region Utilities
-
-    private static byte[] ReadExactly(Stream stream, int count)
-    {
-        if (count <= 0)
-        {
-            return [];
-        }
-
-        byte[] buffer = new byte[count];
-        int totalRead = 0;
-        while (totalRead < count)
-        {
-            int read = stream.Read(buffer, totalRead, count - totalRead);
-            if (read <= 0)
-            {
-                break;
-            }
-
-            totalRead += read;
-        }
-
-        if (totalRead < count)
-        {
-            Array.Resize(ref buffer, totalRead);
-        }
-
-        return buffer;
     }
 
     #endregion

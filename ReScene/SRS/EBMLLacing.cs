@@ -195,6 +195,40 @@ internal static class EBMLVInt
     }
 
     /// <summary>
+    /// Reads an EBML element ID from the given data. Unlike size/value VINTs, the
+    /// marker (length-descriptor) bit is preserved in the returned value.
+    /// </summary>
+    /// <param name="data">
+    /// Data starting at the element ID.
+    /// </param>
+    /// <returns>
+    /// The element ID (marker bit kept) and the number of bytes consumed,
+    /// or (0, 0) when the data does not contain a valid ID.
+    /// </returns>
+    public static (ulong id, int length) ReadId(ReadOnlySpan<byte> data)
+    {
+        if (data.Length < 1)
+        {
+            return (0, 0);
+        }
+
+        byte first = data[0];
+        int idLen = GetVintLength(first);
+        if (idLen == 0 || idLen > data.Length)
+        {
+            return (0, 0);
+        }
+
+        ulong id = first;
+        for (int i = 1; i < idLen; i++)
+        {
+            id = (id << 8) | data[i];
+        }
+
+        return (id, idLen);
+    }
+
+    /// <summary>
     /// Reads a signed EBML VINT from the given data.
     /// First reads as unsigned, then subtracts the bias to convert to signed.
     /// The bias for an N-byte VINT is (2^(7*N - 1) - 1).

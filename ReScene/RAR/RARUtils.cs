@@ -16,6 +16,20 @@ internal static class RARUtils
     /// </summary>
     public static readonly int[] DictionarySizes = [64, 128, 256, 512, 1024, 2048, 4096, 0];
 
+    #region Marker Signatures
+
+    /// <summary>
+    /// RAR 4.x marker bytes (7 bytes): <c>52 61 72 21 1A 07 00</c>.
+    /// </summary>
+    public static ReadOnlySpan<byte> Rar4Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+
+    /// <summary>
+    /// RAR 5.0 marker bytes (8 bytes): <c>52 61 72 21 1A 07 01 00</c>.
+    /// </summary>
+    public static ReadOnlySpan<byte> Rar5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+
+    #endregion
+
     #region CRC Validation
 
     /// <summary>
@@ -356,26 +370,7 @@ internal static class RARUtils
     /// Checks whether the stream is positioned at a RAR5 marker signature.
     /// The stream position is preserved after the check.
     /// </summary>
-    public static bool IsRar5Marker(Stream stream)
-    {
-        if (stream.Position + 8 > stream.Length)
-        {
-            return false;
-        }
-
-        long pos = stream.Position;
-        Span<byte> marker = stackalloc byte[8];
-        int read = stream.Read(marker);
-        stream.Position = pos;
-
-        if (read < 8)
-        {
-            return false;
-        }
-
-        return marker[0] == 0x52 && marker[1] == 0x61 && marker[2] == 0x72 && marker[3] == 0x21 &&
-               marker[4] == 0x1A && marker[5] == 0x07 && marker[6] == 0x01 && marker[7] == 0x00;
-    }
+    public static bool IsRar5Marker(Stream stream) => RAR5HeaderReader.IsRAR5(stream, stream.Position);
 
     #endregion
 }

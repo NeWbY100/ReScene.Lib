@@ -532,50 +532,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                         break;
                     }
 
-                    int laceType = (flagsByte >> 1) & 0x03;
-
-                    int lacingHeaderSize = 0;
-                    if (laceType != 0)
-                    {
-                        fs.Position = blockStart + blockHeaderBase;
-                        int laceCount = fs.ReadByte();
-                        if (laceCount >= 0)
-                        {
-                            lacingHeaderSize = 1;
-                            if (laceType == 1) // Xiph lacing
-                            {
-                                for (int i = 0; i < laceCount; i++)
-                                {
-                                    int b;
-                                    do
-                                    {
-                                        b = fs.ReadByte();
-                                        if (b < 0)
-                                        {
-                                            break;
-                                        }
-
-                                        lacingHeaderSize++;
-                                    } while (b == 255);
-                                }
-                            }
-                            else if (laceType == 3) // EBML lacing
-                            {
-                                if (EBMLReader.TryReadSize(fs, out _, out int firstSizeLen))
-                                {
-                                    lacingHeaderSize += firstSizeLen;
-                                    for (int i = 1; i < laceCount; i++)
-                                    {
-                                        if (EBMLReader.TryReadSize(fs, out _, out int deltaLen))
-                                        {
-                                            lacingHeaderSize += deltaLen;
-                                        }
-                                    }
-                                }
-                            }
-                            // Fixed-size lacing (type 2) has no extra size data
-                        }
-                    }
+                    int lacingHeaderSize = ReadLacingHeaderSize(fs, blockStart, blockHeaderBase, flagsByte);
 
                     long frameDataOffset = blockStart + blockHeaderBase + lacingHeaderSize;
                     int frameDataLen = (int)((long)dataSize - blockHeaderBase - lacingHeaderSize);
@@ -910,17 +867,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
     private static bool IsEBMLSizeUnknown(ulong value, int length)
         => value == (1UL << (7 * length)) - 1;
 
-    private static bool IsEBMLContainerElement(ulong id) => id is
-        0x18538067 or // Segment
-        0x1F43B675 or // Cluster
-        0x1654AE6B or // Tracks
-        0xAE or       // TrackEntry
-        0x6D80 or     // ContentEncodings
-        0x6240 or     // ContentEncoding
-        0x5034 or     // ContentCompression
-        0xA0 or       // BlockGroup
-        0x1941A469 or // Attachments
-        0x61A7;       // AttachedFile
+    private static bool IsEBMLContainerElement(ulong id) => EBMLIds.IsContainer(id);
 
     /// <summary>
     /// Returns true if the given EBML element ID is part of the known MKV vocabulary.

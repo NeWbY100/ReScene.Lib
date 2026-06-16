@@ -139,8 +139,8 @@ public class SRRCreationProgressEventArgs : EventArgs
 /// </summary>
 public class SRRWriter
 {
-    private static ReadOnlySpan<byte> Rar4Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
-    private static ReadOnlySpan<byte> Rar5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    private static ReadOnlySpan<byte> Rar4Marker => RARUtils.Rar4Marker;
+    private static ReadOnlySpan<byte> Rar5Marker => RARUtils.Rar5Marker;
 
     /// <summary>
     /// Raised to report progress during SRR creation.

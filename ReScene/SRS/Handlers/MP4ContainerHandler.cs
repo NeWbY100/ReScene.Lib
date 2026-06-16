@@ -6,8 +6,6 @@ namespace ReScene.SRS;
 
 internal class MP4ContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
-
     public SRSContainerType ContainerType => SRSContainerType.MP4;
 
     private static readonly HashSet<string> _mP4ContainerAtoms =
@@ -241,7 +239,7 @@ internal class MP4ContainerHandler : IContainerHandler
                 // For simplicity, read and CRC. pyrescene uses stbl data to assign to tracks.
                 // We'll use the whole mdat as track data and build signatures from it.
                 long dataRemaining = atomEnd - fs.Position;
-                bool signatureDone = trackMap.Values.All(t => t.SignatureBytes.Length >= SignatureSize);
+                bool signatureDone = trackMap.Values.All(t => t.SignatureBytes.Length >= TrackInfo.SignatureSize);
 
                 // Read mdat in chunks for CRC
                 byte[] buffer = new byte[80 * 1024];
@@ -267,15 +265,7 @@ internal class MP4ContainerHandler : IContainerHandler
                             trackMap[trackNum] = track;
                         }
 
-                        if (track.SignatureBytes.Length < SignatureSize)
-                        {
-                            int need = SignatureSize - track.SignatureBytes.Length;
-                            int take = Math.Min(need, actualRead);
-                            byte[] newSig = new byte[track.SignatureBytes.Length + take];
-                            track.SignatureBytes.CopyTo(newSig, 0);
-                            Array.Copy(buffer, 0, newSig, track.SignatureBytes.Length, take);
-                            track.SignatureBytes = newSig;
-                        }
+                        track.AppendSignature(buffer.AsSpan(0, actualRead), TrackInfo.SignatureSize);
                     }
 
                     bytesRead += actualRead;
@@ -284,7 +274,7 @@ internal class MP4ContainerHandler : IContainerHandler
             else if (type == "tkhd" && payloadSize >= 12)
             {
                 // Track header: extract track ID for MP4 track mapping
-                byte[] data = ReadExactly(fs, (int)(atomEnd - fs.Position));
+                byte[] data = StreamUtilities.ReadAtMost(fs, (int)(atomEnd - fs.Position));
                 crc.Append(data);
                 // Track ID is at offset 12 (version 0) or 20 (version 1)
                 int version = data[0];
@@ -311,7 +301,7 @@ internal class MP4ContainerHandler : IContainerHandler
                 long remaining = atomEnd - fs.Position;
                 if (remaining > 0)
                 {
-                    byte[] data = ReadExactly(fs, (int)remaining);
+                    byte[] data = StreamUtilities.ReadAtMost(fs, (int)remaining);
                     metaLength += remaining;
                     crc.Append(data);
                 }
@@ -350,38 +340,6 @@ internal class MP4ContainerHandler : IContainerHandler
         header[7] = (byte)'T';
         outFs.Write(header);
         outFs.Write(payload);
-    }
-
-    #endregion
-
-    #region Utilities
-
-    private static byte[] ReadExactly(Stream stream, int count)
-    {
-        if (count <= 0)
-        {
-            return [];
-        }
-
-        byte[] buffer = new byte[count];
-        int totalRead = 0;
-        while (totalRead < count)
-        {
-            int read = stream.Read(buffer, totalRead, count - totalRead);
-            if (read <= 0)
-            {
-                break;
-            }
-
-            totalRead += read;
-        }
-
-        if (totalRead < count)
-        {
-            Array.Resize(ref buffer, totalRead);
-        }
-
-        return buffer;
     }
 
     #endregion

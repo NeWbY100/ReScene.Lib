@@ -1,5 +1,6 @@
 using System.Text;
 using ReScene.Core.Diagnostics;
+using ReScene.RAR;
 
 namespace ReScene.Core;
 
@@ -232,7 +233,9 @@ internal sealed class CommentPhaseBruteForcer(
     }
 
     /// <summary>
-    /// Extracts the CMT block compressed data from a RAR file.
+    /// Extracts the CMT block compressed data from a RAR4 file using the shared
+    /// <see cref="RARHeaderReader"/> block walker (the same parser used by
+    /// <c>RARFileData.LoadRAR4Data</c>).
     /// </summary>
     private static byte[]? ExtractCmtCompressedData(string rarFilePath)
     {
@@ -241,87 +244,23 @@ internal sealed class CommentPhaseBruteForcer(
             using var fs = new FileStream(rarFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var reader = new BinaryReader(fs);
 
-            // Skip RAR signature (7 bytes for RAR 4.x)
-            if (fs.Length < 7)
+            var headerReader = new RARHeaderReader(reader);
+
+            while (headerReader.CanReadBaseHeader)
             {
-                return null;
-            }
-
-            fs.Position = 7;
-
-            while (fs.Position + 7 <= fs.Length)
-            {
-                long blockStart = fs.Position;
-
-                // Read base header
-                ushort crc = reader.ReadUInt16();
-                byte blockType = reader.ReadByte();
-                ushort flags = reader.ReadUInt16();
-                ushort headerSize = reader.ReadUInt16();
-
-                if (headerSize < 7 || blockStart + headerSize > fs.Length)
+                RARBlockReadResult? block = headerReader.ReadBlock(parseContents: true);
+                if (block == null)
                 {
                     break;
                 }
 
-                // Check if this is a service block (0x7A)
-                if (blockType == 0x7A && headerSize >= 32)
+                if (block.ServiceBlockInfo != null &&
+                    string.Equals(block.ServiceBlockInfo.SubType, "CMT", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Read ADD_SIZE (4 bytes at offset 7)
-                    uint addSize = reader.ReadUInt32();
-
-                    // Read to get the sub-type name
-                    // Skip: UnpSize(4), HostOS(1), FileCRC(4), FileTime(4), UnpVer(1), Method(1), NameSize(2), Attr(4) = 21 bytes
-                    fs.Position = blockStart + 7 + 4 + 4 + 1 + 4 + 4 + 1 + 1;
-                    ushort nameSize = reader.ReadUInt16();
-
-                    // Skip Attr (4 bytes)
-                    fs.Position += 4;
-
-                    // Read the sub-type name
-                    if (nameSize > 0 && fs.Position + nameSize <= fs.Length)
-                    {
-                        byte[] nameBytes = reader.ReadBytes(nameSize);
-                        string subType = Encoding.ASCII.GetString(nameBytes);
-
-                        if (string.Equals(subType, "CMT", StringComparison.OrdinalIgnoreCase))
-                        {
-                            // Found CMT block - read the compressed data
-                            long dataStart = blockStart + headerSize;
-                            if (dataStart + addSize <= fs.Length && addSize > 0)
-                            {
-                                fs.Position = dataStart;
-                                byte[] data = reader.ReadBytes((int)addSize);
-                                return data;
-                            }
-                        }
-                    }
-
-                    // Skip this block
-                    fs.Position = blockStart + headerSize + addSize;
-                }
-                else
-                {
-                    // Skip this block
-                    bool hasAddSize = (flags & 0x8000) != 0 || blockType == 0x74 || blockType == 0x7A;
-                    uint addSize = 0;
-                    if (hasAddSize)
-                    {
-                        fs.Position = blockStart + 7;
-                        if (fs.Position + 4 <= fs.Length)
-                        {
-                            addSize = reader.ReadUInt32();
-                        }
-                    }
-
-                    fs.Position = blockStart + headerSize + addSize;
+                    return headerReader.ReadServiceBlockData(block);
                 }
 
-                // Safety check
-                if (fs.Position <= blockStart)
-                {
-                    break;
-                }
+                headerReader.SkipBlock(block, includeData: block.BlockType != RAR4BlockType.FileHeader);
             }
         }
         catch

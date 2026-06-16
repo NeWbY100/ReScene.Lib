@@ -47,86 +47,43 @@ public static class SRREditor
             }
         }
 
-        string tempPath = srrFilePath + ".tmp";
-        try
+        CommitViaTempFile(srrFilePath, output =>
         {
-            using (FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (BinaryReader reader = new(input))
-            using (FileStream output = new(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-            using (BinaryWriter writer = new(output))
+            using FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using BinaryReader reader = new(input);
+            using BinaryWriter writer = new(output, Encoding.UTF8, leaveOpen: true);
+
+            bool insertionDone = false;
+
+            while (input.Position < input.Length)
             {
-                bool insertionDone = false;
-
-                while (input.Position < input.Length)
+                if (!TryReadBlockHeader(reader, input, out SrrBlockHeader block))
                 {
-                    if (input.Position + BaseHeaderSize > input.Length)
-                    {
-                        break;
-                    }
-
-                    long blockStart = input.Position;
-                    ushort crc = reader.ReadUInt16();
-                    byte typeRaw = reader.ReadByte();
-                    ushort flags = reader.ReadUInt16();
-                    ushort headerSize = reader.ReadUInt16();
-
-                    if (headerSize < BaseHeaderSize)
-                    {
-                        break;
-                    }
-
-                    uint addSize = 0;
-                    bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
-                                     || typeRaw == (byte)SRRBlockType.StoredFile;
-
-                    if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
-                    {
-                        addSize = reader.ReadUInt32();
-                    }
-
-                    long totalBlockSize = headerSize + addSize;
-                    long blockEnd = blockStart + totalBlockSize;
-
-                    if (blockEnd > input.Length)
-                    {
-                        break;
-                    }
-
-                    // Insert new stored files at the right position:
-                    // After the last StoredFile block, or after Header if no stored files exist
-                    if (!insertionDone && typeRaw != (byte)SRRBlockType.StoredFile
-                        && typeRaw != (byte)SRRBlockType.Header)
-                    {
-                        // We've moved past header and any existing stored files
-                        WriteNewStoredFiles(writer, files);
-                        insertionDone = true;
-                    }
-
-                    // Copy the entire block verbatim
-                    input.Position = blockStart;
-                    StreamUtilities.CopyBytesStrict(input, output, totalBlockSize,
-                        "Unexpected end of SRR file while copying block data.");
+                    break;
                 }
 
-                // If we never inserted (e.g., file only has header), do it now
-                if (!insertionDone)
+                // Insert new stored files at the right position:
+                // After the last StoredFile block, or after Header if no stored files exist
+                if (!insertionDone && block.Type != (byte)SRRBlockType.StoredFile
+                    && block.Type != (byte)SRRBlockType.Header)
                 {
+                    // We've moved past header and any existing stored files
                     WriteNewStoredFiles(writer, files);
+                    insertionDone = true;
                 }
+
+                // Copy the entire block verbatim
+                input.Position = block.BlockStart;
+                StreamUtilities.CopyBytesStrict(input, output, block.TotalBlockSize,
+                    "Unexpected end of SRR file while copying block data.");
             }
 
-            File.Delete(srrFilePath);
-            File.Move(tempPath, srrFilePath);
-        }
-        catch
-        {
-            if (File.Exists(tempPath))
+            // If we never inserted (e.g., file only has header), do it now
+            if (!insertionDone)
             {
-                File.Delete(tempPath);
+                WriteNewStoredFiles(writer, files);
             }
-
-            throw;
-        }
+        });
     }
 
     /// <summary>
@@ -157,80 +114,39 @@ public static class SRREditor
 
         HashSet<string> namesToRemove = new(storedNames, StringComparer.OrdinalIgnoreCase);
 
-        string tempPath = srrFilePath + ".tmp";
-        try
+        CommitViaTempFile(srrFilePath, output =>
         {
-            using (FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (BinaryReader reader = new(input))
-            using (FileStream output = new(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using BinaryReader reader = new(input);
+
+            while (input.Position < input.Length)
             {
-                while (input.Position < input.Length)
+                if (!TryReadBlockHeader(reader, input, out SrrBlockHeader block))
                 {
-                    if (input.Position + BaseHeaderSize > input.Length)
-                    {
-                        break;
-                    }
-
-                    long blockStart = input.Position;
-                    ushort crc = reader.ReadUInt16();
-                    byte typeRaw = reader.ReadByte();
-                    ushort flags = reader.ReadUInt16();
-                    ushort headerSize = reader.ReadUInt16();
-
-                    if (headerSize < BaseHeaderSize)
-                    {
-                        break;
-                    }
-
-                    uint addSize = 0;
-                    bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
-                                     || typeRaw == (byte)SRRBlockType.StoredFile;
-
-                    if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
-                    {
-                        addSize = reader.ReadUInt32();
-                    }
-
-                    long totalBlockSize = headerSize + addSize;
-                    long blockEnd = blockStart + totalBlockSize;
-
-                    if (blockEnd > input.Length)
-                    {
-                        break;
-                    }
-
-                    // For StoredFile blocks, check if we should skip them
-                    if (typeRaw == (byte)SRRBlockType.StoredFile)
-                    {
-                        string? storedName = ReadStoredFileName(reader, input, blockStart);
-
-                        if (storedName is not null && namesToRemove.Contains(storedName))
-                        {
-                            // Skip this block entirely
-                            input.Position = blockEnd;
-                            continue;
-                        }
-                    }
-
-                    // Copy the entire block verbatim
-                    input.Position = blockStart;
-                    StreamUtilities.CopyBytesStrict(input, output, totalBlockSize,
-                        "Unexpected end of SRR file while copying block data.");
+                    break;
                 }
-            }
 
-            File.Delete(srrFilePath);
-            File.Move(tempPath, srrFilePath);
-        }
-        catch
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+                long blockEnd = block.BlockStart + block.TotalBlockSize;
 
-            throw;
-        }
+                // For StoredFile blocks, check if we should skip them
+                if (block.Type == (byte)SRRBlockType.StoredFile)
+                {
+                    string? storedName = ReadStoredFileName(reader, input, block.BlockStart);
+
+                    if (storedName is not null && namesToRemove.Contains(storedName))
+                    {
+                        // Skip this block entirely
+                        input.Position = blockEnd;
+                        continue;
+                    }
+                }
+
+                // Copy the entire block verbatim
+                input.Position = block.BlockStart;
+                StreamUtilities.CopyBytesStrict(input, output, block.TotalBlockSize,
+                    "Unexpected end of SRR file while copying block data.");
+            }
+        });
     }
 
     /// <summary>
@@ -287,106 +203,64 @@ public static class SRREditor
         string normalizedNew = newName.Replace('\\', '/');
         byte[] newNameBytes = Encoding.UTF8.GetBytes(normalizedNew);
 
-        string tempPath = srrFilePath + ".tmp";
-        bool renamed = false;
-
-        try
+        CommitViaTempFile(srrFilePath, output =>
         {
-            using (FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            using (BinaryReader reader = new(input))
-            using (FileStream output = new(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-            using (BinaryWriter writer = new(output))
+            using FileStream input = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using BinaryReader reader = new(input);
+            using BinaryWriter writer = new(output, Encoding.UTF8, leaveOpen: true);
+
+            bool renamed = false;
+
+            while (input.Position < input.Length)
             {
-                while (input.Position < input.Length)
+                if (!TryReadBlockHeader(reader, input, out SrrBlockHeader block))
                 {
-                    long blockStart = input.Position;
-
-                    if (blockStart + BaseHeaderSize > input.Length)
-                    {
-                        break;
-                    }
-
-                    ushort crc = reader.ReadUInt16();
-                    byte typeRaw = reader.ReadByte();
-                    ushort flags = reader.ReadUInt16();
-                    ushort headerSize = reader.ReadUInt16();
-
-                    if (headerSize < BaseHeaderSize)
-                    {
-                        break;
-                    }
-
-                    uint addSize = 0;
-                    bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
-                                      || typeRaw == (byte)SRRBlockType.StoredFile;
-
-                    if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
-                    {
-                        addSize = reader.ReadUInt32();
-                    }
-
-                    long totalBlockSize = headerSize + addSize;
-
-                    if (blockStart + totalBlockSize > input.Length)
-                    {
-                        break;
-                    }
-
-                    if (!renamed && typeRaw == (byte)SRRBlockType.StoredFile)
-                    {
-                        string? name = ReadStoredFileName(reader, input, blockStart);
-
-                        if (string.Equals(name, oldName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            long nameLenPos = blockStart + BaseHeaderSize + AddSizeFieldLength;
-                            input.Position = nameLenPos;
-                            ushort oldNameLen = reader.ReadUInt16();
-                            input.Position += oldNameLen;
-                            long payloadStart = input.Position;
-                            long payloadEnd = blockStart + totalBlockSize;
-                            long payloadLen = payloadEnd - payloadStart;
-                            byte[] payload = reader.ReadBytes((int)payloadLen);
-
-                            ushort newHeaderSize = (ushort)(BaseHeaderSize + AddSizeFieldLength + NameLengthFieldLength + newNameBytes.Length);
-                            writer.Write((ushort)0x6A6A);
-                            writer.Write((byte)SRRBlockType.StoredFile);
-                            writer.Write(flags);
-                            writer.Write(newHeaderSize);
-                            writer.Write(addSize);
-                            writer.Write((ushort)newNameBytes.Length);
-                            writer.Write(newNameBytes);
-                            writer.Write(payload);
-
-                            renamed = true;
-                            input.Position = payloadEnd;
-                            continue;
-                        }
-                    }
-
-                    input.Position = blockStart;
-                    StreamUtilities.CopyBytesStrict(input, output, totalBlockSize,
-                        "Unexpected end of SRR file while copying block data.");
+                    break;
                 }
+
+                if (!renamed && block.Type == (byte)SRRBlockType.StoredFile)
+                {
+                    string? name = ReadStoredFileName(reader, input, block.BlockStart);
+
+                    if (string.Equals(name, oldName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        long nameLenPos = block.BlockStart + BaseHeaderSize + AddSizeFieldLength;
+                        input.Position = nameLenPos;
+                        ushort oldNameLen = reader.ReadUInt16();
+                        input.Position += oldNameLen;
+                        long payloadStart = input.Position;
+                        long payloadEnd = block.BlockStart + block.TotalBlockSize;
+                        long payloadLen = payloadEnd - payloadStart;
+                        byte[] payload = reader.ReadBytes((int)payloadLen);
+
+                        ushort newHeaderSize = (ushort)(BaseHeaderSize + AddSizeFieldLength + NameLengthFieldLength + newNameBytes.Length);
+                        writer.Write((ushort)0x6A6A);
+                        writer.Write((byte)SRRBlockType.StoredFile);
+                        writer.Write(block.Flags);
+                        writer.Write(newHeaderSize);
+                        writer.Write(block.AddSize);
+                        writer.Write((ushort)newNameBytes.Length);
+                        writer.Write(newNameBytes);
+                        writer.Write(payload);
+
+                        renamed = true;
+                        input.Position = payloadEnd;
+                        continue;
+                    }
+                }
+
+                input.Position = block.BlockStart;
+                StreamUtilities.CopyBytesStrict(input, output, block.TotalBlockSize,
+                    "Unexpected end of SRR file while copying block data.");
             }
 
+            // Abort the commit (CommitViaTempFile rolls back the temp file) when the
+            // target stored file was not present.
             if (!renamed)
             {
-                File.Delete(tempPath);
                 throw new InvalidOperationException($"Stored file '{oldName}' not found.");
             }
-
-            File.Delete(srrFilePath);
-            File.Move(tempPath, srrFilePath);
-        }
-        catch
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-
-            throw;
-        }
+        });
     }
 
     /// <summary>
@@ -491,51 +365,23 @@ public static class SRREditor
 
         while (input.Position < input.Length)
         {
-            long blockStart = input.Position;
-
-            if (blockStart + BaseHeaderSize > input.Length)
-            {
-                break;
-            }
-
-            ushort crc = reader.ReadUInt16();
-            byte typeRaw = reader.ReadByte();
-            ushort flags = reader.ReadUInt16();
-            ushort headerSize = reader.ReadUInt16();
-
-            if (headerSize < BaseHeaderSize)
-            {
-                break;
-            }
-
-            uint addSize = 0;
-            bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
-                              || typeRaw == (byte)SRRBlockType.StoredFile;
-
-            if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
-            {
-                addSize = reader.ReadUInt32();
-            }
-
-            long totalBlockSize = headerSize + addSize;
-
-            if (blockStart + totalBlockSize > input.Length)
+            if (!TryReadBlockHeader(reader, input, out SrrBlockHeader block))
             {
                 break;
             }
 
             string? name = null;
 
-            if (typeRaw == (byte)SRRBlockType.StoredFile)
+            if (block.Type == (byte)SRRBlockType.StoredFile)
             {
                 long mark = input.Position;
-                name = ReadStoredFileName(reader, input, blockStart);
+                name = ReadStoredFileName(reader, input, block.BlockStart);
                 input.Position = mark;
             }
 
-            input.Position = blockStart;
-            byte[] bytes = reader.ReadBytes((int)totalBlockSize);
-            result.Add(new BlockSnapshot(bytes, typeRaw, name));
+            input.Position = block.BlockStart;
+            byte[] bytes = reader.ReadBytes((int)block.TotalBlockSize);
+            result.Add(new BlockSnapshot(bytes, block.Type, name));
         }
 
         return result;
@@ -543,16 +389,30 @@ public static class SRREditor
 
     private static void WriteAllBlocks(string srrFilePath, List<BlockSnapshot> blocks)
     {
+        CommitViaTempFile(srrFilePath, output =>
+        {
+            foreach (BlockSnapshot b in blocks)
+            {
+                output.Write(b.Bytes, 0, b.Bytes.Length);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Runs <paramref name="body"/> against a freshly created temporary output file, then
+    /// atomically replaces <paramref name="srrFilePath"/> with it (Delete-then-Move). If
+    /// <paramref name="body"/> throws, the temporary file is removed and the original SRR is
+    /// left untouched. The body is given only the output stream; it opens its own input.
+    /// </summary>
+    private static void CommitViaTempFile(string srrFilePath, Action<FileStream> body)
+    {
         string tempPath = srrFilePath + ".tmp";
 
         try
         {
             using (FileStream output = new(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                foreach (BlockSnapshot b in blocks)
-                {
-                    output.Write(b.Bytes, 0, b.Bytes.Length);
-                }
+                body(output);
             }
 
             File.Delete(srrFilePath);
@@ -567,6 +427,58 @@ public static class SRREditor
 
             throw;
         }
+    }
+
+    /// <summary>
+    /// A parsed SRR block base header plus its computed total size.
+    /// </summary>
+    private readonly record struct SrrBlockHeader(
+        long BlockStart, ushort Crc, byte Type, ushort Flags, ushort HeaderSize, uint AddSize, long TotalBlockSize);
+
+    /// <summary>
+    /// Reads the SRR block base header (CRC, type, flags, header size and the optional
+    /// ADD_SIZE) at the current stream position and computes the total block size.
+    /// Returns <see langword="false"/> when the header is truncated, the header size is
+    /// invalid, or the block would extend past the end of the stream — in which case the
+    /// stream position is left indeterminate and the caller should stop iterating.
+    /// </summary>
+    private static bool TryReadBlockHeader(BinaryReader reader, Stream input, out SrrBlockHeader header)
+    {
+        header = default;
+
+        long blockStart = input.Position;
+        if (blockStart + BaseHeaderSize > input.Length)
+        {
+            return false;
+        }
+
+        ushort crc = reader.ReadUInt16();
+        byte typeRaw = reader.ReadByte();
+        ushort flags = reader.ReadUInt16();
+        ushort headerSize = reader.ReadUInt16();
+
+        if (headerSize < BaseHeaderSize)
+        {
+            return false;
+        }
+
+        uint addSize = 0;
+        bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
+                          || typeRaw == (byte)SRRBlockType.StoredFile;
+
+        if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
+        {
+            addSize = reader.ReadUInt32();
+        }
+
+        long totalBlockSize = headerSize + addSize;
+        if (blockStart + totalBlockSize > input.Length)
+        {
+            return false;
+        }
+
+        header = new SrrBlockHeader(blockStart, crc, typeRaw, flags, headerSize, addSize, totalBlockSize);
+        return true;
     }
 
     private static string? ReadStoredFileName(BinaryReader reader, FileStream input, long blockStart)

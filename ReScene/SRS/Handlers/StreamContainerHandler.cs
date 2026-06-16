@@ -6,8 +6,6 @@ namespace ReScene.SRS;
 
 internal class StreamContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
-
     public SRSContainerType ContainerType => SRSContainerType.Stream;
 
     public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
@@ -50,15 +48,7 @@ internal class StreamContainerHandler : IContainerHandler
 
             crc.Append(buffer.AsSpan(0, actualRead));
 
-            if (track.SignatureBytes.Length < SignatureSize)
-            {
-                int need = SignatureSize - track.SignatureBytes.Length;
-                int take = Math.Min(need, actualRead);
-                byte[] newSig = new byte[track.SignatureBytes.Length + take];
-                track.SignatureBytes.CopyTo(newSig, 0);
-                Array.Copy(buffer, 0, newSig, track.SignatureBytes.Length, take);
-                track.SignatureBytes = newSig;
-            }
+            track.AppendSignature(buffer.AsSpan(0, actualRead), TrackInfo.SignatureSize);
 
             totalRead += actualRead;
         }

@@ -66,6 +66,39 @@ internal static class StreamUtilities
 
     /// <summary>
     /// Reads up to <paramref name="count"/> bytes from the stream, retrying until
+    /// the requested count is reached or the stream ends. The returned array is
+    /// truncated to the number of bytes actually read (it never throws on EOF).
+    /// </summary>
+    public static byte[] ReadAtMost(Stream stream, int count)
+    {
+        if (count <= 0)
+        {
+            return [];
+        }
+
+        byte[] buffer = new byte[count];
+        int totalRead = 0;
+        while (totalRead < count)
+        {
+            int read = stream.Read(buffer, totalRead, count - totalRead);
+            if (read <= 0)
+            {
+                break;
+            }
+
+            totalRead += read;
+        }
+
+        if (totalRead < count)
+        {
+            Array.Resize(ref buffer, totalRead);
+        }
+
+        return buffer;
+    }
+
+    /// <summary>
+    /// Reads up to <paramref name="count"/> bytes from the stream, retrying until
     /// the requested count is reached or the stream ends.
     /// </summary>
     public static int ReadFully(Stream stream, byte[] buffer, int offset, int count)

@@ -6,8 +6,6 @@ namespace ReScene.SRS;
 
 internal class AVIContainerHandler : IContainerHandler
 {
-    private const int SignatureSize = 256;
-
     public SRSContainerType ContainerType => SRSContainerType.AVI;
 
     public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
@@ -142,18 +140,7 @@ internal class AVIContainerHandler : IContainerHandler
                     crc.Append(moviData);
 
                     // Build signature from first SignatureSize bytes of track data
-                    if (track.SignatureBytes.Length < SignatureSize)
-                    {
-                        int need = SignatureSize - track.SignatureBytes.Length;
-                        int take = Math.Min(need, moviData.Length);
-                        if (take > 0)
-                        {
-                            byte[] newSig = new byte[track.SignatureBytes.Length + take];
-                            track.SignatureBytes.CopyTo(newSig, 0);
-                            Array.Copy(moviData, 0, newSig, track.SignatureBytes.Length, take);
-                            track.SignatureBytes = newSig;
-                        }
-                    }
+                    track.AppendSignature(moviData, TrackInfo.SignatureSize);
                 }
                 else
                 {
