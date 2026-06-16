@@ -2,26 +2,9 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SRRFileRealDataTests : IDisposable
+public class SRRFileRealDataTests : TempDirTestBase
 {
     private static readonly string TestDataDir = Path.Combine(AppContext.BaseDirectory, "TestData");
-    private readonly string _tempDir;
-
-    public SRRFileRealDataTests()
-    {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"srrlib_realdata_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_tempDir, true);
-        }
-        catch { }
-        GC.SuppressFinalize(this);
-    }
 
     private static string TestFile(params string[] parts)
     {
@@ -852,7 +835,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_little", "store_little_srrfile_with_path.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name.EndsWith(".srr", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extractedPath);
@@ -867,7 +850,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_little", "store_little_srrfile_with_path.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name.EndsWith(".srr", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extractedPath);
@@ -880,7 +863,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_utf8_comment", "utf8_filename_added.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name.Contains("\u039A\u03B5\u03AF\u03BC\u03B5\u03BD\u03BF", StringComparison.Ordinal));
 
         Assert.NotNull(extractedPath);
@@ -895,7 +878,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_little", "store_little.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name == "does_not_exist.txt");
 
         Assert.Null(extractedPath);
@@ -907,7 +890,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_empty", "added_empty_file.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name == "empty_file.txt");
 
         Assert.NotNull(extractedPath);
@@ -922,7 +905,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name.EndsWith(".sfv", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extractedPath);
@@ -937,7 +920,7 @@ public class SRRFileRealDataTests : IDisposable
         string srrPath = TestFile("store_little", "store_little_srrfile_with_path.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name.EndsWith(".srr", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extractedPath);
@@ -955,7 +938,7 @@ public class SRRFileRealDataTests : IDisposable
             "007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr");
         var srr = SRRFile.Load(srrPath);
 
-        string? extractedPath = srr.ExtractStoredFile(srrPath, _tempDir,
+        string? extractedPath = srr.ExtractStoredFile(srrPath, TempDir,
             name => name.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extractedPath);

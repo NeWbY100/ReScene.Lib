@@ -9,6 +9,20 @@ public class RARStreamTests
     private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
     private static readonly string TestDataPath = Path.Combine(AppContext.BaseDirectory, "TestData");
 
+    /// <summary>
+    /// Creates a fresh, uniquely-named temporary directory for a single test and
+    /// returns its path. Each call uses a new GUID so the multi-volume tests never
+    /// share a directory (their volume file names are fixed, so a shared directory
+    /// would collide across parallel tests). Callers are responsible for cleanup
+    /// (typically a try/finally that deletes the returned directory).
+    /// </summary>
+    private static string CreateTestDir()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
     #region RAR4 Builder Helpers
 
     /// <summary>
@@ -148,8 +162,7 @@ public class RARStreamTests
     [Fact]
     public void Constructor_SingleVolume_OpensSuccessfully()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = "Hello, World!"u8.ToArray();
@@ -169,8 +182,7 @@ public class RARStreamTests
     [Fact]
     public void Constructor_NullPackedFileName_UsesFirstFileFound()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = "content"u8.ToArray();
@@ -189,8 +201,7 @@ public class RARStreamTests
     [Fact]
     public void Constructor_SpecificPackedFileName_FindsCorrectFile()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = "target file data"u8.ToArray();
@@ -210,8 +221,7 @@ public class RARStreamTests
     [Fact]
     public void Constructor_FileNotInArchive_ThrowsArgumentException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = "some data"u8.ToArray();
@@ -232,8 +242,7 @@ public class RARStreamTests
     [Fact]
     public void CanRead_NotDisposed_ReturnsTrue()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -250,8 +259,7 @@ public class RARStreamTests
     [Fact]
     public void CanSeek_NotDisposed_ReturnsTrue()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -268,8 +276,7 @@ public class RARStreamTests
     [Fact]
     public void CanWrite_ReturnsFalse()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -286,8 +293,7 @@ public class RARStreamTests
     [Fact]
     public void Length_ReturnsPackedFileLength()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = new byte[256];
@@ -305,8 +311,7 @@ public class RARStreamTests
     [Fact]
     public void Position_InitiallyZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -323,8 +328,7 @@ public class RARStreamTests
     [Fact]
     public void Write_ThrowsNotSupportedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -341,8 +345,7 @@ public class RARStreamTests
     [Fact]
     public void SetLength_ThrowsNotSupportedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -363,8 +366,7 @@ public class RARStreamTests
     [Fact]
     public void Read_SingleVolume_ReadsEntireFile()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] expected = Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog.");
@@ -386,8 +388,7 @@ public class RARStreamTests
     [Fact]
     public void Read_PartialRead_ReturnsRequestedBytes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99];
@@ -409,8 +410,7 @@ public class RARStreamTests
     [Fact]
     public void Read_PastEnd_ReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -436,8 +436,7 @@ public class RARStreamTests
     [Fact]
     public void Read_MoreThanAvailable_ReturnsAvailableBytes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0xAA, 0xBB, 0xCC];
@@ -461,8 +460,7 @@ public class RARStreamTests
     [Fact]
     public void Read_WithOffset_WritesToCorrectPosition()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x11, 0x22, 0x33];
@@ -487,8 +485,7 @@ public class RARStreamTests
     [Fact]
     public void Read_ZeroCount_ReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -513,8 +510,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_Begin_SetsPositionFromStart()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
@@ -539,8 +535,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_Current_MovesRelativeToCurrentPosition()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
@@ -565,8 +560,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_End_MovesRelativeToEnd()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
@@ -590,8 +584,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_NegativeResult_ThrowsArgumentOutOfRangeException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -609,8 +602,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_BeyondEnd_AllowedButReadReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -634,8 +626,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_ToVariousPositions_ReadsCorrectData()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = new byte[256];
@@ -680,8 +671,7 @@ public class RARStreamTests
     [Fact]
     public void Position_Set_NegativeValue_ThrowsArgumentOutOfRangeException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -699,8 +689,7 @@ public class RARStreamTests
     [Fact]
     public void Position_AdvancesAfterRead()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03, 0x04, 0x05];
@@ -725,8 +714,7 @@ public class RARStreamTests
     [Fact]
     public void Dispose_ClosesAllHandles()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -750,8 +738,7 @@ public class RARStreamTests
     [Fact]
     public void Dispose_CalledTwice_DoesNotThrow()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -770,8 +757,7 @@ public class RARStreamTests
     [Fact]
     public void Read_AfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -792,8 +778,7 @@ public class RARStreamTests
     [Fact]
     public void Seek_AfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -813,8 +798,7 @@ public class RARStreamTests
     [Fact]
     public void Length_AfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -834,8 +818,7 @@ public class RARStreamTests
     [Fact]
     public void Position_GetAfterDispose_ThrowsObjectDisposedException()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];
@@ -859,8 +842,7 @@ public class RARStreamTests
     [Fact]
     public void Read_MultiVolume_NewStyle_ReadsAcrossVolumes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             // Create a file split across 3 new-style volumes
@@ -901,8 +883,7 @@ public class RARStreamTests
     [Fact]
     public void Read_MultiVolume_NewStyle_SeekAcrossVolumes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] part1Data = [0x10, 0x20, 0x30, 0x40, 0x50];
@@ -940,8 +921,7 @@ public class RARStreamTests
     [Fact]
     public void Read_MultiVolume_NewStyle_ReadSpanningBoundary()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] part1Data = [0xAA, 0xBB, 0xCC];
@@ -979,8 +959,7 @@ public class RARStreamTests
     [Fact]
     public void Read_MultiVolume_OldStyle_ReadsAcrossVolumes()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             // Old-style: test.rar -> test.r00 -> test.r01
@@ -1093,8 +1072,7 @@ public class RARStreamTests
     [Fact]
     public void Read_EmptyBuffer_ReturnsZero()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
@@ -1114,8 +1092,7 @@ public class RARStreamTests
     [Fact]
     public void Read_SequentialSmallReads_ReadsCorrectData()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = new byte[10];
@@ -1148,8 +1125,7 @@ public class RARStreamTests
     [Fact]
     public void Flush_DoesNotThrow()
     {
-        string dir = Path.Combine(Path.GetTempPath(), "RARStreamTest_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
+        string dir = CreateTestDir();
         try
         {
             byte[] data = [0x01];

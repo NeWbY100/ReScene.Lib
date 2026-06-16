@@ -1,5 +1,3 @@
-using System.Buffers.Binary;
-using System.Text;
 using ReScene.SRS;
 
 namespace ReScene.Tests;
@@ -8,26 +6,8 @@ namespace ReScene.Tests;
 /// Dedicated tests for SRSFile.Load() parsing across all container formats.
 /// Uses SRSWriter to create temp SRS files, then validates SRSFile parses them correctly.
 /// </summary>
-public class SRSFileTests : IDisposable
+public class SRSFileTests : TempDirTestBase
 {
-    private readonly string _tempDir;
-
-    public SRSFileTests()
-    {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"srsfile_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_tempDir, true);
-        }
-        catch { }
-        GC.SuppressFinalize(this);
-    }
-
     #region Container Type Detection
 
     [Fact]
@@ -120,7 +100,7 @@ public class SRSFileTests : IDisposable
     public async Task Load_AVISRS_FileDataHasCorrectAppName()
     {
         string samplePath = BuildSyntheticAVI("avi_app.avi");
-        string srsPath = Path.Combine(_tempDir, "avi_app.srs");
+        string srsPath = Path.Combine(TempDir, "avi_app.srs");
 
         var writer = new SRSWriter();
         var options = new SRSCreationOptions { AppName = "TestSRSApp" };
@@ -150,7 +130,7 @@ public class SRSFileTests : IDisposable
     public async Task Load_AVISRS_FileDataHasCorrectCRC32()
     {
         string samplePath = BuildSyntheticAVI("avi_crc.avi");
-        string srsPath = Path.Combine(_tempDir, "avi_crc.srs");
+        string srsPath = Path.Combine(TempDir, "avi_crc.srs");
 
         var writer = new SRSWriter();
         SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
@@ -343,7 +323,7 @@ public class SRSFileTests : IDisposable
     public async Task Load_AllFormats_RoundTripsCorrectly(string format, SRSContainerType expectedType)
     {
         string samplePath = BuildSyntheticByFormat(format);
-        string srsPath = Path.Combine(_tempDir, $"roundtrip_{format}.srs");
+        string srsPath = Path.Combine(TempDir, $"roundtrip_{format}.srs");
 
         var writer = new SRSWriter();
         SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
@@ -368,7 +348,7 @@ public class SRSFileTests : IDisposable
     public async Task Load_AllFormats_TracksHaveValidSignatures(string format, SRSContainerType _)
     {
         string samplePath = BuildSyntheticByFormat(format);
-        string srsPath = Path.Combine(_tempDir, $"sig_{format}.srs");
+        string srsPath = Path.Combine(TempDir, $"sig_{format}.srs");
 
         var writer = new SRSWriter();
         SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
@@ -391,7 +371,7 @@ public class SRSFileTests : IDisposable
     [Fact]
     public void Load_NonExistentFile_ThrowsFileNotFoundException()
     {
-        string fakePath = Path.Combine(_tempDir, "does_not_exist.srs");
+        string fakePath = Path.Combine(TempDir, "does_not_exist.srs");
 
         Assert.Throws<FileNotFoundException>(() => SRSFile.Load(fakePath));
     }
@@ -399,7 +379,7 @@ public class SRSFileTests : IDisposable
     [Fact]
     public void Load_FileTooSmall_ThrowsInvalidDataException()
     {
-        string path = Path.Combine(_tempDir, "tiny.srs");
+        string path = Path.Combine(TempDir, "tiny.srs");
         File.WriteAllBytes(path, [0x00, 0x01]);
 
         Assert.Throws<InvalidDataException>(() => SRSFile.Load(path));
@@ -469,7 +449,7 @@ public class SRSFileTests : IDisposable
 
     private async Task<string> CreateSRSFromSynthetic(string samplePath, string srsFileName)
     {
-        string srsPath = Path.Combine(_tempDir, srsFileName);
+        string srsPath = Path.Combine(TempDir, srsFileName);
         var writer = new SRSWriter();
         SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(result.Success, result.ErrorMessage);
@@ -487,246 +467,27 @@ public class SRSFileTests : IDisposable
         _ => throw new ArgumentException($"Unknown format: {format}")
     };
 
-    private static byte[] CreateTestData(int size)
-    {
-        byte[] data = new byte[size];
-        var rng = new Random(42);
-        rng.NextBytes(data);
-        return data;
-    }
-
     #endregion
 
     #region Synthetic File Builders
 
-    private string BuildSyntheticAVI(string fileName)
-    {
-        string path = Path.Combine(_tempDir, fileName);
-        using var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
+    private string BuildSyntheticAVI(string fileName) =>
+        SyntheticSampleBuilder.BuildAvi(Path.Combine(TempDir, fileName));
 
-        var moviContent = new MemoryStream();
-        var moviWriter = new BinaryWriter(moviContent);
+    private string BuildSyntheticMKV(string fileName) =>
+        SyntheticSampleBuilder.BuildMkv(Path.Combine(TempDir, fileName));
 
-        byte[] videoData = CreateTestData(512);
-        moviWriter.Write(Encoding.ASCII.GetBytes("00dc"));
-        moviWriter.Write((uint)videoData.Length);
-        moviWriter.Write(videoData);
+    private string BuildSyntheticMP4(string fileName) =>
+        SyntheticSampleBuilder.BuildMp4(Path.Combine(TempDir, fileName));
 
-        byte[] audioData = CreateTestData(256);
-        moviWriter.Write(Encoding.ASCII.GetBytes("01wb"));
-        moviWriter.Write((uint)audioData.Length);
-        moviWriter.Write(audioData);
+    private string BuildSyntheticFlac(string fileName) =>
+        SyntheticSampleBuilder.BuildFlac(Path.Combine(TempDir, fileName));
 
-        byte[] moviBytes = moviContent.ToArray();
+    private string BuildSyntheticMP3(string fileName) =>
+        SyntheticSampleBuilder.BuildMp3(Path.Combine(TempDir, fileName));
 
-        var hdrlContent = new MemoryStream();
-        var hdrlWriter = new BinaryWriter(hdrlContent);
-        byte[] avihData = new byte[56];
-        hdrlWriter.Write(Encoding.ASCII.GetBytes("avih"));
-        hdrlWriter.Write((uint)avihData.Length);
-        hdrlWriter.Write(avihData);
-        byte[] hdrlBytes = hdrlContent.ToArray();
-
-        uint hdrlSize = (uint)(4 + hdrlBytes.Length);
-        uint moviSize = (uint)(4 + moviBytes.Length);
-        uint riffSize = (uint)(4 + 8 + hdrlSize + 8 + moviSize);
-
-        bw.Write(Encoding.ASCII.GetBytes("RIFF"));
-        bw.Write(riffSize);
-        bw.Write(Encoding.ASCII.GetBytes("AVI "));
-
-        bw.Write(Encoding.ASCII.GetBytes("LIST"));
-        bw.Write(hdrlSize);
-        bw.Write(Encoding.ASCII.GetBytes("hdrl"));
-        bw.Write(hdrlBytes);
-
-        bw.Write(Encoding.ASCII.GetBytes("LIST"));
-        bw.Write(moviSize);
-        bw.Write(Encoding.ASCII.GetBytes("movi"));
-        bw.Write(moviBytes);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticMKV(string fileName)
-    {
-        string path = Path.Combine(_tempDir, fileName);
-        using var ms = new MemoryStream();
-
-        byte[] ebmlContent = BuildEBMLHeaderContent();
-        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
-
-        var segContent = new MemoryStream();
-        var clusterContent = new MemoryStream();
-
-        byte[] blockData = CreateTestData(512);
-        byte[] simpleBlockPayload = new byte[1 + 2 + 1 + blockData.Length];
-        simpleBlockPayload[0] = 0x81;
-        simpleBlockPayload[3] = 0x80;
-        blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
-
-        byte[] blockData2 = CreateTestData(256);
-        byte[] simpleBlockPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
-        simpleBlockPayload2[0] = 0x82;
-        simpleBlockPayload2[3] = 0x80;
-        blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
-
-        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
-        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticMP4(string fileName)
-    {
-        string path = Path.Combine(_tempDir, fileName);
-        using var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
-
-        byte[] ftypData = Encoding.ASCII.GetBytes("isom\x00\x00\x02\x00isomiso2mp41");
-        WriteAtomBE(bw, "ftyp", ftypData);
-
-        byte[] moovData = new byte[32];
-        WriteAtomBE(bw, "moov", moovData);
-
-        byte[] mdatData = CreateTestData(1024);
-        WriteAtomBE(bw, "mdat", mdatData);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticFlac(string fileName)
-    {
-        string path = Path.Combine(_tempDir, fileName);
-        using var ms = new MemoryStream();
-
-        ms.Write(Encoding.ASCII.GetBytes("fLaC"));
-
-        byte[] streamInfo = new byte[34];
-        byte header = 0x80;
-        ms.WriteByte(header);
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-        ms.WriteByte(34);
-        ms.Write(streamInfo);
-
-        byte[] frameData = CreateTestData(512);
-        ms.Write(frameData);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticMP3(string fileName)
-    {
-        string path = Path.Combine(_tempDir, fileName);
-        using var ms = new MemoryStream();
-
-        ms.Write(Encoding.ASCII.GetBytes("ID3"));
-        ms.WriteByte(3);
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-
-        int id3Payload = 10;
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-        ms.WriteByte((byte)id3Payload);
-
-        ms.Write(new byte[id3Payload]);
-
-        byte[] audioData = CreateTestData(512);
-        audioData[0] = 0xFF;
-        audioData[1] = 0xFB;
-        ms.Write(audioData);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticStream(string fileName)
-    {
-        string path = Path.Combine(_tempDir, fileName);
-        byte[] data = CreateTestData(1024);
-        File.WriteAllBytes(path, data);
-        return path;
-    }
-
-    private static void WriteEBMLElement(Stream stream, ulong id, byte[] data)
-    {
-        byte[] idBytes = EncodeEBMLId(id);
-        stream.Write(idBytes);
-        byte[] sizeBytes = EncodeEBMLSize(data.Length);
-        stream.Write(sizeBytes);
-        stream.Write(data);
-    }
-
-    private static byte[] EncodeEBMLId(ulong id)
-    {
-        if (id < 0x100)
-        {
-            return [(byte)id];
-        }
-
-        if (id < 0x10000)
-        {
-            return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        }
-
-        if (id < 0x1000000)
-        {
-            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
-        }
-
-        return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
-    }
-
-    private static byte[] EncodeEBMLSize(long value)
-    {
-        if (value < 0x7F)
-        {
-            return [(byte)(0x80 | value)];
-        }
-
-        if (value < 0x3FFF)
-        {
-            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        }
-
-        if (value < 0x1FFFFF)
-        {
-            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-        }
-
-        return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-    }
-
-    private static void WriteAtomBE(BinaryWriter bw, string type, byte[] data)
-    {
-        uint totalSize = (uint)(8 + data.Length);
-        Span<byte> sizeBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32BigEndian(sizeBytes, totalSize);
-        bw.Write(sizeBytes);
-        bw.Write(Encoding.ASCII.GetBytes(type));
-        bw.Write(data);
-    }
-
-    private static byte[] BuildEBMLHeaderContent()
-    {
-        var ms = new MemoryStream();
-        WriteEBMLElement(ms, 0x4286, [1]);
-        WriteEBMLElement(ms, 0x42F7, [1]);
-        WriteEBMLElement(ms, 0x42F2, [4]);
-        WriteEBMLElement(ms, 0x42F3, [8]);
-        WriteEBMLElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
-        return ms.ToArray();
-    }
+    private string BuildSyntheticStream(string fileName) =>
+        SyntheticSampleBuilder.BuildStream(Path.Combine(TempDir, fileName));
 
     #endregion
 }

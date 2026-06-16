@@ -10,32 +10,17 @@ namespace ReScene.Tests;
 /// match/mismatch reporting, the no-volumes case, cancellation, and the source-file resolution
 /// and byte-copy helpers.
 /// </summary>
-public class SRRReconstructorTests : IDisposable
+public class SRRReconstructorTests : TempDirTestBase
 {
-    private readonly string _testDir;
     private readonly string _inputDir;
     private readonly string _outputDir;
 
     public SRRReconstructorTests()
     {
-        _testDir = Path.Combine(Path.GetTempPath(), $"srrreconstructor_tests_{Guid.NewGuid():N}");
-        _inputDir = Path.Combine(_testDir, "input");
-        _outputDir = Path.Combine(_testDir, "output");
+        _inputDir = Path.Combine(TempDir, "input");
+        _outputDir = Path.Combine(TempDir, "output");
         Directory.CreateDirectory(_inputDir);
         Directory.CreateDirectory(_outputDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_testDir, true);
-        }
-        catch
-        {
-        }
-
-        GC.SuppressFinalize(this);
     }
 
     private static readonly byte[] SourcePayload = [.. Enumerable.Range(0, 64).Select(i => (byte)i)];
@@ -55,7 +40,7 @@ public class SRRReconstructorTests : IDisposable
                 .AddFileHeader(archivedName, packedSize: (uint)sourceData.Length, unpackedSize: (uint)sourceData.Length)
                 .AddEndArchive());
 
-        return builder.BuildToFile(_testDir, "test.srr");
+        return builder.BuildToFile(TempDir, "test.srr");
     }
 
     /// <summary>
@@ -109,7 +94,7 @@ public class SRRReconstructorTests : IDisposable
 
         // Compute the expected CRC from the independently-assembled oracle bytes — not from the
         // reconstructor's output — so a match genuinely validates the verify path.
-        string expectedRarPath = Path.Combine(_testDir, "oracle.rar");
+        string expectedRarPath = Path.Combine(TempDir, "oracle.rar");
         File.WriteAllBytes(expectedRarPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
         string expectedCrc = CRC32.Calculate(expectedRarPath);
 
@@ -126,7 +111,7 @@ public class SRRReconstructorTests : IDisposable
         string srr = BuildSingleVolumeSrr("test.rar", "movie.mkv", SourcePayload);
 
         // A hash guaranteed different from the real one (derived from the oracle, not hard-coded).
-        string expectedRarPath = Path.Combine(_testDir, "oracle.rar");
+        string expectedRarPath = Path.Combine(TempDir, "oracle.rar");
         File.WriteAllBytes(expectedRarPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
         string realCrc = CRC32.Calculate(expectedRarPath);
         string wrongCrc = realCrc == "00000000" ? "ffffffff" : "00000000";
@@ -146,7 +131,7 @@ public class SRRReconstructorTests : IDisposable
         string srr = new SRRTestDataBuilder()
             .AddSRRHeader("ReScene.Tests")
             .AddStoredFile("info.nfo", [1, 2, 3, 4])
-            .BuildToFile(_testDir, "test.srr");
+            .BuildToFile(TempDir, "test.srr");
 
         var reconstructor = new SRRReconstructor();
         bool result = await reconstructor.ReconstructAsync(

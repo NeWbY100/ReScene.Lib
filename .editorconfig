@@ -483,6 +483,11 @@ dotnet_diagnostic.IDE0161.severity = warning
 [ReScene.Tests/**.cs]
 dotnet_diagnostic.CA2007.severity = none
 
+# CA1515 (make types internal) polices the production library's public API; test
+# helper base classes must be public because public xUnit test classes derive from
+# them, so the rule doesn't apply to test code.
+dotnet_diagnostic.CA1515.severity = none
+
 # ── XAML files ───────────────────────────────────────────
 
 [*.xaml]

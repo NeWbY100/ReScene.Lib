@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using System.Text;
 using ReScene.SRS;
 
@@ -7,25 +6,8 @@ namespace ReScene.Tests;
 /// <summary>
 /// Tests for SRSRebuilder - reconstruction of sample files from SRS + original media.
 /// </summary>
-public class SRSRebuilderTests : IDisposable
+public class SRSRebuilderTests : TempDirTestBase
 {
-    private readonly string _tempDir;
-
-    public SRSRebuilderTests()
-    {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"srs_rebuild_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_tempDir, true);
-        }
-        catch { }
-        GC.SuppressFinalize(this);
-    }
 
     #region Signature Matching Tests
 
@@ -120,13 +102,13 @@ public class SRSRebuilderTests : IDisposable
         string mediaPath = samplePath;
 
         // Create SRS
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         // Rebuild
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.avi");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.avi");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -141,12 +123,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticAVI();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.avi");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.avi");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -165,14 +147,14 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticAVIMultiTrack();
 
-        string srsPath = Path.Combine(_tempDir, "test_multi.srs");
+        string srsPath = Path.Combine(TempDir, "test_multi.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
         Assert.True(createResult.TrackCount >= 2, "Expected multiple tracks");
 
         // Rebuild from the same file (round-trip)
-        string outputPath = Path.Combine(_tempDir, "rebuilt_multi.avi");
+        string outputPath = Path.Combine(TempDir, "rebuilt_multi.avi");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -197,12 +179,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticStream();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.vob");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.vob");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -226,12 +208,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMKV();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -246,12 +228,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMKVWithAttachments();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test_att.srs");
+        string srsPath = Path.Combine(TempDir, "test_att.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_att.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_att.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -274,12 +256,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMKV();
         string mediaPath = BuildSyntheticMovieMKV(samplePath);
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -302,12 +284,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMKV();
         string mediaPath = BuildRealisticMovieMKV();
 
-        string srsPath = Path.Combine(_tempDir, "test_realistic.srs");
+        string srsPath = Path.Combine(TempDir, "test_realistic.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_realistic.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_realistic.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -328,12 +310,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMKVWithSubtitleStyleTrack();
         string mediaPath = BuildLargerMKVWithSubtitleStyleTrack();
 
-        string srsPath = Path.Combine(_tempDir, "test_subs.srs");
+        string srsPath = Path.Combine(TempDir, "test_subs.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_subs.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_subs.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -358,7 +340,7 @@ public class SRSRebuilderTests : IDisposable
         string mediaPath = BuildLargerMKVWithSubtitleStyleTrack();
 
         var writer = new SRSWriter();
-        string srsPath = Path.Combine(_tempDir, "test_subs_finder.srs");
+        string srsPath = Path.Combine(TempDir, "test_subs_finder.srs");
         SRSCreationResult cr = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(cr.Success, cr.ErrorMessage);
 
@@ -395,12 +377,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMP4();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp4");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.mp4");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -418,12 +400,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticFlac();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.flac");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.flac");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -441,12 +423,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMP3();
         string mediaPath = samplePath;
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp3");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.mp3");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -464,13 +446,13 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticStream();
 
         // Create SRS from original
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
         // Create a corrupted "media" file (same size, different content)
-        string corruptMediaPath = Path.Combine(_tempDir, "corrupt_media.vob");
+        string corruptMediaPath = Path.Combine(TempDir, "corrupt_media.vob");
         byte[] originalData = File.ReadAllBytes(samplePath);
         byte[] corruptData = new byte[originalData.Length + 1024]; // larger file
         originalData.CopyTo(corruptData, 0);
@@ -490,7 +472,7 @@ public class SRSRebuilderTests : IDisposable
         File.WriteAllBytes(corruptMediaPath, corruptData);
 
         // Rebuild from corrupted media
-        string outputPath = Path.Combine(_tempDir, "rebuilt_corrupt.vob");
+        string outputPath = Path.Combine(TempDir, "rebuilt_corrupt.vob");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, corruptMediaPath, outputPath);
 
@@ -507,9 +489,9 @@ public class SRSRebuilderTests : IDisposable
     {
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(
-            Path.Combine(_tempDir, "nonexistent.srs"),
-            Path.Combine(_tempDir, "media.avi"),
-            Path.Combine(_tempDir, "output.avi"));
+            Path.Combine(TempDir, "nonexistent.srs"),
+            Path.Combine(TempDir, "media.avi"),
+            Path.Combine(TempDir, "output.avi"));
 
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
@@ -520,15 +502,15 @@ public class SRSRebuilderTests : IDisposable
     {
         // Create a valid SRS first
         string samplePath = BuildSyntheticStream();
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         await writer.CreateAsync(srsPath, samplePath);
 
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(
             srsPath,
-            Path.Combine(_tempDir, "nonexistent_media.vob"),
-            Path.Combine(_tempDir, "output.vob"));
+            Path.Combine(TempDir, "nonexistent_media.vob"),
+            Path.Combine(TempDir, "output.vob"));
 
         Assert.False(result.Success);
         Assert.NotNull(result.ErrorMessage);
@@ -538,7 +520,7 @@ public class SRSRebuilderTests : IDisposable
     public async Task Rebuild_CancellationToken_CancelsOperation()
     {
         string samplePath = BuildSyntheticStream();
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         await writer.CreateAsync(srsPath, samplePath);
 
@@ -548,7 +530,7 @@ public class SRSRebuilderTests : IDisposable
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(
             srsPath, samplePath,
-            Path.Combine(_tempDir, "output.vob"),
+            Path.Combine(TempDir, "output.vob"),
             cts.Token);
 
         Assert.False(result.Success);
@@ -563,7 +545,7 @@ public class SRSRebuilderTests : IDisposable
     public async Task Rebuild_ReportsProgress()
     {
         string samplePath = BuildSyntheticStream();
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         await writer.CreateAsync(srsPath, samplePath);
 
@@ -571,7 +553,7 @@ public class SRSRebuilderTests : IDisposable
         var rebuilder = new SRSRebuilder();
         rebuilder.Progress += (_, e) => phases.Add(e.Phase);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt.vob");
+        string outputPath = Path.Combine(TempDir, "rebuilt.vob");
         await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
         Assert.Contains("Loading SRS", phases);
@@ -590,12 +572,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMKVWithXiphLacing();
 
-        string srsPath = Path.Combine(_tempDir, "test_xiph.srs");
+        string srsPath = Path.Combine(TempDir, "test_xiph.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_xiph.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_xiph.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -614,12 +596,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMKVWithFixedLacing();
 
-        string srsPath = Path.Combine(_tempDir, "test_fixed.srs");
+        string srsPath = Path.Combine(TempDir, "test_fixed.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_fixed.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_fixed.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -638,12 +620,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMKVWithEBMLLacing();
 
-        string srsPath = Path.Combine(_tempDir, "test_ebml.srs");
+        string srsPath = Path.Combine(TempDir, "test_ebml.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_ebml.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_ebml.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -663,13 +645,13 @@ public class SRSRebuilderTests : IDisposable
         // Mix of non-laced video blocks and Xiph-laced audio blocks
         string samplePath = BuildSyntheticMKVWithMixedLacing();
 
-        string srsPath = Path.Combine(_tempDir, "test_mixed.srs");
+        string srsPath = Path.Combine(TempDir, "test_mixed.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
         Assert.True(createResult.TrackCount >= 2, "Expected multiple tracks");
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_mixed.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_mixed.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -689,12 +671,12 @@ public class SRSRebuilderTests : IDisposable
         string samplePath = BuildSyntheticMKVWithXiphLacing();
         string mediaPath = BuildLargerMKVWithXiphLacing();
 
-        string srsPath = Path.Combine(_tempDir, "test_xiph_media.srs");
+        string srsPath = Path.Combine(TempDir, "test_xiph_media.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_xiph_media.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_xiph_media.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
 
@@ -713,12 +695,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMKVMultiCluster();
 
-        string srsPath = Path.Combine(_tempDir, "test_multi_cluster.srs");
+        string srsPath = Path.Combine(TempDir, "test_multi_cluster.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_multi_cluster.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_multi_cluster.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -738,12 +720,12 @@ public class SRSRebuilderTests : IDisposable
         // 50 blocks across 5 clusters — stress tests the SRS walk loop
         string samplePath = BuildSyntheticMKVManyBlocks(clusterCount: 5, blocksPerCluster: 10);
 
-        string srsPath = Path.Combine(_tempDir, "test_many.srs");
+        string srsPath = Path.Combine(TempDir, "test_many.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_many.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_many.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -758,12 +740,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMKVWithTimestamps();
 
-        string srsPath = Path.Combine(_tempDir, "test_ts.srs");
+        string srsPath = Path.Combine(TempDir, "test_ts.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_ts.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_ts.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -783,12 +765,12 @@ public class SRSRebuilderTests : IDisposable
         // Uses Block (0xA1) inside BlockGroup (0xA0) instead of SimpleBlock
         string samplePath = BuildSyntheticMKVWithBlockGroup();
 
-        string srsPath = Path.Combine(_tempDir, "test_bg.srs");
+        string srsPath = Path.Combine(TempDir, "test_bg.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_bg.mkv");
+        string outputPath = Path.Combine(TempDir, "rebuilt_bg.mkv");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -811,12 +793,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMP4();
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp4");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.mp4");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -834,12 +816,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticFlac();
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.flac");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.flac");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -857,12 +839,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticMP3();
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.mp3");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.mp3");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -880,12 +862,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticStream();
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.vob");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.vob");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -907,12 +889,12 @@ public class SRSRebuilderTests : IDisposable
     {
         string samplePath = BuildSyntheticAVI();
 
-        string srsPath = Path.Combine(_tempDir, "test.srs");
+        string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
         SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
         Assert.True(createResult.Success, createResult.ErrorMessage);
 
-        string outputPath = Path.Combine(_tempDir, "rebuilt_sample.avi");
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.avi");
         var rebuilder = new SRSRebuilder();
         SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
 
@@ -927,59 +909,8 @@ public class SRSRebuilderTests : IDisposable
     /// <summary>
     /// Builds a minimal valid AVI file with video (00dc) and audio (01wb) tracks.
     /// </summary>
-    private string BuildSyntheticAVI()
-    {
-        string path = Path.Combine(_tempDir, "test_sample.avi");
-        using var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
-
-        var moviContent = new MemoryStream();
-        var moviWriter = new BinaryWriter(moviContent);
-
-        // Video chunk 00dc
-        byte[] videoData = CreateTestData(512);
-        moviWriter.Write(Encoding.ASCII.GetBytes("00dc"));
-        moviWriter.Write((uint)videoData.Length);
-        moviWriter.Write(videoData);
-
-        // Audio chunk 01wb
-        byte[] audioData = CreateTestData(256);
-        moviWriter.Write(Encoding.ASCII.GetBytes("01wb"));
-        moviWriter.Write((uint)audioData.Length);
-        moviWriter.Write(audioData);
-
-        byte[] moviBytes = moviContent.ToArray();
-
-        // Build hdrl
-        var hdrlContent = new MemoryStream();
-        var hdrlWriter = new BinaryWriter(hdrlContent);
-        byte[] avihData = new byte[56];
-        hdrlWriter.Write(Encoding.ASCII.GetBytes("avih"));
-        hdrlWriter.Write((uint)avihData.Length);
-        hdrlWriter.Write(avihData);
-        byte[] hdrlBytes = hdrlContent.ToArray();
-
-        uint hdrlSize = (uint)(4 + hdrlBytes.Length);
-        uint moviSize = (uint)(4 + moviBytes.Length);
-        uint riffSize = (uint)(4 + 8 + hdrlSize + 8 + moviSize);
-
-        bw.Write(Encoding.ASCII.GetBytes("RIFF"));
-        bw.Write(riffSize);
-        bw.Write(Encoding.ASCII.GetBytes("AVI "));
-
-        bw.Write(Encoding.ASCII.GetBytes("LIST"));
-        bw.Write(hdrlSize);
-        bw.Write(Encoding.ASCII.GetBytes("hdrl"));
-        bw.Write(hdrlBytes);
-
-        bw.Write(Encoding.ASCII.GetBytes("LIST"));
-        bw.Write(moviSize);
-        bw.Write(Encoding.ASCII.GetBytes("movi"));
-        bw.Write(moviBytes);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
+    private string BuildSyntheticAVI() =>
+        SyntheticSampleBuilder.BuildAvi(Path.Combine(TempDir, "test_sample.avi"));
 
     /// <summary>
     /// Builds an AVI with multiple interleaved video/audio chunks.
@@ -988,7 +919,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticAVIMultiTrack()
     {
-        string path = Path.Combine(_tempDir, "test_multi_sample.avi");
+        string path = Path.Combine(TempDir, "test_multi_sample.avi");
         using var ms = new MemoryStream();
         using var bw = new BinaryWriter(ms);
 
@@ -1049,42 +980,14 @@ public class SRSRebuilderTests : IDisposable
         return path;
     }
 
-    private string BuildSyntheticMKV()
-    {
-        string path = Path.Combine(_tempDir, "test_sample.mkv");
-        using var ms = new MemoryStream();
-
-        byte[] ebmlContent = BuildEBMLHeaderContent();
-        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
-
-        var segContent = new MemoryStream();
-        var clusterContent = new MemoryStream();
-
-        byte[] blockData = CreateTestData(512);
-        byte[] simpleBlockPayload = new byte[1 + 2 + 1 + blockData.Length];
-        simpleBlockPayload[0] = 0x81; // Track 1
-        simpleBlockPayload[3] = 0x80; // Keyframe
-        blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
-
-        byte[] blockData2 = CreateTestData(256, seed: 99);
-        byte[] simpleBlockPayload2 = new byte[1 + 2 + 1 + blockData2.Length];
-        simpleBlockPayload2[0] = 0x82; // Track 2
-        simpleBlockPayload2[3] = 0x80;
-        blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
-
-        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
-
-        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
+    // Track 2's second SimpleBlock uses seed 99 so the rebuilder's "movie"
+    // variants can embed byte-identical sample clusters.
+    private string BuildSyntheticMKV() =>
+        SyntheticSampleBuilder.BuildMkv(Path.Combine(TempDir, "test_sample.mkv"), block2Seed: 99);
 
     private string BuildSyntheticMKVWithAttachments()
     {
-        string path = Path.Combine(_tempDir, "test_sample_att.mkv");
+        string path = Path.Combine(TempDir, "test_sample_att.mkv");
         using var ms = new MemoryStream();
 
         byte[] ebmlContent = BuildEBMLHeaderContent();
@@ -1143,7 +1046,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMovieMKV(string samplePath)
     {
-        string path = Path.Combine(_tempDir, "test_movie.mkv");
+        string path = Path.Combine(TempDir, "test_movie.mkv");
         using var ms = new MemoryStream();
 
         byte[] ebmlContent = BuildEBMLHeaderContent();
@@ -1247,7 +1150,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildRealisticMovieMKV()
     {
-        string path = Path.Combine(_tempDir, "test_realistic_movie.mkv");
+        string path = Path.Combine(TempDir, "test_realistic_movie.mkv");
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
 
         // EBML Header
@@ -1346,89 +1249,24 @@ public class SRSRebuilderTests : IDisposable
         return path;
     }
 
-    private string BuildSyntheticMP4()
-    {
-        string path = Path.Combine(_tempDir, "test_sample.mp4");
-        using var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
+    private string BuildSyntheticMP4() =>
+        SyntheticSampleBuilder.BuildMp4(Path.Combine(TempDir, "test_sample.mp4"));
 
-        byte[] ftypData = Encoding.ASCII.GetBytes("isom\x00\x00\x02\x00isomiso2mp41");
-        WriteAtomBE(bw, "ftyp", ftypData);
+    private string BuildSyntheticFlac() =>
+        SyntheticSampleBuilder.BuildFlac(Path.Combine(TempDir, "test_sample.flac"));
 
-        byte[] moovData = new byte[32];
-        WriteAtomBE(bw, "moov", moovData);
+    private string BuildSyntheticMP3() =>
+        SyntheticSampleBuilder.BuildMp3(Path.Combine(TempDir, "test_sample.mp3"));
 
-        byte[] mdatData = CreateTestData(1024);
-        WriteAtomBE(bw, "mdat", mdatData);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticFlac()
-    {
-        string path = Path.Combine(_tempDir, "test_sample.flac");
-        using var ms = new MemoryStream();
-
-        ms.Write(Encoding.ASCII.GetBytes("fLaC"));
-
-        byte[] streamInfo = new byte[34];
-        byte header = 0x80; // is_last=1, type=0
-        ms.WriteByte(header);
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-        ms.WriteByte(34);
-        ms.Write(streamInfo);
-
-        byte[] frameData = CreateTestData(512);
-        ms.Write(frameData);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticMP3()
-    {
-        string path = Path.Combine(_tempDir, "test_sample.mp3");
-        using var ms = new MemoryStream();
-
-        // ID3v2 header
-        ms.Write(Encoding.ASCII.GetBytes("ID3"));
-        ms.WriteByte(3);
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-
-        int id3Payload = 10;
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-        ms.WriteByte(0);
-        ms.WriteByte((byte)id3Payload);
-        ms.Write(new byte[id3Payload]);
-
-        // MP3 sync frames
-        byte[] audioData = CreateTestData(512);
-        audioData[0] = 0xFF;
-        audioData[1] = 0xFB;
-        ms.Write(audioData);
-
-        File.WriteAllBytes(path, ms.ToArray());
-        return path;
-    }
-
-    private string BuildSyntheticStream()
-    {
-        string path = Path.Combine(_tempDir, "test_sample.vob");
-        byte[] data = CreateTestData(1024);
-        File.WriteAllBytes(path, data);
-        return path;
-    }
+    private string BuildSyntheticStream() =>
+        SyntheticSampleBuilder.BuildStream(Path.Combine(TempDir, "test_sample.vob"));
 
     /// <summary>
     /// Builds an MKV with a SimpleBlock using Xiph lacing (2 frames per block).
     /// </summary>
     private string BuildSyntheticMKVWithXiphLacing()
     {
-        string path = Path.Combine(_tempDir, "test_xiph_lacing.mkv");
+        string path = Path.Combine(TempDir, "test_xiph_lacing.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1468,7 +1306,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVWithFixedLacing()
     {
-        string path = Path.Combine(_tempDir, "test_fixed_lacing.mkv");
+        string path = Path.Combine(TempDir, "test_fixed_lacing.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1503,7 +1341,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVWithEBMLLacing()
     {
-        string path = Path.Combine(_tempDir, "test_ebml_lacing.mkv");
+        string path = Path.Combine(TempDir, "test_ebml_lacing.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1538,7 +1376,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVWithMixedLacing()
     {
-        string path = Path.Combine(_tempDir, "test_mixed_lacing.mkv");
+        string path = Path.Combine(TempDir, "test_mixed_lacing.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1588,7 +1426,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildLargerMKVWithXiphLacing()
     {
-        string path = Path.Combine(_tempDir, "test_xiph_movie.mkv");
+        string path = Path.Combine(TempDir, "test_xiph_movie.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1666,7 +1504,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVMultiCluster()
     {
-        string path = Path.Combine(_tempDir, "test_multi_cluster.mkv");
+        string path = Path.Combine(TempDir, "test_multi_cluster.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1705,7 +1543,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVManyBlocks(int clusterCount, int blocksPerCluster)
     {
-        string path = Path.Combine(_tempDir, "test_many_blocks.mkv");
+        string path = Path.Combine(TempDir, "test_many_blocks.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1745,7 +1583,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVWithTimestamps()
     {
-        string path = Path.Combine(_tempDir, "test_timestamps.mkv");
+        string path = Path.Combine(TempDir, "test_timestamps.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1810,7 +1648,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildSyntheticMKVWithSubtitleStyleTrack()
     {
-        string path = Path.Combine(_tempDir, "test_sub_sample.mkv");
+        string path = Path.Combine(TempDir, "test_sub_sample.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1864,7 +1702,7 @@ public class SRSRebuilderTests : IDisposable
     /// </summary>
     private string BuildLargerMKVWithSubtitleStyleTrack()
     {
-        string path = Path.Combine(_tempDir, "test_sub_movie.mkv");
+        string path = Path.Combine(TempDir, "test_sub_movie.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -1975,7 +1813,7 @@ public class SRSRebuilderTests : IDisposable
 
     private string BuildSyntheticMKVWithBlockGroup()
     {
-        string path = Path.Combine(_tempDir, "test_blockgroup.mkv");
+        string path = Path.Combine(TempDir, "test_blockgroup.mkv");
         using var ms = new MemoryStream();
 
         WriteEBMLElement(ms, 0x1A45DFA3, BuildEBMLHeaderContent());
@@ -2017,82 +1855,23 @@ public class SRSRebuilderTests : IDisposable
 
     #region Helpers
 
-    private static byte[] CreateTestData(int size, int seed = 42)
-    {
-        byte[] data = new byte[size];
-        new Random(seed).NextBytes(data);
-        return data;
-    }
+    // Thin forwarders to the shared SyntheticSampleBuilder primitives, keeping
+    // the extra rebuilder-only builders (movie/lacing/subtitle variants) and
+    // lacing helpers below unchanged.
+    private static byte[] CreateTestData(int size, int seed = 42) =>
+        SyntheticSampleBuilder.CreateTestData(size, seed);
 
-    private static void WriteEBMLElement(Stream stream, ulong id, byte[] data)
-    {
-        byte[] idBytes = EncodeEBMLId(id);
-        stream.Write(idBytes);
-        byte[] sizeBytes = EncodeEBMLSize(data.Length);
-        stream.Write(sizeBytes);
-        stream.Write(data);
-    }
+    private static void WriteEBMLElement(Stream stream, ulong id, byte[] data) =>
+        SyntheticSampleBuilder.WriteEbmlElement(stream, id, data);
 
-    private static byte[] EncodeEBMLId(ulong id)
-    {
-        if (id < 0x100)
-        {
-            return [(byte)id];
-        }
+    private static byte[] EncodeEBMLId(ulong id) =>
+        SyntheticSampleBuilder.EncodeEbmlId(id);
 
-        if (id < 0x10000)
-        {
-            return [(byte)(id >> 8), (byte)(id & 0xFF)];
-        }
+    private static byte[] EncodeEBMLSize(long value) =>
+        SyntheticSampleBuilder.EncodeEbmlSize(value);
 
-        if (id < 0x1000000)
-        {
-            return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
-        }
-
-        return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
-    }
-
-    private static byte[] EncodeEBMLSize(long value)
-    {
-        if (value < 0x7F)
-        {
-            return [(byte)(0x80 | value)];
-        }
-
-        if (value < 0x3FFF)
-        {
-            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
-        }
-
-        if (value < 0x1FFFFF)
-        {
-            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-        }
-
-        return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
-    }
-
-    private static void WriteAtomBE(BinaryWriter bw, string type, byte[] data)
-    {
-        uint totalSize = (uint)(8 + data.Length);
-        Span<byte> sizeBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32BigEndian(sizeBytes, totalSize);
-        bw.Write(sizeBytes);
-        bw.Write(Encoding.ASCII.GetBytes(type));
-        bw.Write(data);
-    }
-
-    private static byte[] BuildEBMLHeaderContent()
-    {
-        var ms = new MemoryStream();
-        WriteEBMLElement(ms, 0x4286, [1]);
-        WriteEBMLElement(ms, 0x42F7, [1]);
-        WriteEBMLElement(ms, 0x42F2, [4]);
-        WriteEBMLElement(ms, 0x42F3, [8]);
-        WriteEBMLElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
-        return ms.ToArray();
-    }
+    private static byte[] BuildEBMLHeaderContent() =>
+        SyntheticSampleBuilder.BuildEbmlHeaderContent();
 
     /// <summary>
     /// Builds a SimpleBlock payload with Xiph lacing.

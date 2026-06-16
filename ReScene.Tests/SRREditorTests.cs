@@ -2,28 +2,8 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SRREditorTests : IDisposable
+public class SRREditorTests : TempDirTestBase
 {
-    private readonly string _testDir;
-
-    public SRREditorTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"srreditor_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_testDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_testDir, true);
-        }
-        catch
-        {
-        }
-
-        GC.SuppressFinalize(this);
-    }
 
     [Fact]
     public void RenameStoredFile_RewritesOnlyTargetBlock()
@@ -32,7 +12,7 @@ public class SRREditorTests : IDisposable
             .AddSRRHeader()
             .AddStoredFile("old.nfo", [1, 2, 3])
             .AddStoredFile("keep.nfo", [4, 5])
-            .BuildToFile(_testDir, "rename.srr");
+            .BuildToFile(TempDir, "rename.srr");
 
         SRREditor.RenameStoredFile(path, "old.nfo", "new.nfo");
 
@@ -49,7 +29,7 @@ public class SRREditorTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("a.bin", payload)
-            .BuildToFile(_testDir, "rename2.srr");
+            .BuildToFile(TempDir, "rename2.srr");
 
         SRREditor.RenameStoredFile(path, "a.bin", "b.bin");
 
@@ -71,7 +51,7 @@ public class SRREditorTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("a.nfo", [0])
-            .BuildToFile(_testDir, "rename3.srr");
+            .BuildToFile(TempDir, "rename3.srr");
 
         Assert.Throws<InvalidOperationException>(
             () => SRREditor.RenameStoredFile(path, "missing.nfo", "x.nfo"));
@@ -82,7 +62,7 @@ public class SRREditorTests : IDisposable
     {
         Assert.Throws<FileNotFoundException>(
             () => SRREditor.RenameStoredFile(
-                Path.Combine(_testDir, "missing.srr"), "a.nfo", "b.nfo"));
+                Path.Combine(TempDir, "missing.srr"), "a.nfo", "b.nfo"));
     }
 
     [Fact]
@@ -93,7 +73,7 @@ public class SRREditorTests : IDisposable
             .AddStoredFile("a.nfo", [1])
             .AddStoredFile("b.nfo", [2])
             .AddStoredFile("c.nfo", [3])
-            .BuildToFile(_testDir, "reorder.srr");
+            .BuildToFile(TempDir, "reorder.srr");
 
         SRREditor.MoveStoredFile(path, "b.nfo", offset: -1);
 
@@ -109,7 +89,7 @@ public class SRREditorTests : IDisposable
             .AddStoredFile("a.nfo", [1])
             .AddStoredFile("b.nfo", [2])
             .AddStoredFile("c.nfo", [3])
-            .BuildToFile(_testDir, "reorder2.srr");
+            .BuildToFile(TempDir, "reorder2.srr");
 
         SRREditor.MoveStoredFile(path, "b.nfo", offset: 1);
 
@@ -124,7 +104,7 @@ public class SRREditorTests : IDisposable
             .AddSRRHeader()
             .AddStoredFile("a.nfo", [1])
             .AddStoredFile("b.nfo", [2])
-            .BuildToFile(_testDir, "reorder3.srr");
+            .BuildToFile(TempDir, "reorder3.srr");
 
         SRREditor.MoveStoredFile(path, "a.nfo", offset: -1);
 
@@ -138,7 +118,7 @@ public class SRREditorTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("a.nfo", [1])
-            .BuildToFile(_testDir, "reorder4.srr");
+            .BuildToFile(TempDir, "reorder4.srr");
 
         Assert.Throws<InvalidOperationException>(
             () => SRREditor.MoveStoredFile(path, "missing.nfo", offset: 1));

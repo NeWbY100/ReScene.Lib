@@ -8,30 +8,8 @@ namespace ReScene.Tests;
 /// Tests parsing of MKV/WebM files into a full EBML element tree (<see cref="MKVFileData"/>) and the
 /// element-tree comparison (<see cref="FileComparer.CompareMKVFiles"/>).
 /// </summary>
-public class MKVFileDataTests : IDisposable
+public class MKVFileDataTests : TempDirTestBase
 {
-    private readonly string _tempDir;
-
-    public MKVFileDataTests()
-    {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"mkvfiledata_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_tempDir, true);
-        }
-        catch (IOException)
-        {
-            // Best-effort cleanup.
-        }
-
-        GC.SuppressFinalize(this);
-    }
-
     #region EBML encoding helpers
 
     /// <summary>
@@ -166,7 +144,7 @@ public class MKVFileDataTests : IDisposable
 
     private string WriteMkv(string name, byte[] bytes)
     {
-        string path = Path.Combine(_tempDir, name);
+        string path = Path.Combine(TempDir, name);
         File.WriteAllBytes(path, bytes);
         return path;
     }

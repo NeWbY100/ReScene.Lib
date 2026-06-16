@@ -3,28 +3,10 @@ using ReScene.RAR;
 
 namespace ReScene.Tests;
 
-public class RARPatcherTests : IDisposable
+public class RARPatcherTests : TempDirTestBase
 {
     private static readonly string TestDataPath = Path.Combine(
         AppContext.BaseDirectory, "TestData");
-
-    private readonly string _testDir;
-
-    public RARPatcherTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"rarpatcher_tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_testDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_testDir, true);
-        }
-        catch { }
-        GC.SuppressFinalize(this);
-    }
 
     /// <summary>
     /// Copies a test RAR file to the temp directory for patching tests.
@@ -32,7 +14,7 @@ public class RARPatcherTests : IDisposable
     private string CopyTestFile(string fileName)
     {
         string source = Path.Combine(TestDataPath, fileName);
-        string dest = Path.Combine(_testDir, fileName);
+        string dest = Path.Combine(TempDir, fileName);
         File.Copy(source, dest, true);
         return dest;
     }
@@ -895,7 +877,7 @@ public class RARPatcherTests : IDisposable
         byte[] rarData = BuildRar4WithLargeFileHeader(
             addSize: 128, highPackSize: 0, actualDataLength: 128, secondHostOS: 3);
 
-        string testFile = Path.Combine(_testDir, "large_analyze.rar");
+        string testFile = Path.Combine(TempDir, "large_analyze.rar");
         File.WriteAllBytes(testFile, rarData);
 
         var options = new PatchOptions { FileHostOS = 0 }; // Would change both from Windows(2) to MS-DOS(0)
@@ -1079,7 +1061,7 @@ public class RARPatcherTests : IDisposable
         byte[] rarData = BuildRar4WithLargeServiceBlock(
             addSize: 150, highPackSize: 0, actualDataLength: 150, fileHostOS: 2);
 
-        string testFile = Path.Combine(_testDir, "large_svc_analyze.rar");
+        string testFile = Path.Combine(TempDir, "large_svc_analyze.rar");
         File.WriteAllBytes(testFile, rarData);
 
         var options = new PatchOptions
@@ -1215,7 +1197,7 @@ public class RARPatcherTests : IDisposable
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });    // 0x6C2F50 = 7,090,000
 
-        string testFile = Path.Combine(_testDir, "mtime_patch.rar");
+        string testFile = Path.Combine(TempDir, "mtime_patch.rar");
         File.WriteAllBytes(testFile, rarData);
 
         // Target: the original sub-second value (0x6C4A30 = 7,096,880).
@@ -1254,7 +1236,7 @@ public class RARPatcherTests : IDisposable
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F });    // 0x0F4240 = 1,000,000
 
-        string testFile = Path.Combine(_testDir, "mtime_roundtrip.rar");
+        string testFile = Path.Combine(TempDir, "mtime_roundtrip.rar");
         File.WriteAllBytes(testFile, rarData);
 
         var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
@@ -1298,7 +1280,7 @@ public class RARPatcherTests : IDisposable
             extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C },
             extMtimeNeedsRounding: false);
 
-        string testFile = Path.Combine(_testDir, "mtime_odd_second.rar");
+        string testFile = Path.Combine(TempDir, "mtime_odd_second.rar");
         File.WriteAllBytes(testFile, rarData);
 
         // Target at an ODD second — encoder must flip the rounding bit on.
@@ -1341,7 +1323,7 @@ public class RARPatcherTests : IDisposable
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: expectedExtBytes);
 
-        string testFile = Path.Combine(_testDir, "mtime_no_match.rar");
+        string testFile = Path.Combine(TempDir, "mtime_no_match.rar");
         File.WriteAllBytes(testFile, rarData);
 
         var options = new PatchOptions
@@ -1373,7 +1355,7 @@ public class RARPatcherTests : IDisposable
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: null);
 
-        string testFile = Path.Combine(_testDir, "mtime_no_exttime.rar");
+        string testFile = Path.Combine(TempDir, "mtime_no_exttime.rar");
         File.WriteAllBytes(testFile, rarData);
 
         var target = new DateTime(2026, 04, 20, 09, 02, 04);
@@ -1402,7 +1384,7 @@ public class RARPatcherTests : IDisposable
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });
 
-        string testFile = Path.Combine(_testDir, "mtime_crc.rar");
+        string testFile = Path.Combine(TempDir, "mtime_crc.rar");
         File.WriteAllBytes(testFile, rarData);
 
         var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
@@ -1488,7 +1470,7 @@ public class RARPatcherTests : IDisposable
         BitConverter.GetBytes((ushort)(endCRC & 0xFFFF)).CopyTo(endBlock, 0);
         writer.Write(endBlock);
 
-        string testFile = Path.Combine(_testDir, "mtime_nibble_clear.rar");
+        string testFile = Path.Combine(TempDir, "mtime_nibble_clear.rar");
         File.WriteAllBytes(testFile, ms.ToArray());
 
         var target = new DateTime(2026, 04, 20, 09, 02, 04);

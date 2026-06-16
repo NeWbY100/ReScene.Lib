@@ -2,27 +2,9 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SRRWriterRealDataTests : IDisposable
+public class SRRWriterRealDataTests : TempDirTestBase
 {
-    private readonly string _testDir;
-    private readonly string _testDataDir;
-
-    public SRRWriterRealDataTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"srrwriter_realdata_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_testDir);
-        _testDataDir = Path.Combine(AppContext.BaseDirectory, "TestData");
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_testDir, true);
-        }
-        catch { }
-        GC.SuppressFinalize(this);
-    }
+    private readonly string _testDataDir = Path.Combine(AppContext.BaseDirectory, "TestData");
 
     #region CreateAsync — Single Volume (store_little)
 
@@ -35,7 +17,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "store_little.srr");
+        string srrPath = Path.Combine(TempDir, "store_little.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
@@ -60,7 +42,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "store_little_stored.srr");
+        string srrPath = Path.Combine(TempDir, "store_little_stored.srr");
 
         List<StoredFileEntry> storedFiles =
         [
@@ -80,7 +62,7 @@ public class SRRWriterRealDataTests : IDisposable
         Assert.Equal("empty_file.txt", srr.StoredFiles[1].FileName);
 
         // Verify stored file content round-trips
-        string extractDir = Path.Combine(_testDir, "extracted");
+        string extractDir = Path.Combine(TempDir, "extracted");
         string? extracted = srr.ExtractStoredFile(srrPath, extractDir, n => n == "little_file.txt");
         Assert.NotNull(extracted);
 
@@ -112,7 +94,7 @@ public class SRRWriterRealDataTests : IDisposable
             }
         }
 
-        string srrPath = Path.Combine(_testDir, "multi_new.srr");
+        string srrPath = Path.Combine(TempDir, "multi_new.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
@@ -152,7 +134,7 @@ public class SRRWriterRealDataTests : IDisposable
             }
         }
 
-        string srrPath = Path.Combine(_testDir, "multi_old.srr");
+        string srrPath = Path.Combine(TempDir, "multi_old.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths);
@@ -180,7 +162,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "empty.srr");
+        string srrPath = Path.Combine(TempDir, "empty.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
@@ -208,7 +190,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "best_little.srr");
+        string srrPath = Path.Combine(TempDir, "best_little.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath]);
@@ -251,7 +233,7 @@ public class SRRWriterRealDataTests : IDisposable
             }
         }
 
-        string srrPath = Path.Combine(_testDir, "from_sfv_new.srr");
+        string srrPath = Path.Combine(TempDir, "from_sfv_new.srr");
 
         var writer = new SRRWriter();
         List<StoredFileEntry> storedFiles =
@@ -293,7 +275,7 @@ public class SRRWriterRealDataTests : IDisposable
             }
         }
 
-        string srrPath = Path.Combine(_testDir, "from_sfv_old.srr");
+        string srrPath = Path.Combine(TempDir, "from_sfv_old.srr");
 
         var writer = new SRRWriter();
         List<StoredFileEntry> storedFiles =
@@ -330,7 +312,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "compare_store_little.srr");
+        string srrPath = Path.Combine(TempDir, "compare_store_little.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
@@ -382,7 +364,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "compare_multi_new.srr");
+        string srrPath = Path.Combine(TempDir, "compare_multi_new.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths,
@@ -434,7 +416,7 @@ public class SRRWriterRealDataTests : IDisposable
             return;
         }
 
-        string srrPath = Path.Combine(_testDir, "compare_multi_old.srr");
+        string srrPath = Path.Combine(TempDir, "compare_multi_old.srr");
 
         var writer = new SRRWriter();
         SRRCreationResult result = await writer.CreateAsync(srrPath, rarPaths,

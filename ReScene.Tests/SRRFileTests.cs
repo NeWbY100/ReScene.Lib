@@ -4,27 +4,8 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SRRFileTests : IDisposable
+public class SRRFileTests : TempDirTestBase
 {
-    private readonly string _testDir;
-
-    public SRRFileTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"srrlib_tests_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_testDir);
-    }
-
-    public void Dispose()
-    {
-        GC.SuppressFinalize(this);
-
-        try
-        {
-            Directory.Delete(_testDir, true);
-        }
-        catch { }
-    }
-
     #region Header Block Tests
 
     [Fact]
@@ -32,7 +13,7 @@ public class SRRFileTests : IDisposable
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .BuildToFile(_testDir, "header.srr");
+            .BuildToFile(TempDir, "header.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -45,7 +26,7 @@ public class SRRFileTests : IDisposable
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader("pyReScene 0.7")
-            .BuildToFile(_testDir, "header_appname.srr");
+            .BuildToFile(TempDir, "header_appname.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -59,7 +40,7 @@ public class SRRFileTests : IDisposable
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .BuildToFile(_testDir, "header_no_appname.srr");
+            .BuildToFile(TempDir, "header_no_appname.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -80,7 +61,7 @@ public class SRRFileTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("release.sfv", sfvData)
-            .BuildToFile(_testDir, "stored.srr");
+            .BuildToFile(TempDir, "stored.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -99,7 +80,7 @@ public class SRRFileTests : IDisposable
             .AddSRRHeader()
             .AddStoredFile("release.sfv", sfvData)
             .AddStoredFile("release.nfo", nfoData)
-            .BuildToFile(_testDir, "multi_stored.srr");
+            .BuildToFile(TempDir, "multi_stored.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -116,10 +97,10 @@ public class SRRFileTests : IDisposable
         string srrPath = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("release.sfv", sfvData)
-            .BuildToFile(_testDir, "extract.srr");
+            .BuildToFile(TempDir, "extract.srr");
 
         var srr = SRRFile.Load(srrPath);
-        string outputDir = Path.Combine(_testDir, "extracted");
+        string outputDir = Path.Combine(TempDir, "extracted");
 
         string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv", StringComparison.Ordinal));
 
@@ -136,10 +117,10 @@ public class SRRFileTests : IDisposable
         string srrPath = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("release.sfv", data)
-            .BuildToFile(_testDir, "nomatch.srr");
+            .BuildToFile(TempDir, "nomatch.srr");
 
         var srr = SRRFile.Load(srrPath);
-        string outputDir = Path.Combine(_testDir, "extracted");
+        string outputDir = Path.Combine(TempDir, "extracted");
 
         string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".nfo", StringComparison.Ordinal));
 
@@ -182,7 +163,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("testfile.txt")
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "rarfile.srr");
+            .BuildToFile(TempDir, "rarfile.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -201,7 +182,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("sample.txt", packedSize: 500, unpackedSize: 1024)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "fileentries.srr");
+            .BuildToFile(TempDir, "fileentries.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -219,7 +200,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", method: 0x35) // Best compression
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "method.srr");
+            .BuildToFile(TempDir, "method.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -239,7 +220,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", hostOS: 3) // Unix
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "hostos.srr");
+            .BuildToFile(TempDir, "hostos.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -264,7 +245,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", hostOS: hostOS)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, $"hostos_{hostOS}.srr");
+            .BuildToFile(TempDir, $"hostos_{hostOS}.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -283,7 +264,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", fileAttributes: 0x000081B4) // Unix mode
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "attrs.srr");
+            .BuildToFile(TempDir, "attrs.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -301,7 +282,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", unpVer: 29)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "unpver.srr");
+            .BuildToFile(TempDir, "unpver.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -319,7 +300,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat")
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "volume.srr");
+            .BuildToFile(TempDir, "volume.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -339,7 +320,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat")
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "solid.srr");
+            .BuildToFile(TempDir, "solid.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -357,7 +338,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat")
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "recovery.srr");
+            .BuildToFile(TempDir, "recovery.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -382,7 +363,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock(comment, method: 0x30) // Stored
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_stored.srr");
+            .BuildToFile(TempDir, "cmt_stored.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -402,7 +383,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", hostOS: 3) // CMT: Unix
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_hostos.srr");
+            .BuildToFile(TempDir, "cmt_hostos.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -423,7 +404,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", fileTimeDOS: 0)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_zeroed_time.srr");
+            .BuildToFile(TempDir, "cmt_zeroed_time.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -445,7 +426,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", fileTimeDOS: dosTime)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_has_time.srr");
+            .BuildToFile(TempDir, "cmt_has_time.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -466,7 +447,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", method: 0x33) // Normal
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_method.srr");
+            .BuildToFile(TempDir, "cmt_method.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -485,7 +466,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", fileAttributes: 0x000081B4)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_attrs.srr");
+            .BuildToFile(TempDir, "cmt_attrs.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -504,7 +485,7 @@ public class SRRFileTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddOSOHash("video.avi", 734003200, osoHash)
-            .BuildToFile(_testDir, "osohash.srr");
+            .BuildToFile(TempDir, "osohash.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -524,7 +505,7 @@ public class SRRFileTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddRarPadding("release.r00", 512)
-            .BuildToFile(_testDir, "padding.srr");
+            .BuildToFile(TempDir, "padding.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -554,7 +535,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", packedSize: 5000, extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "volumes.srr");
+            .BuildToFile(TempDir, "volumes.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -579,7 +560,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("subdir\\file.txt")
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "dirs.srr");
+            .BuildToFile(TempDir, "dirs.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -605,7 +586,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file2.txt", fileCRC: 0x11223344)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "multi_files.srr");
+            .BuildToFile(TempDir, "multi_files.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -626,7 +607,7 @@ public class SRRFileTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("empty.txt", [])
-            .BuildToFile(_testDir, "empty_stored.srr");
+            .BuildToFile(TempDir, "empty_stored.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -649,7 +630,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("FILE.TXT", fileCRC: 0x12345678)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "case.srr");
+            .BuildToFile(TempDir, "case.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -702,7 +683,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Release comment", hostOS: 2, method: 0x30)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "complete.srr");
+            .BuildToFile(TempDir, "complete.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -749,7 +730,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("CompressedComment", method: 0x33)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_compressed.srr");
+            .BuildToFile(TempDir, "cmt_compressed.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -768,10 +749,10 @@ public class SRRFileTests : IDisposable
         string srrPath = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("empty.txt", [])
-            .BuildToFile(_testDir, "extract_empty.srr");
+            .BuildToFile(TempDir, "extract_empty.srr");
 
         var srr = SRRFile.Load(srrPath);
-        string outputDir = Path.Combine(_testDir, "extracted_empty");
+        string outputDir = Path.Combine(TempDir, "extracted_empty");
 
         string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name == "empty.txt");
 
@@ -790,10 +771,10 @@ public class SRRFileTests : IDisposable
             .AddSRRHeader()
             .AddStoredFile("release.sfv", data1)
             .AddStoredFile("release2.sfv", data2)
-            .BuildToFile(_testDir, "multi_match.srr");
+            .BuildToFile(TempDir, "multi_match.srr");
 
         var srr = SRRFile.Load(srrPath);
-        string outputDir = Path.Combine(_testDir, "extracted_multi");
+        string outputDir = Path.Combine(TempDir, "extracted_multi");
 
         // Predicate matches both .sfv files; should extract the first one
         string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv", StringComparison.Ordinal));
@@ -812,10 +793,10 @@ public class SRRFileTests : IDisposable
         string srrPath = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("Release.NFO", nfoData)
-            .BuildToFile(_testDir, "case_extract.srr");
+            .BuildToFile(TempDir, "case_extract.srr");
 
         var srr = SRRFile.Load(srrPath);
-        string outputDir = Path.Combine(_testDir, "extracted_case");
+        string outputDir = Path.Combine(TempDir, "extracted_case");
 
         // Match using case-insensitive comparison in the predicate
         string? extracted = srr.ExtractStoredFile(srrPath, outputDir,
@@ -851,7 +832,7 @@ public class SRRFileTests : IDisposable
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "multi_volumes.srr");
+            .BuildToFile(TempDir, "multi_volumes.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -898,7 +879,7 @@ public class SRRFileTests : IDisposable
         srrData[archiveHeaderPos] ^= 0xFF;
         srrData[archiveHeaderPos + 1] ^= 0xFF;
 
-        string path = Path.Combine(_testDir, "bad_crc.srr");
+        string path = Path.Combine(TempDir, "bad_crc.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -925,7 +906,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", fileTimeDOS: 0)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_mode_zeroed.srr");
+            .BuildToFile(TempDir, "cmt_mode_zeroed.srr");
 
         var srrZeroed = SRRFile.Load(pathZeroed);
         Assert.Equal("Zeroed (no timestamp)", srrZeroed.CmtTimestampMode);
@@ -940,7 +921,7 @@ public class SRRFileTests : IDisposable
                        .AddCmtServiceBlock("Comment", fileTimeDOS: 0x5A8E3100)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "cmt_mode_preserved.srr");
+            .BuildToFile(TempDir, "cmt_mode_preserved.srr");
 
         var srrPreserved = SRRFile.Load(pathPreserved);
         Assert.Equal("Preserved (has timestamp)", srrPreserved.CmtTimestampMode);
@@ -961,7 +942,7 @@ public class SRRFileTests : IDisposable
                 h.AddFileHeader("video.avi", packedSize: 1024, unpackedSize: 1024);
                 h.AddEndArchive();
             })
-            .BuildToFile(_testDir, "normal.srr");
+            .BuildToFile(TempDir, "normal.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -983,7 +964,7 @@ public class SRRFileTests : IDisposable
                     unpackedSizeLow: 0xFFFFFFFF, unpackedSizeHigh: 0xFFFFFFFF);
                 h.AddEndArchive();
             })
-            .BuildToFile(_testDir, "reloaded_style.srr");
+            .BuildToFile(TempDir, "reloaded_style.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1006,7 +987,7 @@ public class SRRFileTests : IDisposable
                     extraFlags: RARFileFlags.ExtTime); // No LARGE flag
                 h.AddEndArchive();
             })
-            .BuildToFile(_testDir, "qcf_style.srr");
+            .BuildToFile(TempDir, "qcf_style.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1029,7 +1010,7 @@ public class SRRFileTests : IDisposable
                     unpackedSizeLow: 0xFFFFFFFF, unpackedSizeHigh: 0);
                 h.AddEndArchive();
             })
-            .BuildToFile(_testDir, "large_legit.srr");
+            .BuildToFile(TempDir, "large_legit.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1053,7 +1034,7 @@ public class SRRFileTests : IDisposable
                     unpackedSizeLow: 0xFFFFFFFF, unpackedSizeHigh: 0xFFFFFFFF);
                 h.AddEndArchive();
             })
-            .BuildToFile(_testDir, "second_sentinel.srr");
+            .BuildToFile(TempDir, "second_sentinel.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1078,7 +1059,7 @@ public class SRRFileTests : IDisposable
                 h.AddFileHeader("subdir\\video.avi", packedSize: 1024, unpackedSize: 1024);
                 h.AddEndArchive();
             })
-            .BuildToFile(_testDir, "dir_maxsize.srr");
+            .BuildToFile(TempDir, "dir_maxsize.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1096,7 +1077,7 @@ public class SRRFileTests : IDisposable
         byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "sample.txt",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
-        string path = Path.Combine(_testDir, "rar5_version.srr");
+        string path = Path.Combine(TempDir, "rar5_version.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1110,7 +1091,7 @@ public class SRRFileTests : IDisposable
         byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "video.avi",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
-        string path = Path.Combine(_testDir, "rar5_filename.srr");
+        string path = Path.Combine(TempDir, "rar5_filename.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1125,7 +1106,7 @@ public class SRRFileTests : IDisposable
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present,
             fileCRC: 0xAABBCCDD);
 
-        string path = Path.Combine(_testDir, "rar5_crc.srr");
+        string path = Path.Combine(TempDir, "rar5_crc.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1140,7 +1121,7 @@ public class SRRFileTests : IDisposable
         byte[] srrData = BuildSRRWithRar5FileHeader("release.part01.rar", "data.bin",
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
-        string path = Path.Combine(_testDir, "rar5_rarfile.srr");
+        string path = Path.Combine(TempDir, "rar5_rarfile.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1156,7 +1137,7 @@ public class SRRFileTests : IDisposable
             archiveFlags: 0x0001,
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
-        string path = Path.Combine(_testDir, "rar5_volume.srr");
+        string path = Path.Combine(TempDir, "rar5_volume.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1171,7 +1152,7 @@ public class SRRFileTests : IDisposable
             archiveFlags: 0x0004,
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
-        string path = Path.Combine(_testDir, "rar5_solid.srr");
+        string path = Path.Combine(TempDir, "rar5_solid.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1186,7 +1167,7 @@ public class SRRFileTests : IDisposable
             fileFlags: (ulong)RAR5FileFlags.CRC32Present,
             headerFlags: (ulong)RAR5HeaderFlags.SplitAfter);
 
-        string path = Path.Combine(_testDir, "rar5_split.srr");
+        string path = Path.Combine(TempDir, "rar5_split.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1209,7 +1190,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.txt", fileTimeDOS: 0x5A8E3100)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "ts_mtime.srr");
+            .BuildToFile(TempDir, "ts_mtime.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1223,7 +1204,7 @@ public class SRRFileTests : IDisposable
     {
         byte[] srrData = BuildSRRWithExtendedTimeHeaders("release.rar", "file.txt");
 
-        string path = Path.Combine(_testDir, "ts_ctime_atime.srr");
+        string path = Path.Combine(TempDir, "ts_ctime_atime.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1246,7 +1227,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file2.txt", fileTimeDOS: 0x5B0E3100)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "ts_multi.srr");
+            .BuildToFile(TempDir, "ts_multi.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1272,7 +1253,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("subdir\\file.txt")
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "dir_ts.srr");
+            .BuildToFile(TempDir, "dir_ts.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1286,7 +1267,7 @@ public class SRRFileTests : IDisposable
     {
         byte[] srrData = BuildSRRWithExtendedTimeHeaders("release.rar", "subdir\\", isDirectory: true);
 
-        string path = Path.Combine(_testDir, "dir_ext_ts.srr");
+        string path = Path.Combine(TempDir, "dir_ext_ts.srr");
         File.WriteAllBytes(path, srrData);
 
         var srr = SRRFile.Load(path);
@@ -1314,7 +1295,7 @@ public class SRRFileTests : IDisposable
                            unpackedSizeLow: 0x20000000, unpackedSizeHigh: 0x00000003)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "large_pack.srr");
+            .BuildToFile(TempDir, "large_pack.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1335,7 +1316,7 @@ public class SRRFileTests : IDisposable
                            unpackedSizeLow: 0x20000000, unpackedSizeHigh: 0x00000005)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "large_unp.srr");
+            .BuildToFile(TempDir, "large_unp.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1356,7 +1337,7 @@ public class SRRFileTests : IDisposable
                            unpackedSizeLow: 0x20000000, unpackedSizeHigh: 0x00000001)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "large_flag.srr");
+            .BuildToFile(TempDir, "large_flag.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1374,7 +1355,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("small.txt", packedSize: 100, unpackedSize: 200)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "no_large.srr");
+            .BuildToFile(TempDir, "no_large.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1406,7 +1387,7 @@ public class SRRFileTests : IDisposable
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "split_crc.srr");
+            .BuildToFile(TempDir, "split_crc.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1426,7 +1407,7 @@ public class SRRFileTests : IDisposable
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "split_before.srr");
+            .BuildToFile(TempDir, "split_before.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1459,7 +1440,7 @@ public class SRRFileTests : IDisposable
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "split_middle.srr");
+            .BuildToFile(TempDir, "split_middle.srr");
 
         var srr = SRRFile.Load(path);
 
@@ -1478,7 +1459,7 @@ public class SRRFileTests : IDisposable
                        .AddFileHeader("file.dat", fileCRC: 0xDEADBEEF)
                        .AddEndArchive();
             })
-            .BuildToFile(_testDir, "no_split.srr");
+            .BuildToFile(TempDir, "no_split.srr");
 
         var srr = SRRFile.Load(path);
 

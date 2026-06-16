@@ -2,28 +2,8 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SRRVerifierTests : IDisposable
+public class SRRVerifierTests : TempDirTestBase
 {
-    private readonly string _testDir;
-
-    public SRRVerifierTests()
-    {
-        _testDir = Path.Combine(Path.GetTempPath(), $"srrverify_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_testDir);
-    }
-
-    public void Dispose()
-    {
-        try
-        {
-            Directory.Delete(_testDir, true);
-        }
-        catch
-        {
-        }
-
-        GC.SuppressFinalize(this);
-    }
 
     [Fact]
     public void Verify_ValidSRR_ReturnsValid()
@@ -31,7 +11,7 @@ public class SRRVerifierTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader(appName: "Test")
             .AddStoredFile("hello.txt", [1, 2, 3])
-            .BuildToFile(_testDir, "ok.srr");
+            .BuildToFile(TempDir, "ok.srr");
 
         SRRVerifyResult result = SRRVerifier.Verify(path);
 
@@ -46,7 +26,7 @@ public class SRRVerifierTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("hello.txt", [1, 2, 3])
-            .BuildToFile(_testDir, "truncated.srr");
+            .BuildToFile(TempDir, "truncated.srr");
 
         long size = new FileInfo(path).Length;
         using (FileStream fs = new(path, FileMode.Open, FileAccess.Write))
@@ -69,7 +49,7 @@ public class SRRVerifierTests : IDisposable
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("hello.txt", [1, 2, 3])
-            .BuildToFile(_testDir, "badcrc.srr");
+            .BuildToFile(TempDir, "badcrc.srr");
 
         byte[] bytes = File.ReadAllBytes(path);
         bytes[0] = 0xFF;
@@ -87,7 +67,7 @@ public class SRRVerifierTests : IDisposable
     public void Verify_NonexistentFile_Throws()
     {
         Assert.Throws<FileNotFoundException>(
-            () => SRRVerifier.Verify(Path.Combine(_testDir, "missing.srr")));
+            () => SRRVerifier.Verify(Path.Combine(TempDir, "missing.srr")));
     }
 
     [Fact]
@@ -95,7 +75,7 @@ public class SRRVerifierTests : IDisposable
     {
         string path = new SRRTestDataBuilder()
             .AddStoredFile("hello.txt", [1, 2, 3])
-            .BuildToFile(_testDir, "noheader.srr");
+            .BuildToFile(TempDir, "noheader.srr");
 
         SRRVerifyResult result = SRRVerifier.Verify(path);
 
