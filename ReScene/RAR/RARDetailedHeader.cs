@@ -414,61 +414,36 @@ public static class RARDetailedParser
         }
 
         // Read base header
-        long pos = blockStart;
+        var cursor = new FieldCursor(reader, blockStart);
 
         // HEAD_CRC (2 bytes)
         ushort headCRC = reader.ReadUInt16();
-        block.Fields.Add(new RARHeaderField
-        {
-            Name = "Header CRC",
-            Offset = pos,
-            Length = 2,
-            RawBytes = BitConverter.GetBytes(headCRC),
-            Value = $"0x{headCRC:X4}"
-        });
-        pos += 2;
+        RARHeaderField crcField = cursor.EmitFixed("Header CRC", 2, BitConverter.GetBytes(headCRC));
+        crcField.Value = $"0x{headCRC:X4}";
+        block.Fields.Add(crcField);
 
         // HEAD_TYPE (1 byte)
         byte headType = reader.ReadByte();
         block.BlockTypeValue = headType;
         block.BlockType = GetRAR4BlockTypeName(headType);
-        block.Fields.Add(new RARHeaderField
-        {
-            Name = "Block Type",
-            Offset = pos,
-            Length = 1,
-            RawBytes = new[] { headType },
-            Value = $"0x{headType:X2}",
-            Description = block.BlockType
-        });
-        pos += 1;
+        RARHeaderField typeField = cursor.EmitFixed("Block Type", 1, new[] { headType });
+        typeField.Value = $"0x{headType:X2}";
+        typeField.Description = block.BlockType;
+        block.Fields.Add(typeField);
 
         // HEAD_FLAGS (2 bytes)
         ushort headFlags = reader.ReadUInt16();
-        var flagsField = new RARHeaderField
-        {
-            Name = "Flags",
-            Offset = pos,
-            Length = 2,
-            RawBytes = BitConverter.GetBytes(headFlags),
-            Value = $"0x{headFlags:X4}"
-        };
+        RARHeaderField flagsField = cursor.EmitFixed("Flags", 2, BitConverter.GetBytes(headFlags));
+        flagsField.Value = $"0x{headFlags:X4}";
         AddRAR4FlagDescriptions(flagsField, headType, headFlags);
         block.Fields.Add(flagsField);
-        pos += 2;
 
         // HEAD_SIZE (2 bytes)
         ushort headSize = reader.ReadUInt16();
         block.HeaderSize = headSize;
-        block.Fields.Add(new RARHeaderField
-        {
-            Name = "Header Size",
-            Offset = pos,
-            Length = 2,
-            RawBytes = BitConverter.GetBytes(headSize),
-            Value = $"{headSize} bytes"
-        });
-        pos += 2;
+        RARHeaderField headSizeField = cursor.EmitFixed("Header Size", 2, BitConverter.GetBytes(headSize));
+        headSizeField.Value = $"{headSize} bytes";
+        block.Fields.Add(headSizeField);
 
         if (headSize < 7)
         {
@@ -489,19 +464,15 @@ public static class RARDetailedParser
         {
             // Read ADD_SIZE - it's packed data size that follows the header
             addSize = reader.ReadUInt32();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Data Size (ADD_SIZE)",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(addSize),
-                Value = $"{addSize} bytes"
-            });
-            pos += 4;
+            RARHeaderField addSizeField = cursor.EmitFixed("Data Size (ADD_SIZE)", 4, BitConverter.GetBytes(addSize));
+            addSizeField.Value = $"{addSize} bytes";
+            block.Fields.Add(addSizeField);
             block.DataSize = addSize;
             block.HasData = addSize > 0;
             block.TotalSize = headSize + addSize;
         }
+
+        long pos = cursor.Pos;
 
         // Parse type-specific fields
         switch (headType)
@@ -530,8 +501,8 @@ public static class RARDetailedParser
         return block;
     }
 
+    // RAR4 CMT data is stored when the Compression Method field reads "0x30".
     private static void ParseRAR4DataArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart)
-        // RAR4 CMT data is stored when the Compression Method field reads "0x30".
         => EmitCmtOrGenericDataArea(reader, stream, block, dataStart, b =>
             b.Fields.Any(f => f.Name == "Compression Method" && f.Value == "0x30"));
 
@@ -615,6 +586,74 @@ public static class RARDetailedParser
         _ => $"Unknown (0x{type:X2})"
     };
 
+    // C-style flag names and descriptions VERBATIM (Enum.GetName cannot reproduce the
+    // descriptions, and the names must match upstream RAR exactly). Order matters: the
+    // children are emitted in table order so existing snapshots stay byte-identical.
+    private static readonly (ushort Mask, string Name, string Description)[] _rar4ArchiveFlags =
+    [
+        (0x0001, "VOLUME", "Multi-volume archive"),
+        (0x0002, "COMMENT", "Archive comment present"),
+        (0x0004, "LOCK", "Archive is locked"),
+        (0x0008, "SOLID", "Solid archive"),
+        (0x0010, "NEW_NUMBERING", "New volume naming scheme"),
+        (0x0020, "AV", "Authenticity verification present"),
+        (0x0040, "PROTECT", "Recovery record present"),
+        (0x0080, "PASSWORD", "Headers are encrypted"),
+        (0x0100, "FIRST_VOLUME", "First volume"),
+    ];
+
+    // File-header/service-block flags below DICT_SIZE (which is not a simple bit and is
+    // emitted between these and the high flags, preserving the original ordering).
+    private static readonly (ushort Mask, string Name, string Description)[] _rar4FileFlagsLow =
+    [
+        (0x0001, "SPLIT_BEFORE", "File continued from previous volume"),
+        (0x0002, "SPLIT_AFTER", "File continues in next volume"),
+        (0x0004, "PASSWORD", "File is encrypted"),
+        (0x0008, "COMMENT", "File comment present"),
+        (0x0010, "SOLID", "Info from previous files used"),
+    ];
+
+    private static readonly (ushort Mask, string Name, string Description)[] _rar4FileFlagsHigh =
+    [
+        (0x0100, "LARGE", "64-bit sizes"),
+        (0x0200, "UNICODE", "Unicode filename"),
+        (0x0400, "SALT", "Salt present"),
+        (0x0800, "VERSION", "File version present"),
+        (0x1000, "EXTTIME", "Extended time present"),
+    ];
+
+    private static readonly (ushort Mask, string Name, string Description)[] _rar4EndFlags =
+    [
+        (0x0001, "NEXT_VOLUME", "Archive continues in next volume"),
+        (0x0002, "DATA_CRC", "Data CRC present"),
+        (0x0004, "REV_SPACE", "Reserved space present"),
+        (0x0008, "VOL_NUMBER", "Volume number present"),
+    ];
+
+    private static readonly (ushort Mask, string Name, string Description)[] _rar5HeaderFlags =
+    [
+        (0x0001, "HFL_EXTRA", "Extra area present"),
+        (0x0002, "HFL_DATA", "Data area present"),
+        (0x0004, "HFL_SKIPIFUNKNOWN", "Skip if unknown"),
+        (0x0008, "HFL_SPLITBEFORE", "Split before"),
+        (0x0010, "HFL_SPLITAFTER", "Split after"),
+        (0x0020, "HFL_CHILD", "Child block"),
+        (0x0040, "HFL_INHERITED", "Inherited"),
+    ];
+
+    private static void EmitFlags(
+        RARHeaderField flagsField, ushort flags,
+        (ushort Mask, string Name, string Description)[] table)
+    {
+        foreach ((ushort mask, string name, string description) in table)
+        {
+            if ((flags & mask) != 0)
+            {
+                flagsField.Children.Add(new RARHeaderField { Name = name, Value = description });
+            }
+        }
+    }
+
     private static void AddRAR4FlagDescriptions(RARHeaderField flagsField, byte blockType, ushort flags)
     {
         // Common flags
@@ -625,78 +664,14 @@ public static class RARDetailedParser
 
         if (blockType == 0x73) // Archive header
         {
-            if ((flags & 0x0001) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "VOLUME", Value = "Multi-volume archive" });
-            }
-
-            if ((flags & 0x0002) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "COMMENT", Value = "Archive comment present" });
-            }
-
-            if ((flags & 0x0004) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "LOCK", Value = "Archive is locked" });
-            }
-
-            if ((flags & 0x0008) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "SOLID", Value = "Solid archive" });
-            }
-
-            if ((flags & 0x0010) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "NEW_NUMBERING", Value = "New volume naming scheme" });
-            }
-
-            if ((flags & 0x0020) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "AV", Value = "Authenticity verification present" });
-            }
-
-            if ((flags & 0x0040) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "PROTECT", Value = "Recovery record present" });
-            }
-
-            if ((flags & 0x0080) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "PASSWORD", Value = "Headers are encrypted" });
-            }
-
-            if ((flags & 0x0100) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "FIRST_VOLUME", Value = "First volume" });
-            }
+            EmitFlags(flagsField, flags, _rar4ArchiveFlags);
         }
         else if (blockType is 0x74 or 0x7A) // File header or service block
         {
-            if ((flags & 0x0001) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "SPLIT_BEFORE", Value = "File continued from previous volume" });
-            }
+            EmitFlags(flagsField, flags, _rar4FileFlagsLow);
 
-            if ((flags & 0x0002) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "SPLIT_AFTER", Value = "File continues in next volume" });
-            }
-
-            if ((flags & 0x0004) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "PASSWORD", Value = "File is encrypted" });
-            }
-
-            if ((flags & 0x0008) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "COMMENT", Value = "File comment present" });
-            }
-
-            if ((flags & 0x0010) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "SOLID", Value = "Info from previous files used" });
-            }
-
+            // DICT_SIZE is not a simple bit: it is the 3-bit dictionary-size field
+            // (bits 5-7) and is emitted between the low and high flags.
             int dictBits = (flags >> 5) & 0x7;
             string dictSize = dictBits switch
             {
@@ -712,92 +687,44 @@ public static class RARDetailedParser
             };
             flagsField.Children.Add(new RARHeaderField { Name = "DICT_SIZE", Value = dictSize });
 
-            if ((flags & 0x0100) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "LARGE", Value = "64-bit sizes" });
-            }
-
-            if ((flags & 0x0200) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "UNICODE", Value = "Unicode filename" });
-            }
-
-            if ((flags & 0x0400) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "SALT", Value = "Salt present" });
-            }
-
-            if ((flags & 0x0800) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "VERSION", Value = "File version present" });
-            }
-
-            if ((flags & 0x1000) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "EXTTIME", Value = "Extended time present" });
-            }
+            EmitFlags(flagsField, flags, _rar4FileFlagsHigh);
         }
         else if (blockType == 0x7B) // End of archive
         {
-            if ((flags & 0x0001) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "NEXT_VOLUME", Value = "Archive continues in next volume" });
-            }
-
-            if ((flags & 0x0002) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "DATA_CRC", Value = "Data CRC present" });
-            }
-
-            if ((flags & 0x0004) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "REV_SPACE", Value = "Reserved space present" });
-            }
-
-            if ((flags & 0x0008) != 0)
-            {
-                flagsField.Children.Add(new RARHeaderField { Name = "VOL_NUMBER", Value = "Volume number present" });
-            }
+            EmitFlags(flagsField, flags, _rar4EndFlags);
         }
     }
 
     private static void ParseRAR4ArchiveHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd)
     {
+        var cursor = new FieldCursor(reader, pos);
+
         // HighPosAV (2 bytes) - upper 16 bits of AV position
-        if (pos + 2 <= headerEnd)
+        if (cursor.Pos + 2 <= headerEnd)
         {
             ushort highPosAV = reader.ReadUInt16();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "HighPosAV",
-                Offset = pos,
-                Length = 2,
-                RawBytes = BitConverter.GetBytes(highPosAV),
-                Value = $"0x{highPosAV:X4}"
-            });
-            pos += 2;
+            RARHeaderField highPosField = cursor.EmitFixed("HighPosAV", 2, BitConverter.GetBytes(highPosAV));
+            highPosField.Value = $"0x{highPosAV:X4}";
+            block.Fields.Add(highPosField);
         }
 
         // PosAV (4 bytes) - AV position
-        if (pos + 4 <= headerEnd)
+        if (cursor.Pos + 4 <= headerEnd)
         {
             uint posAV = reader.ReadUInt32();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "PosAV",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(posAV),
-                Value = $"0x{posAV:X8}"
-            });
+            RARHeaderField posField = cursor.EmitFixed("PosAV", 4, BitConverter.GetBytes(posAV));
+            posField.Value = $"0x{posAV:X8}";
+            block.Fields.Add(posField);
         }
     }
 
     private static void ParseRAR4FileHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
     {
+        var cursor = new FieldCursor(reader, pos);
+
         // UNP_SIZE (4 bytes)
         uint unpSize = 0;
-        if (pos + 4 <= headerEnd)
+        if (cursor.Pos + 4 <= headerEnd)
         {
             unpSize = reader.ReadUInt32();
             string? unpDesc = null;
@@ -806,131 +733,83 @@ public static class RARDetailedParser
                 unpDesc = "Custom packer sentinel (e.g. QCF) — size unreliable";
             }
 
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Unpacked Size",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(unpSize),
-                Value = $"{unpSize:N0} bytes",
-                Description = unpDesc
-            });
-            pos += 4;
+            RARHeaderField unpField = cursor.EmitFixed("Unpacked Size", 4, BitConverter.GetBytes(unpSize));
+            unpField.Value = $"{unpSize:N0} bytes";
+            unpField.Description = unpDesc;
+            block.Fields.Add(unpField);
         }
 
         // HOST_OS (1 byte)
-        if (pos + 1 <= headerEnd)
+        if (cursor.Pos + 1 <= headerEnd)
         {
             byte hostOs = reader.ReadByte();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Host OS",
-                Offset = pos,
-                Length = 1,
-                RawBytes = new[] { hostOs },
-                Value = $"0x{hostOs:X2}",
-                Description = RARPatcher.GetHostOSName(hostOs)
-            });
-            pos += 1;
+            RARHeaderField hostField = cursor.EmitFixed("Host OS", 1, new[] { hostOs });
+            hostField.Value = $"0x{hostOs:X2}";
+            hostField.Description = RARPatcher.GetHostOSName(hostOs);
+            block.Fields.Add(hostField);
         }
 
         // FILE_CRC (4 bytes)
-        if (pos + 4 <= headerEnd)
+        if (cursor.Pos + 4 <= headerEnd)
         {
             uint fileCRC = reader.ReadUInt32();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "File CRC32",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(fileCRC),
-                Value = $"0x{fileCRC:X8}"
-            });
-            pos += 4;
+            RARHeaderField crcField = cursor.EmitFixed("File CRC32", 4, BitConverter.GetBytes(fileCRC));
+            crcField.Value = $"0x{fileCRC:X8}";
+            block.Fields.Add(crcField);
         }
 
         // FTIME (4 bytes) - DOS format
-        if (pos + 4 <= headerEnd)
+        if (cursor.Pos + 4 <= headerEnd)
         {
             uint ftime = reader.ReadUInt32();
             DateTime? dt = RARUtils.DosDateToDateTime(ftime);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "File Time (DOS)",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(ftime),
-                Value = $"0x{ftime:X8}",
-                Description = dt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Invalid"
-            });
-            pos += 4;
+            RARHeaderField ftimeField = cursor.EmitFixed("File Time (DOS)", 4, BitConverter.GetBytes(ftime));
+            ftimeField.Value = $"0x{ftime:X8}";
+            ftimeField.Description = dt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Invalid";
+            block.Fields.Add(ftimeField);
         }
 
         // UNP_VER (1 byte)
-        if (pos + 1 <= headerEnd)
+        if (cursor.Pos + 1 <= headerEnd)
         {
             byte unpVer = reader.ReadByte();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Unpack Version",
-                Offset = pos,
-                Length = 1,
-                RawBytes = new[] { unpVer },
-                Value = $"{unpVer}",
-                Description = $"RAR {unpVer / 10}.{unpVer % 10}"
-            });
-            pos += 1;
+            RARHeaderField unpVerField = cursor.EmitFixed("Unpack Version", 1, new[] { unpVer });
+            unpVerField.Value = $"{unpVer}";
+            unpVerField.Description = $"RAR {unpVer / 10}.{unpVer % 10}";
+            block.Fields.Add(unpVerField);
         }
 
         // METHOD (1 byte)
-        if (pos + 1 <= headerEnd)
+        if (cursor.Pos + 1 <= headerEnd)
         {
             byte method = reader.ReadByte();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Compression Method",
-                Offset = pos,
-                Length = 1,
-                RawBytes = new[] { method },
-                Value = $"0x{method:X2}",
-                Description = Core.Comparison.FileComparer.GetCompressionMethodName(method)
-            });
-            pos += 1;
+            RARHeaderField methodField = cursor.EmitFixed("Compression Method", 1, new[] { method });
+            methodField.Value = $"0x{method:X2}";
+            methodField.Description = Core.Comparison.FileComparer.GetCompressionMethodName(method);
+            block.Fields.Add(methodField);
         }
 
         // NAME_SIZE (2 bytes)
         ushort nameSize = 0;
-        if (pos + 2 <= headerEnd)
+        if (cursor.Pos + 2 <= headerEnd)
         {
             nameSize = reader.ReadUInt16();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Name Size",
-                Offset = pos,
-                Length = 2,
-                RawBytes = BitConverter.GetBytes(nameSize),
-                Value = $"{nameSize} bytes"
-            });
-            pos += 2;
+            RARHeaderField nameSizeField = cursor.EmitFixed("Name Size", 2, BitConverter.GetBytes(nameSize));
+            nameSizeField.Value = $"{nameSize} bytes";
+            block.Fields.Add(nameSizeField);
         }
 
         // ATTR (4 bytes)
-        if (pos + 4 <= headerEnd)
+        if (cursor.Pos + 4 <= headerEnd)
         {
             uint attr = reader.ReadUInt32();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "File Attributes",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(attr),
-                Value = $"0x{attr:X8}"
-            });
-            pos += 4;
+            RARHeaderField attrField = cursor.EmitFixed("File Attributes", 4, BitConverter.GetBytes(attr));
+            attrField.Value = $"0x{attr:X8}";
+            block.Fields.Add(attrField);
         }
 
         // HIGH_PACK_SIZE (4 bytes) - if LARGE flag set
-        if ((flags & 0x0100) != 0 && pos + 4 <= headerEnd)
+        if ((flags & 0x0100) != 0 && cursor.Pos + 4 <= headerEnd)
         {
             uint highPack = reader.ReadUInt32();
             string? highPackDesc = null;
@@ -939,16 +818,10 @@ public static class RARDetailedParser
                 highPackDesc = "Custom packer sentinel (e.g. RELOADED, HI2U) — size unreliable";
             }
 
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "High Pack Size",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(highPack),
-                Value = $"0x{highPack:X8}",
-                Description = highPackDesc
-            });
-            pos += 4;
+            RARHeaderField highPackField = cursor.EmitFixed("High Pack Size", 4, BitConverter.GetBytes(highPack));
+            highPackField.Value = $"0x{highPack:X8}";
+            highPackField.Description = highPackDesc;
+            block.Fields.Add(highPackField);
 
             // Update block sizes with the full 64-bit packed size
             long fullPackSize = packSize | ((long)highPack << 32);
@@ -958,7 +831,7 @@ public static class RARDetailedParser
         }
 
         // HIGH_UNP_SIZE (4 bytes) - if LARGE flag set
-        if ((flags & 0x0100) != 0 && pos + 4 <= headerEnd)
+        if ((flags & 0x0100) != 0 && cursor.Pos + 4 <= headerEnd)
         {
             uint highUnp = reader.ReadUInt32();
             string? highUnpDesc = null;
@@ -967,63 +840,39 @@ public static class RARDetailedParser
                 highUnpDesc = "Custom packer sentinel (e.g. RELOADED, HI2U) — size unreliable";
             }
 
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "High Unpack Size",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(highUnp),
-                Value = $"0x{highUnp:X8}",
-                Description = highUnpDesc
-            });
-            pos += 4;
+            RARHeaderField highUnpField = cursor.EmitFixed("High Unpack Size", 4, BitConverter.GetBytes(highUnp));
+            highUnpField.Value = $"0x{highUnp:X8}";
+            highUnpField.Description = highUnpDesc;
+            block.Fields.Add(highUnpField);
         }
 
         // FILE_NAME (variable)
-        if (nameSize > 0 && pos + nameSize <= headerEnd)
+        if (nameSize > 0 && cursor.Pos + nameSize <= headerEnd)
         {
             byte[] nameBytes = reader.ReadBytes(nameSize);
             string fileName = RARUtils.DecodeFileName(nameBytes, (flags & 0x0200) != 0) ?? "";
             block.ItemName = fileName;
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "File Name",
-                Offset = pos,
-                Length = nameSize,
-                RawBytes = nameBytes,
-                Value = fileName,
-                Description = (flags & 0x0200) != 0 ? "Unicode encoded" : "OEM encoded"
-            });
-            pos += nameSize;
+            RARHeaderField nameField = cursor.EmitFixed("File Name", nameSize, nameBytes);
+            nameField.Value = fileName;
+            nameField.Description = (flags & 0x0200) != 0 ? "Unicode encoded" : "OEM encoded";
+            block.Fields.Add(nameField);
         }
 
         // SALT (8 bytes) - if SALT flag set
-        if ((flags & 0x0400) != 0 && pos + 8 <= headerEnd)
+        if ((flags & 0x0400) != 0 && cursor.Pos + 8 <= headerEnd)
         {
             byte[] salt = reader.ReadBytes(8);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Salt",
-                Offset = pos,
-                Length = 8,
-                RawBytes = salt,
-                Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal)
-            });
-            pos += 8;
+            RARHeaderField saltField = cursor.EmitFixed("Salt", 8, salt);
+            saltField.Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal);
+            block.Fields.Add(saltField);
         }
 
         // EXT_TIME (variable) - if EXTTIME flag set
-        if ((flags & 0x1000) != 0 && pos + 2 <= headerEnd)
+        if ((flags & 0x1000) != 0 && cursor.Pos + 2 <= headerEnd)
         {
             ushort extFlags = reader.ReadUInt16();
-            var extFlagsField = new RARHeaderField
-            {
-                Name = "Extended Time Flags",
-                Offset = pos,
-                Length = 2,
-                RawBytes = BitConverter.GetBytes(extFlags),
-                Value = $"0x{extFlags:X4}"
-            };
+            RARHeaderField extFlagsField = cursor.EmitFixed("Extended Time Flags", 2, BitConverter.GetBytes(extFlags));
+            extFlagsField.Value = $"0x{extFlags:X4}";
 
             // Decode flag bits for each timestamp
             string[] timeLabels = { "mtime", "ctime", "atime", "arctime" };
@@ -1047,10 +896,9 @@ public static class RARDetailedParser
             }
 
             block.Fields.Add(extFlagsField);
-            pos += 2;
 
             // Parse each time field (mtime, ctime, atime, arctime)
-            for (int i = 0; i < 4 && pos < headerEnd; i++)
+            for (int i = 0; i < 4 && cursor.Pos < headerEnd; i++)
             {
                 int rmode = (extFlags >> ((3 - i) * 4)) & 0xF;
                 if ((rmode & 0x8) == 0)
@@ -1059,7 +907,7 @@ public static class RARDetailedParser
                 }
 
                 // Time present
-                if (i != 0 && pos + 4 <= headerEnd)
+                if (i != 0 && cursor.Pos + 4 <= headerEnd)
                 {
                     uint dosTime = reader.ReadUInt32();
                     string dosDesc = $"0x{dosTime:X8}";
@@ -1069,19 +917,13 @@ public static class RARDetailedParser
                         dosDesc += $" ({dt.Value:yyyy-MM-dd HH:mm:ss})";
                     }
 
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = $"Ext {timeLabels[i]} DOS",
-                        Offset = pos,
-                        Length = 4,
-                        RawBytes = BitConverter.GetBytes(dosTime),
-                        Value = dosDesc
-                    });
-                    pos += 4;
+                    RARHeaderField dosField = cursor.EmitFixed($"Ext {timeLabels[i]} DOS", 4, BitConverter.GetBytes(dosTime));
+                    dosField.Value = dosDesc;
+                    block.Fields.Add(dosField);
                 }
 
                 int count = rmode & 0x3;
-                if (count > 0 && pos + count <= headerEnd)
+                if (count > 0 && cursor.Pos + count <= headerEnd)
                 {
                     byte[] remainder = reader.ReadBytes(count);
 
@@ -1096,53 +938,38 @@ public static class RARDetailedParser
                     double seconds = ticks / 10_000_000.0;
                     string hexStr = BitConverter.ToString(remainder).Replace("-", " ", StringComparison.Ordinal);
 
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = $"Ext {timeLabels[i]} subsec",
-                        Offset = pos,
-                        Length = count,
-                        RawBytes = remainder,
-                        Value = $"{hexStr} ({seconds:F7}s, {ticks} ticks)"
-                    });
-                    pos += count;
+                    RARHeaderField subsecField = cursor.EmitFixed($"Ext {timeLabels[i]} subsec", count, remainder);
+                    subsecField.Value = $"{hexStr} ({seconds:F7}s, {ticks} ticks)";
+                    block.Fields.Add(subsecField);
                 }
             }
         }
     }
 
+    // Service blocks have same structure as file headers
     private static void ParseRAR4ServiceBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize) =>
-        // Service blocks have same structure as file headers
         ParseRAR4FileHeader(reader, block, pos, headerEnd, flags, packSize);
 
     private static void ParseRAR4EndBlock(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags)
     {
+        var cursor = new FieldCursor(reader, pos);
+
         // Archive end flags
-        if ((flags & 0x0002) != 0 && pos + 4 <= headerEnd)
+        if ((flags & 0x0002) != 0 && cursor.Pos + 4 <= headerEnd)
         {
             uint dataCRC = reader.ReadUInt32();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Archive Data CRC",
-                Offset = pos,
-                Length = 4,
-                RawBytes = BitConverter.GetBytes(dataCRC),
-                Value = $"0x{dataCRC:X8}"
-            });
-            pos += 4;
+            RARHeaderField crcField = cursor.EmitFixed("Archive Data CRC", 4, BitConverter.GetBytes(dataCRC));
+            crcField.Value = $"0x{dataCRC:X8}";
+            block.Fields.Add(crcField);
         }
 
         // EARC_VOLNUMBER = 0x0008
-        if ((flags & 0x0008) != 0 && pos + 2 <= headerEnd)
+        if ((flags & 0x0008) != 0 && cursor.Pos + 2 <= headerEnd)
         {
             ushort volNumber = reader.ReadUInt16();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Volume Number",
-                Offset = pos,
-                Length = 2,
-                RawBytes = BitConverter.GetBytes(volNumber),
-                Value = volNumber.ToString()
-            });
+            RARHeaderField volField = cursor.EmitFixed("Volume Number", 2, BitConverter.GetBytes(volNumber));
+            volField.Value = volNumber.ToString();
+            block.Fields.Add(volField);
         }
     }
 
@@ -1213,70 +1040,39 @@ public static class RARDetailedParser
         }
 
         var block = new RARDetailedBlock { StartOffset = blockStart };
-        long pos = blockStart;
+        var cursor = new FieldCursor(reader, blockStart);
 
         // HEAD_CRC (4 bytes)
         uint headCRC = reader.ReadUInt32();
-        block.Fields.Add(new RARHeaderField
-        {
-            Name = "Header CRC32",
-            Offset = pos,
-            Length = 4,
-            RawBytes = BitConverter.GetBytes(headCRC),
-            Value = $"0x{headCRC:X8}"
-        });
-        pos += 4;
+        RARHeaderField crcField = cursor.EmitFixed("Header CRC32", 4, BitConverter.GetBytes(headCRC));
+        crcField.Value = $"0x{headCRC:X8}";
+        block.Fields.Add(crcField);
 
         // HEAD_SIZE (vint)
-        long vintStart = pos;
-        ulong headSize = ReadVInt(reader, stream);
-        int vintLen = (int)(stream.Position - vintStart);
-        block.HeaderSize = (int)headSize + 4 + vintLen; // CRC + vint + header data
-        block.Fields.Add(new RARHeaderField
-        {
-            Name = "Header Size",
-            Offset = vintStart,
-            Length = vintLen,
-            Value = $"{headSize} bytes (vint)"
-        });
-        pos = stream.Position;
+        ulong headSize = cursor.EmitVInt("Header Size", out RARHeaderField headSizeField);
+        block.HeaderSize = (int)headSize + 4 + headSizeField.Length; // CRC + vint + header data
+        headSizeField.Value = $"{headSize} bytes (vint)";
+        block.Fields.Add(headSizeField);
 
         if (headSize == 0)
         {
-            block.TotalSize = pos - blockStart;
+            block.TotalSize = cursor.Pos - blockStart;
             return block;
         }
 
         // HEAD_TYPE (vint)
-        vintStart = pos;
-        ulong headType = ReadVInt(reader, stream);
-        vintLen = (int)(stream.Position - vintStart);
+        ulong headType = cursor.EmitVInt("Header Type", out RARHeaderField headTypeField);
         block.BlockTypeValue = (byte)headType;
         block.BlockType = GetRAR5BlockTypeName((int)headType);
-        block.Fields.Add(new RARHeaderField
-        {
-            Name = "Header Type",
-            Offset = vintStart,
-            Length = vintLen,
-            Value = $"{headType}",
-            Description = block.BlockType
-        });
-        pos = stream.Position;
+        headTypeField.Value = $"{headType}";
+        headTypeField.Description = block.BlockType;
+        block.Fields.Add(headTypeField);
 
         // HEAD_FLAGS (vint)
-        vintStart = pos;
-        ulong headFlags = ReadVInt(reader, stream);
-        vintLen = (int)(stream.Position - vintStart);
-        var flagsField = new RARHeaderField
-        {
-            Name = "Header Flags",
-            Offset = vintStart,
-            Length = vintLen,
-            Value = FormatHex(headFlags, vintLen)
-        };
+        ulong headFlags = cursor.EmitVInt("Header Flags", out RARHeaderField flagsField);
+        flagsField.Value = FormatHex(headFlags, flagsField.Length);
         AddRAR5FlagDescriptions(flagsField, headFlags);
         block.Fields.Add(flagsField);
-        pos = stream.Position;
 
         long headerEnd = blockStart + block.HeaderSize;
         block.TotalSize = block.HeaderSize;
@@ -1285,53 +1081,39 @@ public static class RARDetailedParser
         ulong extraAreaSize = 0;
         if ((headFlags & 0x0001) != 0)
         {
-            vintStart = pos;
-            extraAreaSize = ReadVInt(reader, stream);
-            vintLen = (int)(stream.Position - vintStart);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Extra Area Size",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = $"{extraAreaSize} bytes"
-            });
-            pos = stream.Position;
+            extraAreaSize = cursor.EmitVInt("Extra Area Size", out RARHeaderField extraField);
+            extraField.Value = $"{extraAreaSize} bytes";
+            block.Fields.Add(extraField);
         }
 
         // Data size (vint) - if HFL_DATA flag
         if ((headFlags & 0x0002) != 0)
         {
-            vintStart = pos;
-            ulong dataSize = ReadVInt(reader, stream);
-            vintLen = (int)(stream.Position - vintStart);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Data Size",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = $"{dataSize} bytes"
-            });
+            ulong dataSize = cursor.EmitVInt("Data Size", out RARHeaderField dataSizeField);
+            dataSizeField.Value = $"{dataSize} bytes";
+            block.Fields.Add(dataSizeField);
             block.DataSize = (long)dataSize;
             block.HasData = dataSize > 0;
             block.TotalSize += (long)dataSize;
-            pos = stream.Position;
         }
+
+        long pos = cursor.Pos;
 
         // Parse type-specific fields
         switch ((int)headType)
         {
             case 1: // Main archive header
-                ParseRAR5MainHeader(reader, stream, block, pos, headerEnd);
+                ParseRAR5MainHeader(reader, block, pos, headerEnd);
                 break;
             case 2: // File header
             case 3: // Service header
-                ParseRAR5FileHeader(reader, stream, block, pos, headerEnd);
+                ParseRAR5FileHeader(reader, block, pos, headerEnd);
                 break;
             case 4: // Encryption header
-                ParseRAR5EncryptionHeader(reader, stream, block, pos, headerEnd);
+                ParseRAR5EncryptionHeader(reader, block, pos, headerEnd);
                 break;
             case 5: // End of archive
-                ParseRAR5EndHeader(reader, stream, block, pos, headerEnd);
+                ParseRAR5EndHeader(reader, block, pos, headerEnd);
                 break;
         }
 
@@ -1367,59 +1149,17 @@ public static class RARDetailedParser
     };
 
     private static void AddRAR5FlagDescriptions(RARHeaderField flagsField, ulong flags)
+        => EmitFlags(flagsField, (ushort)flags, _rar5HeaderFlags);
+
+    private static void ParseRAR5MainHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd)
     {
-        if ((flags & 0x0001) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_EXTRA", Value = "Extra area present" });
-        }
+        var cursor = new FieldCursor(reader, pos);
 
-        if ((flags & 0x0002) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_DATA", Value = "Data area present" });
-        }
-
-        if ((flags & 0x0004) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_SKIPIFUNKNOWN", Value = "Skip if unknown" });
-        }
-
-        if ((flags & 0x0008) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_SPLITBEFORE", Value = "Split before" });
-        }
-
-        if ((flags & 0x0010) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_SPLITAFTER", Value = "Split after" });
-        }
-
-        if ((flags & 0x0020) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_CHILD", Value = "Child block" });
-        }
-
-        if ((flags & 0x0040) != 0)
-        {
-            flagsField.Children.Add(new RARHeaderField { Name = "HFL_INHERITED", Value = "Inherited" });
-        }
-    }
-
-    private static void ParseRAR5MainHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
-    {
         // Archive flags (vint)
-        if (pos < headerEnd)
+        if (cursor.Pos < headerEnd)
         {
-            long vintStart = pos;
-            ulong archFlags = ReadVInt(reader, stream);
-            int vintLen = (int)(stream.Position - vintStart);
-
-            var archFlagsField = new RARHeaderField
-            {
-                Name = "Archive Flags",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = FormatHex(archFlags, vintLen)
-            };
+            ulong archFlags = cursor.EmitVInt("Archive Flags", out RARHeaderField archFlagsField);
+            archFlagsField.Value = FormatHex(archFlags, archFlagsField.Length);
 
             if ((archFlags & 0x0001) != 0)
             {
@@ -1447,41 +1187,26 @@ public static class RARDetailedParser
             }
 
             block.Fields.Add(archFlagsField);
-            pos = stream.Position;
 
             // Volume number (vint) - if VOLNUMBER flag
-            if ((archFlags & 0x0002) != 0 && pos < headerEnd)
+            if ((archFlags & 0x0002) != 0 && cursor.Pos < headerEnd)
             {
-                vintStart = pos;
-                ulong volNum = ReadVInt(reader, stream);
-                vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Volume Number",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = volNum.ToString()
-                });
+                ulong volNum = cursor.EmitVInt("Volume Number", out RARHeaderField volNumField);
+                volNumField.Value = volNum.ToString();
+                block.Fields.Add(volNumField);
             }
         }
     }
 
-    private static void ParseRAR5FileHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
+    private static void ParseRAR5FileHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd)
     {
-        // File flags (vint)
-        if (pos < headerEnd)
-        {
-            long vintStart = pos;
-            ulong fileFlags = ReadVInt(reader, stream);
-            int vintLen = (int)(stream.Position - vintStart);
+        var cursor = new FieldCursor(reader, pos);
 
-            var fileFlagsField = new RARHeaderField
-            {
-                Name = "File Flags",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = FormatHex(fileFlags, vintLen)
-            };
+        // File flags (vint)
+        if (cursor.Pos < headerEnd)
+        {
+            ulong fileFlags = cursor.EmitVInt("File Flags", out RARHeaderField fileFlagsField);
+            fileFlagsField.Value = FormatHex(fileFlags, fileFlagsField.Length);
 
             if ((fileFlags & 0x0001) != 0)
             {
@@ -1504,91 +1229,54 @@ public static class RARDetailedParser
             }
 
             block.Fields.Add(fileFlagsField);
-            pos = stream.Position;
 
             // Unpacked size (vint)
-            if (pos < headerEnd)
+            if (cursor.Pos < headerEnd)
             {
-                vintStart = pos;
-                ulong unpSize = ReadVInt(reader, stream);
-                vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Unpacked Size",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = $"{unpSize:N0} bytes"
-                });
-                pos = stream.Position;
+                ulong unpSize = cursor.EmitVInt("Unpacked Size", out RARHeaderField unpSizeField);
+                unpSizeField.Value = $"{unpSize:N0} bytes";
+                block.Fields.Add(unpSizeField);
             }
 
             // Attributes (vint)
-            if (pos < headerEnd)
+            if (cursor.Pos < headerEnd)
             {
-                vintStart = pos;
-                ulong attr = ReadVInt(reader, stream);
-                vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Attributes",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(attr, vintLen)
-                });
-                pos = stream.Position;
+                ulong attr = cursor.EmitVInt("Attributes", out RARHeaderField attrField);
+                attrField.Value = FormatHex(attr, attrField.Length);
+                block.Fields.Add(attrField);
             }
 
             // mtime (4 bytes) - if UTIME flag
-            if ((fileFlags & 0x0002) != 0 && pos + 4 <= headerEnd)
+            if ((fileFlags & 0x0002) != 0 && cursor.Pos + 4 <= headerEnd)
             {
                 uint mtime = reader.ReadUInt32();
                 DateTime dt = DateTimeOffset.FromUnixTimeSeconds(mtime).LocalDateTime;
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Modification Time",
-                    Offset = pos,
-                    Length = 4,
-                    RawBytes = BitConverter.GetBytes(mtime),
-                    Value = $"{mtime}",
-                    Description = dt.ToString("yyyy-MM-dd HH:mm:ss")
-                });
-                pos += 4;
+                RARHeaderField mtimeField = cursor.EmitFixed("Modification Time", 4, BitConverter.GetBytes(mtime));
+                mtimeField.Value = $"{mtime}";
+                mtimeField.Description = dt.ToString("yyyy-MM-dd HH:mm:ss");
+                block.Fields.Add(mtimeField);
             }
 
             // CRC32 (4 bytes) - if CRC32 flag
-            if ((fileFlags & 0x0004) != 0 && pos + 4 <= headerEnd)
+            if ((fileFlags & 0x0004) != 0 && cursor.Pos + 4 <= headerEnd)
             {
                 uint crc = reader.ReadUInt32();
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Data CRC32",
-                    Offset = pos,
-                    Length = 4,
-                    RawBytes = BitConverter.GetBytes(crc),
-                    Value = $"0x{crc:X8}"
-                });
-                pos += 4;
+                RARHeaderField crcField = cursor.EmitFixed("Data CRC32", 4, BitConverter.GetBytes(crc));
+                crcField.Value = $"0x{crc:X8}";
+                block.Fields.Add(crcField);
             }
 
             // Compression info (vint)
-            if (pos < headerEnd)
+            if (cursor.Pos < headerEnd)
             {
-                vintStart = pos;
-                ulong compInfo = ReadVInt(reader, stream);
-                vintLen = (int)(stream.Position - vintStart);
+                ulong compInfo = cursor.EmitVInt("Compression Info", out RARHeaderField compInfoField);
 
                 int version = (int)(compInfo & 0x3F);
                 bool solid = (compInfo & 0x40) != 0;
                 int method = (int)((compInfo >> 7) & 0x7);
                 int dictSizeLog = (int)((compInfo >> 10) & 0xF);
 
-                var compInfoField = new RARHeaderField
-                {
-                    Name = "Compression Info",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = FormatHex(compInfo, vintLen)
-                };
+                compInfoField.Value = FormatHex(compInfo, compInfoField.Length);
 
                 string versionName = version switch
                 {
@@ -1612,142 +1300,88 @@ public static class RARDetailedParser
                 compInfoField.Children.Add(new RARHeaderField { Name = "DICT_SIZE", Value = FormatDictSize(128L << dictSizeLog) });
 
                 block.Fields.Add(compInfoField);
-                pos = stream.Position;
             }
 
             // Host OS (vint)
-            if (pos < headerEnd)
+            if (cursor.Pos < headerEnd)
             {
-                vintStart = pos;
-                ulong hostOs = ReadVInt(reader, stream);
-                vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Host OS",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = hostOs.ToString(),
-                    Description = hostOs == 0 ? "Windows" : "Unix"
-                });
-                pos = stream.Position;
+                ulong hostOs = cursor.EmitVInt("Host OS", out RARHeaderField hostOsField);
+                hostOsField.Value = hostOs.ToString();
+                hostOsField.Description = hostOs == 0 ? "Windows" : "Unix";
+                block.Fields.Add(hostOsField);
             }
 
             // Name length (vint)
-            if (pos < headerEnd)
+            if (cursor.Pos < headerEnd)
             {
-                vintStart = pos;
-                ulong nameLen = ReadVInt(reader, stream);
-                vintLen = (int)(stream.Position - vintStart);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Name Length",
-                    Offset = vintStart,
-                    Length = vintLen,
-                    Value = $"{nameLen} bytes"
-                });
-                pos = stream.Position;
+                ulong nameLen = cursor.EmitVInt("Name Length", out RARHeaderField nameLenField);
+                nameLenField.Value = $"{nameLen} bytes";
+                block.Fields.Add(nameLenField);
 
                 // Name (UTF-8)
-                if (nameLen > 0 && pos + (long)nameLen <= headerEnd)
+                if (nameLen > 0 && cursor.Pos + (long)nameLen <= headerEnd)
                 {
                     byte[] nameBytes = reader.ReadBytes((int)nameLen);
                     string name = Encoding.UTF8.GetString(nameBytes);
                     block.ItemName = name;
-                    block.Fields.Add(new RARHeaderField
-                    {
-                        Name = "File Name",
-                        Offset = pos,
-                        Length = (int)nameLen,
-                        RawBytes = nameBytes,
-                        Value = name,
-                        Description = "UTF-8 encoded"
-                    });
+                    RARHeaderField nameField = cursor.EmitFixed("File Name", (int)nameLen, nameBytes);
+                    nameField.Value = name;
+                    nameField.Description = "UTF-8 encoded";
+                    block.Fields.Add(nameField);
                 }
             }
         }
     }
 
-    private static void ParseRAR5EncryptionHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
+    private static void ParseRAR5EncryptionHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd)
     {
+        var cursor = new FieldCursor(reader, pos);
+
         // Encryption version (vint)
-        if (pos < headerEnd)
+        if (cursor.Pos < headerEnd)
         {
-            long vintStart = pos;
-            ulong encVer = ReadVInt(reader, stream);
-            int vintLen = (int)(stream.Position - vintStart);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Encryption Version",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = encVer.ToString()
-            });
-            pos = stream.Position;
+            ulong encVer = cursor.EmitVInt("Encryption Version", out RARHeaderField encVerField);
+            encVerField.Value = encVer.ToString();
+            block.Fields.Add(encVerField);
         }
 
         // Encryption flags (vint)
-        if (pos < headerEnd)
+        if (cursor.Pos < headerEnd)
         {
-            long vintStart = pos;
-            ulong encFlags = ReadVInt(reader, stream);
-            int vintLen = (int)(stream.Position - vintStart);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Encryption Flags",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = FormatHex(encFlags, vintLen)
-            });
-            pos = stream.Position;
+            ulong encFlags = cursor.EmitVInt("Encryption Flags", out RARHeaderField encFlagsField);
+            encFlagsField.Value = FormatHex(encFlags, encFlagsField.Length);
+            block.Fields.Add(encFlagsField);
         }
 
         // KDF count (1 byte)
-        if (pos + 1 <= headerEnd)
+        if (cursor.Pos + 1 <= headerEnd)
         {
             byte kdfCount = reader.ReadByte();
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "KDF Count",
-                Offset = pos,
-                Length = 1,
-                RawBytes = new[] { kdfCount },
-                Value = kdfCount.ToString(),
-                Description = $"Iterations = 2^{kdfCount}"
-            });
-            pos += 1;
+            RARHeaderField kdfField = cursor.EmitFixed("KDF Count", 1, new[] { kdfCount });
+            kdfField.Value = kdfCount.ToString();
+            kdfField.Description = $"Iterations = 2^{kdfCount}";
+            block.Fields.Add(kdfField);
         }
 
         // Salt (16 bytes)
-        if (pos + 16 <= headerEnd)
+        if (cursor.Pos + 16 <= headerEnd)
         {
             byte[] salt = reader.ReadBytes(16);
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Salt",
-                Offset = pos,
-                Length = 16,
-                RawBytes = salt,
-                Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal)
-            });
+            RARHeaderField saltField = cursor.EmitFixed("Salt", 16, salt);
+            saltField.Value = BitConverter.ToString(salt).Replace("-", " ", StringComparison.Ordinal);
+            block.Fields.Add(saltField);
         }
     }
 
-    private static void ParseRAR5EndHeader(BinaryReader reader, Stream stream, RARDetailedBlock block, long pos, long headerEnd)
+    private static void ParseRAR5EndHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd)
     {
-        // End flags (vint)
-        if (pos < headerEnd)
-        {
-            long vintStart = pos;
-            ulong endFlags = ReadVInt(reader, stream);
-            int vintLen = (int)(stream.Position - vintStart);
+        var cursor = new FieldCursor(reader, pos);
 
-            var endFlagsField = new RARHeaderField
-            {
-                Name = "End Flags",
-                Offset = vintStart,
-                Length = vintLen,
-                Value = FormatHex(endFlags, vintLen)
-            };
+        // End flags (vint)
+        if (cursor.Pos < headerEnd)
+        {
+            ulong endFlags = cursor.EmitVInt("End Flags", out RARHeaderField endFlagsField);
+            endFlagsField.Value = FormatHex(endFlags, endFlagsField.Length);
 
             if ((endFlags & 0x0001) != 0)
             {
@@ -1758,8 +1392,8 @@ public static class RARDetailedParser
         }
     }
 
+    // RAR5 CMT data is stored when the METHOD child of Compression Info reads "0 ...".
     private static void ParseRAR5DataArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart)
-        // RAR5 CMT data is stored when the METHOD child of Compression Info reads "0 ...".
         => EmitCmtOrGenericDataArea(reader, stream, block, dataStart, b =>
             b.Fields.Any(f => f.Name == "Compression Info" && f.Children.Any(c =>
                 c.Name == "METHOD" && c.Value.StartsWith("0 ", StringComparison.Ordinal))));
@@ -2444,6 +2078,61 @@ public static class RARDetailedParser
                 Length = 8,
                 Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
             });
+        }
+    }
+
+    /// <summary>
+    /// A small cursor over the RAR5 detailed parser's <c>pos</c>/<see cref="Stream.Position"/>
+    /// pair. It factors out the repetitive "create a <see cref="RARHeaderField"/> with the
+    /// right Offset/Length/RawBytes and advance the position" bookkeeping while leaving value
+    /// formatting and Children/Description decoration to the call site.
+    /// </summary>
+    /// <remarks>
+    /// Preserves the original vint-vs-fixed asymmetry: vint fields leave <see
+    /// cref="RARHeaderField.RawBytes"/> empty and derive their length from how far the stream
+    /// advanced, while fixed fields carry their raw bytes and advance the cursor by a fixed width.
+    /// The cursor keeps <see cref="Pos"/> coupled to the underlying <see cref="Stream.Position"/>
+    /// exactly as the hand-rolled code did (vint sets <c>Pos = stream.Position</c>; fixed advances
+    /// <c>Pos</c> by the field width after the caller's read moved the stream).
+    /// </remarks>
+    private sealed class FieldCursor(BinaryReader reader, long pos)
+    {
+        private readonly Stream _stream = reader.BaseStream;
+
+        /// <summary>Current byte offset from the start of the file.</summary>
+        public long Pos { get; set; } = pos;
+
+        /// <summary>
+        /// Reads a vint, returning its raw value and a field with Offset/Length set (RawBytes
+        /// intentionally left empty). Advances the cursor to the post-read stream position.
+        /// The caller sets <see cref="RARHeaderField.Value"/> and any decoration.
+        /// </summary>
+        public ulong EmitVInt(string name, out RARHeaderField field)
+        {
+            long start = Pos;
+            ulong value = ReadVInt(reader, _stream);
+            int length = (int)(_stream.Position - start);
+            field = new RARHeaderField { Name = name, Offset = start, Length = length };
+            Pos = _stream.Position;
+            return value;
+        }
+
+        /// <summary>
+        /// Builds a fixed-width field with Offset/Length/RawBytes set and advances the cursor by
+        /// <paramref name="length"/>. The caller is responsible for the actual stream read (which
+        /// has already moved <see cref="Stream.Position"/>) and for setting the formatted value.
+        /// </summary>
+        public RARHeaderField EmitFixed(string name, int length, ReadOnlyMemory<byte> rawBytes)
+        {
+            var field = new RARHeaderField
+            {
+                Name = name,
+                Offset = Pos,
+                Length = length,
+                RawBytes = rawBytes
+            };
+            Pos += length;
+            return field;
         }
     }
 

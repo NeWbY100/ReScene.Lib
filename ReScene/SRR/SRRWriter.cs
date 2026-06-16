@@ -251,7 +251,7 @@ public class SRRWriter
 
                 ReportProgress(i + 1, totalVolumes, $"Processing {volumeName}...");
 
-                await ProcessRarVolumeAsync(writer, volumePath, volumeName, options, result, ct).ConfigureAwait(false);
+                ProcessRarVolume(writer, volumePath, volumeName, options, result, ct);
                 result.VolumeCount++;
             }
 
@@ -460,7 +460,7 @@ public class SRRWriter
 
     #region RAR Volume Processing
 
-    private static async Task ProcessRarVolumeAsync(
+    private static void ProcessRarVolume(
         BinaryWriter writer,
         string volumePath,
         string volumeName,
@@ -480,16 +480,16 @@ public class SRRWriter
 
         if (isRar5)
         {
-            await ProcessRar5VolumeAsync(writer, fs, reader, volumeName, result, ct).ConfigureAwait(false);
+            ProcessRar5Volume(writer, fs, reader, volumeName, result, ct);
         }
         else
         {
-            await ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct).ConfigureAwait(false);
+            ProcessRar4Volume(writer, fs, reader, volumeName, options, result, ct);
         }
     }
 
 
-    private static Task ProcessRar4VolumeAsync(
+    private static void ProcessRar4Volume(
         BinaryWriter srrWriter,
         FileStream fs,
         BinaryReader reader,
@@ -502,14 +502,14 @@ public class SRRWriter
         if (fs.Length < 7)
         {
             result.Warnings.Add($"{volumeName}: File too small to contain RAR marker.");
-            return Task.CompletedTask;
+            return;
         }
 
         byte[] marker = reader.ReadBytes(7);
         if (!marker.AsSpan().SequenceEqual(Rar4Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR4 marker.");
-            return Task.CompletedTask;
+            return;
         }
 
         // Copy marker verbatim to SRR
@@ -568,18 +568,9 @@ public class SRRWriter
 
                 case RAR4BlockType.FileHeader:
                     // Check compression if needed
-                    if (!options.AllowCompressed && headerSize >= 26)
+                    if (!options.AllowCompressed)
                     {
-                        byte method = headerBytes[25]; // METHOD field at offset 25
-                        if (method != 0x30) // 0x30 = Store
-                        {
-                            // Parse filename for the warning message
-                            int nameSize = BitConverter.ToUInt16(headerBytes, 26);
-                            string fName = nameSize > 0 && 32 + nameSize <= headerBytes.Length
-                                ? Encoding.ASCII.GetString(headerBytes, 32, nameSize)
-                                : "unknown";
-                            result.Warnings.Add($"{volumeName}: Compressed file detected ({fName}).");
-                        }
+                        WarnIfRar4Compressed(headerBytes, headerSize, volumeName, result);
                     }
 
                     srrWriter.Write(headerBytes);
@@ -591,19 +582,7 @@ public class SRRWriter
                     srrWriter.Write(headerBytes);
                     if (addSize > 0)
                     {
-                        // Determine sub-type from header: name is at offset 32, name_size at offset 26
-                        bool isCmt = false;
-                        if (headerSize >= 35) // enough to read 3-byte name
-                        {
-                            int nameSize = BitConverter.ToUInt16(headerBytes, 26);
-                            if (nameSize == 3 && 32 + 3 <= headerBytes.Length)
-                            {
-                                string subType = Encoding.ASCII.GetString(headerBytes, 32, 3);
-                                isCmt = string.Equals(subType, "CMT", StringComparison.OrdinalIgnoreCase);
-                            }
-                        }
-
-                        if (isCmt)
+                        if (IsRar4CmtServiceBlock(headerBytes, headerSize))
                         {
                             // Copy CMT data verbatim
                             StreamUtilities.CopyBytes(fs, srrWriter.BaseStream, addSize);
@@ -636,11 +615,56 @@ public class SRRWriter
                     break;
             }
         }
-
-        return Task.CompletedTask;
     }
 
-    private static Task ProcessRar5VolumeAsync(
+    /// <summary>
+    /// Adds a warning when a RAR4 file-header block uses a compression method other than Store.
+    /// </summary>
+    private static void WarnIfRar4Compressed(
+        byte[] headerBytes, ushort headerSize, string volumeName, SRRCreationResult result)
+    {
+        if (headerSize < 26)
+        {
+            return;
+        }
+
+        byte method = headerBytes[25]; // METHOD field at offset 25
+        if (method == 0x30) // 0x30 = Store
+        {
+            return;
+        }
+
+        // Parse filename for the warning message
+        int nameSize = BitConverter.ToUInt16(headerBytes, 26);
+        string fName = nameSize > 0 && 32 + nameSize <= headerBytes.Length
+            ? Encoding.ASCII.GetString(headerBytes, 32, nameSize)
+            : "unknown";
+        result.Warnings.Add($"{volumeName}: Compressed file detected ({fName}).");
+    }
+
+    /// <summary>
+    /// Determines whether a RAR4 service-block header is a CMT (comment) block, whose data
+    /// must be preserved verbatim in the SRR.
+    /// </summary>
+    private static bool IsRar4CmtServiceBlock(byte[] headerBytes, ushort headerSize)
+    {
+        // Determine sub-type from header: name is at offset 32, name_size at offset 26
+        if (headerSize < 35) // not enough to read 3-byte name
+        {
+            return false;
+        }
+
+        int nameSize = BitConverter.ToUInt16(headerBytes, 26);
+        if (nameSize != 3 || 32 + 3 > headerBytes.Length)
+        {
+            return false;
+        }
+
+        string subType = Encoding.ASCII.GetString(headerBytes, 32, 3);
+        return string.Equals(subType, "CMT", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void ProcessRar5Volume(
         BinaryWriter srrWriter,
         FileStream fs,
         BinaryReader reader,
@@ -652,14 +676,14 @@ public class SRRWriter
         if (fs.Length < 8)
         {
             result.Warnings.Add($"{volumeName}: File too small to contain RAR5 marker.");
-            return Task.CompletedTask;
+            return;
         }
 
         byte[] marker = reader.ReadBytes(8);
         if (!marker.AsSpan().SequenceEqual(Rar5Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR5 marker.");
-            return Task.CompletedTask;
+            return;
         }
 
         // Copy marker verbatim
@@ -749,8 +773,6 @@ public class SRRWriter
                     break;
             }
         }
-
-        return Task.CompletedTask;
     }
 
     #endregion

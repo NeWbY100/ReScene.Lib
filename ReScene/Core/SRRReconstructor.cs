@@ -426,12 +426,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
             return Task.CompletedTask;
         }
 
-        string hash = hashType switch
-        {
-            HashType.CRC32 => CRC32.Calculate(outputPath),
-            HashType.SHA1 => SHA1.Calculate(outputPath),
-            _ => throw new ArgumentOutOfRangeException(nameof(hashType))
-        };
+        string hash = HashCalculator.Calculate(hashType, outputPath);
 
         if (hashes.Contains(hash))
         {

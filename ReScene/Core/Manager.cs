@@ -584,26 +584,7 @@ public partial class Manager : IDisposable
             });
 
             // Build final arguments list, including comment option if available
-            List<string> finalArguments = [.. filteredArguments];
-
-            // Auto-add -ma4 for RAR 5.50-6.x to force RAR4 format (unless -ma5 was explicitly requested)
-            // RAR 7.x doesn't accept -ma4/-ma5 flags
-            if (version >= 550 && version < 700 && !finalArguments.Contains("-ma4") && !finalArguments.Contains("-ma5"))
-            {
-                finalArguments.Insert(0, "-ma4");
-            }
-
-            // Add -vn for old volume naming if enabled (available since RAR 3.00, removed in RAR 7.x)
-            if (options.RAROptions.UseOldVolumeNaming && version >= 300 && version < 700 && !finalArguments.Contains("-vn"))
-            {
-                finalArguments.Add("-vn");
-            }
-
-            if (!string.IsNullOrEmpty(_commentFilePath))
-            {
-                // Add comment option: -z<commentfile>
-                finalArguments.Add($"-z{_commentFilePath}");
-            }
+            List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version);
 
             // ---- Execute RAR ----
             // When CompleteAllVolumes is enabled, we start RAR without auto-kill and check
@@ -676,12 +657,7 @@ public partial class Manager : IDisposable
                     PatchRARFilesHostOS(actualRarFilePath, options.RAROptions, allVolumes: false);
                 }
 
-                string hash = options.HashType switch
-                {
-                    HashType.SHA1 => SHA1.Calculate(actualRarFilePath),
-                    HashType.CRC32 => CRC32.Calculate(actualRarFilePath),
-                    _ => throw new IndexOutOfRangeException(nameof(options.HashType))
-                };
+                string hash = HashCalculator.Calculate(options.HashType, actualRarFilePath);
 
                 _logger.Information(this, $"Hash for {actualRarFilePath}: {hash} (match: {options.Hashes.Contains(hash)})", LogTarget.Phase2);
 
@@ -724,108 +700,10 @@ public partial class Manager : IDisposable
                 }
 
                 // Log match to System tab for visibility
-                string patchedNote = options.RAROptions.NeedsPatching ? " (patched)" : "";
-                _logger.Information(this, $"*** MATCH FOUND{patchedNote}! ***", LogTarget.System);
-                _logger.Information(this, $"  Version: {rarVersionDirectoryName}", LogTarget.System);
-                _logger.Information(this, $"  Params:  {displayArguments}", LogTarget.System);
-                _logger.Information(this, $"  Hash:    {hash}", LogTarget.System);
-                _logger.Information(this, $"  RAR:     {actualRarFilePath}", LogTarget.System);
-
-                if (options.RAROptions.NeedsPatching)
-                {
-                    RAROptions opts = options.RAROptions;
-
-                    if (opts.NeedsHostOSPatching)
-                    {
-                        string hostOS = opts.DetectedFileHostOS.HasValue
-                            ? $"{RARPatcher.GetHostOSName(opts.DetectedFileHostOS.Value)} (0x{opts.DetectedFileHostOS.Value:X2})"
-                            : "N/A";
-                        _logger.Information(this, $"  Patched: Host OS -> {hostOS}, Attributes -> 0x{opts.DetectedFileAttributes ?? 0:X8}", LogTarget.System);
-
-                        if (opts.DetectedCmtHostOS.HasValue || opts.DetectedCmtFileTime.HasValue || opts.DetectedCmtFileAttributes.HasValue)
-                        {
-                            var cmtParts = new List<string>();
-                            if (opts.DetectedCmtHostOS.HasValue)
-                            {
-                                cmtParts.Add($"Host OS -> {RARPatcher.GetHostOSName(opts.DetectedCmtHostOS.Value)} (0x{opts.DetectedCmtHostOS.Value:X2})");
-                            }
-
-                            if (opts.DetectedCmtFileTime.HasValue)
-                            {
-                                cmtParts.Add($"File Time -> 0x{opts.DetectedCmtFileTime.Value:X8}");
-                            }
-
-                            if (opts.DetectedCmtFileAttributes.HasValue)
-                            {
-                                cmtParts.Add($"Attributes -> 0x{opts.DetectedCmtFileAttributes.Value:X8}");
-                            }
-
-                            _logger.Information(this, $"  CMT:     {string.Join(", ", cmtParts)}", LogTarget.System);
-                        }
-                    }
-
-                    if (opts.NeedsLargePatching)
-                    {
-                        _logger.Information(this, $"  LARGE:   {(opts.DetectedLargeFlag == true ? "Added" : "Removed")} (HIGH_PACK=0x{opts.DetectedHighPackSize ?? 0:X8}, HIGH_UNP=0x{opts.DetectedHighUnpSize ?? 0:X8})", LogTarget.System);
-                    }
-
-                    _logger.Information(this, "  Note:    RAR output was patched post-creation to match original headers", LogTarget.System);
-                }
+                LogMatchDetails(options, rarVersionDirectoryName, displayArguments, hash, actualRarFilePath);
 
                 // Rename the matched file(s) to their final name inside the "output" subdirectory
-                string baseName = Path.GetFileNameWithoutExtension(rarFilePath);
-                string patchedBaseName = options.RAROptions.NeedsPatching ? baseName + "-patched" : baseName;
-                IReadOnlyList<string> originalNames = options.RAROptions.OriginalRarFileNames;
-                bool useOriginalNames = options.RAROptions.RenameToOriginalNames &&
-                                        options.RAROptions.StopOnFirstMatch &&
-                                        originalNames.Count > 0;
-
-                if (options.RAROptions.CompleteAllVolumes)
-                {
-                    // Re-find all volumes now that RAR has completed
-                    string? completedRarFilePath = MatchedRarWriter.FindCreatedRARFile(rarFilePath);
-                    if (completedRarFilePath != null)
-                    {
-                        // Patch remaining volumes (first volume already patched - will be no-op for it)
-                        if (options.RAROptions.NeedsPatching)
-                        {
-                            PatchRARFilesHostOS(completedRarFilePath, options.RAROptions);
-                        }
-
-                        // Rename all volumes to their final names inside the "output" subdirectory
-                        List<string> allVolumes = MatchedRarWriter.GetAllVolumeFiles(completedRarFilePath);
-
-                        for (int i = 0; i < allVolumes.Count; i++)
-                        {
-                            string outputFileName = useOriginalNames && i < originalNames.Count
-                                ? Path.GetFileName(originalNames[i])
-                                : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
-                            string outputPath = Path.Combine(rarOutputDir, outputFileName);
-                            if (MatchedRarWriter.MoveMatchedFile(allVolumes[i], outputPath))
-                            {
-                                _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
-                            }
-                            else
-                            {
-                                _logger.Warning(this, $"  Volume NOT written (a different file already occupies '{outputFileName}'); left at '{allVolumes[i]}'", LogTarget.System);
-                            }
-                        }
-
-                        _logger.Information(this, $"  Completed {allVolumes.Count} volume(s)", LogTarget.System);
-                    }
-                }
-                else
-                {
-                    // Standard behavior: just rename the first .rar file
-                    string outputFileName = useOriginalNames
-                        ? Path.GetFileName(originalNames[0])
-                        : Path.GetFileName(actualRarFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
-                    string outputPath = Path.Combine(rarOutputDir, outputFileName);
-                    if (!MatchedRarWriter.MoveMatchedFile(actualRarFilePath, outputPath))
-                    {
-                        _logger.Warning(this, $"Matched archive NOT written (a different file already occupies '{outputFileName}'); left at '{actualRarFilePath}'", LogTarget.System);
-                    }
-                }
+                RenameMatchedOutput(options, rarFilePath, actualRarFilePath, rarOutputDir);
 
                 return (true, currentProgress);
             }
@@ -836,6 +714,155 @@ public partial class Manager : IDisposable
         }
 
         return (false, currentProgress);
+    }
+
+    /// <summary>
+    /// Builds the final RAR argument list from the filtered arguments, auto-adding
+    /// <c>-ma4</c> (RAR 5.50-6.x), <c>-vn</c> (old volume naming), and the comment
+    /// option (<c>-z</c>) where applicable.
+    /// </summary>
+    private List<string> BuildFinalArguments(List<string> filteredArguments, BruteForceOptions options, int version)
+    {
+        List<string> finalArguments = [.. filteredArguments];
+
+        // Auto-add -ma4 for RAR 5.50-6.x to force RAR4 format (unless -ma5 was explicitly requested)
+        // RAR 7.x doesn't accept -ma4/-ma5 flags
+        if (version >= 550 && version < 700 && !finalArguments.Contains("-ma4") && !finalArguments.Contains("-ma5"))
+        {
+            finalArguments.Insert(0, "-ma4");
+        }
+
+        // Add -vn for old volume naming if enabled (available since RAR 3.00, removed in RAR 7.x)
+        if (options.RAROptions.UseOldVolumeNaming && version >= 300 && version < 700 && !finalArguments.Contains("-vn"))
+        {
+            finalArguments.Add("-vn");
+        }
+
+        if (!string.IsNullOrEmpty(_commentFilePath))
+        {
+            // Add comment option: -z<commentfile>
+            finalArguments.Add($"-z{_commentFilePath}");
+        }
+
+        return finalArguments;
+    }
+
+    /// <summary>
+    /// Logs a found match (and any post-creation patching that was applied) to the System log.
+    /// </summary>
+    private void LogMatchDetails(
+        BruteForceOptions options, string rarVersionDirectoryName, string displayArguments,
+        string hash, string actualRarFilePath)
+    {
+        string patchedNote = options.RAROptions.NeedsPatching ? " (patched)" : "";
+        _logger.Information(this, $"*** MATCH FOUND{patchedNote}! ***", LogTarget.System);
+        _logger.Information(this, $"  Version: {rarVersionDirectoryName}", LogTarget.System);
+        _logger.Information(this, $"  Params:  {displayArguments}", LogTarget.System);
+        _logger.Information(this, $"  Hash:    {hash}", LogTarget.System);
+        _logger.Information(this, $"  RAR:     {actualRarFilePath}", LogTarget.System);
+
+        if (options.RAROptions.NeedsPatching)
+        {
+            RAROptions opts = options.RAROptions;
+
+            if (opts.NeedsHostOSPatching)
+            {
+                string hostOS = opts.DetectedFileHostOS.HasValue
+                    ? $"{RARPatcher.GetHostOSName(opts.DetectedFileHostOS.Value)} (0x{opts.DetectedFileHostOS.Value:X2})"
+                    : "N/A";
+                _logger.Information(this, $"  Patched: Host OS -> {hostOS}, Attributes -> 0x{opts.DetectedFileAttributes ?? 0:X8}", LogTarget.System);
+
+                if (opts.DetectedCmtHostOS.HasValue || opts.DetectedCmtFileTime.HasValue || opts.DetectedCmtFileAttributes.HasValue)
+                {
+                    var cmtParts = new List<string>();
+                    if (opts.DetectedCmtHostOS.HasValue)
+                    {
+                        cmtParts.Add($"Host OS -> {RARPatcher.GetHostOSName(opts.DetectedCmtHostOS.Value)} (0x{opts.DetectedCmtHostOS.Value:X2})");
+                    }
+
+                    if (opts.DetectedCmtFileTime.HasValue)
+                    {
+                        cmtParts.Add($"File Time -> 0x{opts.DetectedCmtFileTime.Value:X8}");
+                    }
+
+                    if (opts.DetectedCmtFileAttributes.HasValue)
+                    {
+                        cmtParts.Add($"Attributes -> 0x{opts.DetectedCmtFileAttributes.Value:X8}");
+                    }
+
+                    _logger.Information(this, $"  CMT:     {string.Join(", ", cmtParts)}", LogTarget.System);
+                }
+            }
+
+            if (opts.NeedsLargePatching)
+            {
+                _logger.Information(this, $"  LARGE:   {(opts.DetectedLargeFlag == true ? "Added" : "Removed")} (HIGH_PACK=0x{opts.DetectedHighPackSize ?? 0:X8}, HIGH_UNP=0x{opts.DetectedHighUnpSize ?? 0:X8})", LogTarget.System);
+            }
+
+            _logger.Information(this, "  Note:    RAR output was patched post-creation to match original headers", LogTarget.System);
+        }
+    }
+
+    /// <summary>
+    /// Renames/moves the matched RAR file (or all volumes, when CompleteAllVolumes is enabled)
+    /// to their final names inside the <c>output</c> subdirectory, patching remaining volumes if needed.
+    /// </summary>
+    private void RenameMatchedOutput(
+        BruteForceOptions options, string rarFilePath, string actualRarFilePath, string rarOutputDir)
+    {
+        string baseName = Path.GetFileNameWithoutExtension(rarFilePath);
+        string patchedBaseName = options.RAROptions.NeedsPatching ? baseName + "-patched" : baseName;
+        IReadOnlyList<string> originalNames = options.RAROptions.OriginalRarFileNames;
+        bool useOriginalNames = options.RAROptions.RenameToOriginalNames &&
+                                options.RAROptions.StopOnFirstMatch &&
+                                originalNames.Count > 0;
+
+        if (options.RAROptions.CompleteAllVolumes)
+        {
+            // Re-find all volumes now that RAR has completed
+            string? completedRarFilePath = MatchedRarWriter.FindCreatedRARFile(rarFilePath);
+            if (completedRarFilePath != null)
+            {
+                // Patch remaining volumes (first volume already patched - will be no-op for it)
+                if (options.RAROptions.NeedsPatching)
+                {
+                    PatchRARFilesHostOS(completedRarFilePath, options.RAROptions);
+                }
+
+                // Rename all volumes to their final names inside the "output" subdirectory
+                List<string> allVolumes = MatchedRarWriter.GetAllVolumeFiles(completedRarFilePath);
+
+                for (int i = 0; i < allVolumes.Count; i++)
+                {
+                    string outputFileName = useOriginalNames && i < originalNames.Count
+                        ? Path.GetFileName(originalNames[i])
+                        : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
+                    string outputPath = Path.Combine(rarOutputDir, outputFileName);
+                    if (MatchedRarWriter.MoveMatchedFile(allVolumes[i], outputPath))
+                    {
+                        _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
+                    }
+                    else
+                    {
+                        _logger.Warning(this, $"  Volume NOT written (a different file already occupies '{outputFileName}'); left at '{allVolumes[i]}'", LogTarget.System);
+                    }
+                }
+
+                _logger.Information(this, $"  Completed {allVolumes.Count} volume(s)", LogTarget.System);
+            }
+        }
+        else
+        {
+            // Standard behavior: just rename the first .rar file
+            string outputFileName = useOriginalNames
+                ? Path.GetFileName(originalNames[0])
+                : Path.GetFileName(actualRarFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
+            string outputPath = Path.Combine(rarOutputDir, outputFileName);
+            if (!MatchedRarWriter.MoveMatchedFile(actualRarFilePath, outputPath))
+            {
+                _logger.Warning(this, $"Matched archive NOT written (a different file already occupies '{outputFileName}'); left at '{actualRarFilePath}'", LogTarget.System);
+            }
+        }
     }
 
     private void DeleteRARFileAndVolumes(string rarFilePath)

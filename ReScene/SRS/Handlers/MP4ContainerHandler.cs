@@ -74,33 +74,8 @@ internal class MP4ContainerHandler : IContainerHandler
             ct.ThrowIfCancellationRequested();
             long atomStart = inFs.Position;
 
-            byte[] header = new byte[8];
-            inFs.ReadExactly(header, 0, 8);
-
-            uint size32 = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0, 4));
-            string type = Encoding.ASCII.GetString(header, 4, 4);
-
-            int headerSize = 8;
-            long totalSize;
-            byte[]? extHeader = null;
-
-            if (size32 == 1 && inFs.Position + 8 <= inFs.Length)
-            {
-                extHeader = new byte[8];
-                inFs.ReadExactly(extHeader, 0, 8);
-                totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(extHeader);
-                headerSize = 16;
-            }
-            else if (size32 == 0)
-            {
-                totalSize = inFs.Length - atomStart;
-            }
-            else
-            {
-                totalSize = size32;
-            }
-
-            if (totalSize < headerSize)
+            if (!TryReadAtomHeader(inFs, inFs.Length, out string type, out long totalSize,
+                    out _, out byte[] rawHeader))
             {
                 break;
             }
@@ -121,20 +96,12 @@ internal class MP4ContainerHandler : IContainerHandler
                 }
 
                 // Write mdat header only (skip stream data)
-                outFs.Write(header);
-                if (extHeader is not null)
-                {
-                    outFs.Write(extHeader);
-                }
+                outFs.Write(rawHeader);
             }
             else
             {
                 // Copy atom verbatim
-                outFs.Write(header);
-                if (extHeader is not null)
-                {
-                    outFs.Write(extHeader);
-                }
+                outFs.Write(rawHeader);
 
                 long payloadSize = atomEnd - inFs.Position;
                 if (payloadSize > 0)
@@ -145,6 +112,68 @@ internal class MP4ContainerHandler : IContainerHandler
 
             inFs.Position = atomEnd;
         }
+    }
+
+    /// <summary>
+    /// Reads and decodes a single MP4 atom header (size + 4-character type), handling
+    /// the extended 64-bit size form (<c>size==1</c>) and the to-end-of-boundary form
+    /// (<c>size==0</c>). Returns ONLY the decoded header; CRC/metaLength bookkeeping is
+    /// left to the caller. The stream is left positioned at the start of the atom payload.
+    /// </summary>
+    /// <param name="fs">Source stream, positioned at the start of the atom.</param>
+    /// <param name="end">Boundary for the to-EOF (<c>size==0</c>) form.</param>
+    /// <param name="type">Decoded 4-character atom type.</param>
+    /// <param name="totalSize">Total atom size including the header.</param>
+    /// <param name="headerLength">Header length: 8 for a normal header, 16 with extended size.</param>
+    /// <param name="rawHeader">The raw header bytes (8 or 16) for verbatim re-emit / CRC.</param>
+    /// <returns><c>false</c> when the header cannot be fully read or the size is degenerate.</returns>
+    private static bool TryReadAtomHeader(
+        Stream fs, long end,
+        out string type, out long totalSize, out int headerLength, out byte[] rawHeader)
+    {
+        type = string.Empty;
+        totalSize = 0;
+        headerLength = 8;
+        rawHeader = [];
+
+        long atomStart = fs.Position;
+
+        byte[] header = new byte[8];
+        if (fs.Read(header, 0, 8) < 8)
+        {
+            return false;
+        }
+
+        uint size32 = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0, 4));
+        type = Encoding.ASCII.GetString(header, 4, 4);
+
+        if (size32 == 1)
+        {
+            // Extended 64-bit size.
+            byte[] ext = new byte[8];
+            if (fs.Read(ext, 0, 8) < 8)
+            {
+                return false;
+            }
+
+            totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(ext);
+            headerLength = 16;
+            rawHeader = new byte[16];
+            header.CopyTo(rawHeader, 0);
+            ext.CopyTo(rawHeader, 8);
+        }
+        else if (size32 == 0)
+        {
+            totalSize = end - atomStart;
+            rawHeader = header;
+        }
+        else
+        {
+            totalSize = size32;
+            rawHeader = header;
+        }
+
+        return totalSize >= headerLength;
     }
 
     #region Profiling
@@ -178,52 +207,15 @@ internal class MP4ContainerHandler : IContainerHandler
 
             long atomStart = fs.Position;
 
-            byte[] header = new byte[8];
-            if (fs.Read(header, 0, 8) < 8)
+            if (!TryReadAtomHeader(fs, end, out string type, out long totalSize,
+                    out int headerSize, out byte[] rawHeader))
             {
                 break;
             }
 
-            uint size32 = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0, 4));
-            string type = Encoding.ASCII.GetString(header, 4, 4);
-
-            int headerSize = 8;
-            long totalSize;
-
-            if (size32 == 1)
-            {
-                // Extended 64-bit size
-                byte[] ext = new byte[8];
-                if (fs.Read(ext, 0, 8) < 8)
-                {
-                    break;
-                }
-
-                totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(ext);
-                headerSize = 16;
-
-                // CRC the full header
-                metaLength += 16;
-                crc.Append(header);
-                crc.Append(ext);
-            }
-            else if (size32 == 0)
-            {
-                totalSize = end - atomStart;
-                metaLength += 8;
-                crc.Append(header);
-            }
-            else
-            {
-                totalSize = size32;
-                metaLength += 8;
-                crc.Append(header);
-            }
-
-            if (totalSize < headerSize)
-            {
-                break;
-            }
+            // CRC the header bytes and account for them in the metadata length.
+            metaLength += headerSize;
+            crc.Append(rawHeader);
 
             long payloadSize = totalSize - headerSize;
             long atomEnd = atomStart + totalSize;

@@ -142,6 +142,48 @@ public class SRSWriterTests : IDisposable
         Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
     }
 
+    [Fact]
+    public async Task CreateAsync_MP4_ExtendedSizeMdat_RoundTripsViaSRSFile()
+    {
+        // mdat written with the extended 64-bit size form (size32 == 1), which
+        // exercises the 16-byte atom header path in TryReadAtomHeader.
+        string samplePath = BuildSyntheticMP4ExtendedSizeMdat();
+        string srsPath = Path.Combine(_tempDir, "test_ext.srs");
+
+        var writer = new SRSWriter();
+        SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(SRSContainerType.MP4, result.ContainerType);
+        Assert.True(result.TrackCount > 0);
+
+        var parsed = SRSFile.Load(srsPath);
+        Assert.Equal(SRSContainerType.MP4, parsed.ContainerType);
+        Assert.NotNull(parsed.FileData);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
+        Assert.True(parsed.Tracks.Count > 0);
+    }
+
+    [Fact]
+    public async Task CreateAsync_MP4_ZeroSizeMdat_RoundTripsViaSRSFile()
+    {
+        // mdat written with the to-EOF size form (size32 == 0), which exercises
+        // the "extends to end of stream" path in TryReadAtomHeader.
+        string samplePath = BuildSyntheticMP4ZeroSizeMdat();
+        string srsPath = Path.Combine(_tempDir, "test_zero.srs");
+
+        var writer = new SRSWriter();
+        SRSCreationResult result = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(SRSContainerType.MP4, result.ContainerType);
+        Assert.True(result.TrackCount > 0);
+
+        var parsed = SRSFile.Load(srsPath);
+        Assert.Equal(SRSContainerType.MP4, parsed.ContainerType);
+        Assert.NotNull(parsed.FileData);
+        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
+        Assert.True(parsed.Tracks.Count > 0);
+    }
+
     #endregion
 
     #region FLAC Tests
@@ -602,6 +644,58 @@ public class SRSWriterTests : IDisposable
     }
 
     /// <summary>
+    /// Builds an MP4 whose mdat atom uses the extended 64-bit size form
+    /// (32-bit size field == 1, followed by a 64-bit size). Exercises the
+    /// 16-byte atom header path.
+    /// </summary>
+    private string BuildSyntheticMP4ExtendedSizeMdat()
+    {
+        string path = Path.Combine(_tempDir, "test_ext_sample.mp4");
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+
+        byte[] ftypData = Encoding.ASCII.GetBytes("isom\x00\x00\x02\x00isomiso2mp41");
+        WriteAtomBE(bw, "ftyp", ftypData);
+
+        byte[] moovData = new byte[32];
+        WriteAtomBE(bw, "moov", moovData);
+
+        // mdat atom with the extended 64-bit size form.
+        byte[] mdatData = CreateTestData(1024);
+        WriteAtomExtendedSizeBE(bw, "mdat", mdatData);
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    /// <summary>
+    /// Builds an MP4 whose final mdat atom uses the to-EOF size form
+    /// (32-bit size field == 0, meaning the atom runs to the end of the file).
+    /// </summary>
+    private string BuildSyntheticMP4ZeroSizeMdat()
+    {
+        string path = Path.Combine(_tempDir, "test_zero_sample.mp4");
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+
+        byte[] ftypData = Encoding.ASCII.GetBytes("isom\x00\x00\x02\x00isomiso2mp41");
+        WriteAtomBE(bw, "ftyp", ftypData);
+
+        byte[] moovData = new byte[32];
+        WriteAtomBE(bw, "moov", moovData);
+
+        // mdat atom with the to-EOF size form: 32-bit size == 0, type, then payload.
+        Span<byte> sizeBytes = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(sizeBytes, 0);
+        bw.Write(sizeBytes);
+        bw.Write(Encoding.ASCII.GetBytes("mdat"));
+        bw.Write(CreateTestData(1024));
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    /// <summary>
     /// Builds a minimal FLAC file: fLaC marker + STREAMINFO block + frame data.
     /// </summary>
     private string BuildSyntheticFlac()
@@ -748,6 +842,25 @@ public class SRSWriterTests : IDisposable
         BinaryPrimitives.WriteUInt32BigEndian(sizeBytes, totalSize);
         bw.Write(sizeBytes);
         bw.Write(Encoding.ASCII.GetBytes(type));
+        bw.Write(data);
+    }
+
+    /// <summary>
+    /// Writes an atom using the extended 64-bit size form: a 32-bit size field of 1,
+    /// the 4-character type, then a 64-bit size covering the full 16-byte header + payload.
+    /// </summary>
+    private static void WriteAtomExtendedSizeBE(BinaryWriter bw, string type, byte[] data)
+    {
+        Span<byte> size32 = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(size32, 1);
+        bw.Write(size32);
+        bw.Write(Encoding.ASCII.GetBytes(type));
+
+        ulong totalSize = (ulong)(16 + data.Length);
+        Span<byte> size64 = stackalloc byte[8];
+        BinaryPrimitives.WriteUInt64BigEndian(size64, totalSize);
+        bw.Write(size64);
+
         bw.Write(data);
     }
 

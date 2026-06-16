@@ -542,65 +542,9 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                         remaining.TryGetValue(tn, out long rem) && rem > 0 &&
                         trackOffsets.TryGetValue(tn, out long trackStart))
                     {
-                        bool include;
-
-                        if (!started.Contains(tn))
-                        {
-                            // First block: frame data must start at or near the
-                            // signature offset found by FindSignature.
-                            //
-                            // Case 1: signature falls within frame data range
-                            //   (frameDataOffset <= trackStart < frameDataOffset + frameDataLen)
-                            //
-                            // Case 2: frame data starts shortly AFTER the signature offset.
-                            //   FindSignature does a raw byte scan and can match at a
-                            //   position where element/block header bytes preceding the
-                            //   actual frame data happen to match the start of the
-                            //   signature. In this case, frameDataOffset is a few bytes
-                            //   after trackStart (up to ~20 bytes of header overlap).
-                            //   We verify the actual frame data matches the signature.
-                            const int MaxHeaderOverlap = 20;
-
-                            if (frameDataOffset <= trackStart
-                                && frameDataOffset + frameDataLen > trackStart)
-                            {
-                                include = true;
-                            }
-                            else if (frameDataOffset > trackStart
-                                && frameDataOffset <= trackStart + MaxHeaderOverlap)
-                            {
-                                // Verify frame data matches the expected signature
-                                // at the appropriate offset within it.
-                                int sigOffset = (int)(frameDataOffset - trackStart);
-                                ReadOnlyMemory<byte> sig = tracks[tn].Signature;
-                                int verifyLen = Math.Min(sig.Length - sigOffset, frameDataLen);
-
-                                if (verifyLen > 0)
-                                {
-                                    long savedPos = fs.Position;
-                                    fs.Position = frameDataOffset;
-                                    byte[] verifyBuf = new byte[verifyLen];
-                                    int read = StreamUtilities.ReadFully(fs, verifyBuf, 0, verifyLen);
-                                    fs.Position = savedPos;
-
-                                    include = read == verifyLen
-                                        && verifyBuf.AsSpan(0, read)
-                                            .SequenceEqual(sig.Span.Slice(sigOffset, read));
-                                }
-                                else
-                                {
-                                    include = false;
-                                }
-                            }
-                            else
-                            {
-                                include = false;
-                            }
-                        }
-                        else
-                        {
-                            include = true;
-                        }
+                        bool include = ShouldIncludeBlock(
+                            fs, started.Contains(tn), frameDataOffset, frameDataLen,
+                            trackStart, tracks[tn].Signature);
 
                         if (include)
                         {
@@ -671,6 +615,70 @@ internal class MKVContainerRebuilder : IContainerRebuilder
         }
 
         return streams;
+    }
+
+    /// <summary>
+    /// Decides whether a SimpleBlock/Block belongs to the track being collected.
+    /// Once a track has started, every subsequent block is included. For the first
+    /// block, the frame data must line up with the signature offset found by
+    /// FindSignature; this seeks into and reads from <paramref name="fs"/> to verify
+    /// a near-match, so it is NOT pure (it restores the stream position afterwards).
+    /// </summary>
+    private static bool ShouldIncludeBlock(
+        Stream fs, bool alreadyStarted, long frameDataOffset, int frameDataLen,
+        long trackStart, ReadOnlyMemory<byte> signature)
+    {
+        if (alreadyStarted)
+        {
+            return true;
+        }
+
+        // First block: frame data must start at or near the
+        // signature offset found by FindSignature.
+        //
+        // Case 1: signature falls within frame data range
+        //   (frameDataOffset <= trackStart < frameDataOffset + frameDataLen)
+        //
+        // Case 2: frame data starts shortly AFTER the signature offset.
+        //   FindSignature does a raw byte scan and can match at a
+        //   position where element/block header bytes preceding the
+        //   actual frame data happen to match the start of the
+        //   signature. In this case, frameDataOffset is a few bytes
+        //   after trackStart (up to ~20 bytes of header overlap).
+        //   We verify the actual frame data matches the signature.
+        const int MaxHeaderOverlap = 20;
+
+        if (frameDataOffset <= trackStart
+            && frameDataOffset + frameDataLen > trackStart)
+        {
+            return true;
+        }
+
+        if (frameDataOffset > trackStart
+            && frameDataOffset <= trackStart + MaxHeaderOverlap)
+        {
+            // Verify frame data matches the expected signature
+            // at the appropriate offset within it.
+            int sigOffset = (int)(frameDataOffset - trackStart);
+            int verifyLen = Math.Min(signature.Length - sigOffset, frameDataLen);
+
+            if (verifyLen > 0)
+            {
+                long savedPos = fs.Position;
+                fs.Position = frameDataOffset;
+                byte[] verifyBuf = new byte[verifyLen];
+                int read = StreamUtilities.ReadFully(fs, verifyBuf, 0, verifyLen);
+                fs.Position = savedPos;
+
+                return read == verifyLen
+                    && verifyBuf.AsSpan(0, read)
+                        .SequenceEqual(signature.Span.Slice(sigOffset, read));
+            }
+
+            return false;
+        }
+
+        return false;
     }
 
     #endregion

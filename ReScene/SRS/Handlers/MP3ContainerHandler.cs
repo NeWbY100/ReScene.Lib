@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using System.Text;
 
 namespace ReScene.SRS;
 
@@ -88,10 +87,10 @@ internal class MP3ContainerHandler : IContainerHandler
         }
 
         // Write SRSF/SRST blocks (replaces audio data)
-        WriteSrsfMP3(outFs, samplePath, sampleSize, sampleCRC32, options);
+        SRSPayloadSerializer.WriteSrsfBlock(outFs, samplePath, sampleSize, sampleCRC32, options);
         foreach (TrackInfo track in tracks)
         {
-            WriteSrstMP3(outFs, track, sampleSize >= 0x80000000);
+            SRSPayloadSerializer.WriteSrstBlock(outFs, track, sampleSize >= 0x80000000);
         }
 
         // Copy all footer tags (APE, Lyrics3, ID3v1 etc.) verbatim
@@ -103,31 +102,6 @@ internal class MP3ContainerHandler : IContainerHandler
             outFs.Write(footerTags);
         }
     }
-
-    #region Writing Helpers
-
-    private static void WriteSrsfMP3(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
-        SRSCreationOptions options)
-    {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.Write(Encoding.ASCII.GetBytes("SRSF"));
-        Span<byte> sizeBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(4 + 4 + payload.Length));
-        outFs.Write(sizeBytes);
-        outFs.Write(payload);
-    }
-
-    private static void WriteSrstMP3(Stream outFs, TrackInfo track, bool bigFile)
-    {
-        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.Write(Encoding.ASCII.GetBytes("SRST"));
-        Span<byte> sizeBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(8 + payload.Length));
-        outFs.Write(sizeBytes);
-        outFs.Write(payload);
-    }
-
-    #endregion
 
     #region Utilities
 

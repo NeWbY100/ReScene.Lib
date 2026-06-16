@@ -105,4 +105,35 @@ internal static class SRSPayloadSerializer
 
         return buffer;
     }
+
+    /// <summary>
+    /// Writes a framed SRSF block (tag + little-endian 32-bit size + payload) for the
+    /// MP3 and Stream containers, which share byte-identical framing. The size field
+    /// counts the 4-byte tag + 4-byte size field + payload (i.e. payload length + 8).
+    /// </summary>
+    public static void WriteSrsfBlock(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
+        SRSCreationOptions options)
+    {
+        byte[] payload = SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
+        outFs.Write(Encoding.ASCII.GetBytes("SRSF"));
+        Span<byte> sizeBytes = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(4 + 4 + payload.Length));
+        outFs.Write(sizeBytes);
+        outFs.Write(payload);
+    }
+
+    /// <summary>
+    /// Writes a framed SRST block (tag + little-endian 32-bit size + payload) for the
+    /// MP3 and Stream containers, which share byte-identical framing. The size field
+    /// counts the 4-byte tag + 4-byte size field + payload (i.e. payload length + 8).
+    /// </summary>
+    public static void WriteSrstBlock(Stream outFs, TrackInfo track, bool bigFile)
+    {
+        byte[] payload = SerializeSrst(track, bigFile);
+        outFs.Write(Encoding.ASCII.GetBytes("SRST"));
+        Span<byte> sizeBytes = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(8 + payload.Length));
+        outFs.Write(sizeBytes);
+        outFs.Write(payload);
+    }
 }
