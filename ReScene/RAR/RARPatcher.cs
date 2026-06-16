@@ -5,14 +5,14 @@ namespace ReScene.RAR;
 /// <summary>
 /// Result of a patching operation on a single block.
 /// </summary>
-internal class PatchResult
+internal sealed record PatchResult
 {
     /// <summary>
     /// Byte offset of the block within the RAR file.
     /// </summary>
     public long BlockPosition
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -20,7 +20,7 @@ internal class PatchResult
     /// </summary>
     public RAR4BlockType BlockType
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ internal class PatchResult
     /// </summary>
     public string? FileName
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -36,7 +36,7 @@ internal class PatchResult
     /// </summary>
     public byte OriginalHostOS
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ internal class PatchResult
     /// </summary>
     public byte NewHostOS
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ internal class PatchResult
     /// </summary>
     public uint OriginalAttributes
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ internal class PatchResult
     /// </summary>
     public uint NewAttributes
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ internal class PatchResult
     /// </summary>
     public ushort OriginalCRC
     {
-        get; set;
+        get; init;
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ internal class PatchResult
     /// </summary>
     public ushort NewCRC
     {
-        get; set;
+        get; init;
     }
 }
 

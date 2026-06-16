@@ -9,9 +9,6 @@ namespace ReScene.SRS;
 /// </summary>
 internal class MP4ContainerRebuilder : IContainerRebuilder
 {
-    private static readonly HashSet<string> _containerAtoms =
-        ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta"];
-
     public SRSContainerType ContainerType => SRSContainerType.MP4;
 
     public void Rebuild(
@@ -111,7 +108,7 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
 
                 srsFs.Position = atomEnd;
             }
-            else if (_containerAtoms.Contains(type))
+            else if (MP4Atoms.ContainerAtoms.Contains(type))
             {
                 // Recurse into container atoms
                 RebuildMP4Atoms(srsFs, outFs, mediaFs, tracks, trackOffsets,

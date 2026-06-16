@@ -652,11 +652,6 @@ public class SRSFile
 
     private static void ParseMP4(BinaryReader reader, FileStream fs, SRSFile srs) => ParseMP4Atoms(reader, fs, srs, 0, fs.Length);
 
-    private static readonly HashSet<string> _mP4ContainerAtoms = new(StringComparer.Ordinal)
-    {
-        "moov", "trak", "mdia", "minf", "stbl", "edts", "udta"
-    };
-
     private static void ParseMP4Atoms(BinaryReader reader, FileStream fs, SRSFile srs,
         long start, long end)
     {
@@ -713,7 +708,7 @@ public class SRSFile
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 fs.Position = frameOffset + totalSize;
             }
-            else if (_mP4ContainerAtoms.Contains(type))
+            else if (MP4Atoms.ContainerAtoms.Contains(type))
             {
                 srs._containerChunks.Add(new SRSContainerChunk
                 {

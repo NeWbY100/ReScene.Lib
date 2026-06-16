@@ -38,15 +38,15 @@ enum ReScene.Core.Comparison.DifferenceType
     field Int32 value__
 class sealed ReScene.Core.Comparison.EBMLElement
     ctor ()
-    property EBMLValueType ValueType { get; set; }
+    property EBMLValueType ValueType { get; }
     property IReadOnlyList<EBMLElement> Children { get; }
-    property Int32 HeaderSize { get; set; }
-    property Int64 DataSize { get; set; }
-    property Int64 Position { get; set; }
-    property Int64 TotalSize { get; set; }
-    property String Name { get; set; }
-    property String Value { get; set; }
-    property UInt64 ElementId { get; set; }
+    property Int32 HeaderSize { get; }
+    property Int64 DataSize { get; }
+    property Int64 Position { get; }
+    property Int64 TotalSize { get; }
+    property String Name { get; }
+    property String Value { get; }
+    property UInt64 ElementId { get; }
 enum ReScene.Core.Comparison.EBMLValueType
     field EBMLValueType Binary
     field EBMLValueType Date

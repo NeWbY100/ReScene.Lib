@@ -64,64 +64,64 @@ public enum EBMLValueType
 public sealed class EBMLElement
 {
     /// <summary>
-    /// Gets or sets the EBML element ID (marker bit preserved), e.g. <c>0x1A45DFA3</c>.
+    /// Gets the EBML element ID (marker bit preserved), e.g. <c>0x1A45DFA3</c>.
     /// </summary>
     public ulong ElementId
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>
-    /// Gets or sets the human-readable element name (e.g. "Segment", "TrackNumber").
+    /// Gets the human-readable element name (e.g. "Segment", "TrackNumber").
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; internal set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the file offset of the first byte of the element ID.
+    /// Gets the file offset of the first byte of the element ID.
     /// </summary>
     public long Position
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>
-    /// Gets or sets the number of bytes occupied by the element ID and the size VINT.
+    /// Gets the number of bytes occupied by the element ID and the size VINT.
     /// </summary>
     public int HeaderSize
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>
-    /// Gets or sets the number of bytes of element data (excluding the header).
+    /// Gets the number of bytes of element data (excluding the header).
     /// </summary>
     public long DataSize
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>
-    /// Gets or sets the total size of the element including its header.
+    /// Gets the total size of the element including its header.
     /// </summary>
     public long TotalSize
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>
-    /// Gets or sets the interpreted value type of the element.
+    /// Gets the interpreted value type of the element.
     /// </summary>
     public EBMLValueType ValueType
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>
-    /// Gets or sets the formatted leaf value, or <see langword="null"/> for master elements.
+    /// Gets the formatted leaf value, or <see langword="null"/> for master elements.
     /// </summary>
     public string? Value
     {
-        get; set;
+        get; internal set;
     }
 
     /// <summary>

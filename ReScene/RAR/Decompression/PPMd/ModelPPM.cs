@@ -32,6 +32,10 @@ internal class ModelPPM
 
     private readonly byte[] _charMask = new byte[256];
     private readonly byte[] _ns2Indx = new byte[256];
+
+    // Scratch buffer for DecodeSymbol2's state-pointer walk; reused across calls to avoid
+    // a per-call int[256] allocation on this hot decode path.
+    private readonly int[] _ps = new int[256];
     private readonly byte[] _ns2BSIndx = new byte[256];
     private readonly byte[] _hb2Flag = new byte[256];
     private byte _escCount;
@@ -422,7 +426,6 @@ internal class ModelPPM
         int stats = GetContextStats(_minContext);
         int p = stats - STATE_SIZE;
         int hiCnt = 0;
-        int[] ps = new int[256];
         int ppsCount = 0;
 
         int i = diff;
@@ -436,7 +439,7 @@ internal class ModelPPM
             hiCnt += GetStateFreq(p);
             if (ppsCount < 256)
             {
-                ps[ppsCount++] = p;
+                _ps[ppsCount++] = p;
             }
         } while (--i > 0);
 
@@ -448,7 +451,7 @@ internal class ModelPPM
             return false;
         }
 
-        p = ps[0];
+        p = _ps[0];
         int ppsIdx = 0;
 
         if (count < hiCnt)
@@ -462,7 +465,7 @@ internal class ModelPPM
                     return false;
                 }
 
-                p = ps[ppsIdx];
+                p = _ps[ppsIdx];
             }
 
             _coder.LowCount = (uint)(hiCnt - GetStateFreq(p));
@@ -483,7 +486,7 @@ internal class ModelPPM
                     return false;
                 }
 
-                _charMask[GetStateSymbol(ps[ppsIdx])] = _escCount;
+                _charMask[GetStateSymbol(_ps[ppsIdx])] = _escCount;
                 ppsIdx++;
             } while (--i > 0);
             _see2Cont[see2Idx1, see2Idx2] += (ushort)_coder.Scale;

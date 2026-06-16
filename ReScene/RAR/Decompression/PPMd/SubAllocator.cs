@@ -9,6 +9,9 @@ internal class SubAllocator
     private const int N1 = 4, N2 = 4, N3 = 4;
     private const int N4 = (128 + 3 - 1 * N1 - 2 * N2 - 3 * N3) / 4;
     private const int N_INDEXES = N1 + N2 + N3 + N4;
+    // In unrar's suballoc.cpp these mirror two distinct pointer-unit scales (UNIT_SIZE for the
+    // glue/free-list allocator, FIXED_UNIT_SIZE for fixed-size unit math). They happen to coincide
+    // at 12 in this port; kept as separate constants so each stays diffable against unrar's source.
     private const int UNIT_SIZE = 12;
     private const int FIXED_UNIT_SIZE = 12;
 

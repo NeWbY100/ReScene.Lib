@@ -8,9 +8,6 @@ internal class MP4ContainerHandler : IContainerHandler
 {
     public SRSContainerType ContainerType => SRSContainerType.MP4;
 
-    private static readonly HashSet<string> _mP4ContainerAtoms =
-        ["moov", "trak", "mdia", "minf", "stbl", "edts", "udta", "meta", "ilst"];
-
     public (List<TrackInfo> Tracks, uint CRC32, long TotalSize) Profile(
         string samplePath,
         Action<long, long, int>? reportScanProgress,
@@ -281,7 +278,7 @@ internal class MP4ContainerHandler : IContainerHandler
                     }
                 }
             }
-            else if (_mP4ContainerAtoms.Contains(type))
+            else if (MP4Atoms.ContainerAtoms.Contains(type))
             {
                 // Step into children
                 ProfileMP4Atoms(fs, fs.Position, atomEnd, trackMap, ref metaLength, ref mdatSize,
