@@ -1,6 +1,3 @@
-using System.Collections.Concurrent;
-using System.Text;
-using System.Text.RegularExpressions;
 using ReScene.Core.Cryptography;
 using ReScene.Core.Diagnostics;
 using ReScene.Core.IO;
@@ -12,8 +9,20 @@ namespace ReScene.Core;
 /// Orchestrates brute-force RAR reconstruction by testing RAR version and argument combinations
 /// against expected hash values until a match is found.
 /// </summary>
-public partial class Manager(IReSceneLogger? logger = null)
+public partial class Manager
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Manager"/> class.
+    /// </summary>
+    /// <param name="logger">
+    /// The logger to use, or <see langword="null"/> to discard log output.
+    /// </param>
+    public Manager(IReSceneLogger? logger = null)
+    {
+        _logger = logger ?? NullReSceneLogger.Instance;
+        _processLogManager = new ProcessLogManager(_logger, this);
+    }
+
     /// <summary>
     /// Occurs when a RAR process writes output.
     /// </summary>
@@ -75,27 +84,14 @@ public partial class Manager(IReSceneLogger? logger = null)
     // cancellation token (see BruteForceRARVersionAsync). Stop() cancels it directly.
     private CancellationTokenSource _cts = new();
 
-    // Written from the orchestration thread and read/closed from CliWrap's process-output
-    // callbacks (thread-pool threads), so it must be concurrency-safe; each writer is also
-    // guarded by its own gate because stdout/stderr can be delivered on separate threads.
-    private readonly ConcurrentDictionary<RARProcess, ProcessLog> _processLogs = new();
     private string? _commentFilePath = null;
 
-    /// <summary>A per-process log writer paired with the gate that serializes access to it.</summary>
-    private sealed class ProcessLog(StreamWriter writer)
-    {
-        public StreamWriter Writer { get; } = writer;
+    private readonly IReSceneLogger _logger;
 
-        // A dedicated gate object — never lock on the StreamWriter itself (CA2002: it derives
-        // from MarshalByRefObject and has weak identity).
-        public object Gate { get; } = new();
-    }
-
-    private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
-
-    [GeneratedRegex("(?:win)?(?:rar|wr)(?:-x64|-x32)?-?(\\d+)(?:b\\d+)?", RegexOptions.IgnoreCase)]
-    private static partial Regex Generated_rarVersionRegex();
-    private static readonly Regex _rarVersionRegex = Generated_rarVersionRegex();
+    // Owns the per-process streaming log writers (open/write/close), keeping that
+    // concurrency-safe bookkeeping out of the orchestrator. Manager forwards its process
+    // callbacks to it. A single instance for the lifetime of this Manager.
+    private readonly ProcessLogManager _processLogManager;
 
     /// <summary>
     /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
@@ -107,25 +103,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// The parsed version number, normalized to three digits.
     /// </returns>
     public static int ParseRARVersion(string rarVersionDirectoryName)
-    {
-        Match versionMatch = _rarVersionRegex.Match(rarVersionDirectoryName);
-        if (!versionMatch.Success)
-        {
-            throw new FormatException($"WinRAR version not found in directory name:{Environment.NewLine}{rarVersionDirectoryName}");
-        }
-
-        string versionNumberStr = versionMatch.Groups[1].Value;
-        if (!int.TryParse(versionNumberStr, out int versionNumber))
-        {
-            throw new InvalidDataException($"WinRAR version found in directory name is invalid:{Environment.NewLine}{versionNumberStr}");
-        }
-
-        return versionNumber switch
-        {
-            < 100 => versionNumber * 10,
-            _ => versionNumber
-        };
-    }
+        => RarVersionSelector.ParseRARVersion(rarVersionDirectoryName);
 
     /// <summary>
     /// Determines the RAR archive format version from command-line arguments and the RAR version number.
@@ -140,51 +118,7 @@ public partial class Manager(IReSceneLogger? logger = null)
     /// The detected archive format version.
     /// </returns>
     public static RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[] commandLineArguments, int version)
-    {
-        RARCommandLineArgument? archiveVersionCommandLine = commandLineArguments.FirstOrDefault(a => a.Argument is "-ma4" or "-ma5");
-        if (archiveVersionCommandLine != null)
-        {
-            return archiveVersionCommandLine.Argument switch
-            {
-                "-ma4" => RARArchiveVersion.RAR4,
-                "-ma5" => RARArchiveVersion.RAR5,
-                _ => throw new IndexOutOfRangeException($"RAR archive version command line argument out of range: {archiveVersionCommandLine.Argument}")
-            };
-        }
-
-        return version switch
-        {
-            < 500 => RARArchiveVersion.RAR4,
-            < 700 => RARArchiveVersion.RAR5,
-            >= 700 => RARArchiveVersion.RAR7
-        };
-    }
-
-    /// <summary>
-    /// Filters candidate RAR command-line arguments down to those applicable to the given RAR
-    /// version and archive format — honoring each argument's minimum/maximum version and its
-    /// required archive version — and returns the argument strings.
-    /// </summary>
-    internal static List<string> FilterArgumentsForVersion(IEnumerable<RARCommandLineArgument> commandLineArguments, int version, RARArchiveVersion archiveVersion)
-        => commandLineArguments
-            .Where(a => version >= a.MinimumVersion
-                && (!a.MaximumVersion.HasValue || version <= a.MaximumVersion.Value)
-                && (!a.ArchiveVersion.HasValue || a.ArchiveVersion.Value.HasFlag(archiveVersion)))
-            .Select(a => a.Argument)
-            .ToList();
-
-    /// <summary>
-    /// RAR 6.x does not honor timestamp options (-tsc/-tsa) when producing RAR4-format archives,
-    /// so those combinations must be skipped to avoid wrong extended-time header flags. RAR 7.x is
-    /// excluded because it only creates RAR7 archives and handles timestamps natively.
-    /// </summary>
-    internal static bool ShouldSkipRar6TimestampCombination(int version, RARArchiveVersion archiveVersion, IReadOnlyList<string> filteredArguments)
-    {
-        bool hasTimestampOptions = filteredArguments.Any(a => a.StartsWith("-ts", StringComparison.Ordinal));
-        bool isRAR4Format = archiveVersion == RARArchiveVersion.RAR4
-            || (version >= 550 && version < 700 && !filteredArguments.Contains("-ma5"));
-        return version >= 600 && version < 700 && isRAR4Format && hasTimestampOptions;
-    }
+        => RarVersionSelector.ParseRARArchiveVersion(commandLineArguments, version);
 
     /// <summary>
     /// Runs the brute-force RAR reconstruction, testing version and argument combinations until a hash match is found.
@@ -259,8 +193,14 @@ public partial class Manager(IReSceneLogger? logger = null)
         List<(string Path, int Version)> allValidRarDirectories = GetValidRarDirectories(rarVersionDirectories, options);
         _logger.Information(this, $"Found {allValidRarDirectories.Count} valid RAR versions matching configured version ranges");
 
+        // Prepares the working input directory and validates the SRR file list. Constructed after
+        // _cts was (re)linked above so it observes this run's cancellation token, and given the
+        // event-firing callbacks so its progress/preservation events fire from Manager as before.
+        var inputDirectoryPreparer = new InputDirectoryPreparer(
+            _logger, this, FireFileCopyProgress, FireCRCValidationProgress, FireTimestampPreservationFailed, _cts.Token);
+
         // Validate input files before any brute-forcing
-        if (options.RAROptions.HasArchiveFileList && !ValidateInputFiles(options))
+        if (options.RAROptions.HasArchiveFileList && !inputDirectoryPreparer.ValidateInputFiles(options))
         {
             return false;
         }
@@ -270,7 +210,8 @@ public partial class Manager(IReSceneLogger? logger = null)
         List<(string Path, int Version)> versionsToUse;
         if (options.RAROptions.CanUseCommentPhase)
         {
-            versionsToUse = await BruteForceCommentPhaseAsync(options, allValidRarDirectories);
+            var commentPhaseBruteForcer = new CommentPhaseBruteForcer(_logger, this, FireBruteForceProgress, _cts.Token);
+            versionsToUse = await commentPhaseBruteForcer.BruteForceCommentPhaseAsync(options, allValidRarDirectories);
             _logger.Information(this, $"Phase 1 complete: {versionsToUse.Count} matching version(s)", LogTarget.System);
             _logger.Information(this, $"=== PHASE 2: Full RAR Brute-Force with {versionsToUse.Count} version(s) ===", LogTarget.Phase2);
         }
@@ -281,9 +222,11 @@ public partial class Manager(IReSceneLogger? logger = null)
             _logger.Information(this, "Phase 1 skipped (no CMT data) - using all versions for brute-force", LogTarget.Phase1);
         }
 
-        string inputFilesDir = await Task.Run(() => PrepareInputDirectory(options));
+        InputDirectoryPreparer.PrepareResult prepareResult = await Task.Run(() => inputDirectoryPreparer.PrepareInputDirectory(options));
+        string inputFilesDir = prepareResult.InputFilesDir;
+        _commentFilePath = prepareResult.CommentFilePath;
 
-        int totalProgressSize = CalculateBruteForceProgressSize(options, versionsToUse.Count, allValidRarDirectories.Count);
+        int totalProgressSize = BruteForceProgressCalculator.CalculateBruteForceProgressSize(options, versionsToUse.Count, allValidRarDirectories.Count);
         int currentProgress = 0;
 
         DirectoryInfo directoryInfo = new(inputFilesDir);
@@ -399,58 +342,6 @@ public partial class Manager(IReSceneLogger? logger = null)
         // each process then closes its log writer in Process_ProcessStatusChanged.
     }
 
-    private static int CalculateBruteForceProgressSize(BruteForceOptions options, int filteredVersionCount = 0, int totalVersionCount = 0)
-    {
-        int size = 0;
-
-        DirectoryInfo directoryInfo = new(options.ReleaseDirectoryPath);
-        string[] rarVersionDirectories = Directory.GetDirectories(options.RARInstallationsDirectoryPath);
-        for (int a = 0; a < (options.RAROptions.SetFileArchiveAttribute == TriState.Checked ? 2 : 1); a++)
-        {
-            for (int b = 0; b < (options.RAROptions.SetFileNotContentIndexedAttribute == TriState.Checked ? 2 : 1); b++)
-            {
-                Parallel.ForEach(rarVersionDirectories, (rarVersionDirectoryPath, s, i) =>
-                {
-                    string rarExeFilePath = Path.Combine(rarVersionDirectoryPath, "rar.exe");
-                    if (!File.Exists(rarExeFilePath))
-                    {
-                        return;
-                    }
-
-                    string rarVersionDirectoryName = Path.GetFileName(rarVersionDirectoryPath);
-                    int version = ParseRARVersion(rarVersionDirectoryName);
-                    if (!options.RAROptions.RARVersions.Any(r => r.InRange(version)))
-                    {
-                        return;
-                    }
-
-                    Parallel.ForEach(options.RAROptions.CommandLineArguments, (commandLineArguments, s2, j) =>
-                    {
-                        RARArchiveVersion archiveVersion = ParseRARArchiveVersion(commandLineArguments, version);
-                        List<string> filteredArguments = FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
-
-                        // Apply same RAR 6.x timestamp skip as the main loop
-                        if (ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments))
-                        {
-                            return;
-                        }
-
-                        Interlocked.Increment(ref size);
-                    });
-                });
-            }
-        }
-
-        // If Phase 1 filtered the versions, scale the progress accordingly
-        if (filteredVersionCount > 0 && totalVersionCount > 0 && filteredVersionCount < totalVersionCount)
-        {
-            // Scale the size based on the ratio of filtered versions to total versions
-            size = (int)((long)size * filteredVersionCount / totalVersionCount);
-        }
-
-        return size;
-    }
-
     private async Task<int> RARCompressDirectoryAsync(string rarExeFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, CancellationToken cancellationToken)
     {
         RARProcess process = new(rarExeFilePath, inputDirectory, outputFilePath, commandLineOptions, _logger)
@@ -461,21 +352,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         // Initialize streaming log writer for this process
         if (BruteForceOptions != null)
         {
-            // Create log file path
-            string logsDir = Path.Combine(BruteForceOptions.OutputDirectoryPath, "logs");
-            Directory.CreateDirectory(logsDir);
-
-            string logFileName = $"{Path.GetFileNameWithoutExtension(outputFilePath)}_{DateTime.Now:yyyyMMdd_HHmmss}.log";
-            string logFilePath = Path.Combine(logsDir, logFileName);
-
-            // Open StreamWriter with AutoFlush enabled for immediate writes
-            StreamWriter writer = new(logFilePath, append: false)
-            {
-                AutoFlush = true
-            };
-            _processLogs[process] = new ProcessLog(writer);
-
-            _logger.Information(this, $"Opened log file for streaming: {logFilePath}", LogTarget.Phase2);
+            _processLogManager.OpenLog(process, BruteForceOptions.OutputDirectoryPath, outputFilePath);
         }
 
         process.ProcessStatusChanged += Process_ProcessStatusChanged;
@@ -559,27 +436,10 @@ public partial class Manager(IReSceneLogger? logger = null)
 
         RARProcessStatusChanged?.Invoke(this, new(process, e.OldStatus, e.NewStatus, e.CompletionStatus));
 
-        // When process completes, close and dispose the log writer. TryRemove is atomic, so a
-        // late ProcessOutput callback can no longer find the writer once it has been closed.
+        // When process completes, close and dispose the log writer.
         if (e.NewStatus == OperationStatus.Completed)
         {
-            if (_processLogs.TryRemove(process, out ProcessLog? log))
-            {
-                try
-                {
-                    lock (log.Gate)
-                    {
-                        log.Writer.Close();
-                        log.Writer.Dispose();
-                    }
-
-                    _logger.Information(this, $"Process log file closed", LogTarget.Phase2);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Information(this, $"Failed to close process log writer: {ex.Message}", LogTarget.Phase2);
-                }
-            }
+            _processLogManager.CloseLog(process);
         }
     }
 
@@ -590,24 +450,8 @@ public partial class Manager(IReSceneLogger? logger = null)
             return;
         }
 
-        // Stream output directly to log file (auto-flushed). The per-writer gate serializes
-        // concurrent stdout/stderr callbacks; a writer closed concurrently is handled by the
-        // catch (a caught ObjectDisposedException, never a crash or a corrupt dictionary).
-        if (_processLogs.TryGetValue(process, out ProcessLog? log))
-        {
-            try
-            {
-                lock (log.Gate)
-                {
-                    log.Writer.WriteLine(e.Data);
-                    // AutoFlush is enabled, so data is immediately written to disk
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Information(this, $"Failed to write to process log: {ex.Message}", LogTarget.Phase2);
-            }
-        }
+        // Stream output directly to the log file (auto-flushed) before re-raising the event.
+        _processLogManager.WriteOutput(process, e.Data);
 
         RARProcessOutput?.Invoke(this, new(process, e.Data));
     }
@@ -648,29 +492,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         => FileOperations.SetFileAttributes(files, attribute, add, _logger);
 
     private List<(string Path, int Version)> GetValidRarDirectories(string[] directories, BruteForceOptions options)
-    {
-        var validDirectories = new List<(string Path, int Version)>();
-
-        foreach (string dir in directories)
-        {
-            string rarExeFilePath = Path.Combine(dir, "rar.exe");
-            if (!File.Exists(rarExeFilePath))
-            {
-                _logger.Information(this, $"rar.exe not found in {dir}");
-                continue;
-            }
-
-            string dirName = Path.GetFileName(dir);
-            int version = ParseRARVersion(dirName);
-
-            if (options.RAROptions.RARVersions.Any(r => r.InRange(version)))
-            {
-                validDirectories.Add((dir, version));
-            }
-        }
-
-        return validDirectories;
-    }
+        => RarVersionSelector.GetValidRarDirectories(directories, options, _logger, this);
 
 
     private async Task<(bool Found, int NewProgress)> TryProcessCommandLinesAsync(
@@ -712,14 +534,14 @@ public partial class Manager(IReSceneLogger? logger = null)
             }
 
             RARArchiveVersion archiveVersion = ParseRARArchiveVersion(commandLineArguments, version);
-            List<string> filteredArguments = FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
+            List<string> filteredArguments = RarVersionSelector.FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
 
             string joinedArguments = string.Join("", filteredArguments);
             string displayArguments = string.Join(" ", filteredArguments);
 
             // RAR 6.x doesn't honor timestamp options (-tsc0/-tsa0) for RAR4 format archives, so
             // skip the combination to avoid creating archives with wrong extended-time flags.
-            if (ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments))
+            if (RarVersionSelector.ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments))
             {
                 if (!loggedRAR6TimestampSkip)
                 {
@@ -818,7 +640,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                 });
 
                 // Check if RAR file or volume files were created
-                string? actualRarFilePath = FindCreatedRARFile(rarFilePath);
+                string? actualRarFilePath = MatchedRarWriter.FindCreatedRARFile(rarFilePath);
                 if (actualRarFilePath == null)
                 {
                     _logger.Information(this, $"RAR file was not created: {rarFilePath}", LogTarget.Phase2);
@@ -950,7 +772,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                 if (options.RAROptions.CompleteAllVolumes)
                 {
                     // Re-find all volumes now that RAR has completed
-                    string? completedRarFilePath = FindCreatedRARFile(rarFilePath);
+                    string? completedRarFilePath = MatchedRarWriter.FindCreatedRARFile(rarFilePath);
                     if (completedRarFilePath != null)
                     {
                         // Patch remaining volumes (first volume already patched - will be no-op for it)
@@ -960,7 +782,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                         }
 
                         // Rename all volumes to their final names inside the "output" subdirectory
-                        List<string> allVolumes = GetAllVolumeFiles(completedRarFilePath);
+                        List<string> allVolumes = MatchedRarWriter.GetAllVolumeFiles(completedRarFilePath);
 
                         for (int i = 0; i < allVolumes.Count; i++)
                         {
@@ -968,7 +790,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                                 ? Path.GetFileName(originalNames[i])
                                 : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
                             string outputPath = Path.Combine(rarOutputDir, outputFileName);
-                            if (MoveMatchedFile(allVolumes[i], outputPath))
+                            if (MatchedRarWriter.MoveMatchedFile(allVolumes[i], outputPath))
                             {
                                 _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
                             }
@@ -988,7 +810,7 @@ public partial class Manager(IReSceneLogger? logger = null)
                         ? Path.GetFileName(originalNames[0])
                         : Path.GetFileName(actualRarFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
                     string outputPath = Path.Combine(rarOutputDir, outputFileName);
-                    if (!MoveMatchedFile(actualRarFilePath, outputPath))
+                    if (!MatchedRarWriter.MoveMatchedFile(actualRarFilePath, outputPath))
                     {
                         _logger.Warning(this, $"Matched archive NOT written (a different file already occupies '{outputFileName}'); left at '{actualRarFilePath}'", LogTarget.System);
                     }
@@ -1005,81 +827,8 @@ public partial class Manager(IReSceneLogger? logger = null)
         return (false, currentProgress);
     }
 
-    /// <summary>
-    /// Moves a matched RAR file to its final path. Returns <see langword="true"/> when the file
-    /// ends up at <paramref name="destinationPath"/> — either moved there, or already there
-    /// because no rename was needed. Returns <see langword="false"/> when a different file
-    /// already occupies the destination (the source is left untouched).
-    /// </summary>
-    internal static bool MoveMatchedFile(string sourcePath, string destinationPath)
-    {
-        if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (File.Exists(destinationPath))
-        {
-            return false;
-        }
-
-        File.Move(sourcePath, destinationPath);
-        return true;
-    }
-
-    internal static string? FindCreatedRARFile(string expectedRarFilePath)
-    {
-        // Check if the expected file exists (non-volume case)
-        if (File.Exists(expectedRarFilePath))
-        {
-            return expectedRarFilePath;
-        }
-
-        // Check for volume files
-        string directory = Path.GetDirectoryName(expectedRarFilePath) ?? string.Empty;
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(expectedRarFilePath);
-
-        // Check for RAR5 volume format with zero-padded numbers: filename.part01.rar, filename.part02.rar, etc.
-        string part01File = Path.Combine(directory, $"{fileNameWithoutExtension}.part01.rar");
-        if (File.Exists(part01File))
-        {
-            return part01File;
-        }
-
-        // Check for RAR5 volume format without zero-padding: filename.part1.rar, filename.part2.rar, etc.
-        string part1File = Path.Combine(directory, $"{fileNameWithoutExtension}.part1.rar");
-        if (File.Exists(part1File))
-        {
-            return part1File;
-        }
-
-        // Check for older RAR volume formats: filename.rar + filename.r00, filename.r01, etc.
-        // In this case, the first volume keeps the .rar extension
-        string firstVolumeOldFormat = Path.Combine(directory, $"{fileNameWithoutExtension}.rar");
-        string secondVolumeOldFormat = Path.Combine(directory, $"{fileNameWithoutExtension}.r00");
-        if (File.Exists(firstVolumeOldFormat) && File.Exists(secondVolumeOldFormat))
-        {
-            return firstVolumeOldFormat;
-        }
-
-        // Check if only the first volume exists (very small archive that fits in one volume)
-        if (File.Exists(firstVolumeOldFormat))
-        {
-            return firstVolumeOldFormat;
-        }
-
-        // No RAR file found
-        return null;
-    }
-
     private void DeleteRARFileAndVolumes(string rarFilePath)
         => FileOperations.DeleteRARFileAndVolumes(rarFilePath, _logger);
-
-    private void CopyDirectory(string sourceDir, string destDir)
-        => FileOperations.CopyDirectory(sourceDir, destDir, _cts.Token, FireFileCopyProgress, _logger, FireTimestampPreservationFailed);
-
-    private void CopySelectedEntries(string sourceDir, string destDir, HashSet<string> filePaths, HashSet<string> directoryPaths)
-        => FileOperations.CopySelectedEntries(sourceDir, destDir, filePaths, directoryPaths, _cts.Token, FireFileCopyProgress, _logger, FireTimestampPreservationFailed);
 
     private void FireTimestampPreservationFailed(string destPath, string errorMessage)
         => TimestampPreservationFailed?.Invoke(this, new TimestampPreservationFailedEventArgs
@@ -1087,239 +836,6 @@ public partial class Manager(IReSceneLogger? logger = null)
             DestinationPath = destPath,
             ErrorMessage = errorMessage
         });
-
-    /// <summary>
-    /// Validates that all required input files from the SRR exist in the release directory
-    /// and that their CRC32 values match. Runs before any brute-forcing begins.
-    /// </summary>
-    private bool ValidateInputFiles(BruteForceOptions options)
-    {
-        RAROptions opts = options.RAROptions;
-        string releaseDir = options.ReleaseDirectoryPath;
-
-        _logger.Information(this, $"=== Validating Input Files ({opts.ArchiveFilePaths.Count} files, {opts.ArchiveDirectoryPaths.Count} directories) ===", LogTarget.System);
-
-        foreach (string file in opts.ArchiveFilePaths.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
-        {
-            _logger.Information(this, $"  Required: {file}", LogTarget.System);
-        }
-
-        List<string> missing = [];
-
-        foreach (string file in opts.ArchiveFilePaths)
-        {
-            string filePath = Path.Combine(releaseDir, file);
-            if (!File.Exists(filePath))
-            {
-                missing.Add(file);
-                _logger.Error(this, $"  MISSING: {file}", LogTarget.System);
-                continue;
-            }
-
-            // CRC validation is deferred to ValidateArchiveFileCrcs (after copy)
-            // which has progress UI support
-        }
-
-        if (missing.Count > 0)
-        {
-            _logger.Error(this, $"Input validation failed: {missing.Count} file(s) missing.", LogTarget.System);
-            return false;
-        }
-
-        _logger.Information(this, $"Input validation passed: all {opts.ArchiveFilePaths.Count} file(s) present.", LogTarget.System);
-        return true;
-    }
-
-    private void ValidateArchiveFileCrcs(string inputDirectory, Dictionary<string, string> expectedCrcs)
-    {
-        if (expectedCrcs.Count == 0)
-        {
-            return;
-        }
-
-        // Pre-calculate total bytes across all files
-        long totalBytes = 0;
-        foreach (KeyValuePair<string, string> entry in expectedCrcs)
-        {
-            string filePath = Path.Combine(inputDirectory, entry.Key);
-            if (File.Exists(filePath))
-            {
-                totalBytes += new FileInfo(filePath).Length;
-            }
-        }
-
-        List<string> missing = [];
-        List<string> mismatched = [];
-        int filesVerified = 0;
-        long cumulativeBytesVerified = 0;
-
-        foreach (KeyValuePair<string, string> entry in expectedCrcs)
-        {
-            _cts.Token.ThrowIfCancellationRequested();
-
-            string relativePath = entry.Key;
-            string expectedCRC = entry.Value;
-            string filePath = Path.Combine(inputDirectory, relativePath);
-
-            if (!File.Exists(filePath))
-            {
-                missing.Add(relativePath);
-                continue;
-            }
-
-            long fileSize = new FileInfo(filePath).Length;
-            long baseBytes = cumulativeBytesVerified;
-
-            FireCRCValidationProgress(new CRCValidationProgressEventArgs
-            {
-                FileName = relativePath,
-                FilesVerified = filesVerified,
-                TotalFiles = expectedCrcs.Count,
-                BytesVerified = baseBytes,
-                TotalBytes = totalBytes
-            });
-
-            string actualCRC = CRC32.Calculate(filePath, bytesRead =>
-            {
-                FireCRCValidationProgress(new CRCValidationProgressEventArgs
-                {
-                    FileName = relativePath,
-                    FilesVerified = filesVerified,
-                    TotalFiles = expectedCrcs.Count,
-                    BytesVerified = baseBytes + bytesRead,
-                    TotalBytes = totalBytes
-                });
-            }, _cts.Token);
-
-            cumulativeBytesVerified += fileSize;
-            filesVerified++;
-
-            if (!string.Equals(actualCRC, expectedCRC, StringComparison.OrdinalIgnoreCase))
-            {
-                mismatched.Add($"{relativePath} (expected {expectedCRC}, got {actualCRC})");
-            }
-        }
-
-        // Fire final 100% event
-        FireCRCValidationProgress(new CRCValidationProgressEventArgs
-        {
-            FileName = "",
-            FilesVerified = expectedCrcs.Count,
-            TotalFiles = expectedCrcs.Count,
-            BytesVerified = totalBytes,
-            TotalBytes = totalBytes
-        });
-
-        if (missing.Count == 0 && mismatched.Count == 0)
-        {
-            _logger.Information(this, $"SRR CRC32 validation passed for {expectedCrcs.Count} file(s).");
-            return;
-        }
-
-        foreach (string entry in missing)
-        {
-            _logger.Error(this, $"SRR CRC32 validation missing file: {entry}");
-        }
-
-        foreach (string entry in mismatched)
-        {
-            _logger.Error(this, $"SRR CRC32 validation mismatch: {entry}");
-        }
-
-        int issueCount = missing.Count + mismatched.Count;
-        throw new InvalidDataException($"SRR CRC32 validation failed for {issueCount} file(s).");
-    }
-
-    private string PrepareInputDirectory(BruteForceOptions options)
-    {
-        string inputFilesDir = Path.Combine(options.OutputDirectoryPath, "input");
-        if (Directory.Exists(inputFilesDir))
-        {
-            _logger.Information(this, $"Cleaning existing input directory: {inputFilesDir}");
-            Directory.Delete(inputFilesDir, true);
-        }
-
-        _logger.Information(this, $"Creating input directory and copying files from {options.ReleaseDirectoryPath} to {inputFilesDir}");
-        Directory.CreateDirectory(inputFilesDir);
-        if (options.RAROptions.HasArchiveFileList)
-        {
-            _logger.Information(this, $"Using SRR file list: {options.RAROptions.ArchiveFilePaths.Count} files, {options.RAROptions.ArchiveDirectoryPaths.Count} dirs");
-            CopySelectedEntries(options.ReleaseDirectoryPath, inputFilesDir, options.RAROptions.ArchiveFilePaths, options.RAROptions.ArchiveDirectoryPaths);
-        }
-        else
-        {
-            CopyDirectory(options.ReleaseDirectoryPath, inputFilesDir);
-        }
-
-        _logger.Information(this, $"Finished copying {Directory.GetFiles(inputFilesDir, "*.*", SearchOption.AllDirectories).Length} files to input directory");
-
-        if (options.RAROptions.ArchiveFileCrcs.Count > 0)
-        {
-            _logger.Information(this, $"Validating SRR CRC32 entries: {options.RAROptions.ArchiveFileCrcs.Count} file(s)");
-            ValidateArchiveFileCrcs(inputFilesDir, options.RAROptions.ArchiveFileCrcs);
-        }
-
-        int fileTimestampCount = options.RAROptions.FileTimestamps.Count;
-        int fileCreationCount = options.RAROptions.FileCreationTimes.Count;
-        int fileAccessCount = options.RAROptions.FileAccessTimes.Count;
-        // Apply file timestamps before directory timestamps to keep directory times authoritative.
-        if (fileTimestampCount + fileCreationCount + fileAccessCount > 0)
-        {
-            _logger.Information(this, $"Applying file timestamps: mtime {fileTimestampCount}, ctime {fileCreationCount}, atime {fileAccessCount}");
-            ApplyFileTimestamps(inputFilesDir, options.RAROptions.FileTimestamps, options.RAROptions.FileCreationTimes, options.RAROptions.FileAccessTimes);
-        }
-
-        int dirTimestampCount = options.RAROptions.DirectoryTimestamps.Count;
-        int dirCreationCount = options.RAROptions.DirectoryCreationTimes.Count;
-        int dirAccessCount = options.RAROptions.DirectoryAccessTimes.Count;
-        if (dirTimestampCount + dirCreationCount + dirAccessCount > 0)
-        {
-            _logger.Information(this, $"Applying directory timestamps: mtime {dirTimestampCount}, ctime {dirCreationCount}, atime {dirAccessCount}");
-            ApplyDirectoryTimestamps(inputFilesDir, options.RAROptions.DirectoryTimestamps, options.RAROptions.DirectoryCreationTimes, options.RAROptions.DirectoryAccessTimes);
-        }
-
-        // Create comment file if archive has a comment
-        _commentFilePath = null;
-        if (options.RAROptions.ArchiveCommentBytes is { Length: > 0 } archiveCommentBytes)
-        {
-            // Use raw bytes for exact reconstruction
-            string commentFilePath = Path.Combine(options.OutputDirectoryPath, "comment.txt");
-            try
-            {
-                File.WriteAllBytes(commentFilePath, archiveCommentBytes.ToArray());
-                _commentFilePath = commentFilePath;
-                _logger.Information(this, $"Created comment file: {commentFilePath} ({archiveCommentBytes.Length} bytes)");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(this, $"Failed to create comment file: {ex.Message}");
-            }
-        }
-        else if (!string.IsNullOrEmpty(options.RAROptions.ArchiveComment))
-        {
-            // Fallback to string (for manually entered comments)
-            string commentFilePath = Path.Combine(options.OutputDirectoryPath, "comment.txt");
-            try
-            {
-                // Use UTF-8 without BOM
-                File.WriteAllText(commentFilePath, options.RAROptions.ArchiveComment, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-                _commentFilePath = commentFilePath;
-                _logger.Information(this, $"Created comment file: {commentFilePath} ({options.RAROptions.ArchiveComment.Length} chars, fallback)");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warning(this, $"Failed to create comment file: {ex.Message}");
-            }
-        }
-
-        return inputFilesDir;
-    }
-
-    private void ApplyFileTimestamps(string inputDirectory, Dictionary<string, DateTime> modifiedTimes, Dictionary<string, DateTime> creationTimes, Dictionary<string, DateTime> accessTimes)
-        => FileOperations.ApplyFileTimestamps(inputDirectory, modifiedTimes, creationTimes, accessTimes, _logger);
-
-    private void ApplyDirectoryTimestamps(string inputDirectory, Dictionary<string, DateTime> modifiedTimes, Dictionary<string, DateTime> creationTimes, Dictionary<string, DateTime> accessTimes)
-        => FileOperations.ApplyDirectoryTimestamps(inputDirectory, modifiedTimes, creationTimes, accessTimes, _logger);
 
     private void PatchRARFilesHostOS(string rarFilePath, RAROptions rarOptions, bool allVolumes = true)
     {
@@ -1331,7 +847,7 @@ public partial class Manager(IReSceneLogger? logger = null)
         try
         {
             // Collect files to patch (all volumes or just the specified file)
-            List<string> filesToPatch = allVolumes ? GetAllVolumeFiles(rarFilePath) : [rarFilePath];
+            List<string> filesToPatch = allVolumes ? MatchedRarWriter.GetAllVolumeFiles(rarFilePath) : [rarFilePath];
 
             if (rarOptions.NeedsHostOSPatching)
             {
@@ -1421,316 +937,6 @@ public partial class Manager(IReSceneLogger? logger = null)
         {
             _logger.Warning(this, $"Patching failed: {ex.Message}", LogTarget.Phase2);
         }
-    }
-
-    private static List<string> GetAllVolumeFiles(string firstVolumePath)
-        => FileOperations.GetAllVolumeFiles(firstVolumePath);
-
-    /// <summary>
-    /// Extracts the CMT block compressed data from a RAR file.
-    /// </summary>
-    private static byte[]? ExtractCmtCompressedData(string rarFilePath)
-    {
-        try
-        {
-            using var fs = new FileStream(rarFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var reader = new BinaryReader(fs);
-
-            // Skip RAR signature (7 bytes for RAR 4.x)
-            if (fs.Length < 7)
-            {
-                return null;
-            }
-
-            fs.Position = 7;
-
-            while (fs.Position + 7 <= fs.Length)
-            {
-                long blockStart = fs.Position;
-
-                // Read base header
-                ushort crc = reader.ReadUInt16();
-                byte blockType = reader.ReadByte();
-                ushort flags = reader.ReadUInt16();
-                ushort headerSize = reader.ReadUInt16();
-
-                if (headerSize < 7 || blockStart + headerSize > fs.Length)
-                {
-                    break;
-                }
-
-                // Check if this is a service block (0x7A)
-                if (blockType == 0x7A && headerSize >= 32)
-                {
-                    // Read ADD_SIZE (4 bytes at offset 7)
-                    uint addSize = reader.ReadUInt32();
-
-                    // Read to get the sub-type name
-                    // Skip: UnpSize(4), HostOS(1), FileCRC(4), FileTime(4), UnpVer(1), Method(1), NameSize(2), Attr(4) = 21 bytes
-                    fs.Position = blockStart + 7 + 4 + 4 + 1 + 4 + 4 + 1 + 1;
-                    ushort nameSize = reader.ReadUInt16();
-
-                    // Skip Attr (4 bytes)
-                    fs.Position += 4;
-
-                    // Read the sub-type name
-                    if (nameSize > 0 && fs.Position + nameSize <= fs.Length)
-                    {
-                        byte[] nameBytes = reader.ReadBytes(nameSize);
-                        string subType = Encoding.ASCII.GetString(nameBytes);
-
-                        if (string.Equals(subType, "CMT", StringComparison.OrdinalIgnoreCase))
-                        {
-                            // Found CMT block - read the compressed data
-                            long dataStart = blockStart + headerSize;
-                            if (dataStart + addSize <= fs.Length && addSize > 0)
-                            {
-                                fs.Position = dataStart;
-                                byte[] data = reader.ReadBytes((int)addSize);
-                                return data;
-                            }
-                        }
-                    }
-
-                    // Skip this block
-                    fs.Position = blockStart + headerSize + addSize;
-                }
-                else
-                {
-                    // Skip this block
-                    bool hasAddSize = (flags & 0x8000) != 0 || blockType == 0x74 || blockType == 0x7A;
-                    uint addSize = 0;
-                    if (hasAddSize)
-                    {
-                        fs.Position = blockStart + 7;
-                        if (fs.Position + 4 <= fs.Length)
-                        {
-                            addSize = reader.ReadUInt32();
-                        }
-                    }
-
-                    fs.Position = blockStart + headerSize + addSize;
-                }
-
-                // Safety check
-                if (fs.Position <= blockStart)
-                {
-                    break;
-                }
-            }
-        }
-        catch
-        {
-            // Failed to extract CMT data
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Phase 1: Brute-force RAR versions using only the comment block.
-    /// Returns a list of (directoryPath, version) tuples that produced matching CMT blocks.
-    /// </summary>
-    private async Task<List<(string Path, int Version)>> BruteForceCommentPhaseAsync(
-        BruteForceOptions options,
-        List<(string Path, int Version)> allRarDirectories)
-    {
-        var matchedVersions = new List<(string Path, int Version)>();
-        byte[]? expectedCmtData = options.RAROptions.CmtCompressedData?.ToArray();
-
-        if (expectedCmtData == null || expectedCmtData.Length == 0)
-        {
-            _logger.Information(this, "Phase 1 skipped: No CMT compressed data available", LogTarget.Phase1);
-            return allRarDirectories; // Return all versions if no CMT data
-        }
-
-        _logger.Information(this, $"=== PHASE 1: Comment Block Brute-Force ===", LogTarget.Phase1);
-        _logger.Information(this, $"Expected CMT compressed data: {expectedCmtData.Length} bytes", LogTarget.Phase1);
-
-        // Create a temporary directory for Phase 1 testing
-        string phase1Dir = Path.Combine(options.OutputDirectoryPath, "phase1_temp");
-        if (Directory.Exists(phase1Dir))
-        {
-            Directory.Delete(phase1Dir, true);
-        }
-
-        Directory.CreateDirectory(phase1Dir);
-
-        // Create a small dummy file for testing
-        string dummyInputDir = Path.Combine(phase1Dir, "input");
-        Directory.CreateDirectory(dummyInputDir);
-        string dummyFilePath = Path.Combine(dummyInputDir, "dummy.txt");
-        File.WriteAllText(dummyFilePath, "dummy");
-
-        // Create comment file
-        string commentFilePath = Path.Combine(phase1Dir, "comment.txt");
-        if (options.RAROptions.ArchiveCommentBytes is { } phase1CommentBytes)
-        {
-            File.WriteAllBytes(commentFilePath, phase1CommentBytes.ToArray());
-        }
-        else if (!string.IsNullOrEmpty(options.RAROptions.ArchiveComment))
-        {
-            File.WriteAllText(commentFilePath, options.RAROptions.ArchiveComment, new UTF8Encoding(false));
-        }
-
-        string outputDir = Path.Combine(phase1Dir, "output");
-        Directory.CreateDirectory(outputDir);
-
-        int totalTests = allRarDirectories.Count;
-        int currentTest = 0;
-        int matchCount = 0;
-        int errorCount = 0;
-        string? lastErrorMessage = null;
-        DateTime phase1StartTime = DateTime.Now;
-
-        // For Phase 1, use the CMT compression method (not file compression method)
-        // CMT CompressionMethod is stored as raw 0x30-0x35, convert to 0-5 for -m flag
-        string cmtMethodArg;
-        if (options.RAROptions.CmtCompressionMethod.HasValue)
-        {
-            byte rawMethod = options.RAROptions.CmtCompressionMethod.Value;
-            int cmtMethod = rawMethod >= 0x30 ? rawMethod - 0x30 : rawMethod;
-            if (cmtMethod is >= 0 and <= 5)
-            {
-                cmtMethodArg = $"-m{cmtMethod}";
-            }
-            else
-            {
-                cmtMethodArg = "-m3"; // Default to normal
-            }
-        }
-        else
-        {
-            cmtMethodArg = "-m3"; // Default to normal compression
-        }
-
-        // For Phase 1, always use -md64k (comments always use 64KB dictionary window)
-        string cmtDictArg = "-md64k";
-
-        _logger.Information(this, $"CMT compression method: {cmtMethodArg}", LogTarget.Phase1);
-        _logger.Information(this, $"CMT dictionary size: {cmtDictArg}", LogTarget.Phase1);
-
-        foreach ((string? rarVersionDir, int version) in allRarDirectories)
-        {
-            if (_cts.IsCancellationRequested)
-            {
-                break;
-            }
-
-            string rarExePath = Path.Combine(rarVersionDir, "rar.exe");
-            string versionName = Path.GetFileName(rarVersionDir);
-
-            currentTest++;
-
-            // Fire progress event for Phase 1
-            FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDir, $"{cmtMethodArg} {cmtDictArg}", totalTests, currentTest, phase1StartTime)
-            {
-                PhaseDescription = "Phase 1: Comment Block Filtering"
-            });
-
-            // Build arguments using CMT-specific compression method and dictionary
-            List<string> args = ["a", "-r", cmtMethodArg, cmtDictArg, $"-z{commentFilePath}"];
-
-            // Add -ma4 for RAR 5.50-6.x to create RAR4 format (RAR 7.x doesn't accept -ma4)
-            if (version is >= 550 and < 700)
-            {
-                args.Add("-ma4");
-            }
-
-            // Add timestamp options if RAR version supports them (3.20+)
-            // For CMT blocks, we typically disable ctime and atime
-            if (version >= 320)
-            {
-                args.Add("-tsc-");
-                args.Add("-tsa-");
-            }
-
-            string testRarPath = Path.Combine(outputDir, $"test_{versionName}_{cmtMethodArg}_{cmtDictArg}.rar"
-                .Replace("-", "", StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal));
-
-            try
-            {
-                // Create the test RAR
-                var process = new RARProcess(rarExePath, dummyInputDir, testRarPath, args, _logger)
-                {
-                    LogTarget = LogTarget.Phase1
-                };
-                await process.RunAsync(_cts.Token);
-
-                if (!File.Exists(testRarPath))
-                {
-                    continue;
-                }
-
-                // Extract CMT data from generated RAR
-                byte[]? generatedCmtData = ExtractCmtCompressedData(testRarPath);
-
-                // Clean up test file
-                try
-                {
-                    File.Delete(testRarPath);
-                }
-                catch { }
-
-                if (generatedCmtData == null)
-                {
-                    continue;
-                }
-
-                // Compare CMT compressed data
-                if (generatedCmtData.SequenceEqual(expectedCmtData))
-                {
-                    matchCount++;
-                    if (!matchedVersions.Any(v => v.Path == rarVersionDir))
-                    {
-                        matchedVersions.Add((rarVersionDir, version));
-                        _logger.Information(this, $"Phase 1 MATCH: {versionName} {cmtMethodArg} {cmtDictArg}", LogTarget.Phase1);
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                errorCount++;
-                lastErrorMessage = ex.Message;
-                _logger.Debug(this, $"Phase 1 test failed for {versionName}: {ex.Message}", LogTarget.Phase1);
-            }
-        }
-
-        // Clean up Phase 1 temp directory
-        try
-        {
-            Directory.Delete(phase1Dir, true);
-        }
-        catch { }
-
-        _logger.Information(this, $"Phase 1 complete: {totalTests} tests, {matchCount} matches, {matchedVersions.Count} unique versions", LogTarget.Phase1);
-
-        if (matchedVersions.Count == 0)
-        {
-            // Every test erroring (rather than simply not matching) points at a systemic problem
-            // — rar.exe failing to launch, no disk space, an unreadable comment file — that would
-            // otherwise be buried in Debug logs while Phase 2 silently retries the whole set.
-            if (errorCount == totalTests && totalTests > 0)
-            {
-                _logger.Warning(this, $"Phase 1 errored on all {totalTests} test(s) — likely a configuration or environment problem (last error: {lastErrorMessage}). Falling back to all versions for Phase 2.", LogTarget.System);
-            }
-            else if (errorCount > 0)
-            {
-                _logger.Warning(this, $"Phase 1 found no matches ({errorCount} of {totalTests} test(s) errored; last error: {lastErrorMessage}) - falling back to all versions for Phase 2", LogTarget.Phase1);
-            }
-            else
-            {
-                _logger.Warning(this, "Phase 1 found no matches - falling back to all versions for Phase 2", LogTarget.Phase1);
-            }
-
-            return allRarDirectories;
-        }
-
-        return matchedVersions;
     }
 
     /// <summary>

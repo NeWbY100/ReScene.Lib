@@ -67,28 +67,28 @@ public class ManagerHelpersTests
     public void FilterArgumentsForVersion_ExcludesBelowMinimumVersion()
     {
         RARCommandLineArgument[] args = [new("-m5", minimumVersion: 500)];
-        Assert.Empty(Manager.FilterArgumentsForVersion(args, 400, RARArchiveVersion.RAR4));
+        Assert.Empty(RarVersionSelector.FilterArgumentsForVersion(args, 400, RARArchiveVersion.RAR4));
     }
 
     [Fact]
     public void FilterArgumentsForVersion_ExcludesAboveMaximumVersion()
     {
         RARCommandLineArgument[] args = [new("-m5", minimumVersion: 300, maximumVersion: 500)];
-        Assert.Empty(Manager.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
+        Assert.Empty(RarVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
     }
 
     [Fact]
     public void FilterArgumentsForVersion_IncludesWithinVersionRange()
     {
         RARCommandLineArgument[] args = [new("-m5", minimumVersion: 300, maximumVersion: 700)];
-        Assert.Equal(new[] { "-m5" }, Manager.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
+        Assert.Equal(new[] { "-m5" }, RarVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
     }
 
     [Fact]
     public void FilterArgumentsForVersion_ExcludesMismatchedArchiveVersion()
     {
         RARCommandLineArgument[] args = [new("-m5", minimumVersion: 0, archiveVersion: RARArchiveVersion.RAR5)];
-        Assert.Empty(Manager.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
+        Assert.Empty(RarVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class ManagerHelpersTests
     {
         RARCommandLineArgument[] args =
             [new("-m5", minimumVersion: 0, archiveVersion: RARArchiveVersion.RAR4 | RARArchiveVersion.RAR5)];
-        Assert.Equal(new[] { "-m5" }, Manager.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR5));
+        Assert.Equal(new[] { "-m5" }, RarVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR5));
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public class ManagerHelpersTests
             new("-md64m", 600),    // excluded at version 500
             new("-s", 0),
         ];
-        Assert.Equal(new[] { "-m5", "-s" }, Manager.FilterArgumentsForVersion(args, 500, RARArchiveVersion.RAR4));
+        Assert.Equal(new[] { "-m5", "-s" }, RarVersionSelector.FilterArgumentsForVersion(args, 500, RARArchiveVersion.RAR4));
     }
 
     #endregion
@@ -131,7 +131,7 @@ public class ManagerHelpersTests
     [InlineData(620, RARArchiveVersion.RAR4, new string[0], false)]
     public void ShouldSkipRar6TimestampCombination_MatchesKnownIssueMatrix(
         int version, RARArchiveVersion archiveVersion, string[] filteredArguments, bool expected)
-        => Assert.Equal(expected, Manager.ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments));
+        => Assert.Equal(expected, RarVersionSelector.ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments));
 
     #endregion
 
@@ -142,7 +142,7 @@ public class ManagerHelpersTests
     {
         using var tmp = new TempDir();
         string expected = tmp.File("movie.rar");
-        Assert.Equal(expected, Manager.FindCreatedRARFile(expected));
+        Assert.Equal(expected, MatchedRarWriter.FindCreatedRARFile(expected));
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public class ManagerHelpersTests
         using var tmp = new TempDir();
         string expected = Path.Combine(tmp.Path, "movie.rar"); // not created
         string part01 = tmp.File("movie.part01.rar");
-        Assert.Equal(part01, Manager.FindCreatedRARFile(expected));
+        Assert.Equal(part01, MatchedRarWriter.FindCreatedRARFile(expected));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class ManagerHelpersTests
         using var tmp = new TempDir();
         string expected = Path.Combine(tmp.Path, "movie.rar"); // not created
         string part1 = tmp.File("movie.part1.rar");
-        Assert.Equal(part1, Manager.FindCreatedRARFile(expected));
+        Assert.Equal(part1, MatchedRarWriter.FindCreatedRARFile(expected));
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class ManagerHelpersTests
         // Expected path absent, but the {base}.rar first volume is present (old-style set).
         string expected = Path.Combine(tmp.Path, "movie.xyz");
         string firstVolume = tmp.File("movie.rar");
-        Assert.Equal(firstVolume, Manager.FindCreatedRARFile(expected));
+        Assert.Equal(firstVolume, MatchedRarWriter.FindCreatedRARFile(expected));
     }
 
     [Fact]
@@ -182,14 +182,14 @@ public class ManagerHelpersTests
         string expected = Path.Combine(tmp.Path, "movie.xyz");
         string firstVolume = tmp.File("movie.rar");
         tmp.File("movie.r00");
-        Assert.Equal(firstVolume, Manager.FindCreatedRARFile(expected));
+        Assert.Equal(firstVolume, MatchedRarWriter.FindCreatedRARFile(expected));
     }
 
     [Fact]
     public void FindCreatedRARFile_NothingPresent_ReturnsNull()
     {
         using var tmp = new TempDir();
-        Assert.Null(Manager.FindCreatedRARFile(Path.Combine(tmp.Path, "movie.rar")));
+        Assert.Null(MatchedRarWriter.FindCreatedRARFile(Path.Combine(tmp.Path, "movie.rar")));
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public class ManagerHelpersTests
     {
         using var tmp = new TempDir();
         string path = tmp.File("movie.rar");
-        Assert.True(Manager.MoveMatchedFile(path, path));
+        Assert.True(MatchedRarWriter.MoveMatchedFile(path, path));
         Assert.True(File.Exists(path));
     }
 
@@ -208,7 +208,7 @@ public class ManagerHelpersTests
         string source = tmp.File("420-m3.rar");
         string dest = Path.Combine(tmp.Path, "Movie.2020.rar");
 
-        Assert.True(Manager.MoveMatchedFile(source, dest));
+        Assert.True(MatchedRarWriter.MoveMatchedFile(source, dest));
         Assert.False(File.Exists(source));
         Assert.True(File.Exists(dest));
     }
@@ -220,7 +220,7 @@ public class ManagerHelpersTests
         string source = tmp.File("420-m3.rar", "source");
         string dest = tmp.File("Movie.2020.rar", "existing");
 
-        Assert.False(Manager.MoveMatchedFile(source, dest));
+        Assert.False(MatchedRarWriter.MoveMatchedFile(source, dest));
         Assert.True(File.Exists(source));
         Assert.Equal("existing", File.ReadAllText(dest));
     }
