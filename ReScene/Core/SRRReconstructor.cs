@@ -119,7 +119,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             outputStream.Dispose();
                             outputStream = null;
 
-                            await VerifyAndReportVolumeAsync(currentOutputPath, currentRarFileName, hashes, hashType, ref allMatched);
+                            await VerifyAndReportVolumeAsync(currentOutputPath, currentRarFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
                             completedVolumes++;
                             FireProgress(inputDirectory, currentRarFileName, totalVolumes, completedVolumes, startTime);
                         }
@@ -262,7 +262,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                             if (currentSourceStream != null && packedSize > 0)
                             {
-                                await CopyBytesAsync(currentSourceStream, outputStream, packedSize, cancellationToken);
+                                await CopyBytesAsync(currentSourceStream, outputStream, packedSize, cancellationToken).ConfigureAwait(false);
                             }
 
                             if (!isSplitAfter && currentSourceStream != null)
@@ -326,7 +326,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                 outputStream.Dispose();
                 outputStream = null;
 
-                await VerifyAndReportVolumeAsync(currentOutputPath, currentRarFileName, hashes, hashType, ref allMatched);
+                await VerifyAndReportVolumeAsync(currentOutputPath, currentRarFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
                 completedVolumes++;
                 FireProgress(inputDirectory, currentRarFileName, totalVolumes, completedVolumes, startTime);
             }
@@ -407,13 +407,13 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             int toRead = (int)Math.Min(buffer.Length, remaining);
-            int read = await source.ReadAsync(buffer.AsMemory(0, toRead), cancellationToken);
+            int read = await source.ReadAsync(buffer.AsMemory(0, toRead), cancellationToken).ConfigureAwait(false);
             if (read <= 0)
             {
                 throw new EndOfStreamException($"Unexpected end of source file with {remaining} bytes remaining.");
             }
 
-            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             remaining -= read;
         }
     }

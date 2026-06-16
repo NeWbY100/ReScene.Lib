@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Text;
 using ReScene.SRS;
@@ -538,7 +539,7 @@ public sealed class MKVFileData
 /// </summary>
 internal static class EbmlElementRegistry
 {
-    private static readonly Dictionary<ulong, (string Name, EBMLValueType Type)> _map = new()
+    private static readonly FrozenDictionary<ulong, (string Name, EBMLValueType Type)> _map = new Dictionary<ulong, (string Name, EBMLValueType Type)>
     {
         // EBML header
         [0x1A45DFA3] = ("EBML", EBMLValueType.Master),
@@ -656,7 +657,7 @@ internal static class EbmlElementRegistry
         // Misc
         [0xEC] = ("Void", EBMLValueType.Binary),
         [0xBF] = ("CRC-32", EBMLValueType.Binary),
-    };
+    }.ToFrozenDictionary();
 
     /// <summary>
     /// Looks up the display name and value type for an EBML element ID. Unknown IDs return a

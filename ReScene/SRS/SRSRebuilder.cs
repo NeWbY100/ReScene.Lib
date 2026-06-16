@@ -131,7 +131,7 @@ public class SRSRebuilder
     {
         try
         {
-            return await Task.Run(() => RebuildCore(srsFilePath, mediaFilePath, outputPath, ct), ct);
+            return await Task.Run(() => RebuildCore(srsFilePath, mediaFilePath, outputPath, ct), ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

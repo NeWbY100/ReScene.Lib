@@ -192,7 +192,7 @@ public class SRSWriter
             // Profile the sample to extract tracks and CRC
             ReportProgress("Profiling sample...");
             (List<TrackInfo>? tracks, uint crc32, long totalSize) = await Task.Run(
-                () => handler.Profile(sampleFilePath, ReportScanProgress, ct), ct);
+                () => handler.Profile(sampleFilePath, ReportScanProgress, ct), ct).ConfigureAwait(false);
 
             if (tracks.Count == 0)
             {
@@ -223,7 +223,7 @@ public class SRSWriter
                 {
                     ReportProgress($"Verifying sample against main file: {Path.GetFileName(options.MainFilePath)}");
                     await Task.Run(() => VerifyAgainstMainFile(
-                        options.MainFilePath, containerType, tracks, result, ct), ct);
+                        options.MainFilePath, containerType, tracks, result, ct), ct).ConfigureAwait(false);
                 }
             }
 
@@ -231,7 +231,7 @@ public class SRSWriter
             ReportProgress("Writing SRS file...");
             await Task.Run(() => handler.WriteSRS(
                 outputPath, sampleFilePath,
-                tracks, sampleSize, crc32, options, ct), ct);
+                tracks, sampleSize, crc32, options, ct), ct).ConfigureAwait(false);
 
             result.SRSFileSize = new FileInfo(outputPath).Length;
             result.OutputPath = outputPath;

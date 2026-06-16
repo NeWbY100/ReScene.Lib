@@ -153,7 +153,7 @@ internal sealed class CommentPhaseBruteForcer(
                 {
                     LogTarget = LogTarget.Phase1
                 };
-                await process.RunAsync(_cancellationToken);
+                await process.RunAsync(_cancellationToken).ConfigureAwait(false);
 
                 if (!File.Exists(testRarPath))
                 {

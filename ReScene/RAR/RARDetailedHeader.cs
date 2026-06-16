@@ -233,7 +233,7 @@ public static class RARDetailedParser
         return blocks;
     }
 
-    private static readonly byte[] _rar4Signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static ReadOnlySpan<byte> Rar4Signature => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
 
     /// <summary>
     /// Formats a value as a zero-padded hex string based on the field's byte length.
@@ -270,7 +270,7 @@ public static class RARDetailedParser
         bool isRar4 = true;
         for (int i = 0; i < 7; i++)
         {
-            if (buf[i] != _rar4Signature[i])
+            if (buf[i] != Rar4Signature[i])
             {
                 isRar4 = false;
                 break;

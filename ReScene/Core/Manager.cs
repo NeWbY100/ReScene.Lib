@@ -9,7 +9,7 @@ namespace ReScene.Core;
 /// Orchestrates brute-force RAR reconstruction by testing RAR version and argument combinations
 /// against expected hash values until a match is found.
 /// </summary>
-public partial class Manager
+public partial class Manager : IDisposable
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="Manager"/> class.
@@ -172,7 +172,7 @@ public partial class Manager
                 options.RAROptions.OriginalRarFileNames,
                 options.Hashes,
                 options.HashType,
-                _cts.Token);
+                _cts.Token).ConfigureAwait(false);
 
             OperationCompletionStatus completionStatus = result ? OperationCompletionStatus.Success : OperationCompletionStatus.Error;
             status = new BruteForceStatusChangedEventArgs(OperationStatus.Running, OperationStatus.Completed, completionStatus);
@@ -211,7 +211,7 @@ public partial class Manager
         if (options.RAROptions.CanUseCommentPhase)
         {
             var commentPhaseBruteForcer = new CommentPhaseBruteForcer(_logger, this, FireBruteForceProgress, _cts.Token);
-            versionsToUse = await commentPhaseBruteForcer.BruteForceCommentPhaseAsync(options, allValidRarDirectories);
+            versionsToUse = await commentPhaseBruteForcer.BruteForceCommentPhaseAsync(options, allValidRarDirectories).ConfigureAwait(false);
             _logger.Information(this, $"Phase 1 complete: {versionsToUse.Count} matching version(s)", LogTarget.System);
             _logger.Information(this, $"=== PHASE 2: Full RAR Brute-Force with {versionsToUse.Count} version(s) ===", LogTarget.Phase2);
         }
@@ -222,7 +222,7 @@ public partial class Manager
             _logger.Information(this, "Phase 1 skipped (no CMT data) - using all versions for brute-force", LogTarget.Phase1);
         }
 
-        InputDirectoryPreparer.PrepareResult prepareResult = await Task.Run(() => inputDirectoryPreparer.PrepareInputDirectory(options));
+        InputDirectoryPreparer.PrepareResult prepareResult = await Task.Run(() => inputDirectoryPreparer.PrepareInputDirectory(options)).ConfigureAwait(false);
         string inputFilesDir = prepareResult.InputFilesDir;
         _commentFilePath = prepareResult.CommentFilePath;
 
@@ -280,7 +280,7 @@ public partial class Manager
                         break;
                     }
 
-                    (bool foundCombination, int newProgress) = await TryProcessCommandLinesAsync(options, version, rarVersionDirectoryPath, inputFilesDir, totalProgressSize, currentProgress, bruteForceStartDateTime, fileHashes, a, b);
+                    (bool foundCombination, int newProgress) = await TryProcessCommandLinesAsync(options, version, rarVersionDirectoryPath, inputFilesDir, totalProgressSize, currentProgress, bruteForceStartDateTime, fileHashes, a, b).ConfigureAwait(false);
                     currentProgress = newProgress;
                     if (foundCombination)
                     {
@@ -342,6 +342,17 @@ public partial class Manager
         // each process then closes its log writer in Process_ProcessStatusChanged.
     }
 
+    /// <summary>
+    /// Disposes the per-run linked cancellation source. Each brute-force run replaces and disposes
+    /// the previous source, so this only releases the final run's source. Call once the Manager is
+    /// no longer in use (no run should be active when disposing).
+    /// </summary>
+    public void Dispose()
+    {
+        _cts.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
     private async Task<int> RARCompressDirectoryAsync(string rarExeFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, CancellationToken cancellationToken)
     {
         RARProcess process = new(rarExeFilePath, inputDirectory, outputFilePath, commandLineOptions, _logger)
@@ -370,7 +381,7 @@ public partial class Manager
         Task<int> processTask = process.RunAsync(linkedCts.Token);
 
         // Wait for either process completion or early termination
-        await Task.WhenAny(processTask, monitorTask);
+        await Task.WhenAny(processTask, monitorTask).ConfigureAwait(false);
 
         // If monitoring detected second volume, cancel the process
         if (monitorTask.IsCompleted && !processTask.IsCompleted)
@@ -378,11 +389,11 @@ public partial class Manager
             _logger.Debug(this, $"Second volume detected, terminating RAR process early for: {outputFilePath}", LogTarget.Phase2);
             linkedCts.Cancel();
             // Wait a bit for graceful cancellation
-            await Task.WhenAny(processTask, Task.Delay(1000, cancellationToken));
+            await Task.WhenAny(processTask, Task.Delay(1000, cancellationToken)).ConfigureAwait(false);
         }
 
         // Return the exit code if available, otherwise return success (0) since we terminated early
-        return processTask.IsCompleted ? await processTask : 0;
+        return processTask.IsCompleted ? await processTask.ConfigureAwait(false) : 0;
     }
 
     private async Task MonitorForSecondVolumeAsync(string expectedRarFilePath, CancellationTokenSource cts)
@@ -410,7 +421,7 @@ public partial class Manager
                 }
 
                 // Wait a bit before checking again (100ms polling interval)
-                await Task.Delay(100, cts.Token);
+                await Task.Delay(100, cts.Token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
@@ -619,7 +630,7 @@ public partial class Manager
                     // Wait for first volume to complete (second volume appearing means first is done)
                     using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
                     Task monitorTask = MonitorForSecondVolumeAsync(rarFilePath, monitorCts);
-                    await Task.WhenAny(runningProcessTask, monitorTask);
+                    await Task.WhenAny(runningProcessTask, monitorTask).ConfigureAwait(false);
 
                     // Clean up monitor if process finished before second volume appeared
                     if (!monitorTask.IsCompleted)
@@ -630,7 +641,7 @@ public partial class Manager
                 else
                 {
                     // Standard: run with early termination (kills RAR after first volume is complete)
-                    await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token);
+                    await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token).ConfigureAwait(false);
                 }
 
                 currentProgress++;
@@ -647,7 +658,7 @@ public partial class Manager
                     if (runningProcessTask != null && !runningProcessTask.IsCompleted)
                     {
                         processCts!.Cancel();
-                        await Task.WhenAny(runningProcessTask, Task.Delay(1000));
+                        await Task.WhenAny(runningProcessTask, Task.Delay(1000)).ConfigureAwait(false);
                     }
 
                     continue;
@@ -684,7 +695,7 @@ public partial class Manager
                     if (runningProcessTask != null && !runningProcessTask.IsCompleted)
                     {
                         processCts!.Cancel();
-                        await Task.WhenAny(runningProcessTask, Task.Delay(1000));
+                        await Task.WhenAny(runningProcessTask, Task.Delay(1000)).ConfigureAwait(false);
                     }
 
                     if (options.RAROptions.DeleteRARFiles)
@@ -709,7 +720,7 @@ public partial class Manager
                 if (runningProcessTask != null && !runningProcessTask.IsCompleted)
                 {
                     _logger.Information(this, "Match found, completing all volumes...", LogTarget.System);
-                    await runningProcessTask;
+                    await runningProcessTask.ConfigureAwait(false);
                 }
 
                 // Log match to System tab for visibility

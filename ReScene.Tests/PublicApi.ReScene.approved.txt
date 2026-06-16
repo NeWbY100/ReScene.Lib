@@ -215,6 +215,7 @@ class ReScene.Core.Manager
     method Int32 ParseRARVersion(String)
     method RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[], Int32)
     method Task<Boolean> BruteForceRARVersionAsync(BruteForceOptions, CancellationToken)
+    method Void Dispose()
     method Void Stop()
     property BruteForceOptions BruteForceOptions { get; }
 class ReScene.Core.RAROptions

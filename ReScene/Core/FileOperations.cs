@@ -173,7 +173,10 @@ internal static class FileOperations
         IReSceneLogger? logger = null,
         Action<string, string>? onTimestampFailure = null)
     {
-        byte[] buffer = new byte[32 * 1024 * 1024];
+        // 1 MiB copy buffer: large enough for full streaming throughput, but small enough to
+        // stay off the Large Object Heap (the previous 32 MiB buffer wasted LOH memory with no
+        // measurable throughput gain).
+        byte[] buffer = new byte[1024 * 1024];
 
         using (FileStream sourceStream = File.OpenRead(sourcePath))
         using (FileStream destStream = new(destPath, FileMode.Create, FileAccess.Write))

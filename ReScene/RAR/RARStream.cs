@@ -26,7 +26,7 @@ internal record RARVolume(string ArchivePath, long LogicalStart, long LogicalEnd
 /// </summary>
 internal class RARStream : Stream
 {
-    private static readonly byte[] _rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    private static ReadOnlySpan<byte> Rar5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
     private readonly List<RARVolume> _volumes = [];
     private readonly Dictionary<string, FileStream> _openStreams = new(StringComparer.OrdinalIgnoreCase);
@@ -477,7 +477,7 @@ internal class RARStream : Stream
         stream.ReadExactly(marker);
         stream.Position = pos;
 
-        return marker.SequenceEqual(_rar5Marker);
+        return marker.SequenceEqual(Rar5Marker);
     }
 
     /// <summary>

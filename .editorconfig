@@ -193,8 +193,9 @@ dotnet_diagnostic.CA1515.severity = warning
 # CA1031: Do not catch general exception (intentional for error handling patterns)
 dotnet_diagnostic.CA1031.severity = none
 
-# CA2007: ConfigureAwait (WPF app needs synchronization context)
-dotnet_diagnostic.CA2007.severity = none
+# CA2007: ConfigureAwait — this is a non-UI library, so every await should use
+# ConfigureAwait(false) to avoid capturing a caller's synchronization context.
+dotnet_diagnostic.CA2007.severity = warning
 
 # CA1062: Validate arguments of public methods (nullable reference types handle this)
 dotnet_diagnostic.CA1062.severity = none
@@ -473,6 +474,14 @@ dotnet_diagnostic.IDE0160.severity = warning
 
 # IDE0161: Use file-scoped namespace
 dotnet_diagnostic.IDE0161.severity = warning
+
+# ── Test project overrides ───────────────────────────────
+
+# CA2007 targets the production library (non-UI, so every await should be
+# context-free). Test code runs without a synchronization context, so requiring
+# ConfigureAwait there adds noise with no benefit — keep it off for tests.
+[ReScene.Tests/**.cs]
+dotnet_diagnostic.CA2007.severity = none
 
 # ── XAML files ───────────────────────────────────────────
 

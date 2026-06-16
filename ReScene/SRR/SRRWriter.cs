@@ -139,8 +139,8 @@ public class SRRCreationProgressEventArgs : EventArgs
 /// </summary>
 public class SRRWriter
 {
-    private static readonly byte[] _rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
-    private static readonly byte[] _rar5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    private static ReadOnlySpan<byte> Rar4Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static ReadOnlySpan<byte> Rar5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
     /// <summary>
     /// Raised to report progress during SRR creation.
@@ -233,7 +233,7 @@ public class SRRWriter
                         continue;
                     }
 
-                    byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct);
+                    byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct).ConfigureAwait(false);
                     Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
                     WriteStoredFileBlock(writer, storedName, fileData);
                     result.StoredFileCount++;
@@ -251,7 +251,7 @@ public class SRRWriter
 
                 ReportProgress(i + 1, totalVolumes, $"Processing {volumeName}...");
 
-                await ProcessRarVolumeAsync(writer, volumePath, volumeName, options, result, ct);
+                await ProcessRarVolumeAsync(writer, volumePath, volumeName, options, result, ct).ConfigureAwait(false);
                 result.VolumeCount++;
             }
 
@@ -298,7 +298,7 @@ public class SRRWriter
                 }
             }
 
-            await outStream.FlushAsync(ct);
+            await outStream.FlushAsync(ct).ConfigureAwait(false);
             result.SRRFileSize = outStream.Length;
             result.OutputPath = outputPath;
             result.Success = true;
@@ -354,7 +354,7 @@ public class SRRWriter
         }
 
         string sfvDir = Path.GetDirectoryName(sfvFilePath) ?? ".";
-        string[] sfvLines = await File.ReadAllLinesAsync(sfvFilePath, ct);
+        string[] sfvLines = await File.ReadAllLinesAsync(sfvFilePath, ct).ConfigureAwait(false);
 
         // Parse SFV to find RAR volumes
         var rarFiles = new List<string>();
@@ -398,7 +398,7 @@ public class SRRWriter
             ?.Where(e => File.Exists(e.FullPath))
             .ToList();
 
-        return await CreateAsync(outputPath, rarFiles, storedFiles, options, ct);
+        return await CreateAsync(outputPath, rarFiles, storedFiles, options, ct).ConfigureAwait(false);
     }
 
     #region SRR Block Writers
@@ -496,11 +496,11 @@ public class SRRWriter
 
         if (isRar5)
         {
-            await ProcessRar5VolumeAsync(writer, fs, reader, volumeName, result, ct);
+            await ProcessRar5VolumeAsync(writer, fs, reader, volumeName, result, ct).ConfigureAwait(false);
         }
         else
         {
-            await ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct);
+            await ProcessRar4VolumeAsync(writer, fs, reader, volumeName, options, result, ct).ConfigureAwait(false);
         }
     }
 
@@ -522,7 +522,7 @@ public class SRRWriter
         }
 
         byte[] marker = reader.ReadBytes(7);
-        if (!marker.AsSpan().SequenceEqual(_rar4Marker))
+        if (!marker.AsSpan().SequenceEqual(Rar4Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR4 marker.");
             return Task.CompletedTask;
@@ -672,7 +672,7 @@ public class SRRWriter
         }
 
         byte[] marker = reader.ReadBytes(8);
-        if (!marker.AsSpan().SequenceEqual(_rar5Marker))
+        if (!marker.AsSpan().SequenceEqual(Rar5Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR5 marker.");
             return Task.CompletedTask;

@@ -29,18 +29,11 @@ public class DecompressionTests
         // Act
         string? result = RARDecompressor.DecompressComment(compressedData, uncompressedSize, 0x33);
 
-        // Assert - Note: if native decompression fails, result may be null
-        // This test verifies the decompression attempt doesn't crash
-        if (result != null)
-        {
-            Assert.Equal("Test comment.", result);
-        }
-        else
-        {
-            // Log that native decompression didn't work - this is expected until
-            // we fine-tune the LZSS implementation
-            Assert.True(true, "Native decompression returned null - fallback to unrar.exe would be used");
-        }
+        // Assert - the native RAR 2.9 LZSS decompressor must reproduce the original
+        // comment text exactly. (Previously this assertion was guarded by a
+        // null-check that turned the test tautological; the decompressor is now
+        // verified to work, so the round-trip is asserted unconditionally.)
+        Assert.Equal("Test comment.", result);
     }
 
     [Fact]
