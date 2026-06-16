@@ -46,28 +46,6 @@ internal class BitInput
     }
 
     /// <summary>
-    /// Creates a BitInput using an external buffer.
-    /// </summary>
-    /// <param name="buffer">
-    /// External buffer to use
-    /// </param>
-    public BitInput(byte[] buffer)
-    {
-        InBuf = buffer;
-        InAddr = 0;
-        InBit = 0;
-    }
-
-    /// <summary>
-    /// Initializes bit input position to the beginning.
-    /// </summary>
-    public void InitBitInput()
-    {
-        InAddr = 0;
-        InBit = 0;
-    }
-
-    /// <summary>
     /// Moves forward by the specified number of bits.
     /// </summary>
     /// <param name="bits">
@@ -136,17 +114,6 @@ internal class BitInput
     }
 
     /// <summary>
-    /// Checks if buffer would overflow with the specified increment.
-    /// </summary>
-    /// <param name="incPtr">
-    /// Number of bytes to check
-    /// </param>
-    /// <returns>
-    /// True if would overflow
-    /// </returns>
-    public bool Overflow(int incPtr) => InAddr + incPtr >= MaxSize;
-
-    /// <summary>
     /// Sets the buffer from external data.
     /// </summary>
     /// <param name="data">
@@ -168,21 +135,5 @@ internal class BitInput
         Array.Copy(data, offset, InBuf, 0, Math.Min(length, MaxSize));
         InAddr = 0;
         InBit = 0;
-    }
-
-    /// <summary>
-    /// Gets a single byte from the current position and advances.
-    /// </summary>
-    /// <returns>
-    /// Byte value
-    /// </returns>
-    public byte GetChar()
-    {
-        if (InAddr >= InBuf.Length)
-        {
-            return 0;
-        }
-
-        return InBuf[InAddr++];
     }
 }

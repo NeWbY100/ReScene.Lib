@@ -524,8 +524,7 @@ internal static class RARPatcher
                 if (modified)
                 {
                     // Recalculate CRC (CRC32 of header bytes excluding CRC field, take lower 16 bits)
-                    uint crc32 = Crc32Algorithm.Compute(fullHeader, 2, fullHeader.Length - 2);
-                    ushort newCRC = (ushort)(crc32 & 0xFFFF);
+                    ushort newCRC = RARUtils.CalculateHeaderCRC(fullHeader);
 
                     // Update CRC in header
                     byte[] crcBytes = BitConverter.GetBytes(newCRC);
@@ -565,29 +564,7 @@ internal static class RARPatcher
                 // Skip this block
                 // For blocks with LONG_BLOCK flag or file headers, read ADD_SIZE
                 ushort flags = BitConverter.ToUInt16(baseHeader, OffsetFlags);
-                bool hasAddSize = (flags & (ushort)RARFileFlags.LongBlock) != 0 ||
-                                  blockType == (byte)RAR4BlockType.FileHeader ||
-                                  blockType == (byte)RAR4BlockType.Service;
-
-                long dataSize = 0;
-                if (hasAddSize && stream.Position + 4 <= stream.Length)
-                {
-                    byte[] addSizeBytes = new byte[4];
-                    stream.ReadExactly(addSizeBytes, 0, 4);
-                    dataSize = BitConverter.ToUInt32(addSizeBytes, 0);
-
-                    // Check for 64-bit size (HIGH_PACK_SIZE) on file/service blocks with LARGE flag
-                    if ((blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) &&
-                        (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36 &&
-                        blockStart + 36 <= stream.Length)
-                    {
-                        stream.Position = blockStart + OffsetHighPackSize;
-                        byte[] highPackBytes = new byte[4];
-                        stream.ReadExactly(highPackBytes, 0, 4);
-                        uint highPack = BitConverter.ToUInt32(highPackBytes, 0);
-                        dataSize |= (long)highPack << 32;
-                    }
-                }
+                long dataSize = ComputeNonFileBlockDataSize(stream, blockStart, blockType, flags, headerSize);
 
                 stream.Position = blockStart + headerSize + dataSize;
             }
@@ -703,29 +680,7 @@ internal static class RARPatcher
             else
             {
                 ushort flags = BitConverter.ToUInt16(baseHeader, OffsetFlags);
-                bool hasAddSize = (flags & (ushort)RARFileFlags.LongBlock) != 0 ||
-                                  blockType == (byte)RAR4BlockType.FileHeader ||
-                                  blockType == (byte)RAR4BlockType.Service;
-
-                long dataSize = 0;
-                if (hasAddSize && stream.Position + 4 <= stream.Length)
-                {
-                    byte[] addSizeBytes = new byte[4];
-                    stream.ReadExactly(addSizeBytes, 0, 4);
-                    dataSize = BitConverter.ToUInt32(addSizeBytes, 0);
-
-                    // Check for 64-bit size (HIGH_PACK_SIZE) on file/service blocks with LARGE flag
-                    if ((blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) &&
-                        (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36 &&
-                        blockStart + 36 <= stream.Length)
-                    {
-                        stream.Position = blockStart + OffsetHighPackSize;
-                        byte[] highPackBytes = new byte[4];
-                        stream.ReadExactly(highPackBytes, 0, 4);
-                        uint highPack = BitConverter.ToUInt32(highPackBytes, 0);
-                        dataSize |= (long)highPack << 32;
-                    }
-                }
+                long dataSize = ComputeNonFileBlockDataSize(stream, blockStart, blockType, flags, headerSize);
 
                 stream.Position = blockStart + headerSize + dataSize;
             }
@@ -737,6 +692,42 @@ internal static class RARPatcher
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Computes the data-area size that follows a non-file RAR4 block header while skipping it.
+    /// Reads ADD_SIZE when the block carries data (LONG_BLOCK flag, file headers, or service
+    /// headers) and folds in HIGH_PACK_SIZE for file/service blocks with the LARGE flag.
+    /// The stream position is left indeterminate; callers re-seek to <c>blockStart + headerSize +</c>
+    /// the returned size.
+    /// </summary>
+    private static long ComputeNonFileBlockDataSize(Stream stream, long blockStart, byte blockType, ushort flags, ushort headerSize)
+    {
+        bool hasAddSize = (flags & (ushort)RARFileFlags.LongBlock) != 0 ||
+                          blockType == (byte)RAR4BlockType.FileHeader ||
+                          blockType == (byte)RAR4BlockType.Service;
+
+        long dataSize = 0;
+        if (hasAddSize && stream.Position + 4 <= stream.Length)
+        {
+            byte[] addSizeBytes = new byte[4];
+            stream.ReadExactly(addSizeBytes, 0, 4);
+            dataSize = BitConverter.ToUInt32(addSizeBytes, 0);
+
+            // Check for 64-bit size (HIGH_PACK_SIZE) on file/service blocks with LARGE flag
+            if ((blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) &&
+                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36 &&
+                blockStart + 36 <= stream.Length)
+            {
+                stream.Position = blockStart + OffsetHighPackSize;
+                byte[] highPackBytes = new byte[4];
+                stream.ReadExactly(highPackBytes, 0, 4);
+                uint highPack = BitConverter.ToUInt32(highPackBytes, 0);
+                dataSize |= (long)highPack << 32;
+            }
+        }
+
+        return dataSize;
     }
 
     /// <summary>
@@ -845,8 +836,7 @@ internal static class RARPatcher
                     BitConverter.GetBytes(newHeaderSize).CopyTo(header, OffsetHeaderSize);
 
                     // Recalculate CRC
-                    uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
-                    ushort newCRC = (ushort)(crc32 & 0xFFFF);
+                    ushort newCRC = RARUtils.CalculateHeaderCRC(header);
                     BitConverter.GetBytes(newCRC).CopyTo(header, OffsetCRC);
 
                     // Write modified header
@@ -882,8 +872,7 @@ internal static class RARPatcher
                         BitConverter.GetBytes(newHeaderSize).CopyTo(header, OffsetHeaderSize);
 
                         // Recalculate CRC
-                        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
-                        ushort newCRC = (ushort)(crc32 & 0xFFFF);
+                        ushort newCRC = RARUtils.CalculateHeaderCRC(header);
                         BitConverter.GetBytes(newCRC).CopyTo(header, OffsetCRC);
 
                         // Write modified header
@@ -984,8 +973,7 @@ internal static class RARPatcher
         BitConverter.GetBytes(archiveDataCRC).CopyTo(endHeader, 7);
 
         // Recalculate the End of Archive header's own CRC
-        uint crc32 = Crc32Algorithm.Compute(endHeader, 2, endHeader.Length - 2);
-        ushort newHeaderCRC = (ushort)(crc32 & 0xFFFF);
+        ushort newHeaderCRC = RARUtils.CalculateHeaderCRC(endHeader);
         BitConverter.GetBytes(newHeaderCRC).CopyTo(endHeader, OffsetCRC);
 
         // Write back

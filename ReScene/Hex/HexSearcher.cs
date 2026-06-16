@@ -78,7 +78,7 @@ public static class HexSearcher
                 break;
             }
 
-            int matchIndex = IndexOf(buffer, read, needle);
+            int matchIndex = buffer.AsSpan(0, read).IndexOf(needle);
 
             if (matchIndex >= 0)
             {
@@ -142,7 +142,7 @@ public static class HexSearcher
                 break;
             }
 
-            int matchIndex = LastIndexOf(buffer, read, needle);
+            int matchIndex = buffer.AsSpan(0, read).LastIndexOf(needle);
 
             if (matchIndex >= 0)
             {
@@ -162,58 +162,6 @@ public static class HexSearcher
             }
 
             chunkEnd = chunkStart + overlap;
-        }
-
-        return -1;
-    }
-
-    private static int IndexOf(byte[] haystack, int haystackLength, ReadOnlySpan<byte> needle)
-    {
-        int limit = haystackLength - needle.Length;
-
-        for (int i = 0; i <= limit; i++)
-        {
-            bool found = true;
-
-            for (int j = 0; j < needle.Length; j++)
-            {
-                if (haystack[i + j] != needle[j])
-                {
-                    found = false;
-                    break;
-                }
-            }
-
-            if (found)
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private static int LastIndexOf(byte[] haystack, int haystackLength, ReadOnlySpan<byte> needle)
-    {
-        int limit = haystackLength - needle.Length;
-
-        for (int i = limit; i >= 0; i--)
-        {
-            bool found = true;
-
-            for (int j = 0; j < needle.Length; j++)
-            {
-                if (haystack[i + j] != needle[j])
-                {
-                    found = false;
-                    break;
-                }
-            }
-
-            if (found)
-            {
-                return i;
-            }
         }
 
         return -1;

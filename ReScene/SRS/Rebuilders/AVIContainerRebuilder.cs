@@ -96,13 +96,8 @@ internal class AVIContainerRebuilder : IContainerRebuilder
                 continue;
             }
 
-            bool isMoviData = fourcc.Length == 4 &&
-                              char.IsDigit(fourcc[0]) && char.IsDigit(fourcc[1]) &&
-                              char.IsLetter(fourcc[2]) && char.IsLetter(fourcc[3]);
-
-            if (isMoviData)
+            if (TryGetMoviTrack(fourcc, out uint trackNumber))
             {
-                uint trackNumber = (uint)((fourcc[0] - '0') * 10 + (fourcc[1] - '0'));
                 long dataOffset = fs.Position;
 
                 if (remaining.TryGetValue(trackNumber, out long rem) && rem > 0)
@@ -121,6 +116,25 @@ internal class AVIContainerRebuilder : IContainerRebuilder
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Recognizes an AVI <c>movi</c> data-chunk FOURCC (two digits + two letters, e.g. "00dc",
+    /// "01wb") and decodes its track number from the leading digits. Sets
+    /// <paramref name="trackNumber"/> on both paths (0 when not a movi chunk).
+    /// </summary>
+    private static bool TryGetMoviTrack(string fourcc, out uint trackNumber)
+    {
+        if (fourcc.Length == 4 &&
+            char.IsDigit(fourcc[0]) && char.IsDigit(fourcc[1]) &&
+            char.IsLetter(fourcc[2]) && char.IsLetter(fourcc[3]))
+        {
+            trackNumber = (uint)((fourcc[0] - '0') * 10 + (fourcc[1] - '0'));
+            return true;
+        }
+
+        trackNumber = 0;
+        return false;
     }
 
     private static void RebuildRiffChunks(
@@ -185,15 +199,9 @@ internal class AVIContainerRebuilder : IContainerRebuilder
             else
             {
                 // Check if this is a movi data chunk (e.g. "00dc", "01wb")
-                bool isMovi = fourcc.Length == 4 &&
-                              char.IsDigit(fourcc[0]) && char.IsDigit(fourcc[1]) &&
-                              char.IsLetter(fourcc[2]) && char.IsLetter(fourcc[3]);
-
-                if (isMovi)
+                if (TryGetMoviTrack(fourcc, out uint trackNumber))
                 {
                     // Read data directly from media file at the indexed position
-                    uint trackNumber = (uint)((fourcc[0] - '0') * 10 + (fourcc[1] - '0'));
-
                     if (mediaChunks.TryGetValue(trackNumber, out Queue<(long DataOffset, int Size)>? queue) && queue.Count > 0)
                     {
                         (long dataOffset, int size) = queue.Dequeue();

@@ -237,27 +237,9 @@ public sealed class MKVFileData
             }
 
             long idPos = stream.Position;
-            if (!EBMLReader.TryReadId(stream, out ulong id, out int idLen))
+            if (!TryReadElementHeader(stream, parentEnd, out ulong id, out int headerSize, out long dataPos, out long dataSize))
             {
                 return;
-            }
-
-            if (!EBMLReader.TryReadSize(stream, out ulong size, out int sizeLen))
-            {
-                return;
-            }
-
-            int headerSize = idLen + sizeLen;
-            long dataPos = stream.Position;
-
-            // Unknown-size (all-ones VINT) elements stream to the parent's end.
-            bool unknownSize = IsUnknownSize(size, sizeLen);
-            long dataSize = unknownSize ? Math.Max(0, parentEnd - dataPos) : (long)size;
-
-            // Clamp to the parent so malformed sizes cannot escape the bounds.
-            if (dataPos + dataSize > parentEnd)
-            {
-                dataSize = Math.Max(0, parentEnd - dataPos);
             }
 
             (string name, EBMLValueType type) = EbmlElementRegistry.Lookup(id);
@@ -310,6 +292,48 @@ public sealed class MKVFileData
     }
 
     /// <summary>
+    /// Reads an EBML element header (ID VINT + size VINT) at the current stream position and
+    /// resolves its data extent, clamped to <paramref name="end"/> so malformed or unknown-size
+    /// (all-ones VINT) elements cannot escape the parent's bounds. The caller captures the element's
+    /// ID position before calling. Leaves the stream positioned at the start of the element's data.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> when both VINTs were read; <see langword="false"/> at end of stream.
+    /// </returns>
+    private static bool TryReadElementHeader(Stream stream, long end, out ulong id, out int headerSize, out long dataPos, out long dataSize)
+    {
+        id = 0;
+        headerSize = 0;
+        dataPos = 0;
+        dataSize = 0;
+
+        if (!EBMLReader.TryReadId(stream, out id, out int idLen))
+        {
+            return false;
+        }
+
+        if (!EBMLReader.TryReadSize(stream, out ulong size, out int sizeLen))
+        {
+            return false;
+        }
+
+        headerSize = idLen + sizeLen;
+        dataPos = stream.Position;
+
+        // Unknown-size (all-ones VINT) elements stream to the parent's end.
+        bool unknownSize = IsUnknownSize(size, sizeLen);
+        dataSize = unknownSize ? Math.Max(0, end - dataPos) : (long)size;
+
+        // Clamp to the parent so malformed sizes cannot escape the bounds.
+        if (dataPos + dataSize > end)
+        {
+            dataSize = Math.Max(0, end - dataPos);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Reads only the first <c>Timestamp</c> child of a cluster as a hint, without enumerating blocks.
     /// </summary>
     private static string? ReadClusterTimestampHint(Stream stream, long clusterDataStart, long clusterEnd)
@@ -320,22 +344,9 @@ public sealed class MKVFileData
             stream.Position = clusterDataStart;
             while (stream.Position < clusterEnd)
             {
-                if (!EBMLReader.TryReadId(stream, out ulong childId, out int _))
+                if (!TryReadElementHeader(stream, clusterEnd, out ulong childId, out int _, out long childDataPos, out long childDataSize))
                 {
                     return null;
-                }
-
-                if (!EBMLReader.TryReadSize(stream, out ulong childSize, out int childSizeLen))
-                {
-                    return null;
-                }
-
-                long childDataPos = stream.Position;
-                bool unknownSize = IsUnknownSize(childSize, childSizeLen);
-                long childDataSize = unknownSize ? Math.Max(0, clusterEnd - childDataPos) : (long)childSize;
-                if (childDataPos + childDataSize > clusterEnd)
-                {
-                    childDataSize = Math.Max(0, clusterEnd - childDataPos);
                 }
 
                 if (childId == EbmlIdTimestamp)

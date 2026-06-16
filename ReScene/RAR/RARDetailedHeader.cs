@@ -531,6 +531,18 @@ public static class RARDetailedParser
     }
 
     private static void ParseRAR4DataArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart)
+        // RAR4 CMT data is stored when the Compression Method field reads "0x30".
+        => EmitCmtOrGenericDataArea(reader, stream, block, dataStart, b =>
+            b.Fields.Any(f => f.Name == "Compression Method" && f.Value == "0x30"));
+
+    /// <summary>
+    /// Emits the "Data Area" fields for a parsed block. CMT service blocks up to 1 MB get their
+    /// comment text decoded (when <paramref name="isStored"/> reports the data is uncompressed);
+    /// everything else gets a generic size/offset placeholder. Shared by the RAR4 and RAR5 paths,
+    /// which differ only in how they detect the stored flag.
+    /// </summary>
+    private static void EmitCmtOrGenericDataArea(
+        BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart, Func<RARDetailedBlock, bool> isStored)
     {
         if (dataStart + block.DataSize > stream.Length)
         {
@@ -539,12 +551,9 @@ public static class RARDetailedParser
 
         block.Fields.Add(new RARHeaderField { Name = "--- Data Area ---", Value = "" });
 
-        // Check if this is a CMT block and if the data is stored (method byte 0x30 = Store)
+        // For CMT service blocks with stored data, decode the comment text.
         if (block.ItemName == "CMT" && block.DataSize <= 1_000_000)
         {
-            bool isStored = block.Fields.Any(f =>
-                f.Name == "Compression Method" && f.Value == "0x30");
-
             if (block.DataSize > int.MaxValue)
             {
                 return;
@@ -553,7 +562,7 @@ public static class RARDetailedParser
             stream.Position = dataStart;
             byte[] data = reader.ReadBytes((int)block.DataSize);
 
-            if (isStored)
+            if (isStored(block))
             {
                 string comment = Encoding.UTF8.GetString(data);
                 block.Fields.Add(new RARHeaderField
@@ -820,7 +829,7 @@ public static class RARDetailedParser
                 Length = 1,
                 RawBytes = new[] { hostOs },
                 Value = $"0x{hostOs:X2}",
-                Description = GetHostOSName(hostOs)
+                Description = RARPatcher.GetHostOSName(hostOs)
             });
             pos += 1;
         }
@@ -884,7 +893,7 @@ public static class RARDetailedParser
                 Length = 1,
                 RawBytes = new[] { method },
                 Value = $"0x{method:X2}",
-                Description = GetCompressionMethodName(method)
+                Description = Core.Comparison.FileComparer.GetCompressionMethodName(method)
             });
             pos += 1;
         }
@@ -1750,67 +1759,10 @@ public static class RARDetailedParser
     }
 
     private static void ParseRAR5DataArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long dataStart)
-    {
-        if (dataStart + block.DataSize > stream.Length)
-        {
-            return;
-        }
-
-        block.Fields.Add(new RARHeaderField { Name = "--- Data Area ---", Value = "" });
-
-        // For CMT service blocks with stored data, decode the comment text
-        if (block.ItemName == "CMT" && block.DataSize <= 1_000_000)
-        {
-            // Check if stored (method=0) by finding the METHOD child of Compression Info
-            bool isStored = block.Fields.Any(f =>
-                f.Name == "Compression Info" && f.Children.Any(c =>
-                    c.Name == "METHOD" && c.Value.StartsWith("0 ", StringComparison.Ordinal)));
-
-            if (block.DataSize > int.MaxValue)
-            {
-                return;
-            }
-
-            stream.Position = dataStart;
-            byte[] data = reader.ReadBytes((int)block.DataSize);
-
-            if (isStored)
-            {
-                string comment = Encoding.UTF8.GetString(data);
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Comment Data",
-                    Offset = dataStart,
-                    Length = (int)block.DataSize,
-                    RawBytes = data,
-                    Value = comment,
-                    Description = "Stored (uncompressed)"
-                });
-            }
-            else
-            {
-                block.Fields.Add(new RARHeaderField
-                {
-                    Name = "Comment Data",
-                    Offset = dataStart,
-                    Length = (int)block.DataSize,
-                    RawBytes = data,
-                    Value = $"{block.DataSize:N0} bytes (compressed)",
-                    Description = "Requires decompression to read"
-                });
-            }
-        }
-        else
-        {
-            block.Fields.Add(new RARHeaderField
-            {
-                Name = "Data",
-                Offset = dataStart,
-                Length = (int)Math.Min(block.DataSize, int.MaxValue),
-                Value = $"{block.DataSize:N0} bytes at offset 0x{dataStart:X8}"
-            });
-        }
-    }
+        // RAR5 CMT data is stored when the METHOD child of Compression Info reads "0 ...".
+        => EmitCmtOrGenericDataArea(reader, stream, block, dataStart, b =>
+            b.Fields.Any(f => f.Name == "Compression Info" && f.Children.Any(c =>
+                c.Name == "METHOD" && c.Value.StartsWith("0 ", StringComparison.Ordinal))));
 
     private static void ParseRAR5ExtraArea(BinaryReader reader, Stream stream, RARDetailedBlock block, long headerEnd, int headType)
     {
@@ -2540,29 +2492,6 @@ public static class RARDetailedParser
 
         return $"{sizeKB} KB";
     }
-
-    private static string GetHostOSName(byte os) => os switch
-    {
-        0 => "MS-DOS",
-        1 => "OS/2",
-        2 => "Windows",
-        3 => "Unix",
-        4 => "Mac OS",
-        5 => "BeOS",
-        _ => $"Unknown ({os})"
-    };
-
-    private static string GetCompressionMethodName(byte method) => method switch
-    {
-        0x30 => "Store",
-        0x31 => "Fastest",
-        0x32 => "Fast",
-        0x33 => "Normal",
-        0x34 => "Good",
-        0x35 => "Best",
-        _ when method is >= 0 and <= 5 => new[] { "Store", "Fastest", "Fast", "Normal", "Good", "Best" }[method],
-        _ => $"Unknown (0x{method:X2})"
-    };
 
     #endregion
 }

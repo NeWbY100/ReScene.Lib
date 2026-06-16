@@ -583,15 +583,7 @@ internal class RARHeaderReader
             else
             {
                 // Time is present - precision based on extra byte count
-                int extraBytes = rmode & 0x3;
-                precision = extraBytes switch
-                {
-                    0 => TimestampPrecision.OneSecond,
-                    1 => TimestampPrecision.HighPrecision1,
-                    2 => TimestampPrecision.HighPrecision2,
-                    3 => TimestampPrecision.NtfsPrecision,
-                    _ => TimestampPrecision.OneSecond
-                };
+                precision = PrecisionFromExtraBytes(rmode & 0x3);
             }
 
             // mtime uses base DOS time; ctime/atime have their own DOS time
@@ -806,45 +798,21 @@ internal class RARHeaderReader
                 int mtimeRmode = (extFlags >> 12) & 0xF;
                 if ((mtimeRmode & 0x8) != 0)
                 {
-                    int extraBytes = mtimeRmode & 0x3;
-                    mtimePrecision = extraBytes switch
-                    {
-                        0 => TimestampPrecision.OneSecond,
-                        1 => TimestampPrecision.HighPrecision1,
-                        2 => TimestampPrecision.HighPrecision2,
-                        3 => TimestampPrecision.NtfsPrecision,
-                        _ => TimestampPrecision.OneSecond
-                    };
+                    mtimePrecision = PrecisionFromExtraBytes(mtimeRmode & 0x3);
                 }
 
                 // ctime is at position 1 (bits 8-11)
                 int ctimeRmode = (extFlags >> 8) & 0xF;
                 if ((ctimeRmode & 0x8) != 0)
                 {
-                    int extraBytes = ctimeRmode & 0x3;
-                    ctimePrecision = extraBytes switch
-                    {
-                        0 => TimestampPrecision.OneSecond,
-                        1 => TimestampPrecision.HighPrecision1,
-                        2 => TimestampPrecision.HighPrecision2,
-                        3 => TimestampPrecision.NtfsPrecision,
-                        _ => TimestampPrecision.OneSecond
-                    };
+                    ctimePrecision = PrecisionFromExtraBytes(ctimeRmode & 0x3);
                 }
 
                 // atime is at position 2 (bits 4-7)
                 int atimeRmode = (extFlags >> 4) & 0xF;
                 if ((atimeRmode & 0x8) != 0)
                 {
-                    int extraBytes = atimeRmode & 0x3;
-                    atimePrecision = extraBytes switch
-                    {
-                        0 => TimestampPrecision.OneSecond,
-                        1 => TimestampPrecision.HighPrecision1,
-                        2 => TimestampPrecision.HighPrecision2,
-                        3 => TimestampPrecision.NtfsPrecision,
-                        _ => TimestampPrecision.OneSecond
-                    };
+                    atimePrecision = PrecisionFromExtraBytes(atimeRmode & 0x3);
                 }
             }
         }
@@ -868,6 +836,20 @@ internal class RARHeaderReader
 
         return result;
     }
+
+    /// <summary>
+    /// Maps the RAR extended-time "extra byte" count (the low two bits of an rmode nibble) to a
+    /// <see cref="TimestampPrecision"/>. Callers must already have verified the time is present
+    /// (the <c>0x8</c> rmode bit) before calling.
+    /// </summary>
+    private static TimestampPrecision PrecisionFromExtraBytes(int extraBytes) => extraBytes switch
+    {
+        0 => TimestampPrecision.OneSecond,
+        1 => TimestampPrecision.HighPrecision1,
+        2 => TimestampPrecision.HighPrecision2,
+        3 => TimestampPrecision.NtfsPrecision,
+        _ => TimestampPrecision.OneSecond
+    };
 
     /// <summary>
     /// Reads the data portion of a service block.

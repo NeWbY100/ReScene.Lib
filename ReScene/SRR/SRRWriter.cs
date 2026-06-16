@@ -235,7 +235,7 @@ public class SRRWriter
 
                     byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct).ConfigureAwait(false);
                     Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
-                    WriteStoredFileBlock(writer, storedName, fileData);
+                    SrrBlockWriter.WriteStoredFileBlock(writer, storedName, fileData);
                     result.StoredFileCount++;
                 }
             }
@@ -285,7 +285,7 @@ public class SRRWriter
                 if (dizResult.Data is not null)
                 {
                     Log($"Adding languages.diz ({dizResult.Data.Length:N0} bytes)");
-                    WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
+                    SrrBlockWriter.WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
                     result.StoredFileCount++;
                 }
                 else if (dizResult.IdxFileNames.Count == 0)
@@ -425,22 +425,6 @@ public class SRRWriter
             writer.Write((ushort)appNameBytes.Length);
             writer.Write(appNameBytes);
         }
-    }
-
-    private static void WriteStoredFileBlock(BinaryWriter writer, string fileName, byte[] fileData)
-    {
-        byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
-        ushort headerSize = (ushort)(7 + 4 + 2 + nameBytes.Length); // base + addSize + nameLen + name
-        uint addSize = (uint)fileData.Length;
-
-        writer.Write((ushort)0x6A6A);           // CRC (SRR stored file sentinel)
-        writer.Write((byte)0x6A);               // StoredFile type
-        writer.Write((ushort)0x8000);           // flags: LONG_BLOCK
-        writer.Write(headerSize);
-        writer.Write(addSize);                  // data length
-        writer.Write((ushort)nameBytes.Length);
-        writer.Write(nameBytes);
-        writer.Write(fileData);                 // file data
     }
 
     private static void WriteRarFileBlock(BinaryWriter writer, string rarFileName)

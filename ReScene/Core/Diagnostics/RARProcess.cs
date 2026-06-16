@@ -315,27 +315,7 @@ internal sealed partial class RARProcess
 
             if (!string.IsNullOrEmpty(filename) && int.TryParse(progressStr, out int progress))
             {
-                int itemIndex = _archiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
-
-                if (itemIndex >= 0)
-                {
-                    ArchiveItem item = _archiveFile.ArchiveItems[itemIndex];
-                    item.Progress = progress;
-                    item.Done = progress >= 100;
-                    _archiveFile.ArchiveItems[itemIndex] = item;
-                }
-                else
-                {
-                    _archiveFile.ArchiveItems.Add(new ArchiveItem
-                    {
-                        FileName = filename,
-                        Progress = progress,
-                        Done = progress >= 100
-                    });
-                }
-
-                string filePath = Path.IsPathRooted(filename) ? filename : Path.Combine(InputDirectory, filename);
-                FireCompressionProgress(new(100, progress, startDateTime, filePath));
+                UpsertAndReport(filename, progress, startDateTime);
             }
         }
         else if (output.Contains("OK", StringComparison.OrdinalIgnoreCase))
@@ -344,30 +324,38 @@ internal sealed partial class RARProcess
             if (okMatch.Success)
             {
                 string filename = NormalizeOutputFileName(okMatch.Groups["filename"].Value);
-
-                int itemIndex = _archiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
-
-                if (itemIndex >= 0)
-                {
-                    ArchiveItem item = _archiveFile.ArchiveItems[itemIndex];
-                    item.Progress = 100;
-                    item.Done = true;
-                    _archiveFile.ArchiveItems[itemIndex] = item;
-                }
-                else
-                {
-                    _archiveFile.ArchiveItems.Add(new ArchiveItem
-                    {
-                        FileName = filename,
-                        Progress = 100,
-                        Done = true
-                    });
-                }
-
-                string filePath = Path.IsPathRooted(filename) ? filename : Path.Combine(InputDirectory, filename);
-                FireCompressionProgress(new(100, 100, startDateTime, filePath));
+                UpsertAndReport(filename, 100, startDateTime);
             }
         }
+    }
+
+    /// <summary>
+    /// Upserts an <see cref="ArchiveItem"/> for <paramref name="filename"/> with the given
+    /// <paramref name="progress"/> (marking it done at 100) and fires a compression-progress event.
+    /// </summary>
+    private void UpsertAndReport(string filename, int progress, DateTime startDateTime)
+    {
+        int itemIndex = _archiveFile.ArchiveItems.FindIndex(item => item.FileName == filename);
+
+        if (itemIndex >= 0)
+        {
+            ArchiveItem item = _archiveFile.ArchiveItems[itemIndex];
+            item.Progress = progress;
+            item.Done = progress >= 100;
+            _archiveFile.ArchiveItems[itemIndex] = item;
+        }
+        else
+        {
+            _archiveFile.ArchiveItems.Add(new ArchiveItem
+            {
+                FileName = filename,
+                Progress = progress,
+                Done = progress >= 100
+            });
+        }
+
+        string filePath = Path.IsPathRooted(filename) ? filename : Path.Combine(InputDirectory, filename);
+        FireCompressionProgress(new(100, progress, startDateTime, filePath));
     }
 
     private static string NormalizeOutputFileName(string filename)

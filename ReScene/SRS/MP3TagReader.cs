@@ -175,11 +175,12 @@ internal static class MP3TagReader
     /// <param name="stream">
     /// The stream to check.
     /// </param>
+    /// <param name="endOffset">
+    /// The offset to treat as the end of the tag region.
+    /// </param>
     /// <returns>
     /// Whether found and the total tag size.
     /// </returns>
-    public static (bool found, int size) DetectLyrics3v2(Stream stream) => DetectLyrics3v2(stream, stream.Length);
-
     public static (bool found, int size) DetectLyrics3v2(Stream stream, long endOffset)
     {
         // Need at least 6 (size) + 9 ("LYRICS200") = 15 bytes before endOffset
@@ -223,11 +224,12 @@ internal static class MP3TagReader
     /// <param name="stream">
     /// The stream to check.
     /// </param>
+    /// <param name="endOffset">
+    /// The offset to treat as the end of the tag region.
+    /// </param>
     /// <returns>
     /// Whether found and the total tag size.
     /// </returns>
-    public static (bool found, int size) DetectLyrics3v1(Stream stream) => DetectLyrics3v1(stream, stream.Length);
-
     public static (bool found, int size) DetectLyrics3v1(Stream stream, long endOffset)
     {
         // Need at least 9 bytes ("LYRICSEND") before endOffset
@@ -269,30 +271,6 @@ internal static class MP3TagReader
         int totalSize = (int)(endOffset - absoluteStart);
         return (true, totalSize);
     }
-
-    /// <summary>
-    /// Detects an APEv2 tag before the given end offset.
-    /// APEv2 has a 32-byte footer with "APETAGEX" preamble.
-    /// </summary>
-    /// <param name="stream">
-    /// The stream to check.
-    /// </param>
-    /// <returns>
-    /// Whether found and the total tag size.
-    /// </returns>
-    public static (bool found, int size) DetectApeV2(Stream stream) => DetectApeTag(stream, stream.Length);
-
-    /// <summary>
-    /// Detects an APEv1 tag. Uses the same detection as APEv2 but
-    /// version 1000 means no header (only footer + items).
-    /// </summary>
-    /// <param name="stream">
-    /// The stream to check.
-    /// </param>
-    /// <returns>
-    /// Whether found and the total tag size.
-    /// </returns>
-    public static (bool found, int size) DetectApeV1(Stream stream) => DetectApeTag(stream, stream.Length);
 
     /// <summary>
     /// Detects an APE tag (v1 or v2) before the given end offset.

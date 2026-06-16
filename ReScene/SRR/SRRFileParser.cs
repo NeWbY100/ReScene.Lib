@@ -461,22 +461,7 @@ internal static class SRRFileParser
         {
             // Stored (uncompressed) comment - decode directly
             srr.ArchiveCommentBytes = commentData;
-            try
-            {
-                srr.ArchiveComment = Encoding.UTF8.GetString(commentData);
-            }
-            catch
-            {
-                // Try with default encoding
-                try
-                {
-                    srr.ArchiveComment = Encoding.Default.GetString(commentData);
-                }
-                catch
-                {
-                    // Failed to decode
-                }
-            }
+            srr.ArchiveComment = DecodeText(commentData, trimNulls: false);
         }
         else
         {
@@ -509,19 +494,7 @@ internal static class SRRFileParser
             }
 
             // Convert bytes to string for display (with TrimEnd for readability)
-            string? comment = null;
-            try
-            {
-                comment = Encoding.UTF8.GetString(rawBytes).TrimEnd('\0');
-            }
-            catch
-            {
-                try
-                {
-                    comment = Encoding.Default.GetString(rawBytes).TrimEnd('\0');
-                }
-                catch { }
-            }
+            string? comment = DecodeText(rawBytes, trimNulls: true);
 
             return (comment, rawBytes);
         }
@@ -611,22 +584,7 @@ internal static class SRRFileParser
         {
             // Stored (uncompressed) comment - decode directly
             srr.ArchiveCommentBytes = commentData;
-            try
-            {
-                srr.ArchiveComment = Encoding.UTF8.GetString(commentData).TrimEnd('\0');
-            }
-            catch
-            {
-                // Try with default encoding
-                try
-                {
-                    srr.ArchiveComment = Encoding.Default.GetString(commentData).TrimEnd('\0');
-                }
-                catch
-                {
-                    // Failed to decode
-                }
-            }
+            srr.ArchiveComment = DecodeText(commentData, trimNulls: true);
         }
         else
         {
@@ -662,19 +620,7 @@ internal static class SRRFileParser
             }
 
             // Convert bytes to string for display (with TrimEnd for readability)
-            string? comment = null;
-            try
-            {
-                comment = Encoding.UTF8.GetString(rawBytes).TrimEnd('\0');
-            }
-            catch
-            {
-                try
-                {
-                    comment = Encoding.Default.GetString(rawBytes).TrimEnd('\0');
-                }
-                catch { }
-            }
+            string? comment = DecodeText(rawBytes, trimNulls: true);
 
             return (comment, rawBytes);
         }
@@ -683,6 +629,18 @@ internal static class SRRFileParser
             // Native decompression failed
             return (null, null);
         }
+    }
+
+    /// <summary>
+    /// Decodes archive-comment bytes as UTF-8 for display. <see cref="Encoding.UTF8"/> replaces
+    /// undecodable bytes rather than throwing, so the previous Encoding.Default fallback was
+    /// unreachable and has been removed. When <paramref name="trimNulls"/> is set, trailing NUL
+    /// padding is stripped.
+    /// </summary>
+    private static string? DecodeText(ReadOnlySpan<byte> data, bool trimNulls)
+    {
+        string text = Encoding.UTF8.GetString(data);
+        return trimNulls ? text.TrimEnd('\0') : text;
     }
 
     internal static string? NormalizeArchivePath(string path)

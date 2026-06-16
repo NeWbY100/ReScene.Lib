@@ -8,6 +8,12 @@ namespace ReScene.Core.Cryptography;
 public static class CRC32
 {
     /// <summary>
+    /// Streaming read-buffer size (1 MiB). Kept off the large-object heap and matched to
+    /// <c>FileOperations</c>'s buffer; the resulting hash is independent of the buffer size.
+    /// </summary>
+    private const int BufferSize = 1024 * 1024;
+
+    /// <summary>
     /// Calculates the CRC32 hash of a file, returning the result as a lowercase hex string.
     /// </summary>
     /// <param name="filePath">
@@ -42,7 +48,7 @@ public static class CRC32
         }
 
         uint hash = 0;
-        byte[] buffer = new byte[32 * 1024 * 1024];
+        byte[] buffer = new byte[BufferSize];
         long totalBytesRead = 0;
 
         using FileStream entryStream = File.OpenRead(filePath);

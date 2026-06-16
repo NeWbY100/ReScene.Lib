@@ -534,15 +534,7 @@ public static class FileComparer
                         RightValue = rightVal
                     };
 
-                    if (fileDiff != null)
-                    {
-                        fileDiff.Type = DifferenceType.Modified;
-                        fileDiff._propertyDifferences.Add(propDiff);
-                    }
-                    else
-                    {
-                        result._archiveDifferences.Add(propDiff);
-                    }
+                    RouteDifference(result, fileDiff, propDiff);
                 }
             }
 
@@ -562,15 +554,7 @@ public static class FileComparer
                         RightValue = $"{rb.DataSize:N0} bytes (different)"
                     };
 
-                    if (fileDiff != null)
-                    {
-                        fileDiff.Type = DifferenceType.Modified;
-                        fileDiff._propertyDifferences.Add(propDiff);
-                    }
-                    else
-                    {
-                        result._archiveDifferences.Add(propDiff);
-                    }
+                    RouteDifference(result, fileDiff, propDiff);
                 }
             }
 
@@ -578,6 +562,24 @@ public static class FileComparer
             {
                 result._fileDifferences.Add(fileDiff);
             }
+        }
+    }
+
+    /// <summary>
+    /// Routes a <see cref="PropertyDifference"/> either onto the owning <paramref name="fileDiff"/>
+    /// (marking it modified) when the difference belongs to a file/service block, or onto the
+    /// archive-level differences of <paramref name="result"/> otherwise.
+    /// </summary>
+    private static void RouteDifference(CompareResult result, FileDifference? fileDiff, PropertyDifference propDiff)
+    {
+        if (fileDiff != null)
+        {
+            fileDiff.Type = DifferenceType.Modified;
+            fileDiff._propertyDifferences.Add(propDiff);
+        }
+        else
+        {
+            result._archiveDifferences.Add(propDiff);
         }
     }
 
@@ -786,7 +788,7 @@ public static class FileComparer
         0x03 or 0x33 => "Normal",
         0x04 or 0x34 => "Good",
         0x05 or 0x35 => "Best",
-        _ => $"Unknown ({method})"
+        _ => $"Unknown (0x{method:X2})"
     };
 
     /// <summary>

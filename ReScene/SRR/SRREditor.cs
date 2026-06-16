@@ -11,7 +11,6 @@ public static class SRREditor
     private const int BaseHeaderSize = 7;
     private const int AddSizeFieldLength = 4;
     private const int NameLengthFieldLength = 2;
-    private const int CopyBufferSize = 64 * 1024;
 
     /// <summary>
     /// Adds one or more stored files to an existing SRR file.
@@ -105,7 +104,8 @@ public static class SRREditor
 
                     // Copy the entire block verbatim
                     input.Position = blockStart;
-                    CopyBytes(input, output, totalBlockSize);
+                    StreamUtilities.CopyBytesStrict(input, output, totalBlockSize,
+                        "Unexpected end of SRR file while copying block data.");
                 }
 
                 // If we never inserted (e.g., file only has header), do it now
@@ -214,7 +214,8 @@ public static class SRREditor
 
                     // Copy the entire block verbatim
                     input.Position = blockStart;
-                    CopyBytes(input, output, totalBlockSize);
+                    StreamUtilities.CopyBytesStrict(input, output, totalBlockSize,
+                        "Unexpected end of SRR file while copying block data.");
                 }
             }
 
@@ -363,7 +364,8 @@ public static class SRREditor
                     }
 
                     input.Position = blockStart;
-                    CopyBytes(input, output, totalBlockSize);
+                    StreamUtilities.CopyBytesStrict(input, output, totalBlockSize,
+                        "Unexpected end of SRR file while copying block data.");
                 }
             }
 
@@ -596,43 +598,7 @@ public static class SRREditor
         {
             string normalizedName = storedName.Replace('\\', '/');
             byte[] fileData = File.ReadAllBytes(filePath);
-            WriteStoredFileBlock(writer, normalizedName, fileData);
-        }
-    }
-
-    private static void WriteStoredFileBlock(BinaryWriter writer, string fileName, byte[] fileData)
-    {
-        byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
-        ushort headerSize = (ushort)(BaseHeaderSize + AddSizeFieldLength + NameLengthFieldLength + nameBytes.Length);
-        uint addSize = (uint)fileData.Length;
-
-        writer.Write((ushort)0x6A6A);           // CRC (SRR stored file sentinel)
-        writer.Write((byte)0x6A);               // StoredFile type
-        writer.Write((ushort)0x8000);           // flags: LONG_BLOCK
-        writer.Write(headerSize);
-        writer.Write(addSize);                  // data length
-        writer.Write((ushort)nameBytes.Length);
-        writer.Write(nameBytes);
-        writer.Write(fileData);                 // file data
-    }
-
-    private static void CopyBytes(Stream source, Stream destination, long count)
-    {
-        byte[] buffer = new byte[CopyBufferSize];
-        long remaining = count;
-
-        while (remaining > 0)
-        {
-            int toRead = (int)Math.Min(buffer.Length, remaining);
-            int read = source.Read(buffer, 0, toRead);
-
-            if (read == 0)
-            {
-                throw new InvalidDataException("Unexpected end of SRR file while copying block data.");
-            }
-
-            destination.Write(buffer, 0, read);
-            remaining -= read;
+            SrrBlockWriter.WriteStoredFileBlock(writer, normalizedName, fileData);
         }
     }
 }

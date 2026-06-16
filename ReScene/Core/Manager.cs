@@ -226,7 +226,7 @@ public partial class Manager : IDisposable
         string inputFilesDir = prepareResult.InputFilesDir;
         _commentFilePath = prepareResult.CommentFilePath;
 
-        int totalProgressSize = BruteForceProgressCalculator.CalculateBruteForceProgressSize(options, versionsToUse.Count, allValidRarDirectories.Count);
+        int totalProgressSize = BruteForceProgressCalculator.CalculateBruteForceProgressSize(options, allValidRarDirectories, versionsToUse.Count, allValidRarDirectories.Count);
         int currentProgress = 0;
 
         DirectoryInfo directoryInfo = new(inputFilesDir);
@@ -366,10 +366,7 @@ public partial class Manager : IDisposable
             _processLogManager.OpenLog(process, BruteForceOptions.OutputDirectoryPath, outputFilePath);
         }
 
-        process.ProcessStatusChanged += Process_ProcessStatusChanged;
-        process.ProcessOutput += Process_ProcessOutput;
-        process.CompressionStatusChanged += Process_CompressionStatusChanged;
-        process.CompressionProgress += Process_CompressionProgress;
+        SubscribeToProcessEvents(process);
 
         // Create a linked cancellation token for early termination
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -505,6 +502,17 @@ public partial class Manager : IDisposable
     private List<(string Path, int Version)> GetValidRarDirectories(string[] directories, BruteForceOptions options)
         => RarVersionSelector.GetValidRarDirectories(directories, options, _logger, this);
 
+    /// <summary>
+    /// Wires the Manager's handlers to a RAR process's status/output/progress events.
+    /// </summary>
+    private void SubscribeToProcessEvents(RARProcess process)
+    {
+        process.ProcessStatusChanged += Process_ProcessStatusChanged;
+        process.ProcessOutput += Process_ProcessOutput;
+        process.CompressionStatusChanged += Process_CompressionStatusChanged;
+        process.CompressionProgress += Process_CompressionProgress;
+    }
+
 
     private async Task<(bool Found, int NewProgress)> TryProcessCommandLinesAsync(
         BruteForceOptions options,
@@ -620,10 +628,7 @@ public partial class Manager : IDisposable
                     {
                         LogTarget = LogTarget.Phase2
                     };
-                    process.ProcessStatusChanged += Process_ProcessStatusChanged;
-                    process.ProcessOutput += Process_ProcessOutput;
-                    process.CompressionStatusChanged += Process_CompressionStatusChanged;
-                    process.CompressionProgress += Process_CompressionProgress;
+                    SubscribeToProcessEvents(process);
 
                     runningProcessTask = process.RunAsync(processCts.Token);
 
@@ -1016,16 +1021,7 @@ public partial class Manager : IDisposable
         _logger.Information(this, $"  Enable Host OS patching: {opts.EnableHostOSPatching}", LogTarget.System);
         if (opts.DetectedFileHostOS.HasValue)
         {
-            string hostOSName = opts.DetectedFileHostOS.Value switch
-            {
-                0 => "MS-DOS",
-                1 => "OS/2",
-                2 => "Windows",
-                3 => "Unix",
-                4 => "Mac OS",
-                5 => "BeOS",
-                _ => $"Unknown ({opts.DetectedFileHostOS.Value})"
-            };
+            string hostOSName = RARPatcher.GetHostOSName(opts.DetectedFileHostOS.Value);
             _logger.Information(this, $"  Detected file Host OS: {hostOSName} (0x{opts.DetectedFileHostOS.Value:X2})", LogTarget.System);
         }
 

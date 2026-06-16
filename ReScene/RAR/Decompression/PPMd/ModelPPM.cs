@@ -214,25 +214,6 @@ internal class ModelPPM
             _ns2BSIndx[i] = 6;
         }
 
-        for (int i = 0; i < 3; i++)
-        {
-            _ns2Indx[i] = (byte)i;
-        }
-
-        for (int m = 3, k = 1, step = 1; m < 256; m++)
-        {
-            _ns2Indx[m] = (byte)(m < 3 ? m : (k < 256 ? k : 255));
-            if (--k == 0)
-            {
-                step++;
-                k = step;
-                if (m >= 3)
-                {
-                    _ns2Indx[m] = (byte)Math.Min(_ns2Indx[m - 1] + 1, 255);
-                }
-            }
-        }
-
         // Fix ns2Indx initialization
         for (int i = 0, m = 0, k = 1, step = 1; i < 256; i++)
         {

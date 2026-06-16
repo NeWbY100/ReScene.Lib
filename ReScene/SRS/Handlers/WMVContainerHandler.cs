@@ -73,17 +73,8 @@ internal class WMVContainerHandler : IContainerHandler
                         byte[] packetData = ReadExactly(fs, packetSize);
                         crc.Append(packetData);
 
-                        // Parse ASF packet to find stream number
-                        // Minimal parsing: first byte is error correction flags
-                        // We'll just use stream 1 for simplicity
+                        // For signature purposes, accumulate all packet data as one track.
                         int streamNum = 1;
-                        if (packetData.Length > 5)
-                        {
-                            // After error correction, property flags byte tells us about the packet
-                            // Stream number is in the payload headers
-                            // For signature purposes, just accumulate all packet data as one track
-                            streamNum = 1;
-                        }
 
                         if (!trackMap.TryGetValue(streamNum, out TrackInfo? track))
                         {
@@ -177,23 +168,7 @@ internal class WMVContainerHandler : IContainerHandler
                     inFs.ReadExactly(dataHeader, 0, 26);
                     outFs.Write(dataHeader);
 
-                    ulong totalPackets = BinaryPrimitives.ReadUInt64LittleEndian(dataHeader.AsSpan(16));
-                    long packetDataSize = objEnd - inFs.Position;
-                    if (totalPackets > 0 && packetDataSize > 0)
-                    {
-                        int packetSize = (int)(packetDataSize / (long)totalPackets);
-                        for (ulong i = 0; i < totalPackets && inFs.Position + packetSize <= objEnd; i++)
-                        {
-                            // Read packet, parse header, write only header portion
-                            byte[] packet = new byte[packetSize];
-                            inFs.ReadExactly(packet, 0, packetSize);
-
-                            // For ASF, we'd need full packet parsing to separate headers from payload
-                            // pyrescene does asf_data_get_packet for this
-                            // For now, skip data packets entirely
-                            // The SRS will have the ASF header objects + SRSF/SRST
-                        }
-                    }
+                    // Data packets are stripped: the SRS keeps the ASF header objects + SRSF/SRST.
                 }
 
                 // Skip to end of data object

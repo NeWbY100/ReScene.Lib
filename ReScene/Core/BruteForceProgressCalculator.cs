@@ -13,30 +13,35 @@ internal static class BruteForceProgressCalculator
     /// Calculates the brute-force progress size (total combinations to test), optionally scaled
     /// down when Phase 1 narrowed the candidate versions.
     /// </summary>
-    public static int CalculateBruteForceProgressSize(BruteForceOptions options, int filteredVersionCount = 0, int totalVersionCount = 0)
+    /// <param name="options">
+    /// The brute-force options (attribute toggles and command-line argument sets).
+    /// </param>
+    /// <param name="allValidRarDirectories">
+    /// The full set of valid RAR directories already discovered by the Manager (rar.exe present and
+    /// in a configured version range). This MUST be the unfiltered list — passing the Phase-1
+    /// filtered list would make the scaling below double-count.
+    /// </param>
+    /// <param name="filteredVersionCount">
+    /// The number of versions remaining after Phase 1 (0 when Phase 1 was skipped).
+    /// </param>
+    /// <param name="totalVersionCount">
+    /// The total number of valid versions before Phase 1 (0 when Phase 1 was skipped).
+    /// </param>
+    public static int CalculateBruteForceProgressSize(
+        BruteForceOptions options,
+        IReadOnlyList<(string Path, int Version)> allValidRarDirectories,
+        int filteredVersionCount = 0,
+        int totalVersionCount = 0)
     {
         int size = 0;
 
-        DirectoryInfo directoryInfo = new(options.ReleaseDirectoryPath);
-        string[] rarVersionDirectories = Directory.GetDirectories(options.RARInstallationsDirectoryPath);
         for (int a = 0; a < (options.RAROptions.SetFileArchiveAttribute == TriState.Checked ? 2 : 1); a++)
         {
             for (int b = 0; b < (options.RAROptions.SetFileNotContentIndexedAttribute == TriState.Checked ? 2 : 1); b++)
             {
-                Parallel.ForEach(rarVersionDirectories, (rarVersionDirectoryPath, s, i) =>
+                Parallel.ForEach(allValidRarDirectories, (rarVersionDirectory, s, i) =>
                 {
-                    string rarExeFilePath = Path.Combine(rarVersionDirectoryPath, "rar.exe");
-                    if (!File.Exists(rarExeFilePath))
-                    {
-                        return;
-                    }
-
-                    string rarVersionDirectoryName = Path.GetFileName(rarVersionDirectoryPath);
-                    int version = RarVersionSelector.ParseRARVersion(rarVersionDirectoryName);
-                    if (!options.RAROptions.RARVersions.Any(r => r.InRange(version)))
-                    {
-                        return;
-                    }
+                    int version = rarVersionDirectory.Version;
 
                     Parallel.ForEach(options.RAROptions.CommandLineArguments, (commandLineArguments, s2, j) =>
                     {

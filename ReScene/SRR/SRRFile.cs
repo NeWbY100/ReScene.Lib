@@ -289,17 +289,8 @@ public class SRRFile
     /// <summary>
     /// Host OS name for display.
     /// </summary>
-    public string DetectedHostOSName => DetectedHostOS switch
-    {
-        0 => "MS-DOS",
-        1 => "OS/2",
-        2 => "Windows",
-        3 => "Unix",
-        4 => "Mac OS",
-        5 => "BeOS",
-        null => "Unknown",
-        _ => $"Unknown ({DetectedHostOS})"
-    };
+    public string DetectedHostOSName =>
+        DetectedHostOS is null ? "Unknown" : RARPatcher.GetHostOSName(DetectedHostOS.Value);
 
     /// <summary>
     /// File attributes from first file header (for patching).
@@ -320,17 +311,8 @@ public class SRRFile
     /// <summary>
     /// CMT Host OS name for display.
     /// </summary>
-    public string CmtHostOSName => CmtHostOS switch
-    {
-        0 => "MS-DOS",
-        1 => "OS/2",
-        2 => "Windows",
-        3 => "Unix",
-        4 => "Mac OS",
-        5 => "BeOS",
-        null => "Unknown",
-        _ => $"Unknown ({CmtHostOS})"
-    };
+    public string CmtHostOSName =>
+        CmtHostOS is null ? "Unknown" : RARPatcher.GetHostOSName(CmtHostOS.Value);
 
     /// <summary>
     /// Raw DOS file time from CMT block (0 = zeroed/no timestamp).
