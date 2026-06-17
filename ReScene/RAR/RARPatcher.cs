@@ -651,10 +651,12 @@ internal static class RARPatcher
                 uint originalAttr = BitConverter.ToUInt32(fullHeader, OffsetAttr);
 
                 ushort nameSize = BitConverter.ToUInt16(fullHeader, OffsetNameSize);
+                ushort headerFlags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
+                int nameOffset = 32 + (((headerFlags & (ushort)RARFileFlags.Large) != 0) ? 8 : 0);
                 string? fileName = null;
-                if (nameSize > 0 && 32 + nameSize <= headerSize)
+                if (nameSize > 0 && nameOffset + nameSize <= headerSize)
                 {
-                    fileName = System.Text.Encoding.ASCII.GetString(fullHeader, 32, Math.Min(nameSize, headerSize - 32));
+                    fileName = System.Text.Encoding.ASCII.GetString(fullHeader, nameOffset, Math.Min(nameSize, headerSize - nameOffset));
                 }
 
                 // Determine target values based on block type

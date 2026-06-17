@@ -886,8 +886,9 @@ public class RARPatcherTests : TempDirTestBase
         // Should find both file headers
         var fileResults = results.Where(r => r.BlockType == RAR4BlockType.FileHeader).ToList();
         Assert.Equal(2, fileResults.Count);
-        // Note: patcher reads filename from fixed offset 32, which overlaps HIGH fields on LARGE headers.
-        // Only verify the second (non-LARGE) header's name.
+        // The LARGE header's name lives at offset 40 (after HIGH_PACK/HIGH_UNP); AnalyzeFile must
+        // read both headers' names from the correct offset.
+        Assert.Equal("large.bin", fileResults[0].FileName);
         Assert.Equal("second.txt", fileResults[1].FileName);
     }
 
