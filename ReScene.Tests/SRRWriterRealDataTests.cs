@@ -14,7 +14,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "store_little", "store_little.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "store_little.srr");
@@ -39,7 +39,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string emptyTxt = Path.Combine(_testDataDir, "txt", "empty_file.txt");
         if (!File.Exists(rarPath) || !File.Exists(littleTxt) || !File.Exists(emptyTxt))
         {
-            return;
+            Assert.Fail($"Test fixtures not found: {rarPath}, {littleTxt}, {emptyTxt}");
         }
 
         string srrPath = Path.Combine(TempDir, "store_little_stored.srr");
@@ -90,7 +90,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             if (!File.Exists(path))
             {
-                return;
+                Assert.Fail($"Test file not found: {path}");
             }
         }
 
@@ -130,7 +130,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             if (!File.Exists(path))
             {
-                return;
+                Assert.Fail($"Test file not found: {path}");
             }
         }
 
@@ -159,7 +159,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "store_empty", "store_empty.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "empty.srr");
@@ -187,7 +187,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "best_little", "best_little.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "best_little.srr");
@@ -214,7 +214,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string sfvPath = Path.Combine(_testDataDir, "store_rr_solid_auth_unicode_new", "store_rr_solid_auth.sfv");
         if (!File.Exists(sfvPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfvPath}");
         }
 
         // Verify all RAR volumes referenced by the SFV exist
@@ -229,7 +229,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             if (!File.Exists(Path.Combine(sfvDir, rar)))
             {
-                return;
+                Assert.Fail($"Test file not found: {Path.Combine(sfvDir, rar)}");
             }
         }
 
@@ -256,7 +256,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string sfvPath = Path.Combine(_testDataDir, "store_split_folder_old_srrsfv_windows", "store_split_folder.sfv");
         if (!File.Exists(sfvPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfvPath}");
         }
 
         // Verify all RAR volumes referenced by the SFV exist
@@ -271,7 +271,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             if (!File.Exists(Path.Combine(sfvDir, rar)))
             {
-                return;
+                Assert.Fail($"Test file not found: {Path.Combine(sfvDir, rar)}");
             }
         }
 
@@ -309,7 +309,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         string refSRRPath = Path.Combine(baseDir, "store_little.srr");
         if (!File.Exists(rarPath) || !File.Exists(refSRRPath))
         {
-            return;
+            Assert.Fail($"Test fixtures not found: {rarPath}, {refSRRPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "compare_store_little.srr");
@@ -338,6 +338,17 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             Assert.Contains(archivedFile, created.ArchivedFiles);
         }
+
+        // Per-archived-file CRCs must match the pyrescene reference exactly. This is the
+        // load-bearing fidelity: a wrong/shifted RAR block or a corrupted header would change
+        // these even when volume counts and file names still line up.
+        Assert.NotEmpty(reference.ArchivedFileCrcs);
+        foreach ((string file, string referenceCrc) in reference.ArchivedFileCrcs)
+        {
+            Assert.True(created.ArchivedFileCrcs.TryGetValue(file, out string? createdCrc),
+                $"Created SRR is missing a CRC for {file}");
+            Assert.Equal(referenceCrc, createdCrc);
+        }
     }
 
     [Fact]
@@ -356,12 +367,12 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             if (!File.Exists(path))
             {
-                return;
+                Assert.Fail($"Test file not found: {path}");
             }
         }
         if (!File.Exists(refSRRPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {refSRRPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "compare_multi_new.srr");
@@ -390,6 +401,17 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             Assert.Contains(archivedFile, created.ArchivedFiles);
         }
+
+        // Per-archived-file CRCs must match the pyrescene reference exactly. This is the
+        // load-bearing fidelity: a wrong/shifted RAR block or a corrupted header would change
+        // these even when volume counts and file names still line up.
+        Assert.NotEmpty(reference.ArchivedFileCrcs);
+        foreach ((string file, string referenceCrc) in reference.ArchivedFileCrcs)
+        {
+            Assert.True(created.ArchivedFileCrcs.TryGetValue(file, out string? createdCrc),
+                $"Created SRR is missing a CRC for {file}");
+            Assert.Equal(referenceCrc, createdCrc);
+        }
     }
 
     [Fact]
@@ -408,12 +430,12 @@ public class SRRWriterRealDataTests : TempDirTestBase
         {
             if (!File.Exists(path))
             {
-                return;
+                Assert.Fail($"Test file not found: {path}");
             }
         }
         if (!File.Exists(refSRRPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {refSRRPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "compare_multi_old.srr");
@@ -441,6 +463,17 @@ public class SRRWriterRealDataTests : TempDirTestBase
         foreach (string archivedFile in reference.ArchivedFiles)
         {
             Assert.Contains(archivedFile, created.ArchivedFiles);
+        }
+
+        // Per-archived-file CRCs must match the pyrescene reference exactly. This is the
+        // load-bearing fidelity: a wrong/shifted RAR block or a corrupted header would change
+        // these even when volume counts and file names still line up.
+        Assert.NotEmpty(reference.ArchivedFileCrcs);
+        foreach ((string file, string referenceCrc) in reference.ArchivedFileCrcs)
+        {
+            Assert.True(created.ArchivedFileCrcs.TryGetValue(file, out string? createdCrc),
+                $"Created SRR is missing a CRC for {file}");
+            Assert.Equal(referenceCrc, createdCrc);
         }
     }
 

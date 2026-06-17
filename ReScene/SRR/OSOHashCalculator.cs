@@ -20,11 +20,15 @@ internal static class OSOHashCalculator
     /// <param name="rarVolumePaths">
     /// The paths to the RAR volume files.
     /// </param>
+    /// <param name="onWarning">
+    /// Optional callback invoked when an entry's hash is skipped due to a read/parse failure,
+    /// so the caller can surface it (e.g. via a warnings list) instead of it being lost silently.
+    /// </param>
     /// <returns>
     /// A list of tuples containing file name, file size, and OSO hash bytes.
     /// </returns>
     public static List<(string FileName, ulong FileSize, byte[] Hash)> ComputeHashes(
-        IReadOnlyList<string> rarVolumePaths)
+        IReadOnlyList<string> rarVolumePaths, Action<string>? onWarning = null)
     {
         var results = new List<(string FileName, ulong FileSize, byte[] Hash)>();
         if (rarVolumePaths.Count == 0)
@@ -53,9 +57,11 @@ internal static class OSOHashCalculator
                 byte[] hash = ComputeHash(stream);
                 results.Add((entry.FileName, (ulong)stream.Length, hash));
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
             {
-                // Skip files that can't be read
+                // A single unreadable/corrupt entry should not abort OSO hashing; surface the skip
+                // rather than dropping it silently. Truly fatal exceptions still propagate.
+                onWarning?.Invoke($"OSO hash skipped for {entry.FileName}: {ex.Message}");
             }
         }
 

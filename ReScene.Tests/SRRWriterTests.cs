@@ -459,7 +459,7 @@ public class SRRWriterTests : TempDirTestBase
             string rarPath = Path.Combine(_testDataDir, testFile);
             if (!File.Exists(rarPath))
             {
-                continue;
+                Assert.Fail($"Test file not found: {rarPath}");
             }
 
             string srrPath = Path.Combine(TempDir, $"{testFile}.srr");
@@ -649,7 +649,7 @@ public class SRRWriterTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return; // Skip if test data not available
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -669,7 +669,7 @@ public class SRRWriterTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "test_wrar40_m0.rar");
         if (!File.Exists(rarPath))
         {
-            return; // Skip if test data not available
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -759,7 +759,7 @@ public class SRRWriterTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return; // Skip if test data not available
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "rar5_output.srr");
@@ -783,7 +783,7 @@ public class SRRWriterTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "test_rar5_m5.rar");
         if (!File.Exists(rarPath))
         {
-            return; // Skip if test data not available
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "rar5_m5_output.srr");
@@ -806,7 +806,7 @@ public class SRRWriterTests : TempDirTestBase
         string rarPath = Path.Combine(_testDataDir, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return; // Skip if test data not available
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         string srrPath = Path.Combine(TempDir, "rar5_version.srr");

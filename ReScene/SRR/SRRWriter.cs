@@ -259,7 +259,13 @@ public class SRRWriter
             if (options.ComputeOSOHashes)
             {
                 Log("Computing OSO hashes...");
-                List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(rarVolumePaths);
+                List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(
+                    rarVolumePaths,
+                    onWarning: warning =>
+                    {
+                        Log(warning);
+                        result.Warnings.Add(warning);
+                    });
                 foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
                 {
                     Log($"Added OSO hash: {fileName}");

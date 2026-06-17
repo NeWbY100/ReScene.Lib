@@ -99,8 +99,8 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         byte[] whole = BuildPattern(HashChunkSize, seed: 0x1111);
         byte[] continued = BuildPattern(HashChunkSize, seed: 0xBEEF);
         string rar = WriteTwoFileStoredRar4(
-            ("whole.bin", whole, splitBefore: false),
-            ("continued.bin", continued, splitBefore: true));
+            ("whole.bin", whole, SplitBefore: false),
+            ("continued.bin", continued, SplitBefore: true));
 
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
@@ -118,6 +118,32 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
             OSOHashCalculator.ComputeHashes([]);
 
         Assert.Empty(results);
+    }
+
+    [Fact]
+    public void ComputeHashes_UnreadableEntry_EmitsWarningAndSkips()
+    {
+        // A stored entry whose declared packed size (>= 64 KiB) exceeds the bytes actually present
+        // makes ComputeHash's ReadExactly hit EOF. The entry must be skipped AND surfaced through
+        // the onWarning channel rather than dropped silently by a bare catch.
+        string path = Path.Combine(TempDir, "truncated.rar");
+        using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            fs.Write([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]);
+            fs.Write(BuildArchiveHeader());
+            // Header claims 70000 packed bytes, but only 100 actually follow.
+            fs.Write(BuildFileHeader("truncated.bin", packedSize: 70_000, method: 0x30, splitBefore: false));
+            fs.Write(new byte[100]);
+        }
+
+        var warnings = new List<string>();
+        List<(string FileName, ulong FileSize, byte[] Hash)> results =
+            OSOHashCalculator.ComputeHashes([path], warnings.Add);
+
+        Assert.Empty(results);
+        string warning = Assert.Single(warnings);
+        Assert.Contains("truncated.bin", warning);
+        Assert.Contains("OSO hash skipped", warning);
     }
 
     // ---- Oracle ------------------------------------------------------------

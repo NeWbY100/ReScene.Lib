@@ -39,7 +39,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -53,7 +53,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -69,7 +69,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -91,7 +91,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -131,7 +131,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -145,7 +145,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -163,7 +163,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         using FileStream stream = File.OpenRead(rarPath);
@@ -182,7 +182,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -198,7 +198,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(rarPath);
@@ -1248,7 +1248,7 @@ public class RARDetailedParserTests
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfxPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
@@ -1262,7 +1262,7 @@ public class RARDetailedParserTests
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfxPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
@@ -1276,7 +1276,7 @@ public class RARDetailedParserTests
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfxPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
@@ -1290,7 +1290,7 @@ public class RARDetailedParserTests
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfxPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: true);
@@ -1306,7 +1306,7 @@ public class RARDetailedParserTests
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfxPath}");
         }
 
         IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(sfxPath, enableSfx: false);
@@ -1320,7 +1320,7 @@ public class RARDetailedParserTests
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {sfxPath}");
         }
 
         using FileStream fs = File.OpenRead(sfxPath);
@@ -1335,7 +1335,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         using FileStream fs = File.OpenRead(rarPath);
@@ -1350,7 +1350,7 @@ public class RARDetailedParserTests
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         using FileStream fs = File.OpenRead(rarPath);

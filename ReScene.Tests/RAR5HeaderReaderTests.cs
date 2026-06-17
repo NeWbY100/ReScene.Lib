@@ -258,7 +258,7 @@ public class RAR5HeaderReaderTests
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         using var fs = new FileStream(rarPath, FileMode.Open, FileAccess.Read, FileShare.Read);

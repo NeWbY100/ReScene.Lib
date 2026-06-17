@@ -1005,7 +1005,7 @@ public class RARStreamTests
         string path = Path.Combine(TestDataPath, "test_wrar40_m0.rar");
         if (!File.Exists(path))
         {
-            return; // Skip if test data not available
+            Assert.Fail($"Test file not found: {path}");
         }
 
         using var stream = new RARStream(path, "testfile.txt");
@@ -1028,7 +1028,7 @@ public class RARStreamTests
         string path = Path.Combine(TestDataPath, "test_wrar40_m0.rar");
         if (!File.Exists(path))
         {
-            return;
+            Assert.Fail($"Test file not found: {path}");
         }
 
         using var stream = new RARStream(path, "testfile.txt");
@@ -1051,7 +1051,7 @@ public class RARStreamTests
         string path = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(path))
         {
-            return;
+            Assert.Fail($"Test file not found: {path}");
         }
 
         using var stream = new RARStream(path);
@@ -1150,7 +1150,7 @@ public class RARStreamTests
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         byte[] expected = File.ReadAllBytes(refPath);
@@ -1170,7 +1170,7 @@ public class RARStreamTests
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         byte[] expected = File.ReadAllBytes(refPath);
@@ -1199,7 +1199,7 @@ public class RARStreamTests
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         byte[] expected = File.ReadAllBytes(refPath);
@@ -1222,7 +1222,7 @@ public class RARStreamTests
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_mac.nfo");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         byte[] expected = File.ReadAllBytes(refPath);
@@ -1244,7 +1244,7 @@ public class RARStreamTests
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         var rs = new RARStream(rarPath, "unicode_dos.nfo");
@@ -1266,7 +1266,7 @@ public class RARStreamTests
         string refPath = Path.Combine(TestDataPath, "txt", "users_manual4.00.txt");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         byte[] expected = File.ReadAllBytes(refPath);
@@ -1285,7 +1285,7 @@ public class RARStreamTests
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         using var rs = new RARStream(rarPath, @"txt\users_manual4.00.txt");
@@ -1309,7 +1309,7 @@ public class RARStreamTests
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         using var rs = new RARStream(rarPath, @"txt\users_manual4.00.txt");
@@ -1336,7 +1336,7 @@ public class RARStreamTests
         string refPath = Path.Combine(TestDataPath, "txt", "little_file.txt");
         if (!File.Exists(rarPath))
         {
-            return;
+            Assert.Fail($"Test file not found: {rarPath}");
         }
 
         // Reference file has CRLF line endings; the packed file uses LF only
