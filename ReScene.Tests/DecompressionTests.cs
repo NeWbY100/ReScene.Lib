@@ -106,4 +106,33 @@ public class DecompressionTests
         // Assert
         Assert.Null(result);
     }
+
+    [Fact]
+    public void SetBuffer_PayloadLargerThan32KB_IsNotTruncated()
+    {
+        // Regression: BitInput used a fixed 32 KB buffer and SetBuffer capped the
+        // copy at MaxSize, silently truncating any compressed payload larger than
+        // 32 KB. RARArchive.TryReadAllBytes feeds the entire packed file body
+        // through this path, so a >32 KB compressed member decoded from a buffer
+        // that returned zeros past 0x8000 produced wrong output. Bytes past the
+        // old cap must remain readable.
+        var input = new BitInput();
+        byte[] data = new byte[40000];
+        for (int i = 0; i < data.Length; i++)
+        {
+            data[i] = (byte)((i * 31 + 7) & 0xFF);
+        }
+
+        input.SetBuffer(data);
+
+        // The buffer must grow to hold the whole payload (was fixed at MaxSize).
+        Assert.True(input.InBuf.Length >= data.Length);
+
+        // Position the bit cursor well past the old 32 KB cap and read 16 bits.
+        // GetBits returns the top byte first: (data[n] << 8) | data[n+1].
+        input.InAddr = 35000;
+        input.InBit = 0;
+        uint expected = (uint)((data[35000] << 8) | data[35001]);
+        Assert.Equal(expected, input.GetBits()); // returned 0 (truncated) before the fix
+    }
 }

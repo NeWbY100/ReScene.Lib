@@ -7,9 +7,18 @@ namespace ReScene.RAR.Decompression;
 internal class BitInput
 {
     /// <summary>
-    /// Size of input buffer (32KB).
+    /// Default size of the input buffer (32KB).
     /// </summary>
     public const int MaxSize = 0x8000;
+
+    /// <summary>
+    /// Trailing padding kept past the copied payload. The bit readers look ahead
+    /// up to 5 bytes (GetBits32) beyond the current position and AddBits can
+    /// advance slightly past the last consumed byte, so the buffer must carry a
+    /// small zero-filled margin to avoid the end-of-buffer guard cutting off the
+    /// final bytes of valid compressed data.
+    /// </summary>
+    private const int SafetyPadding = 64;
 
     /// <summary>
     /// Input buffer containing compressed data.
@@ -129,10 +138,32 @@ internal class BitInput
     {
         if (length < 0)
         {
-            length = Math.Min(data.Length - offset, MaxSize);
+            length = data.Length - offset;
         }
 
-        Array.Copy(data, offset, InBuf, 0, Math.Min(length, MaxSize));
+        // Never copy more than is actually available in the source.
+        length = Math.Min(length, data.Length - offset);
+        if (length < 0)
+        {
+            length = 0;
+        }
+
+        // Grow the buffer to hold the whole payload (plus look-ahead padding).
+        // Callers feed the entire packed file body here, which can far exceed
+        // MaxSize; the previous fixed buffer silently truncated such payloads.
+        int required = length + SafetyPadding;
+        if (InBuf.Length < required)
+        {
+            InBuf = new byte[required];
+        }
+        else
+        {
+            // Reusing a larger buffer: clear the trailing region so stale bytes
+            // from a prior payload cannot leak into reads past the new length.
+            Array.Clear(InBuf, length, InBuf.Length - length);
+        }
+
+        Array.Copy(data, offset, InBuf, 0, length);
         InAddr = 0;
         InBit = 0;
     }

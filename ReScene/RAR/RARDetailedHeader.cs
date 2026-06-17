@@ -1011,22 +1011,32 @@ public static class RARDetailedParser
         // Parse remaining blocks
         while (stream.Position < stream.Length)
         {
-            RARDetailedBlock? block = ParseRAR5Block(reader, stream);
-            if (block == null)
+            try
             {
+                RARDetailedBlock? block = ParseRAR5Block(reader, stream);
+                if (block == null)
+                {
+                    break;
+                }
+
+                blocks.Add(block);
+
+                // Skip to next block
+                long nextPos = block.StartOffset + block.TotalSize;
+                if (nextPos <= block.StartOffset || nextPos > stream.Length)
+                {
+                    break;
+                }
+
+                stream.Position = nextPos;
+            }
+            catch
+            {
+                // A malformed block (e.g. a corrupt FILETIME or an out-of-range
+                // field) must not abort the whole parse; return the blocks gathered
+                // so far, mirroring the RAR4 path's per-block try/catch.
                 break;
             }
-
-            blocks.Add(block);
-
-            // Skip to next block
-            long nextPos = block.StartOffset + block.TotalSize;
-            if (nextPos <= block.StartOffset || nextPos > stream.Length)
-            {
-                break;
-            }
-
-            stream.Position = nextPos;
         }
     }
 
@@ -1617,13 +1627,12 @@ public static class RARDetailedParser
                         else if (!unixTime && stream.Position + 8 <= recordEnd)
                         {
                             long ft = reader.ReadInt64();
-                            var dt = DateTime.FromFileTime(ft);
                             block.Fields.Add(new RARHeaderField
                             {
                                 Name = "  Creation Time",
                                 Offset = timePos,
                                 Length = 8,
-                                Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
+                                Value = FormatFileTime(ft)
                             });
                         }
                     }
@@ -2070,14 +2079,30 @@ public static class RARDetailedParser
         else
         {
             long ft = reader.ReadInt64();
-            var dt = DateTime.FromFileTime(ft);
             block.Fields.Add(new RARHeaderField
             {
                 Name = name,
                 Offset = pos,
                 Length = 8,
-                Value = dt.ToString("yyyy-MM-dd HH:mm:ss.fffffff")
+                Value = FormatFileTime(ft)
             });
+        }
+    }
+
+    /// <summary>
+    /// Formats a Windows FILETIME, tolerating out-of-range values from corrupt input.
+    /// <see cref="DateTime.FromFileTime"/> throws on negative or overflowing values,
+    /// which previously escaped the public parse methods on malformed RAR5 data.
+    /// </summary>
+    private static string FormatFileTime(long fileTime)
+    {
+        try
+        {
+            return DateTime.FromFileTime(fileTime).ToString("yyyy-MM-dd HH:mm:ss.fffffff");
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return $"(invalid FILETIME 0x{fileTime:X16})";
         }
     }
 

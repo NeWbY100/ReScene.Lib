@@ -753,6 +753,10 @@ public class SRSFile
     private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
     private static readonly byte[] _guidSRSPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
 
+    // Length of the ASF Data Object header retained in the SRS:
+    // file ID (16) + total packet count (8) + reserved (2).
+    private const int AsfDataObjectHeaderLength = 26;
+
     private static void ParseASF(BinaryReader reader, FileStream fs, SRSFile srs)
     {
         while (fs.Position + 24 <= fs.Length)
@@ -770,13 +774,37 @@ public class SRSFile
             long payloadSize = (long)totalSize - headerSize;
             long payloadStart = fs.Position;
 
+            // ASF Data Object GUID starts with 36 26 B2 75. Its declared size still
+            // reflects the original (un-stripped) object, but the SRS physically keeps
+            // only the 26-byte data header followed by injected SRSF/SRST objects.
+            bool isDataObject = guid.Length >= 4
+                && guid[0] == 0x36 && guid[1] == 0x26 && guid[2] == 0xB2 && guid[3] == 0x75;
+
             if (GuidEquals(guid, _guidSRSFile))
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize);
+                fs.Position = frameOffset + (long)totalSize;
             }
             else if (GuidEquals(guid, _guidSRSTrack))
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
+                fs.Position = frameOffset + (long)totalSize;
+            }
+            else if (isDataObject)
+            {
+                srs._containerChunks.Add(new SRSContainerChunk
+                {
+                    BlockPosition = frameOffset,
+                    BlockSize = (long)totalSize,
+                    Label = FormatGuid(guid),
+                    ChunkId = FormatGuid(guid),
+                    HeaderSize = headerSize,
+                    PayloadSize = payloadSize
+                });
+
+                // Advance past only the retained 26-byte data header so the injected
+                // SRSF/SRST objects that replaced the packet payload are parsed next.
+                fs.Position = payloadStart + AsfDataObjectHeaderLength;
             }
             else
             {
@@ -791,9 +819,9 @@ public class SRSFile
                     HeaderSize = headerSize,
                     PayloadSize = payloadSize
                 });
-            }
 
-            fs.Position = frameOffset + (long)totalSize;
+                fs.Position = frameOffset + (long)totalSize;
+            }
         }
     }
 

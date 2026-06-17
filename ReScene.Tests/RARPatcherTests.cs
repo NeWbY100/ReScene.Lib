@@ -1092,7 +1092,8 @@ public class RARPatcherTests : TempDirTestBase
         string fileName,
         uint dosFileTime,
         byte[]? extMtimeBytes = null,
-        bool extMtimeNeedsRounding = false)
+        bool extMtimeNeedsRounding = false,
+        bool hasLarge = false)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
@@ -1115,8 +1116,12 @@ public class RARPatcherTests : TempDirTestBase
             extTimeRegion = 2 + extMtimeBytes!.Length;
         }
 
-        int headerSize = 32 + nameBytes.Length + extTimeRegion;
-        ushort flags = (ushort)(RARFileFlags.LongBlock | (hasExtTime ? RARFileFlags.ExtTime : 0));
+        int largeRegion = hasLarge ? 8 : 0; // HIGH_PACK_SIZE(4) + HIGH_UNP_SIZE(4)
+        int nameOffset = 32 + largeRegion;
+        int headerSize = nameOffset + nameBytes.Length + extTimeRegion;
+        ushort flags = (ushort)(RARFileFlags.LongBlock
+            | (hasExtTime ? RARFileFlags.ExtTime : 0)
+            | (hasLarge ? RARFileFlags.Large : 0));
 
         byte[] fileHeader = new byte[headerSize];
         fileHeader[2] = 0x74;
@@ -1132,14 +1137,21 @@ public class RARPatcherTests : TempDirTestBase
         BitConverter.GetBytes((ushort)nameBytes.Length).CopyTo(fileHeader, 26);
         BitConverter.GetBytes((uint)0x00000020).CopyTo(fileHeader, 28);
 
-        Array.Copy(nameBytes, 0, fileHeader, 32, nameBytes.Length);
+        if (hasLarge)
+        {
+            // HIGH_PACK_SIZE / HIGH_UNP_SIZE occupy offsets 32..39; name follows at 40.
+            BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 32);
+            BitConverter.GetBytes((uint)1).CopyTo(fileHeader, 36); // > 4 GB unpacked
+        }
+
+        Array.Copy(nameBytes, 0, fileHeader, nameOffset, nameBytes.Length);
 
         if (hasExtTime)
         {
             int extByteCount = extMtimeBytes!.Length;
             int mtimeNibble = 0x8 | (extMtimeNeedsRounding ? 0x4 : 0) | (extByteCount & 0x3);
             ushort extFlags = (ushort)(mtimeNibble << 12);
-            int extOffset = 32 + nameBytes.Length;
+            int extOffset = nameOffset + nameBytes.Length;
             BitConverter.GetBytes(extFlags).CopyTo(fileHeader, extOffset);
             Array.Copy(extMtimeBytes, 0, fileHeader, extOffset + 2, extByteCount);
         }
@@ -1267,6 +1279,46 @@ public class RARPatcherTests : TempDirTestBase
 
         Assert.NotNull(recovered);
         Assert.Equal(target, recovered!.ModifiedTime);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_LargeFlagHeader_PatchesMtime()
+    {
+        // Regression: the mtime-dictionary lookup used a filename read from a fixed
+        // offset 32. On a LARGE-flag header the name actually starts at offset 40
+        // (after HIGH_PACK_SIZE/HIGH_UNP_SIZE), so the lookup never matched and the
+        // mtime was silently left unpatched for any file > 2 GB.
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F },   // 0x0F4240 = 1,000,000
+            hasLarge: true);
+
+        string testFile = Path.Combine(TempDir, "mtime_large.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880); // 0x6C4A30
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
+
+        Assert.NotEmpty(results);                       // was empty before the fix (lookup missed)
+        Assert.Equal("subs.idx", results[0].FileName);  // name now read from offset 40
+
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        int extOffset = 32 + 8 + nameSize;              // +8 for HIGH_PACK/HIGH_UNP (LARGE)
+        Assert.Equal(0x30, header[extOffset + 2]);
+        Assert.Equal(0x4A, header[extOffset + 3]);
+        Assert.Equal(0x6C, header[extOffset + 4]);
     }
 
     [Fact]

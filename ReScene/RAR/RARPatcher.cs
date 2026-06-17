@@ -473,12 +473,17 @@ internal static class RARPatcher
                 uint originalAttr = BitConverter.ToUInt32(fullHeader, OffsetAttr);
                 uint originalFileTime = BitConverter.ToUInt32(fullHeader, OffsetFileTime);
 
-                // Extract filename for logging
+                // Extract filename. The name starts after the fixed fields, plus the
+                // 8-byte HIGH_PACK_SIZE/HIGH_UNP_SIZE pair when the LARGE flag is set.
+                // Reading from a fixed offset 32 corrupted the name on LARGE headers
+                // (files > 2 GB), which made the FileModifiedTimes lookup silently miss.
                 ushort nameSize = BitConverter.ToUInt16(fullHeader, OffsetNameSize);
+                ushort headerFlags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
+                int nameOffset = 32 + (((headerFlags & (ushort)RARFileFlags.Large) != 0) ? 8 : 0);
                 string? fileName = null;
-                if (nameSize > 0 && 32 + nameSize <= headerSize)
+                if (nameSize > 0 && nameOffset + nameSize <= headerSize)
                 {
-                    fileName = System.Text.Encoding.ASCII.GetString(fullHeader, 32, Math.Min(nameSize, headerSize - 32));
+                    fileName = System.Text.Encoding.ASCII.GetString(fullHeader, nameOffset, Math.Min(nameSize, headerSize - nameOffset));
                 }
 
                 bool modified = false;

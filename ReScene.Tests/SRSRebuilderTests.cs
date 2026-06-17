@@ -200,6 +200,56 @@ public class SRSRebuilderTests : TempDirTestBase
 
     #endregion
 
+    #region WMV Round-Trip Tests
+
+    [Fact]
+    public async Task Rebuild_WMVSample_RoundTrip_CRCMatches()
+    {
+        string samplePath = BuildSyntheticWmv();
+        string mediaPath = samplePath;
+
+        string srsPath = Path.Combine(TempDir, "test.srs");
+        var writer = new SRSWriter();
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.wmv");
+        var rebuilder = new SRSRebuilder();
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, mediaPath, outputPath);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
+        Assert.Equal(result.ExpectedSize, result.ActualSize);
+    }
+
+    [Fact]
+    public async Task Rebuild_WMVSample_OutputFileMatchesOriginal()
+    {
+        // Regression: WMVContainerRebuilder copied the Data Object body verbatim from
+        // the SRS (where the writer had stripped the packet payload) and never read the
+        // media file, so the rebuilt sample could never byte-match the original.
+        string samplePath = BuildSyntheticWmv();
+
+        string srsPath = Path.Combine(TempDir, "test.srs");
+        var writer = new SRSWriter();
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample.wmv");
+        var rebuilder = new SRSRebuilder();
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+
+        Assert.True(result.Success, result.ErrorMessage);
+
+        byte[] originalBytes = File.ReadAllBytes(samplePath);
+        byte[] rebuiltBytes = File.ReadAllBytes(outputPath);
+        Assert.Equal(originalBytes.Length, rebuiltBytes.Length);
+        Assert.True(originalBytes.AsSpan().SequenceEqual(rebuiltBytes),
+            "Rebuilt WMV file content does not match original.");
+    }
+
+    #endregion
+
     #region MKV Round-Trip Tests
 
     [Fact]
@@ -1260,6 +1310,9 @@ public class SRSRebuilderTests : TempDirTestBase
 
     private string BuildSyntheticStream() =>
         SyntheticSampleBuilder.BuildStream(Path.Combine(TempDir, "test_sample.vob"));
+
+    private string BuildSyntheticWmv() =>
+        SyntheticSampleBuilder.BuildWmv(Path.Combine(TempDir, "test_sample.wmv"));
 
     /// <summary>
     /// Builds an MKV with a SimpleBlock using Xiph lacing (2 frames per block).

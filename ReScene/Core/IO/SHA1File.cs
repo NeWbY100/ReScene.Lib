@@ -75,7 +75,7 @@ public class SHA1File
         string[] fileLines = File.ReadAllLines(sha1File.FileInfo.FullName);
         foreach (string fileLine in fileLines)
         {
-            if (fileLine.StartsWith(':') || fileLine.StartsWith('#') || fileLine.StartsWith(';'))
+            if (string.IsNullOrWhiteSpace(fileLine) || fileLine.StartsWith(':') || fileLine.StartsWith('#') || fileLine.StartsWith(';'))
             {
                 continue;
             }

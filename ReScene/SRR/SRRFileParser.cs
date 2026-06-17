@@ -171,6 +171,14 @@ internal static class SRRFileParser
     internal static SRRRarFileBlock? ParseRarFileBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
+        // Guard the name-length read: a RARFile block with headerSize 7 and no
+        // data at EOF passes Load's guards but leaves nothing to read here, so
+        // reading without this check threw EndOfStreamException on truncated SRRs.
+        if (fs.Position + 2 > fs.Length)
+        {
+            return null;
+        }
+
         ushort nameLen = reader.ReadUInt16();
         if (fs.Position + nameLen > fs.Length)
         {

@@ -949,6 +949,72 @@ public class RARDetailedParserTests
         return blockMs.ToArray();
     }
 
+    [Fact]
+    public void Parse_RAR5MetadataWithCorruptFileTime_DoesNotThrowAndMarksInvalid()
+    {
+        // Regression: ParseRAR5 had no per-block try/catch (unlike ParseRAR4) and
+        // DateTime.FromFileTime was called unguarded, so a Main-header Metadata record
+        // carrying a non-Unix, out-of-range FILETIME threw straight out of the public
+        // Parse(...) method on corrupt RAR5 data.
+        byte[] recordBody =
+        [
+            .. EncodeVInt(0x02),                             // metadata flags: CTIME present, non-Unix
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // out-of-range FILETIME (-1)
+        ];
+        byte[] record =
+        [
+            .. EncodeVInt(2),                               // record type = 2 (Metadata)
+            .. recordBody,
+        ];
+        byte[] extraArea =
+        [
+            .. EncodeVInt((ulong)record.Length),           // record size
+            .. record,
+        ];
+        byte[] bodyAfterFlags =
+        [
+            .. EncodeVInt((ulong)extraArea.Length),        // extra area size
+            .. extraArea,
+        ];
+        byte[] block = BuildRAR5Block(headType: 1, headFlags: 0x0001, bodyAfterFlags); // HFL_EXTRA
+        byte[] fileBytes = [.. RAR5Signature, .. block];
+
+        using var ms = new MemoryStream(fileBytes);
+
+        IReadOnlyList<RARDetailedBlock>? blocks = null;
+        Exception? ex = Record.Exception(() => blocks = RARDetailedParser.Parse(ms));
+
+        Assert.Null(ex);
+        Assert.NotNull(blocks);
+        // The creation-time field is still emitted, marked invalid instead of crashing.
+        Assert.Contains(
+            FlattenFields(blocks!),
+            f => f.Value is not null && f.Value.Contains("invalid", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IEnumerable<RARHeaderField> FlattenFields(IEnumerable<RARDetailedBlock> blocks)
+    {
+        foreach (RARDetailedBlock block in blocks)
+        {
+            foreach (RARHeaderField field in FlattenFields(block.Fields))
+            {
+                yield return field;
+            }
+        }
+    }
+
+    private static IEnumerable<RARHeaderField> FlattenFields(IEnumerable<RARHeaderField> fields)
+    {
+        foreach (RARHeaderField field in fields)
+        {
+            yield return field;
+            foreach (RARHeaderField child in FlattenFields(field.Children))
+            {
+                yield return child;
+            }
+        }
+    }
+
     /// <summary>
     /// Builds a RAR5 block with a data area (HFL_DATA flag set).
     /// </summary>

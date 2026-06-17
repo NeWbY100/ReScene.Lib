@@ -229,6 +229,56 @@ internal static class SyntheticSampleBuilder
     }
 
     /// <summary>
+    /// Builds a minimal WMV/ASF file: a Header Object followed by a Data Object
+    /// whose body is 16-byte file ID + 8-byte packet count (2) + 2-byte reserved +
+    /// two 300-byte packets (seed 123). The packet region is exactly what the SRS
+    /// writer strips and the rebuilder must restore from the media file.
+    /// </summary>
+    public static string BuildWmv(string path)
+    {
+        // ASF Header Object GUID: 75B22630-668E-11CF-A6D9-00AA0062CE6C
+        byte[] headerGuid =
+        [
+            0x30, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11,
+            0xA6, 0xD9, 0x00, 0xAA, 0x00, 0x62, 0xCE, 0x6C,
+        ];
+        // ASF Data Object GUID: 75B22636-668E-11CF-A6D9-00AA0062CE6C (prefix 36 26 B2 75)
+        byte[] dataGuid =
+        [
+            0x36, 0x26, 0xB2, 0x75, 0x8E, 0x66, 0xCF, 0x11,
+            0xA6, 0xD9, 0x00, 0xAA, 0x00, 0x62, 0xCE, 0x6C,
+        ];
+
+        using var ms = new MemoryStream();
+
+        // Header Object (non-data) with a small verbatim body.
+        WriteAsfObject(ms, headerGuid, CreateTestData(32, seed: 7));
+
+        // Data Object body: file ID (16) + total packets (8, LE) + reserved (2) + packets.
+        using var dataBody = new MemoryStream();
+        dataBody.Write(CreateTestData(16, seed: 5));
+        Span<byte> packetCount = stackalloc byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(packetCount, 2);
+        dataBody.Write(packetCount);
+        dataBody.Write(new byte[2]); // reserved
+        dataBody.Write(CreateTestData(600, seed: 123)); // 2 x 300-byte packets
+        WriteAsfObject(ms, dataGuid, dataBody.ToArray());
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    /// <summary>Writes an ASF object: 16-byte GUID + 8-byte little-endian size + body.</summary>
+    public static void WriteAsfObject(Stream stream, byte[] guid, byte[] body)
+    {
+        stream.Write(guid);
+        Span<byte> size = stackalloc byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(size, (ulong)(guid.Length + 8 + body.Length));
+        stream.Write(size);
+        stream.Write(body);
+    }
+
+    /// <summary>
     /// Deterministic test data: a fresh <see cref="Random"/> seeded with
     /// <paramref name="seed"/> (default 42) filling <paramref name="size"/> bytes.
     /// </summary>
