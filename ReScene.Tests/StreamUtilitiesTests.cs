@@ -77,8 +77,8 @@ public class StreamUtilitiesTests : TempDirTestBase
         using var reader = new BinaryReader(ms);
 
         var ex = Assert.Throws<EndOfStreamException>(() => StreamUtilities.ReadExactly(reader, 8));
-        Assert.Contains("Expected 8 bytes", ex.Message);
-        Assert.Contains("got 3", ex.Message);
+        Assert.Contains("Expected 8 bytes", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("got 3", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

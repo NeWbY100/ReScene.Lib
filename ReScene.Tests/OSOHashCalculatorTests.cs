@@ -142,8 +142,8 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
 
         Assert.Empty(results);
         string warning = Assert.Single(warnings);
-        Assert.Contains("truncated.bin", warning);
-        Assert.Contains("OSO hash skipped", warning);
+        Assert.Contains("truncated.bin", warning, StringComparison.Ordinal);
+        Assert.Contains("OSO hash skipped", warning, StringComparison.Ordinal);
     }
 
     // ---- Oracle ------------------------------------------------------------

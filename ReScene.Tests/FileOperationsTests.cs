@@ -161,7 +161,7 @@ public class FileOperationsTests : TempDirTestBase
 
         // Message reports the exact count; anchor at the start so a wrong-count regression
         // (e.g. "11 file(s)") cannot pass via substring overlap.
-        Assert.StartsWith("1 file(s)", ex.Message);
+        Assert.StartsWith("1 file(s)", ex.Message, StringComparison.Ordinal);
 
         // The present file was still copied despite the later throw.
         Assert.Equal("here", File.ReadAllText(Path.Combine(destDir, "present.txt")));
