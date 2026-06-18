@@ -9,37 +9,18 @@ Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
 ### Fixed
 
-- **Decompression of compressed entries larger than 32 KB.** `BitInput` used a
-  fixed 32 KB buffer (and `SetBuffer` capped the copy), silently truncating any
-  packed payload over 32 KB and producing wrong output; the buffer now grows to
-  hold the full payload.
-- **WMV/ASF sample reconstruction.** The rebuilder copied the Data Object body
-  verbatim from the SRS (where the packet payload had been stripped) and never
-  read the media file, and the parser skipped the Data Object by its original
-  declared size — so WMV rebuilds could never byte-match. Packets are now restored
-  from the media file and the parser walks only the retained data header.
-- **File timestamps on archives larger than 2 GB.** `RARPatcher` read the file
-  name from a fixed header offset that is wrong for LARGE-flag headers, so per-file
-  mtime patching silently no-opped on >2 GB files (the analyze/preview path was
-  corrected too).
-- **Crash on corrupt RAR5 metadata.** `RARDetailedParser` let
-  `DateTime.FromFileTime` throw out of `Parse` on an out-of-range value; the RAR5
-  block loop now has a per-block guard and the FILETIME is formatted defensively.
-- **Crash on truncated SRR files.** `SRRFileParser` read a block's name length
-  without a bounds check, throwing past EOF on a truncated RARFile block; now
-  guarded.
+- **Decompression of compressed entries larger than 32 KB.** `BitInput` used a fixed 32 KB buffer (and `SetBuffer` capped the copy), silently truncating any packed payload over 32 KB and producing wrong output; the buffer now grows to hold the full payload.
+- **WMV/ASF sample reconstruction.** The rebuilder copied the Data Object body verbatim from the SRS (where the packet payload had been stripped) and never read the media file, and the parser skipped the Data Object by its original declared size — so WMV rebuilds could never byte-match. Packets are now restored from the media file and the parser walks only the retained data header.
+- **File timestamps on archives larger than 2 GB.** `RARPatcher` read the file name from a fixed header offset that is wrong for LARGE-flag headers, so per-file mtime patching silently no-opped on >2 GB files (the analyze/preview path was corrected too).
+- **Crash on corrupt RAR5 metadata.** `RARDetailedParser` let `DateTime.FromFileTime` throw out of `Parse` on an out-of-range value; the RAR5 block loop now has a per-block guard and the FILETIME is formatted defensively.
+- **Crash on truncated SRR files.** `SRRFileParser` read a block's name length without a bounds check, throwing past EOF on a truncated RARFile block; now guarded.
 - **SHA-1 hash files with blank/whitespace lines** are no longer rejected.
 
 ### Changed
 
-- `SHA1.Calculate` uses the stateless `SHA1.HashData` instead of a process-wide
-  `HashAlgorithm` behind a global lock, so SHA-1 file hashing is no longer
-  serialized across the whole process.
-- `OSOHashCalculator` surfaces a warning for any entry it has to skip (unreadable
-  or corrupt) instead of swallowing the failure, and narrows its exception
-  handling so genuinely fatal errors propagate.
-- Substantial new unit-test coverage and behaviour-preserving best-practice
-  cleanups across the library; no supported-API changes.
+- `SHA1.Calculate` uses the stateless `SHA1.HashData` instead of a process-wide `HashAlgorithm` behind a global lock, so SHA-1 file hashing is no longer serialized across the whole process.
+- `OSOHashCalculator` surfaces a warning for any entry it has to skip (unreadable or corrupt) instead of swallowing the failure, and narrows its exception handling so genuinely fatal errors propagate.
+- Substantial new unit-test coverage and behaviour-preserving best-practice cleanups across the library; no supported-API changes.
 
 ## [2.0.0] — 2026-06-16
 
