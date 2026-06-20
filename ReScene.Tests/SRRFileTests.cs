@@ -1682,4 +1682,69 @@ public class SRRFileTests : TempDirTestBase
     }
 
     #endregion
+
+    #region ReadStoredFile Tests
+
+    [Fact]
+    public void ReadStoredFile_ReturnsExactBytes()
+    {
+        byte[] data = [0x10, 0x20, 0x30, 0x40, 0x50];
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddStoredFile("proof.jpg", data)
+            .BuildToFile(TempDir, "with_image.srr");
+
+        var srr = SRRFile.Load(path);
+        byte[]? bytes = srr.ReadStoredFile(path, name => name == "proof.jpg");
+
+        Assert.NotNull(bytes);
+        Assert.Equal(data, bytes);
+    }
+
+    [Fact]
+    public void ReadStoredFile_NoMatch_ReturnsNull()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddStoredFile("proof.jpg", [0x01, 0x02])
+            .BuildToFile(TempDir, "no_match.srr");
+
+        var srr = SRRFile.Load(path);
+        byte[]? bytes = srr.ReadStoredFile(path, name => name == "missing.png");
+
+        Assert.Null(bytes);
+    }
+
+    [Fact]
+    public void ReadStoredFile_EmptyStoredFile_ReturnsEmptyArray()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddStoredFile("empty.bmp", [])
+            .BuildToFile(TempDir, "empty_stored.srr");
+
+        var srr = SRRFile.Load(path);
+        byte[]? bytes = srr.ReadStoredFile(path, name => name == "empty.bmp");
+
+        Assert.NotNull(bytes);
+        Assert.Empty(bytes);
+    }
+
+    [Fact]
+    public void ReadStoredFile_OffsetBeyondFile_ThrowsInvalidData()
+    {
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddStoredFile("proof.jpg", [0x01, 0x02, 0x03])
+            .BuildToFile(TempDir, "oob.srr");
+
+        var srr = SRRFile.Load(path);
+        // Corrupt the parsed block so its data range falls outside the file.
+        srr.StoredFiles[0].DataOffset = long.MaxValue / 2;
+
+        Assert.Throws<InvalidDataException>(() =>
+            srr.ReadStoredFile(path, name => name == "proof.jpg"));
+    }
+
+    #endregion
 }

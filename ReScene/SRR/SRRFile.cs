@@ -609,4 +609,58 @@ public class SRRFile
 
         return outputPath;
     }
+
+    /// <summary>
+    /// Reads the first stored file whose name matches <paramref name="match"/> into memory
+    /// and returns its bytes, or <c>null</c> if no matching file is found. This is the
+    /// in-memory counterpart of <see cref="ExtractStoredFile"/>.
+    /// </summary>
+    /// <param name="srrFilePath">The path to the SRR file containing the stored data.</param>
+    /// <param name="match">A predicate matching the desired file by stored name.</param>
+    /// <returns>The stored file's raw bytes, or <c>null</c> if no match was found.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="srrFilePath"/> is null or empty.</exception>
+    /// <exception cref="InvalidDataException">Thrown when the stored file's data range is outside the SRR file bounds.</exception>
+    public byte[]? ReadStoredFile(string srrFilePath, Func<string, bool> match)
+    {
+        if (string.IsNullOrWhiteSpace(srrFilePath))
+        {
+            throw new ArgumentException("SRR file path is required.", nameof(srrFilePath));
+        }
+
+        ArgumentNullException.ThrowIfNull(match);
+
+        SRRStoredFileBlock? storedFile = null;
+        foreach (SRRStoredFileBlock stored in StoredFiles)
+        {
+            if (match(stored.FileName))
+            {
+                storedFile = stored;
+                break;
+            }
+        }
+
+        if (storedFile == null)
+        {
+            return null;
+        }
+
+        using FileStream fs = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        long dataOffset = storedFile.DataOffset;
+        long dataLength = storedFile.FileLength;
+
+        if (dataOffset < 0 || dataOffset > fs.Length)
+        {
+            throw new InvalidDataException("Stored file data offset is outside the SRR file bounds.");
+        }
+
+        long dataEnd = dataOffset + dataLength;
+        if (dataEnd < dataOffset || dataEnd > fs.Length)
+        {
+            throw new InvalidDataException("Stored file length exceeds SRR file bounds.");
+        }
+
+        fs.Seek(dataOffset, SeekOrigin.Begin);
+        using BinaryReader reader = new(fs);
+        return StreamUtilities.ReadExactly(reader, (int)dataLength);
+    }
 }
