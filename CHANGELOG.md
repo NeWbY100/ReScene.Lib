@@ -2,6 +2,12 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [1.5.0] — 2026-06-20
+
+### Added
+
+- `SRRFile.ReadStoredFile(srrFilePath, match)` reads an embedded stored file into memory — the in-memory counterpart of `ExtractStoredFile`, with the same bounds checks. It backs the app's new embedded-image preview and Inspector text view.
+
 ## [1.4.0] — 2026-06-18
 
 This release **narrows the public API** — types that were public only by accident are now internal, so external consumers may need to adjust (see Changed). Internals were also decomposed and hardened with no behavioural change to the supported API, alongside a batch of correctness fixes.
