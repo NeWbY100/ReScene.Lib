@@ -492,6 +492,7 @@ class static ReScene.SRR.SRREditor
     method Void RenameStoredFile(String, String, String)
 class ReScene.SRR.SRRFile
     ctor ()
+    method Byte[] ReadStoredFile(String, Func<String, Boolean>)
     method SRRFile Load(String)
     method String ExtractStoredFile(String, String, Func<String, Boolean>)
     property Boolean CmtHasZeroedFileTime { get; }
