@@ -1746,5 +1746,28 @@ public class SRRFileTests : TempDirTestBase
             srr.ReadStoredFile(path, name => name == "proof.jpg"));
     }
 
+    [Fact]
+    public void ReadStoredFile_TruncatedAfterLoad_ThrowsInvalidData()
+    {
+        byte[] data = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddStoredFile("proof.jpg", data)
+            .BuildToFile(TempDir, "truncated.srr");
+
+        var srr = SRRFile.Load(path);
+
+        // Truncate the file to before the stored data ends; the parsed block still
+        // claims the original length, so the read runs past EOF.
+        long originalLength = new FileInfo(path).Length;
+        using (var fs = new FileStream(path, FileMode.Open, FileAccess.Write))
+        {
+            fs.SetLength(originalLength - 4);
+        }
+
+        Assert.Throws<InvalidDataException>(() =>
+            srr.ReadStoredFile(path, name => name == "proof.jpg"));
+    }
+
     #endregion
 }

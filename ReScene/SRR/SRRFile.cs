@@ -661,6 +661,14 @@ public class SRRFile
 
         fs.Seek(dataOffset, SeekOrigin.Begin);
         using BinaryReader reader = new(fs);
-        return StreamUtilities.ReadExactly(reader, (int)dataLength);
+        try
+        {
+            return StreamUtilities.ReadExactly(reader, (int)dataLength);
+        }
+        catch (EndOfStreamException ex)
+        {
+            throw new InvalidDataException(
+                "Unexpected end of SRR file while reading stored file data.", ex);
+        }
     }
 }
