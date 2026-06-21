@@ -2,6 +2,12 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [1.5.1] — 2026-06-21
+
+### Added
+
+- The MKV/Matroska inspector and comparer now name many more EBML elements that previously showed as "Unknown": `FlagLacing` and other `TrackEntry` fields (MinCache, MaxCache, MaxBlockAdditionID, CodecDelay, SeekPreRoll, the accessibility flags, …), the `Video` flags, the HDR `Colour` / `MasteringMetadata` set, content-encryption elements, the `BlockGroup` children, the `Cues` subtree, and `SegmentFilename`. IDs cross-checked against the IETF normative `ebml_matroska.xml` and matroska.org.
+
 ## [1.5.0] — 2026-06-20
 
 ### Added
