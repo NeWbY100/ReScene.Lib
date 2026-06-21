@@ -472,6 +472,33 @@ public class MKVFileDataTests : TempDirTestBase
         Assert.Equal("0", flagLacing.Value);
     }
 
+    [Theory]
+    // TrackEntry extras
+    [InlineData(0x56AAUL, "CodecDelay")]
+    [InlineData(0x56BBUL, "SeekPreRoll")]
+    [InlineData(0x55AEUL, "FlagOriginal")]
+    [InlineData(0x55AFUL, "FlagCommentary")]
+    [InlineData(0x23314FUL, "TrackTimestampScale")]
+    // Video + HDR Colour
+    [InlineData(0x9AUL, "FlagInterlaced")]
+    [InlineData(0x55B0UL, "Colour")]
+    [InlineData(0x55B1UL, "MatrixCoefficients")]
+    [InlineData(0x55BCUL, "MaxCLL")]
+    [InlineData(0x55D0UL, "MasteringMetadata")]
+    [InlineData(0x55D9UL, "LuminanceMax")]
+    // Audio / content encoding / block group / cues / info
+    [InlineData(0x78B5UL, "OutputSamplingFrequency")]
+    [InlineData(0x5035UL, "ContentEncryption")]
+    [InlineData(0x75A2UL, "DiscardPadding")]
+    [InlineData(0xBBUL, "CuePoint")]
+    [InlineData(0x7384UL, "SegmentFilename")]
+    public void Lookup_AddedElements_AreNamed(ulong id, string expectedName)
+        => Assert.Equal(expectedName, EbmlElementRegistry.Lookup(id).Name);
+
+    [Fact]
+    public void Lookup_Colour_IsMaster()
+        => Assert.Equal(EBMLValueType.Master, EbmlElementRegistry.Lookup(0x55B0).Type);
+
     [Fact]
     public void Load_UnknownElementId_NamedUnknownWithHexId()
     {
