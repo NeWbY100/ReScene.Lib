@@ -590,6 +590,7 @@ internal static class EbmlElementRegistry
         [0xB9] = ("FlagEnabled", EBMLValueType.UnsignedInt),
         [0x88] = ("FlagDefault", EBMLValueType.UnsignedInt),
         [0x55AA] = ("FlagForced", EBMLValueType.UnsignedInt),
+        [0x9C] = ("FlagLacing", EBMLValueType.UnsignedInt),
         [0x86] = ("CodecID", EBMLValueType.String),
         [0x258688] = ("CodecName", EBMLValueType.Utf8),
         [0x22B59C] = ("Language", EBMLValueType.String),

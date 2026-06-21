@@ -451,6 +451,28 @@ public class MKVFileDataTests : TempDirTestBase
     }
 
     [Fact]
+    public void Load_FlagLacing_IsNamed()
+    {
+        // FlagLacing (0x9C) is a standard TrackEntry child; it must be named, not "Unknown (0x9C)".
+        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] trackEntry = Master(IdTrackEntry,
+            Uint(IdTrackNumber, 1),
+            Leaf([0x9C], [0x00]), // FlagLacing = 0 (lacing disabled)
+            Str(IdCodecId, "S_TEXT/UTF8"));
+        byte[] tracks = Master(IdTracks, trackEntry);
+        byte[] segment = Master(IdSegment, tracks);
+        string path = WriteMkv("lacing.mkv", Concat(ebml, segment));
+
+        MKVFileData data = MKVFileData.Load(path);
+        EBMLElement track = data.Elements[1].Children
+            .First(c => c.Name == "Tracks").Children
+            .First(c => c.Name == "TrackEntry");
+
+        EBMLElement flagLacing = track.Children.First(c => c.Name == "FlagLacing");
+        Assert.Equal("0", flagLacing.Value);
+    }
+
+    [Fact]
     public void Load_UnknownElementId_NamedUnknownWithHexId()
     {
         byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
