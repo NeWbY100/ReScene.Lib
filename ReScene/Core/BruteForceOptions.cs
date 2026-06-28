@@ -38,6 +38,13 @@ public class BruteForceOptions(string rarInstallationsDirectoryPath, string rele
     public HashSet<string> Hashes { get; } = [];
 
     /// <summary>
+    /// Expected per-volume CRC32 values keyed by volume base filename (e.g. "aln-re4a.r00"), used to
+    /// verify EVERY produced volume. When populated (and CompleteAllVolumes is set), the engine
+    /// verifies the whole set; when empty, it falls back to the first-volume-only check.
+    /// </summary>
+    public Dictionary<string, string> ExpectedVolumeCrcs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Gets or sets the type of the hash in the <see cref="Hashes"/> set.
     /// </summary>
     public HashType HashType

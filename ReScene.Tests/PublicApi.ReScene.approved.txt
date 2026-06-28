@@ -1,5 +1,6 @@
 class ReScene.Core.BruteForceOptions
     ctor (String, String, String)
+    property Dictionary<String, String> ExpectedVolumeCrcs { get; }
     property HashSet<String> Hashes { get; }
     property HashType HashType { get; set; }
     property RAROptions RAROptions { get; set; }
@@ -12,6 +13,18 @@ class ReScene.Core.BruteForceProgressEventArgs
     property String RARCommandLineArguments { get; }
     property String RARVersionDirectoryPath { get; }
     property String ReleaseDirectoryPath { get; }
+class sealed ReScene.Core.BruteForceRunResult
+    ctor (Boolean, WinningCombo)
+    method Boolean Equals(BruteForceRunResult)
+    method Boolean Equals(Object)
+    method Boolean op_Equality(BruteForceRunResult, BruteForceRunResult)
+    method Boolean op_Inequality(BruteForceRunResult, BruteForceRunResult)
+    method BruteForceRunResult <Clone>$()
+    method Int32 GetHashCode()
+    method String ToString()
+    method Void Deconstruct(Boolean&, WinningCombo&)
+    property Boolean Success { get; set; }
+    property WinningCombo Combo { get; set; }
 class ReScene.Core.BruteForceStatusChangedEventArgs
     ctor (Nullable<OperationStatus>, OperationStatus)
     ctor (Nullable<OperationStatus>, OperationStatus, Nullable<OperationCompletionStatus>)
@@ -310,6 +323,18 @@ class sealed ReScene.Core.VolumeMatchResult
     property Boolean CountMismatch { get; set; }
     property IReadOnlyList<VolumeMatch> Volumes { get; set; }
     property VolumeMatch FirstMismatch { get; set; }
+class sealed ReScene.Core.WinningCombo
+    ctor (Int32, IReadOnlyList<RARCommandLineArgument>)
+    method Boolean Equals(Object)
+    method Boolean Equals(WinningCombo)
+    method Boolean op_Equality(WinningCombo, WinningCombo)
+    method Boolean op_Inequality(WinningCombo, WinningCombo)
+    method Int32 GetHashCode()
+    method String ToString()
+    method Void Deconstruct(Int32&, IReadOnlyList<RARCommandLineArgument>&)
+    method WinningCombo <Clone>$()
+    property IReadOnlyList<RARCommandLineArgument> Args { get; set; }
+    property Int32 Version { get; set; }
 struct ReScene.Hex.HexMatchRange
     ctor (Int64, Int32)
     method Boolean Equals(HexMatchRange)
