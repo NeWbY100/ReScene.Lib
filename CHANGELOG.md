@@ -2,6 +2,20 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [1.7.1] — 2026-06-29
+
+### Added
+
+- `RARDetailedParser` now decodes **every** header flag, set and unset: each flags field lists all of
+  its flags (the description when the bit is set, `"Not set"` when clear), `LONG_BLOCK` is always
+  emitted, and the RAR5 main-archive/file/end flag blocks are routed through the shared `EmitFlags`
+  helper. This lets a diff align and highlight exactly which flag differs.
+- RAR4 End-of-Archive blocks surface the `EARC_REVSPACE` trailing bytes as a `Reserved Space` field,
+  so a 20-byte terminator is fully accounted for instead of looking identical to a 13-byte one.
+
+No public API change (`RARHeaderField`/`RARDetailedBlock` unchanged; the flag tables and `EmitFlags`
+are private).
+
 ## [1.7.0] — 2026-06-28
 
 This release adds per-archive-set reconstruction and **changes one public signature**: `Manager.BruteForceRARVersionAsync` now returns `BruteForceRunResult` instead of `bool` (see Changed). (The lib jumps 1.5.1 → 1.7.0; the 1.6.x line was app-only releases with no library changes.)
