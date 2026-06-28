@@ -601,7 +601,7 @@ class sealed ReScene.SRR.SrrArchiveSet
     property Dictionary<String, DateTime> ArchivedFileTimestamps { get; }
     property Dictionary<String, String> ArchivedFileCrcs { get; }
     property HashSet<String> ArchivedFiles { get; }
-    property IReadOnlyList<String> VolumeNames { get; }
+    property IList<String> VolumeNames { get; }
     property Nullable<Boolean> HasLargeFiles { get; set; }
     property Nullable<Boolean> HasRecoveryRecord { get; set; }
     property Nullable<Boolean> IsSolid { get; set; }

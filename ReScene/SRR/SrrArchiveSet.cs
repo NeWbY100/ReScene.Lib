@@ -15,15 +15,23 @@ public sealed class SrrArchiveSet
     public required string Directory { get; init; }
 
     /// <summary>Volume file names in SRR order, with directory prefix (e.g. "DVD1\aln-re4a.rar").</summary>
-    public IReadOnlyList<string> VolumeNames => _volumeNames;
+    public IList<string> VolumeNames => _volumeNames;
 
     internal List<string> _volumeNames { get; } = [];
 
     /// <summary>Content files this set archives (normalized relative paths).</summary>
     public HashSet<string> ArchivedFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>CRC32 values (as 8-digit hex strings) for each file this set archives, keyed by normalized path. Equals the flat <see cref="SRRFile.ArchivedFileCrcs"/> value for the same file.</summary>
     public Dictionary<string, string> ArchivedFileCrcs { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>File modification times for each file this set archives, keyed by normalized path. Equals the flat <see cref="SRRFile.ArchivedFileTimestamps"/> value for the same file.</summary>
     public Dictionary<string, DateTime> ArchivedFileTimestamps { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>File creation times for each file this set archives, keyed by normalized path. Equals the flat <see cref="SRRFile.ArchivedFileCreationTimes"/> value for the same file.</summary>
     public Dictionary<string, DateTime> ArchivedFileCreationTimes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>File access times for each file this set archives, keyed by normalized path. Equals the flat <see cref="SRRFile.ArchivedFileAccessTimes"/> value for the same file.</summary>
     public Dictionary<string, DateTime> ArchivedFileAccessTimes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     // Header-derived metadata, from this set's first headers.

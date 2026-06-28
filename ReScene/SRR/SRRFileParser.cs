@@ -569,6 +569,10 @@ internal static class SRRFileParser
             set.CompressionMethod ??= info.CompressionMethod == 0 ? 0x30 : 0x30 + info.CompressionMethod;
             set.DictionarySize ??= info.DictionarySizeKB;
             set.RARVersion ??= 50;
+            // Note: RAR5 file headers do not expose HostOS, FileAttributes, or HasLargeFiles
+            // in the same per-file fields as RAR4, so DetectedHostOS, DetectedFileAttributes,
+            // HasLargeFiles, DetectedHighPackSize, and DetectedHighUnpSize are not set per-set
+            // for RAR5 (matching the flat-side behavior above where they are also not populated).
         }
 
         // Add archive entry
@@ -738,29 +742,10 @@ internal static class SRRFileParser
 
         SetFileTimes(srr, normalized, modifiedTime, creationTime, accessTime, overwriteTimes);
 
-        if (set != null)
-        {
-            set.ArchivedFiles.Add(normalized);
-            if (fileCRC.HasValue && !set.ArchivedFileCrcs.ContainsKey(normalized))
-            {
-                set.ArchivedFileCrcs[normalized] = fileCRC.Value.ToString("x8");
-            }
-
-            if (modifiedTime.HasValue && !set.ArchivedFileTimestamps.ContainsKey(normalized))
-            {
-                set.ArchivedFileTimestamps[normalized] = modifiedTime.Value;
-            }
-
-            if (creationTime.HasValue && !set.ArchivedFileCreationTimes.ContainsKey(normalized))
-            {
-                set.ArchivedFileCreationTimes[normalized] = creationTime.Value;
-            }
-
-            if (accessTime.HasValue && !set.ArchivedFileAccessTimes.ContainsKey(normalized))
-            {
-                set.ArchivedFileAccessTimes[normalized] = accessTime.Value;
-            }
-        }
+        // Track which set this file belongs to; CRC/timestamps are finalized after all headers
+        // are parsed via SRRFile.FinalizeArchiveSets() to ensure split-after CRC overrides
+        // (applied to the flat dict above) are reflected in the per-set view.
+        set?.ArchivedFiles.Add(normalized);
     }
 
     internal static void SetDirectoryTimes(SRRFile srr, string path, DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)

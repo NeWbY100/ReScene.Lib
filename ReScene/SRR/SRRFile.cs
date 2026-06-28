@@ -61,10 +61,13 @@ public class SRRFile
         if (!_archiveSetsByKey.TryGetValue(key, out SrrArchiveSet? set))
         {
             string? dir = Path.GetDirectoryName(volumeName);
+            string normalizedDir = string.IsNullOrEmpty(dir)
+                ? string.Empty
+                : dir.Replace('\\', '/').Trim('/');
             set = new SrrArchiveSet
             {
                 Key = key,
-                Directory = string.IsNullOrEmpty(dir) ? string.Empty : dir,
+                Directory = normalizedDir,
             };
             _archiveSetsByKey[key] = set;
             _archiveSets.Add(set);
@@ -72,6 +75,40 @@ public class SRRFile
 
         set._volumeNames.Add(volumeName);
         CurrentArchiveSet = set;
+    }
+
+    /// <summary>
+    /// Copies the final CRC and timestamp values from the flat dictionaries into each set's
+    /// per-file dictionaries. Must be called after all embedded RAR headers have been parsed so
+    /// that the flat dictionaries reflect the definitive (split-after-resolved) values.
+    /// </summary>
+    internal void FinalizeArchiveSets()
+    {
+        foreach (SrrArchiveSet set in _archiveSets)
+        {
+            foreach (string file in set.ArchivedFiles)
+            {
+                if (ArchivedFileCrcs.TryGetValue(file, out string? crc))
+                {
+                    set.ArchivedFileCrcs[file] = crc;
+                }
+
+                if (ArchivedFileTimestamps.TryGetValue(file, out DateTime mtime))
+                {
+                    set.ArchivedFileTimestamps[file] = mtime;
+                }
+
+                if (ArchivedFileCreationTimes.TryGetValue(file, out DateTime ctime))
+                {
+                    set.ArchivedFileCreationTimes[file] = ctime;
+                }
+
+                if (ArchivedFileAccessTimes.TryGetValue(file, out DateTime atime))
+                {
+                    set.ArchivedFileAccessTimes[file] = atime;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -568,6 +605,7 @@ public class SRRFile
     exitLoop:
 
         SRRFileParser.CalculateVolumeSizeBytes(srr);
+        srr.FinalizeArchiveSets();
         return srr;
     }
 
