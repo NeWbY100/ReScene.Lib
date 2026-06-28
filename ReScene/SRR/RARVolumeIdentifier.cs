@@ -1,3 +1,5 @@
+using ReScene.RAR;
+
 namespace ReScene.SRR;
 
 /// <summary>
@@ -5,6 +7,25 @@ namespace ReScene.SRR;
 /// </summary>
 public static class RARVolumeIdentifier
 {
+    /// <summary>
+    /// Computes the archive-set key for a RAR volume path: its directory (normalized to forward
+    /// slashes, trimmed) plus the volume base name (extension stripped via
+    /// <see cref="RARVolumeNaming.GetBaseName(string)"/>). Volumes in the same set share this key,
+    /// distinguishing sets by directory and/or base name (e.g. "DVD1/aln-re4a", or "…cd1" at root).
+    /// </summary>
+    public static string GetArchiveSetKey(string volumePath)
+    {
+        string baseName = RARVolumeNaming.GetBaseName(Path.GetFileName(volumePath));
+        string? dir = Path.GetDirectoryName(volumePath);
+        if (string.IsNullOrEmpty(dir))
+        {
+            return baseName;
+        }
+
+        string normalizedDir = dir.Replace('\\', '/').Trim('/');
+        return normalizedDir.Length == 0 ? baseName : $"{normalizedDir}/{baseName}";
+    }
+
     /// <summary>
     /// Determines whether a filename has a RAR volume extension.
     /// Supports .rar, .partN.rar, old-style (.r00, .s00), and numbered (.001, .002).

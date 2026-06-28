@@ -37,6 +37,44 @@ public class SRRFile
     internal List<SRRRarFileBlock> _rarFiles { get; } = [];
 
     /// <summary>
+    /// Gets the archive sets (grouped multi-volume series) parsed from the SRR. A single-set SRR
+    /// yields one entry whose data equals the flat union properties.
+    /// </summary>
+    public IReadOnlyList<SrrArchiveSet> ArchiveSets => _archiveSets;
+
+    internal List<SrrArchiveSet> _archiveSets { get; } = [];
+
+    // Keyed lookup used during parsing to attribute embedded-header entries to the current set.
+    internal Dictionary<string, SrrArchiveSet> _archiveSetsByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The set whose embedded headers are currently being parsed (most recent RARFile block).</summary>
+    internal SrrArchiveSet? CurrentArchiveSet { get; set; }
+
+    /// <summary>
+    /// Begins (or resumes) the archive set for a RARFile block and records the volume name. Called by
+    /// <see cref="Load"/> as each type-0x71 block is read, so subsequent embedded-header entries are
+    /// attributed to this set.
+    /// </summary>
+    internal void BeginArchiveSetForVolume(string volumeName)
+    {
+        string key = RARVolumeIdentifier.GetArchiveSetKey(volumeName);
+        if (!_archiveSetsByKey.TryGetValue(key, out SrrArchiveSet? set))
+        {
+            string? dir = Path.GetDirectoryName(volumeName);
+            set = new SrrArchiveSet
+            {
+                Key = key,
+                Directory = string.IsNullOrEmpty(dir) ? string.Empty : dir,
+            };
+            _archiveSetsByKey[key] = set;
+            _archiveSets.Add(set);
+        }
+
+        set._volumeNames.Add(volumeName);
+        CurrentArchiveSet = set;
+    }
+
+    /// <summary>
     /// Gets the stored file blocks (SFV, NFO, etc.) from the SRR file.
     /// </summary>
     public IReadOnlyList<SRRStoredFileBlock> StoredFiles => _storedFiles;
@@ -509,6 +547,7 @@ public class SRRFile
                     }
 
                     srr._rarFiles.Add(rarBlock);
+                    srr.BeginArchiveSetForVolume(rarBlock.FileName);
 
                     // Parse embedded RAR headers that follow
                     long volumeTotalSize = SRRFileParser.ParseEmbeddedRarHeaders(reader, fs, srr);

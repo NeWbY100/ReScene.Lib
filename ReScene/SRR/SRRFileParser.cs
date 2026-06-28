@@ -362,6 +362,13 @@ internal static class SRRFileParser
         srr.HasNewVolumeNaming ??= header.HasNewVolumeNaming;
         srr.HasFirstVolumeFlag ??= header.IsFirstVolume;
         srr.HasEncryptedHeaders ??= header.HasEncryptedHeaders;
+
+        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        if (set != null)
+        {
+            set.IsSolid ??= header.IsSolid;
+            set.HasRecoveryRecord ??= header.HasRecoveryRecord;
+        }
     }
 
     internal static void ProcessFileHeader(SRRFile srr, RARFileHeader header)
@@ -411,6 +418,22 @@ internal static class SRRFileParser
         srr.FileMtimePrecision ??= header.MtimePrecision;
         srr.FileCtimePrecision ??= header.CtimePrecision;
         srr.FileAtimePrecision ??= header.AtimePrecision;
+
+        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        if (set != null)
+        {
+            set.CompressionMethod ??= header.CompressionMethod;
+            set.DictionarySize ??= header.DictionarySizeKB;
+            set.RARVersion ??= header.UnpackVersion;
+            set.HasLargeFiles ??= header.HasLargeSize;
+            set.DetectedHostOS ??= header.HostOS;
+            set.DetectedFileAttributes ??= header.FileAttributes;
+            if (header.HasLargeSize)
+            {
+                set.DetectedHighPackSize ??= header.HighPackSize;
+                set.DetectedHighUnpSize ??= header.HighUnpSize;
+            }
+        }
 
         // Add archive entry
         if (!string.IsNullOrEmpty(header.FileName))
@@ -538,6 +561,14 @@ internal static class SRRFileParser
             srr.CompressionMethod = info.CompressionMethod == 0 ? 0x30 : 0x30 + info.CompressionMethod;
             srr.DictionarySize = info.DictionarySizeKB;
             srr.RARVersion = 50;
+        }
+
+        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        if (set != null)
+        {
+            set.CompressionMethod ??= info.CompressionMethod == 0 ? 0x30 : 0x30 + info.CompressionMethod;
+            set.DictionarySize ??= info.DictionarySizeKB;
+            set.RARVersion ??= 50;
         }
 
         // Add archive entry
@@ -669,6 +700,8 @@ internal static class SRRFileParser
             return;
         }
 
+        SrrArchiveSet? set = srr.CurrentArchiveSet;
+
         if (isDirectory)
         {
             srr.ArchivedDirectories.Add(normalized);
@@ -704,6 +737,30 @@ internal static class SRRFileParser
         }
 
         SetFileTimes(srr, normalized, modifiedTime, creationTime, accessTime, overwriteTimes);
+
+        if (set != null)
+        {
+            set.ArchivedFiles.Add(normalized);
+            if (fileCRC.HasValue && !set.ArchivedFileCrcs.ContainsKey(normalized))
+            {
+                set.ArchivedFileCrcs[normalized] = fileCRC.Value.ToString("x8");
+            }
+
+            if (modifiedTime.HasValue && !set.ArchivedFileTimestamps.ContainsKey(normalized))
+            {
+                set.ArchivedFileTimestamps[normalized] = modifiedTime.Value;
+            }
+
+            if (creationTime.HasValue && !set.ArchivedFileCreationTimes.ContainsKey(normalized))
+            {
+                set.ArchivedFileCreationTimes[normalized] = creationTime.Value;
+            }
+
+            if (accessTime.HasValue && !set.ArchivedFileAccessTimes.ContainsKey(normalized))
+            {
+                set.ArchivedFileAccessTimes[normalized] = accessTime.Value;
+            }
+        }
     }
 
     internal static void SetDirectoryTimes(SRRFile srr, string path, DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)
