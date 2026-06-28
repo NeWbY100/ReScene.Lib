@@ -2,6 +2,23 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [1.7.0] — 2026-06-28
+
+This release adds per-archive-set reconstruction and **changes one public signature**: `Manager.BruteForceRARVersionAsync` now returns `BruteForceRunResult` instead of `bool` (see Changed). (The lib jumps 1.5.1 → 1.7.0; the 1.6.x line was app-only releases with no library changes.)
+
+### Added
+
+- `SrrArchiveSet` and `SRRFile.ArchiveSets` group an SRR's RAR volumes into independent archive sets, keyed by directory + volume base name (e.g. `DVD1/aln-re4a`). Each set carries its own archived files, per-volume CRCs, timestamps, and header-derived metadata. The flat `SRRFile` properties are unchanged and remain the union across all sets, so single-set SRRs behave exactly as before.
+- `RARVolumeIdentifier.GetArchiveSetKey(volumePath)` computes a volume's archive-set key (handles old-style `.rNN` and new-style `.partNN.rar`, with or without a directory prefix).
+- `VolumeMatchEvaluator.Evaluate(...)` — a pure, `rar.exe`-free helper that compares a produced multi-volume set against expected per-volume CRCs (positional assignment, per-position CRC verification, first-mismatch and count-mismatch reporting).
+- `BruteForceOptions.ExpectedVolumeCrcs` (per-volume `name → CRC`) drives full-set verification; `WinningCombo` and `BruteForceRunResult` carry the winning version + arguments so callers can seed a later set's search.
+- `SFVFile.ParseBytes(bytes, tolerant)` and `SFVFile.ParseLines(lines, tolerant)` parse SFV content from memory (tolerant mode skips malformed lines instead of throwing); `ReadFile` now delegates to the strict path.
+
+### Changed
+
+- **`Manager.BruteForceRARVersionAsync` now returns `BruteForceRunResult` (was `bool`).** Read `.Success` for the previous boolean result and `.Combo` for the winning version + arguments.
+- When recreating a whole volume set, the engine now verifies **every** produced volume against its expected CRC (not just the first) and keeps brute-forcing on a near-miss instead of committing a mismatched rename. The CRC-based rename creates output subdirectories as needed and no longer requires `StopOnFirstMatch`.
+
 ## [1.5.1] — 2026-06-21
 
 ### Added
