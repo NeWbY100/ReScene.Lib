@@ -995,6 +995,19 @@ public static class RARDetailedParser
             volField.Value = volNumber.ToString();
             block.Fields.Add(volField);
         }
+
+        // Any remaining header bytes are the EARC_REVSPACE reserved region (REV_SPACE flag,
+        // 0x0004): RAR reserves zero bytes at the end of the terminator. Surface them so the
+        // header size is fully accounted for (a 20-byte terminator otherwise looks like a 13-byte one).
+        if (cursor.Pos < headerEnd)
+        {
+            int reservedLen = (int)(headerEnd - cursor.Pos);
+            byte[] reserved = reader.ReadBytes(reservedLen);
+            RARHeaderField reservedField = cursor.EmitFixed("Reserved Space", reservedLen, reserved);
+            reservedField.Value = BitConverter.ToString(reserved).Replace("-", " ", StringComparison.Ordinal);
+            reservedField.Description = "EARC_REVSPACE reserved region";
+            block.Fields.Add(reservedField);
+        }
     }
 
     #endregion

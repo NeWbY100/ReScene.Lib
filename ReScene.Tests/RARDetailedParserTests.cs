@@ -730,6 +730,62 @@ public class RARDetailedParserTests
         Assert.Contains(flagsField.Children, c => c.Name == "DATA_CRC");
     }
 
+    [Fact]
+    public void Parse_RAR4EndBlock_WithRevSpaceFlag_ParsesReservedSpaceField()
+    {
+        // Flags: NEXT_VOLUME(0x0001) | DATA_CRC(0x0002) | REV_SPACE(0x0004) | VOL_NUMBER(0x0008) | 0x4000
+        // = 0x400F
+        // Header size: 7 (base) + 4 (data CRC) + 2 (vol number) + 7 (reserved space) = 20 bytes
+        ushort flags = 0x400F;
+        int headerSize = 20; // 7 + 4 + 2 + 7
+        byte[] hdr = new byte[headerSize];
+        hdr[2] = 0x7B; // End of archive
+        BitConverter.GetBytes(flags).CopyTo(hdr, 3);
+        BitConverter.GetBytes((ushort)headerSize).CopyTo(hdr, 5);
+        // Data CRC at offset 7 (4 bytes)
+        BitConverter.GetBytes((uint)0x12345678).CopyTo(hdr, 7);
+        // Volume number at offset 11 (2 bytes)
+        BitConverter.GetBytes((ushort)5).CopyTo(hdr, 11);
+        // Trailing 7 reserved bytes at offset 13 — all zero (no explicit fill needed)
+        uint crc32 = Crc32Algorithm.Compute(hdr, 2, hdr.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
+
+        byte[] archiveHeader = BuildArchiveHeader();
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr);
+        IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
+
+        RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
+        RARHeaderField? reservedField = end.Fields.FirstOrDefault(f => f.Name == "Reserved Space");
+        Assert.NotNull(reservedField);
+        Assert.Equal(7, reservedField!.Length);
+        Assert.Equal(7, reservedField.RawBytes.Length);
+        Assert.Equal("00 00 00 00 00 00 00", reservedField.Value);
+        Assert.Equal("EARC_REVSPACE reserved region", reservedField.Description);
+    }
+
+    [Fact]
+    public void Parse_RAR4EndBlock_Without13ByteTerminator_HasNoReservedSpaceField()
+    {
+        // Standard 13-byte terminator: base(7) + DATA_CRC(4) + VOL_NUMBER(2)
+        ushort flags = 0x000A; // DATA_CRC | VOL_NUMBER
+        int headerSize = 13;
+        byte[] hdr = new byte[headerSize];
+        hdr[2] = 0x7B;
+        BitConverter.GetBytes(flags).CopyTo(hdr, 3);
+        BitConverter.GetBytes((ushort)headerSize).CopyTo(hdr, 5);
+        BitConverter.GetBytes((uint)0xAABBCCDD).CopyTo(hdr, 7); // Data CRC
+        BitConverter.GetBytes((ushort)1).CopyTo(hdr, 11);        // Volume number
+        uint crc32 = Crc32Algorithm.Compute(hdr, 2, hdr.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
+
+        byte[] archiveHeader = BuildArchiveHeader();
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, hdr);
+        IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
+
+        RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
+        Assert.DoesNotContain(end.Fields, f => f.Name == "Reserved Space");
+    }
+
     #endregion
 
     #region RAR4 Service Block (CMT) Tests
