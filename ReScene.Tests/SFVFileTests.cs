@@ -1,3 +1,4 @@
+using System.Text;
 using ReScene.Core.IO;
 
 namespace ReScene.Tests;
@@ -99,6 +100,42 @@ public class SFVFileTests
         var sfv = SFVFile.ReadFile(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.sfv"));
 
         Assert.All(sfv.Entries, entry => Assert.Equal(entry.CRC, entry.CRC.ToLower()));
+    }
+
+    #endregion
+
+    #region ParseBytes
+
+    [Fact]
+    public void ParseBytes_ParsesNameCrcPairs()
+    {
+        byte[] data = Encoding.ASCII.GetBytes("; comment\r\naln-re4a.r00 88b361c9\r\naln-re4a.rar f1a3ec0d\r\n");
+        SFVFile sfv = SFVFile.ParseBytes(data, tolerant: true);
+
+        Assert.Equal(2, sfv.Entries.Count);
+        Assert.Equal("aln-re4a.r00", sfv.Entries[0].FileName);
+        Assert.Equal("88b361c9", sfv.Entries[0].CRC);
+    }
+
+    #endregion
+
+    #region ParseLines
+
+    [Fact]
+    public void ParseLines_Tolerant_SkipsMalformedInsteadOfThrowing()
+    {
+        string[] lines = ["good.r00 deadbeef", "this line is broken", "good.r01 cafebabe"];
+        SFVFile sfv = SFVFile.ParseLines(lines, tolerant: true);
+
+        Assert.Equal(2, sfv.Entries.Count);
+        Assert.Equal("good.r01", sfv.Entries[1].FileName);
+    }
+
+    [Fact]
+    public void ParseLines_Strict_ThrowsOnMalformed()
+    {
+        string[] lines = ["good.r00 deadbeef", "broken"];
+        Assert.Throws<InvalidDataException>(() => SFVFile.ParseLines(lines, tolerant: false));
     }
 
     #endregion

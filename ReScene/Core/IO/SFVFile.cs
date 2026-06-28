@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace ReScene.Core.IO;
 
 /// <summary>
@@ -47,14 +49,27 @@ public class SFVFile
     /// </returns>
     public static SFVFile ReadFile(string filePath)
     {
-        FileInfo fileInfo = new(filePath);
-        SFVFile sfvFile = new()
-        {
-            FileInfo = fileInfo
-        };
+        var sfvFile = ParseLines(File.ReadAllLines(filePath), tolerant: false);
+        sfvFile.FileInfo = new FileInfo(filePath);
+        return sfvFile;
+    }
 
-        string[] fileLines = File.ReadAllLines(sfvFile.FileInfo.FullName);
-        foreach (string fileLine in fileLines)
+    /// <summary>Parses SFV text from raw bytes (decoded as Latin-1, the SFV norm), tolerant or strict.</summary>
+    public static SFVFile ParseBytes(byte[] data, bool tolerant)
+    {
+        string text = Encoding.Latin1.GetString(data);
+        return ParseLines(text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries), tolerant);
+    }
+
+    /// <summary>
+    /// Parses SFV lines into filename-CRC entries. When <paramref name="tolerant"/> is true,
+    /// malformed lines are skipped; otherwise an <see cref="InvalidDataException"/> is thrown
+    /// (the legacy <see cref="ReadFile"/> contract).
+    /// </summary>
+    public static SFVFile ParseLines(IEnumerable<string> lines, bool tolerant)
+    {
+        SFVFile sfvFile = new();
+        foreach (string fileLine in lines)
         {
             if (string.IsNullOrEmpty(fileLine) || fileLine.StartsWith(':') || fileLine.StartsWith('#') || fileLine.StartsWith(';'))
             {
@@ -62,19 +77,17 @@ public class SFVFile
             }
 
             string[] items = fileLine.Split(" ", StringSplitOptions.RemoveEmptyEntries);
-            if (items.Length < 2)
+            if (items.Length < 2 || items[1].Length != 8)
             {
+                if (tolerant)
+                {
+                    continue;
+                }
+
                 throw new InvalidDataException("Invalid SFV file format.");
             }
 
-            string fileName = items[0];
-            string crc32 = items[1];
-            if (crc32.Length != 8)
-            {
-                throw new InvalidDataException("Invalid SFV file format.");
-            }
-
-            sfvFile.Entries.Add(new SFVFileEntry(fileName, crc32.ToLowerInvariant()));
+            sfvFile.Entries.Add(new SFVFileEntry(items[0], items[1].ToLowerInvariant()));
         }
 
         return sfvFile;

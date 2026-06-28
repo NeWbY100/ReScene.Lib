@@ -171,6 +171,8 @@ class ReScene.Core.IO.OperationStatusChangedEventArgs
 class ReScene.Core.IO.SFVFile
     ctor ()
     ctor (FileInfo)
+    method SFVFile ParseBytes(Byte[], Boolean)
+    method SFVFile ParseLines(IEnumerable<String>, Boolean)
     method SFVFile ReadFile(String)
     property FileInfo FileInfo { get; set; }
     property IList<SFVFileEntry> Entries { get; }
