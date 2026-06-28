@@ -213,6 +213,21 @@ public class RARDetailedParserTests
     #region Synthetic RAR4 Helpers
 
     /// <summary>
+    /// Builds a RAR4 archive header (type 0x73) with the given HEAD_FLAGS and a valid CRC.
+    /// </summary>
+    private static byte[] BuildArchiveHeaderWithFlags(ushort flags)
+    {
+        byte[] header = new byte[13];
+        header[2] = 0x73; // Archive header type
+        BitConverter.GetBytes(flags).CopyTo(header, 3); // Flags
+        BitConverter.GetBytes((ushort)13).CopyTo(header, 5); // Header size
+
+        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    /// <summary>
     /// Builds a minimal RAR4 archive header (type 0x73) with valid CRC.
     /// </summary>
     private static byte[] BuildArchiveHeader()
@@ -1357,6 +1372,88 @@ public class RARDetailedParserTests
         long offset = RARUtils.FindRarMarkerOffset(fs);
 
         Assert.Equal(0, offset);
+    }
+
+    #endregion
+
+    #region All-Flags (set + unset) Tests
+
+    [Fact]
+    public void Parse_RAR4ArchiveHeader_FlagsField_ListsEveryFlag_SetAndUnset()
+    {
+        // 0x0109 = VOLUME (0x0001) | SOLID (0x0008) | FIRST_VOLUME (0x0100)
+        byte[] archiveHeader = BuildArchiveHeaderWithFlags(0x0109);
+        byte[] endBlock = BuildEndBlock();
+
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, endBlock);
+        IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
+
+        RARDetailedBlock arc = blocks.First(b => b.BlockType == "Archive Header");
+        RARHeaderField flags = arc.Fields.First(f => f.Name == "Flags");
+
+        // Every archive flag is present, regardless of whether its bit is set.
+        foreach (string name in new[]
+                 { "VOLUME", "COMMENT", "LOCK", "SOLID", "NEW_NUMBERING", "AV", "PROTECT", "PASSWORD", "FIRST_VOLUME" })
+        {
+            Assert.Contains(flags.Children, c => c.Name == name);
+        }
+
+        // Set bits keep their description; clear bits read "Not set".
+        Assert.Equal("Multi-volume archive", flags.Children.First(c => c.Name == "VOLUME").Value);
+        Assert.Equal("Solid archive", flags.Children.First(c => c.Name == "SOLID").Value);
+        Assert.Equal("First volume", flags.Children.First(c => c.Name == "FIRST_VOLUME").Value);
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "COMMENT").Value);
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "LOCK").Value);
+        // LONG_BLOCK (0x8000) is not set here, but is now always listed.
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "LONG_BLOCK").Value);
+    }
+
+    [Fact]
+    public void Parse_RAR4FileHeader_FlagsField_ListsUnsetFlagsAsNotSet()
+    {
+        // BuildFileHeaderNoLarge sets only LONG_BLOCK (0x8000); the file flags are otherwise clear.
+        byte[] archiveHeader = BuildArchiveHeader();
+        byte[] fileHeader = BuildFileHeaderNoLarge("plain.txt", 100);
+        byte[] endBlock = BuildEndBlock();
+
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
+
+        RARHeaderField flags = blocks.First(b => b.BlockType == "File Header").Fields.First(f => f.Name == "Flags");
+
+        Assert.Equal("Has ADD_SIZE field", flags.Children.First(c => c.Name == "LONG_BLOCK").Value);
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "SPLIT_BEFORE").Value);
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "LARGE").Value);
+        // DICT_SIZE remains a single value row (a 3-bit value, not a flag).
+        Assert.Contains(flags.Children, c => c.Name == "DICT_SIZE");
+    }
+
+    [Fact]
+    public void Parse_RAR5MainHeader_FlagsField_ListsEveryFlag_SetAndUnset()
+    {
+        // Main archive flags 0x0005 = VOLUME (0x0001) | SOLID (0x0004); VOLNUMBER not set (so no extra read).
+        byte[] mainBlock = BuildRAR5Block(1, 0, EncodeVInt(0x0005));
+        byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0));
+
+        var ms = new MemoryStream();
+        ms.Write(RAR5Signature);
+        ms.Write(mainBlock);
+        ms.Write(endBlock);
+        ms.Position = 0;
+
+        IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(ms);
+
+        RARHeaderField flags = blocks.First(b => b.BlockType == "Main Archive Header").Fields.First(f => f.Name == "Archive Flags");
+
+        foreach (string name in new[] { "VOLUME", "VOLNUMBER", "SOLID", "PROTECT", "LOCK" })
+        {
+            Assert.Contains(flags.Children, c => c.Name == name);
+        }
+
+        Assert.Equal("Multi-volume", flags.Children.First(c => c.Name == "VOLUME").Value);
+        Assert.Equal("Solid archive", flags.Children.First(c => c.Name == "SOLID").Value);
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "VOLNUMBER").Value);
+        Assert.Equal("Not set", flags.Children.First(c => c.Name == "LOCK").Value);
     }
 
     #endregion

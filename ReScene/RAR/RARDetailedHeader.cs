@@ -641,26 +641,50 @@ public static class RARDetailedParser
         (0x0040, "HFL_INHERITED", "Inherited"),
     ];
 
+    private static readonly (ushort Mask, string Name, string Description)[] _rar5MainArchiveFlags =
+    [
+        (0x0001, "VOLUME", "Multi-volume"),
+        (0x0002, "VOLNUMBER", "Volume number present"),
+        (0x0004, "SOLID", "Solid archive"),
+        (0x0008, "PROTECT", "Recovery record present"),
+        (0x0010, "LOCK", "Locked archive"),
+    ];
+
+    private static readonly (ushort Mask, string Name, string Description)[] _rar5FileFlags =
+    [
+        (0x0001, "DIRECTORY", "Directory entry"),
+        (0x0002, "UTIME", "Unix time present"),
+        (0x0004, "CRC32", "CRC32 present"),
+        (0x0008, "UNPSIZE", "Unpacked size unknown"),
+    ];
+
+    private static readonly (ushort Mask, string Name, string Description)[] _rar5EndFlags =
+    [
+        (0x0001, "NEXTVOLUME", "Archive continues"),
+    ];
+
     private static void EmitFlags(
         RARHeaderField flagsField, ushort flags,
         (ushort Mask, string Name, string Description)[] table)
     {
         foreach ((ushort mask, string name, string description) in table)
         {
-            if ((flags & mask) != 0)
+            flagsField.Children.Add(new RARHeaderField
             {
-                flagsField.Children.Add(new RARHeaderField { Name = name, Value = description });
-            }
+                Name = name,
+                Value = (flags & mask) != 0 ? description : "Not set"
+            });
         }
     }
 
     private static void AddRAR4FlagDescriptions(RARHeaderField flagsField, byte blockType, ushort flags)
     {
-        // Common flags
-        if ((flags & 0x8000) != 0)
+        // Common flags (LONG_BLOCK is shown for every block, set or not)
+        flagsField.Children.Add(new RARHeaderField
         {
-            flagsField.Children.Add(new RARHeaderField { Name = "LONG_BLOCK", Value = "Has ADD_SIZE field" });
-        }
+            Name = "LONG_BLOCK",
+            Value = (flags & 0x8000) != 0 ? "Has ADD_SIZE field" : "Not set"
+        });
 
         if (blockType == 0x73) // Archive header
         {
@@ -1170,32 +1194,7 @@ public static class RARDetailedParser
         {
             ulong archFlags = cursor.EmitVInt("Archive Flags", out RARHeaderField archFlagsField);
             archFlagsField.Value = FormatHex(archFlags, archFlagsField.Length);
-
-            if ((archFlags & 0x0001) != 0)
-            {
-                archFlagsField.Children.Add(new RARHeaderField { Name = "VOLUME", Value = "Multi-volume" });
-            }
-
-            if ((archFlags & 0x0002) != 0)
-            {
-                archFlagsField.Children.Add(new RARHeaderField { Name = "VOLNUMBER", Value = "Volume number present" });
-            }
-
-            if ((archFlags & 0x0004) != 0)
-            {
-                archFlagsField.Children.Add(new RARHeaderField { Name = "SOLID", Value = "Solid archive" });
-            }
-
-            if ((archFlags & 0x0008) != 0)
-            {
-                archFlagsField.Children.Add(new RARHeaderField { Name = "PROTECT", Value = "Recovery record present" });
-            }
-
-            if ((archFlags & 0x0010) != 0)
-            {
-                archFlagsField.Children.Add(new RARHeaderField { Name = "LOCK", Value = "Locked archive" });
-            }
-
+            EmitFlags(archFlagsField, (ushort)archFlags, _rar5MainArchiveFlags);
             block.Fields.Add(archFlagsField);
 
             // Volume number (vint) - if VOLNUMBER flag
@@ -1217,27 +1216,7 @@ public static class RARDetailedParser
         {
             ulong fileFlags = cursor.EmitVInt("File Flags", out RARHeaderField fileFlagsField);
             fileFlagsField.Value = FormatHex(fileFlags, fileFlagsField.Length);
-
-            if ((fileFlags & 0x0001) != 0)
-            {
-                fileFlagsField.Children.Add(new RARHeaderField { Name = "DIRECTORY", Value = "Directory entry" });
-            }
-
-            if ((fileFlags & 0x0002) != 0)
-            {
-                fileFlagsField.Children.Add(new RARHeaderField { Name = "UTIME", Value = "Unix time present" });
-            }
-
-            if ((fileFlags & 0x0004) != 0)
-            {
-                fileFlagsField.Children.Add(new RARHeaderField { Name = "CRC32", Value = "CRC32 present" });
-            }
-
-            if ((fileFlags & 0x0008) != 0)
-            {
-                fileFlagsField.Children.Add(new RARHeaderField { Name = "UNPSIZE", Value = "Unpacked size unknown" });
-            }
-
+            EmitFlags(fileFlagsField, (ushort)fileFlags, _rar5FileFlags);
             block.Fields.Add(fileFlagsField);
 
             // Unpacked size (vint)
@@ -1392,12 +1371,7 @@ public static class RARDetailedParser
         {
             ulong endFlags = cursor.EmitVInt("End Flags", out RARHeaderField endFlagsField);
             endFlagsField.Value = FormatHex(endFlags, endFlagsField.Length);
-
-            if ((endFlags & 0x0001) != 0)
-            {
-                endFlagsField.Children.Add(new RARHeaderField { Name = "NEXTVOLUME", Value = "Archive continues" });
-            }
-
+            EmitFlags(endFlagsField, (ushort)endFlags, _rar5EndFlags);
             block.Fields.Add(endFlagsField);
         }
     }
