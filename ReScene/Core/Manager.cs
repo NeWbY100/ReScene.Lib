@@ -121,6 +121,33 @@ public partial class Manager : IDisposable
         => RarVersionSelector.ParseRARArchiveVersion(commandLineArguments, version);
 
     /// <summary>
+    /// Builds the expected (volume base filename, CRC) list in volume order from the options'
+    /// original names and <see cref="BruteForceOptions.ExpectedVolumeCrcs"/>. Volumes with no
+    /// expected CRC are omitted; callers treat a count below the produced-volume count as
+    /// not-fully-verifiable.
+    /// </summary>
+    /// <param name="options">
+    /// The brute-force options carrying the original volume names and expected per-volume CRCs.
+    /// </param>
+    /// <returns>
+    /// The ordered list of (volume base filename, expected CRC) pairs for covered volumes.
+    /// </returns>
+    public static IReadOnlyList<(string Name, string Crc)> BuildExpectedInOrder(BruteForceOptions options)
+    {
+        var result = new List<(string, string)>();
+        foreach (string volume in options.RAROptions.OriginalRarFileNames)
+        {
+            string name = Path.GetFileName(volume);
+            if (options.ExpectedVolumeCrcs.TryGetValue(name, out string? crc))
+            {
+                result.Add((name, crc));
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Runs the brute-force RAR reconstruction, testing version and argument combinations until a hash match is found.
     /// </summary>
     /// <param name="options">
@@ -131,9 +158,11 @@ public partial class Manager : IDisposable
     /// running RAR processes.
     /// </param>
     /// <returns>
-    /// <see langword="true"/> if a matching RAR archive was found.
+    /// A <see cref="BruteForceRunResult"/> whose <see cref="BruteForceRunResult.Success"/> is
+    /// <see langword="true"/> when a matching RAR archive was found, carrying the winning
+    /// version + argument combination (if any) for seeding subsequent archive sets.
     /// </returns>
-    public async Task<bool> BruteForceRARVersionAsync(BruteForceOptions options, CancellationToken cancellationToken = default)
+    public async Task<BruteForceRunResult> BruteForceRARVersionAsync(BruteForceOptions options, CancellationToken cancellationToken = default)
     {
         // Link the internal cancellation source to the caller's token so the UI's Cancel
         // (which cancels that token) actually reaches the running RAR processes, not just
@@ -177,7 +206,7 @@ public partial class Manager : IDisposable
             OperationCompletionStatus completionStatus = result ? OperationCompletionStatus.Success : OperationCompletionStatus.Error;
             status = new BruteForceStatusChangedEventArgs(OperationStatus.Running, OperationStatus.Completed, completionStatus);
             FireBruteForceStatusChanged(status);
-            return result;
+            return new BruteForceRunResult(result, null);
         }
 
         string[] rarVersionDirectories = Directory.GetDirectories(options.RARInstallationsDirectoryPath);
@@ -186,7 +215,7 @@ public partial class Manager : IDisposable
         if (rarVersionDirectories.Length == 0)
         {
             _logger.Warning(this, "No RAR executables found in WinRAR directory or sub directories");
-            return false;
+            return new BruteForceRunResult(false, null);
         }
 
         // Get all valid RAR directories first
@@ -202,7 +231,7 @@ public partial class Manager : IDisposable
         // Validate input files before any brute-forcing
         if (options.RAROptions.HasArchiveFileList && !inputDirectoryPreparer.ValidateInputFiles(options))
         {
-            return false;
+            return new BruteForceRunResult(false, null);
         }
 
         // === PHASE 1: Comment Block Brute-Force ===
@@ -239,6 +268,7 @@ public partial class Manager : IDisposable
         HashSet<string> fileHashes = [];
 
         bool found = false;
+        WinningCombo? winningCombo = null;
         bool stopOnFirstMatch = options.RAROptions.StopOnFirstMatch;
         for (int a = 0; a < (options.RAROptions.SetFileArchiveAttribute == TriState.Checked ? 2 : 1) && !(found && stopOnFirstMatch); a++)
         {
@@ -280,11 +310,12 @@ public partial class Manager : IDisposable
                         break;
                     }
 
-                    (bool foundCombination, int newProgress) = await TryProcessCommandLinesAsync(options, version, rarVersionDirectoryPath, inputFilesDir, totalProgressSize, currentProgress, bruteForceStartDateTime, fileHashes, a, b).ConfigureAwait(false);
+                    (bool foundCombination, int newProgress, WinningCombo? combo) = await TryProcessCommandLinesAsync(options, version, rarVersionDirectoryPath, inputFilesDir, totalProgressSize, currentProgress, bruteForceStartDateTime, fileHashes, a, b).ConfigureAwait(false);
                     currentProgress = newProgress;
                     if (foundCombination)
                     {
                         found = true;
+                        winningCombo = combo;
                         if (stopOnFirstMatch)
                         {
                             _logger.Information(this, "Match found - stopping brute force (StopOnFirstMatch is enabled)", LogTarget.Phase2);
@@ -327,7 +358,7 @@ public partial class Manager : IDisposable
 
         status = new(OperationStatus.Running, OperationStatus.Completed, _cts.IsCancellationRequested ? OperationCompletionStatus.Cancelled : OperationCompletionStatus.Success);
         FireBruteForceStatusChanged(status);
-        return found;
+        return new BruteForceRunResult(found, winningCombo);
     }
 
     /// <summary>
@@ -509,7 +540,7 @@ public partial class Manager : IDisposable
     }
 
 
-    private async Task<(bool Found, int NewProgress)> TryProcessCommandLinesAsync(
+    private async Task<(bool Found, int NewProgress, WinningCombo? Combo)> TryProcessCommandLinesAsync(
         BruteForceOptions options,
         int version,
         string rarVersionDirectoryPath,
@@ -544,7 +575,7 @@ public partial class Manager : IDisposable
             RARCommandLineArgument[] commandLineArguments = options.RAROptions.CommandLineArguments[j];
             if (_cts.IsCancellationRequested)
             {
-                return (false, currentProgress);
+                return (false, currentProgress, null);
             }
 
             RARArchiveVersion archiveVersion = ParseRARArchiveVersion(commandLineArguments, version);
@@ -690,14 +721,57 @@ public partial class Manager : IDisposable
                     continue;
                 }
 
-                // ---- MATCH FOUND ----
+                // ---- MATCH FOUND (first volume) ----
 
                 // If RAR is still running (CompleteAllVolumes), let it finish creating all volumes
+                // before we verify the whole set — full verification must never run against an
+                // in-progress volume set.
                 if (runningProcessTask != null && !runningProcessTask.IsCompleted)
                 {
-                    _logger.Information(this, "Match found, completing all volumes...", LogTarget.System);
+                    _logger.Information(this, "First volume matched, completing all volumes...", LogTarget.System);
                     await runningProcessTask.ConfigureAwait(false);
                 }
+
+                // Full per-volume verification (recreate-whole-release mode with known CRCs).
+                // Only engages when CompleteAllVolumes is set AND we have expected CRCs; otherwise
+                // we fall through to the legacy first-volume success path (back-compat).
+                IReadOnlyList<(string Name, string Crc)> expectedInOrder = BuildExpectedInOrder(options);
+                if (options.RAROptions.CompleteAllVolumes && expectedInOrder.Count > 0)
+                {
+                    string? completed = MatchedRarWriter.FindCreatedRARFile(rarFilePath);
+                    List<string> producedVolumes = completed != null ? MatchedRarWriter.GetAllVolumeFiles(completed) : [];
+
+                    // Re-patch all volumes before hashing if patching is needed (CRCs are of the
+                    // final bytes). PatchRARFilesHostOS is idempotent (compares before writing), so
+                    // re-running over the already-patched first volume is safe.
+                    if (completed != null && options.RAROptions.NeedsPatching)
+                    {
+                        PatchRARFilesHostOS(completed, options.RAROptions);
+                    }
+
+                    var producedCrcs = producedVolumes
+                        .Select(v => HashCalculator.Calculate(options.HashType, v))
+                        .ToList();
+
+                    VolumeMatchResult verify = VolumeMatchEvaluator.Evaluate(producedCrcs, expectedInOrder);
+                    if (!verify.AllMatch)
+                    {
+                        VolumeMatch? m = verify.FirstMismatch;
+                        string detail = verify.CountMismatch
+                            ? $"produced {producedCrcs.Count} volume(s), expected {expectedInOrder.Count}"
+                            : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
+                        _logger.Information(this, $"{rarVersionDirectoryName} / {displayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
+
+                        if (options.RAROptions.DeleteRARFiles && completed != null)
+                        {
+                            DeleteRARFileAndVolumes(completed);
+                        }
+
+                        continue; // near-miss: keep brute-forcing
+                    }
+                }
+
+                // ---- FULL MATCH ----
 
                 // Log match to System tab for visibility
                 LogMatchDetails(options, rarVersionDirectoryName, displayArguments, hash, actualRarFilePath);
@@ -705,7 +779,7 @@ public partial class Manager : IDisposable
                 // Rename the matched file(s) to their final name inside the "output" subdirectory
                 RenameMatchedOutput(options, rarFilePath, actualRarFilePath, rarOutputDir);
 
-                return (true, currentProgress);
+                return (true, currentProgress, new WinningCombo(version, commandLineArguments));
             }
             finally
             {
@@ -713,7 +787,7 @@ public partial class Manager : IDisposable
             }
         }
 
-        return (false, currentProgress);
+        return (false, currentProgress, null);
     }
 
     /// <summary>
@@ -814,7 +888,6 @@ public partial class Manager : IDisposable
         string patchedBaseName = options.RAROptions.NeedsPatching ? baseName + "-patched" : baseName;
         IReadOnlyList<string> originalNames = options.RAROptions.OriginalRarFileNames;
         bool useOriginalNames = options.RAROptions.RenameToOriginalNames &&
-                                options.RAROptions.StopOnFirstMatch &&
                                 originalNames.Count > 0;
 
         if (options.RAROptions.CompleteAllVolumes)
@@ -838,6 +911,7 @@ public partial class Manager : IDisposable
                         ? Path.GetFileName(originalNames[i])
                         : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
                     string outputPath = Path.Combine(rarOutputDir, outputFileName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
                     if (MatchedRarWriter.MoveMatchedFile(allVolumes[i], outputPath))
                     {
                         _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
@@ -858,6 +932,7 @@ public partial class Manager : IDisposable
                 ? Path.GetFileName(originalNames[0])
                 : Path.GetFileName(actualRarFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
             string outputPath = Path.Combine(rarOutputDir, outputFileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
             if (!MatchedRarWriter.MoveMatchedFile(actualRarFilePath, outputPath))
             {
                 _logger.Warning(this, $"Matched archive NOT written (a different file already occupies '{outputFileName}'); left at '{actualRarFilePath}'", LogTarget.System);

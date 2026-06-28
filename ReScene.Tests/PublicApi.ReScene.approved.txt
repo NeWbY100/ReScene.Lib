@@ -227,9 +227,10 @@ class ReScene.Core.Manager
     event EventHandler<CRCValidationProgressEventArgs> CRCValidationProgress
     event EventHandler<FileCopyProgressEventArgs> FileCopyProgress
     event EventHandler<TimestampPreservationFailedEventArgs> TimestampPreservationFailed
+    method IReadOnlyList<ValueTuple<String, String>> BuildExpectedInOrder(BruteForceOptions)
     method Int32 ParseRARVersion(String)
     method RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[], Int32)
-    method Task<Boolean> BruteForceRARVersionAsync(BruteForceOptions, CancellationToken)
+    method Task<BruteForceRunResult> BruteForceRARVersionAsync(BruteForceOptions, CancellationToken)
     method Void Dispose()
     method Void Stop()
     property BruteForceOptions BruteForceOptions { get; }
