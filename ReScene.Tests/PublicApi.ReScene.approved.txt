@@ -279,6 +279,37 @@ class ReScene.Core.VersionRange
     method Boolean InRange(Int32)
     property Int32 End { get; set; }
     property Int32 Start { get; set; }
+class sealed ReScene.Core.VolumeMatch
+    ctor (Int32, String, String, String, Boolean)
+    method Boolean Equals(Object)
+    method Boolean Equals(VolumeMatch)
+    method Boolean op_Equality(VolumeMatch, VolumeMatch)
+    method Boolean op_Inequality(VolumeMatch, VolumeMatch)
+    method Int32 GetHashCode()
+    method String ToString()
+    method Void Deconstruct(Int32&, String&, String&, String&, Boolean&)
+    method VolumeMatch <Clone>$()
+    property Boolean Match { get; set; }
+    property Int32 Index { get; set; }
+    property String ActualCrc { get; set; }
+    property String ExpectedCrc { get; set; }
+    property String ExpectedName { get; set; }
+class static ReScene.Core.VolumeMatchEvaluator
+    method VolumeMatchResult Evaluate(IReadOnlyList<String>, IReadOnlyList<ValueTuple<String, String>>)
+class sealed ReScene.Core.VolumeMatchResult
+    ctor (Boolean, IReadOnlyList<VolumeMatch>, VolumeMatch, Boolean)
+    method Boolean Equals(Object)
+    method Boolean Equals(VolumeMatchResult)
+    method Boolean op_Equality(VolumeMatchResult, VolumeMatchResult)
+    method Boolean op_Inequality(VolumeMatchResult, VolumeMatchResult)
+    method Int32 GetHashCode()
+    method String ToString()
+    method Void Deconstruct(Boolean&, IReadOnlyList<VolumeMatch>&, VolumeMatch&, Boolean&)
+    method VolumeMatchResult <Clone>$()
+    property Boolean AllMatch { get; set; }
+    property Boolean CountMismatch { get; set; }
+    property IReadOnlyList<VolumeMatch> Volumes { get; set; }
+    property VolumeMatch FirstMismatch { get; set; }
 struct ReScene.Hex.HexMatchRange
     ctor (Int64, Int32)
     method Boolean Equals(HexMatchRange)
