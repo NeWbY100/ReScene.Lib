@@ -94,6 +94,15 @@ public partial class Manager : IDisposable
     private readonly ProcessLogManager _processLogManager;
 
     /// <summary>
+    /// Tries to parse the RAR version number from a directory name (e.g., "winrar-560" → 560).
+    /// </summary>
+    /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
+    /// <param name="version">When this method returns <see langword="true"/>, the normalised version number; otherwise 0.</param>
+    /// <returns><see langword="true"/> if the version was successfully parsed; otherwise <see langword="false"/>.</returns>
+    public static bool TryParseRARVersion(string rarVersionDirectoryName, out int version)
+        => RarVersionSelector.TryParseRARVersion(rarVersionDirectoryName, out version);
+
+    /// <summary>
     /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
     /// </summary>
     /// <param name="rarVersionDirectoryName">
@@ -102,6 +111,7 @@ public partial class Manager : IDisposable
     /// <returns>
     /// The parsed version number, normalized to three digits.
     /// </returns>
+    /// <exception cref="FormatException">Thrown when the version cannot be parsed from <paramref name="rarVersionDirectoryName"/>.</exception>
     public static int ParseRARVersion(string rarVersionDirectoryName)
         => RarVersionSelector.ParseRARVersion(rarVersionDirectoryName);
 

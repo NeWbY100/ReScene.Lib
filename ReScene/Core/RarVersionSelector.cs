@@ -17,6 +17,25 @@ internal static partial class RarVersionSelector
     private static readonly Regex _rarVersionRegex = Generated_rarVersionRegex();
 
     /// <summary>
+    /// Tries to parse the RAR version number from a directory name (e.g., "winrar-560" → 560).
+    /// </summary>
+    /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
+    /// <param name="version">When this method returns <see langword="true"/>, the normalised version number; otherwise 0.</param>
+    /// <returns><see langword="true"/> if the version was successfully parsed; otherwise <see langword="false"/>.</returns>
+    public static bool TryParseRARVersion(string rarVersionDirectoryName, out int version)
+    {
+        version = 0;
+        Match versionMatch = _rarVersionRegex.Match(rarVersionDirectoryName);
+        if (!versionMatch.Success || !int.TryParse(versionMatch.Groups[1].Value, out int versionNumber))
+        {
+            return false;
+        }
+
+        version = versionNumber < 100 ? versionNumber * 10 : versionNumber;
+        return true;
+    }
+
+    /// <summary>
     /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
     /// </summary>
     /// <param name="rarVersionDirectoryName">
@@ -25,25 +44,16 @@ internal static partial class RarVersionSelector
     /// <returns>
     /// The parsed version number, normalized to three digits.
     /// </returns>
+    /// <exception cref="FormatException">Thrown when the version cannot be parsed from <paramref name="rarVersionDirectoryName"/>.</exception>
     public static int ParseRARVersion(string rarVersionDirectoryName)
     {
-        Match versionMatch = _rarVersionRegex.Match(rarVersionDirectoryName);
-        if (!versionMatch.Success)
+        if (!TryParseRARVersion(rarVersionDirectoryName, out int version))
         {
-            throw new FormatException($"WinRAR version not found in directory name:{Environment.NewLine}{rarVersionDirectoryName}");
+            throw new FormatException(
+                $"WinRAR version not found in directory name:{Environment.NewLine}{rarVersionDirectoryName}");
         }
 
-        string versionNumberStr = versionMatch.Groups[1].Value;
-        if (!int.TryParse(versionNumberStr, out int versionNumber))
-        {
-            throw new InvalidDataException($"WinRAR version found in directory name is invalid:{Environment.NewLine}{versionNumberStr}");
-        }
-
-        return versionNumber switch
-        {
-            < 100 => versionNumber * 10,
-            _ => versionNumber
-        };
+        return version;
     }
 
     /// <summary>
@@ -124,7 +134,11 @@ internal static partial class RarVersionSelector
             }
 
             string dirName = Path.GetFileName(dir);
-            int version = ParseRARVersion(dirName);
+            if (!TryParseRARVersion(dirName, out int version))
+            {
+                logger.Information(logSource, $"Unrecognised WinRAR version folder name: {dir}");
+                continue;
+            }
 
             if (options.RAROptions.RARVersions.Any(r => r.InRange(version)))
             {
