@@ -23,8 +23,22 @@ internal static partial class RarVersionSelector
     /// <param name="version">When this method returns <see langword="true"/>, the normalised version number; otherwise 0.</param>
     /// <returns><see langword="true"/> if the version was successfully parsed; otherwise <see langword="false"/>.</returns>
     public static bool TryParseRARVersion(string rarVersionDirectoryName, out int version)
+        => TryParseRARVersion(rarVersionDirectoryName, out version, out _);
+
+    /// <summary>
+    /// Tries to parse the RAR version number from a directory name, also returning the variant tag —
+    /// the remainder of the name after the version digits, trimmed of leading separators (e.g.,
+    /// "winrar-250-beta1" → 250 + "beta1"; "winrar-250" → 250 + ""). Distinguishes folders that
+    /// parse to the same version (betas, locale builds, …).
+    /// </summary>
+    /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
+    /// <param name="version">When this method returns <see langword="true"/>, the normalised version number; otherwise 0.</param>
+    /// <param name="variantTag">When this method returns <see langword="true"/>, the variant tag (empty when none); otherwise empty.</param>
+    /// <returns><see langword="true"/> if the version was successfully parsed; otherwise <see langword="false"/>.</returns>
+    public static bool TryParseRARVersion(string rarVersionDirectoryName, out int version, out string variantTag)
     {
         version = 0;
+        variantTag = string.Empty;
         Match versionMatch = _rarVersionRegex.Match(rarVersionDirectoryName);
         if (!versionMatch.Success || !int.TryParse(versionMatch.Groups[1].Value, out int versionNumber))
         {
@@ -32,6 +46,12 @@ internal static partial class RarVersionSelector
         }
 
         version = versionNumber < 100 ? versionNumber * 10 : versionNumber;
+
+        // The tag is everything after the version capture (not the whole match — the regex may also
+        // consume a "b<digits>" beta suffix, which we want to keep in the tag).
+        Group versionGroup = versionMatch.Groups[1];
+        variantTag = rarVersionDirectoryName[(versionGroup.Index + versionGroup.Length)..]
+            .TrimStart('-', '_', '.', ' ');
         return true;
     }
 

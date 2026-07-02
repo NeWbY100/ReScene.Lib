@@ -103,6 +103,18 @@ public partial class Manager : IDisposable
         => RarVersionSelector.TryParseRARVersion(rarVersionDirectoryName, out version);
 
     /// <summary>
+    /// Tries to parse the RAR version number from a directory name, also returning the variant tag —
+    /// the remainder of the name after the version digits, trimmed of leading separators (e.g.,
+    /// "winrar-250-beta1" → 250 + "beta1"). Distinguishes folders that parse to the same version.
+    /// </summary>
+    /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
+    /// <param name="version">When this method returns <see langword="true"/>, the normalised version number; otherwise 0.</param>
+    /// <param name="variantTag">When this method returns <see langword="true"/>, the variant tag (empty when none); otherwise empty.</param>
+    /// <returns><see langword="true"/> if the version was successfully parsed; otherwise <see langword="false"/>.</returns>
+    public static bool TryParseRARVersion(string rarVersionDirectoryName, out int version, out string variantTag)
+        => RarVersionSelector.TryParseRARVersion(rarVersionDirectoryName, out version, out variantTag);
+
+    /// <summary>
     /// Parses the RAR version number from a directory name (e.g., "winrar-560" returns 560).
     /// </summary>
     /// <param name="rarVersionDirectoryName">

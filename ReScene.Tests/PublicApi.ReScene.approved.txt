@@ -228,6 +228,7 @@ class ReScene.Core.Manager
     event EventHandler<FileCopyProgressEventArgs> FileCopyProgress
     event EventHandler<TimestampPreservationFailedEventArgs> TimestampPreservationFailed
     method Boolean TryParseRARVersion(String, Int32&)
+    method Boolean TryParseRARVersion(String, Int32&, String&)
     method IReadOnlyList<ValueTuple<String, String>> BuildExpectedInOrder(BruteForceOptions)
     method Int32 ParseRARVersion(String)
     method RARArchiveVersion ParseRARArchiveVersion(RARCommandLineArgument[], Int32)

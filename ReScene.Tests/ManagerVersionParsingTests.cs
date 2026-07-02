@@ -29,6 +29,32 @@ public sealed class ManagerVersionParsingTests
         Assert.Equal(0, version);
     }
 
+    [Theory]
+    [InlineData("winrar-250", 250, "")]
+    [InlineData("winrar-250-beta1", 250, "beta1")]
+    [InlineData("winrar-250b2", 250, "b2")]
+    [InlineData("winrar-x64-250-beta1", 250, "beta1")]  // digits in "-x64-" must not be the version
+    [InlineData("wrar-380-de", 380, "de")]
+    [InlineData("winrar-56-beta", 560, "beta")]         // < 100 normalisation keeps the tag
+    public void TryParseRARVersion_WithTag_ReturnsVersionAndVariantTag(string name, int expectedVersion, string expectedTag)
+    {
+        bool ok = Manager.TryParseRARVersion(name, out int version, out string variantTag);
+
+        Assert.True(ok);
+        Assert.Equal(expectedVersion, version);
+        Assert.Equal(expectedTag, variantTag);
+    }
+
+    [Fact]
+    public void TryParseRARVersion_WithTag_Unparseable_ReturnsFalseAndEmptyTag()
+    {
+        bool ok = Manager.TryParseRARVersion("winrar-beta", out int version, out string variantTag);
+
+        Assert.False(ok);
+        Assert.Equal(0, version);
+        Assert.Equal(string.Empty, variantTag);
+    }
+
     [Fact]
     public void ParseRARVersion_Unparseable_Throws()
     {
