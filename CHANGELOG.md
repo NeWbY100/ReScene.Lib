@@ -2,6 +2,24 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [1.8.0] — 2026-07-02
+
+### Added
+
+- `Manager.TryParseRARVersion(name, out version)` — public, non-throwing WinRAR version-folder
+  parse (e.g. `winrar-560` → `560`, names `< 100` normalised `×10`). `ParseRARVersion` now
+  delegates to it, so the two cannot diverge.
+- `Manager.TryParseRARVersion(name, out version, out variantTag)` — also returns the **variant
+  tag**: the remainder of the folder name after the version digits, trimmed of leading separators
+  (`winrar-250-beta1` → `250` + `"beta1"`, `wrar25b2` → `250` + `"b2"`). Lets callers distinguish
+  folders that parse to the same version (betas, locale builds).
+
+### Fixed
+
+- A WinRAR version folder containing `rar.exe` but with no parseable version in its name (e.g.
+  `winrar-beta/`) made the brute-force throw `FormatException` and abort the whole run. Such
+  folders are now skipped with a log line.
+
 ## [1.7.1] — 2026-06-29
 
 ### Added
