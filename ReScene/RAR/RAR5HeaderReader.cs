@@ -120,27 +120,27 @@ public class RAR5ArchiveInfo
     /// <summary>
     /// True if this is a multi-volume archive.
     /// </summary>
-    public bool IsVolume => (ArchiveFlags & 0x0001) != 0;
+    public bool IsVolume => ((RAR5ArchiveFlags)ArchiveFlags).HasFlag(RAR5ArchiveFlags.Volume);
 
     /// <summary>
     /// True if volume number field is present.
     /// </summary>
-    public bool HasVolumeNumber => (ArchiveFlags & 0x0002) != 0;
+    public bool HasVolumeNumber => ((RAR5ArchiveFlags)ArchiveFlags).HasFlag(RAR5ArchiveFlags.VolumeNumber);
 
     /// <summary>
     /// True if this is a solid archive.
     /// </summary>
-    public bool IsSolid => (ArchiveFlags & 0x0004) != 0;
+    public bool IsSolid => ((RAR5ArchiveFlags)ArchiveFlags).HasFlag(RAR5ArchiveFlags.Solid);
 
     /// <summary>
     /// True if archive has recovery record.
     /// </summary>
-    public bool HasRecoveryRecord => (ArchiveFlags & 0x0008) != 0;
+    public bool HasRecoveryRecord => ((RAR5ArchiveFlags)ArchiveFlags).HasFlag(RAR5ArchiveFlags.RecoveryRecord);
 
     /// <summary>
     /// True if archive headers are locked.
     /// </summary>
-    public bool IsLocked => (ArchiveFlags & 0x0010) != 0;
+    public bool IsLocked => ((RAR5ArchiveFlags)ArchiveFlags).HasFlag(RAR5ArchiveFlags.Locked);
 }
 
 /// <summary>
@@ -222,17 +222,17 @@ public class RAR5FileInfo
     /// <summary>
     /// Compression method (0-5).
     /// </summary>
-    public int CompressionMethod => (int)((CompressionInfo >> 7) & 0x07);
+    public int CompressionMethod => (int)((CompressionInfo >> Rar5Format.CompInfoMethodShift) & Rar5Format.CompInfoMethodMask);
 
     /// <summary>
     /// Dictionary size as power of 2 (bits 10-13 of CompInfo for RAR5).
     /// </summary>
-    public int DictSizePower => (int)((CompressionInfo >> 10) & 0x0F);
+    public int DictSizePower => (int)((CompressionInfo >> Rar5Format.CompInfoDictShift) & Rar5Format.CompInfoDictMask);
 
     /// <summary>
     /// Dictionary size in KB (base 128KB shifted by DictSizePower).
     /// </summary>
-    public int DictionarySizeKB => 128 << DictSizePower;
+    public int DictionarySizeKB => Rar5Format.CompInfoDictBaseKB << DictSizePower;
 
     /// <summary>
     /// True if file continues from previous volume.
@@ -519,15 +519,15 @@ internal class RAR5HeaderReader(Stream stream)
         while (true)
         {
             byte b = _reader.ReadByte();
-            result |= (ulong)(b & 0x7F) << shift;
+            result |= (ulong)(b & Rar5Format.VIntDataMask) << shift;
 
-            if ((b & 0x80) == 0)
+            if ((b & Rar5Format.VIntContinuationBit) == 0)
             {
                 break;
             }
 
-            shift += 7;
-            if (shift > 63)
+            shift += Rar5Format.VIntShiftStep;
+            if (shift > Rar5Format.VIntMaxShift)
             {
                 throw new InvalidDataException("VInt too large");
             }
@@ -703,9 +703,9 @@ internal class RAR5HeaderReader(Stream stream)
         {
             FileFlags = fields.FileFlags,
             UnpackedSize = fields.UnpackedSize,
-            CompressionVersion = (int)(fields.CompressionInfo & 0x3F),
-            CompressionMethod = (int)((fields.CompressionInfo >> 7) & 0x07),
-            DictSize = (int)((fields.CompressionInfo >> 10) & 0x0F),
+            CompressionVersion = (int)(fields.CompressionInfo & Rar5Format.CompInfoVersionMask),
+            CompressionMethod = (int)((fields.CompressionInfo >> Rar5Format.CompInfoMethodShift) & Rar5Format.CompInfoMethodMask),
+            DictSize = (int)((fields.CompressionInfo >> Rar5Format.CompInfoDictShift) & Rar5Format.CompInfoDictMask),
             SubType = fields.Name
         };
         info.IsStored = info.CompressionMethod == 0;

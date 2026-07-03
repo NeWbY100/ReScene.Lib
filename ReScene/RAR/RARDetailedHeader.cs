@@ -1273,10 +1273,10 @@ public static class RARDetailedParser
             {
                 ulong compInfo = cursor.EmitVInt("Compression Info", out RARHeaderField compInfoField);
 
-                int version = (int)(compInfo & 0x3F);
-                bool solid = (compInfo & 0x40) != 0;
-                int method = (int)((compInfo >> 7) & 0x7);
-                int dictSizeLog = (int)((compInfo >> 10) & 0xF);
+                int version = (int)(compInfo & Rar5Format.CompInfoVersionMask);
+                bool solid = (compInfo & Rar5Format.CompInfoSolidBit) != 0;
+                int method = (int)((compInfo >> Rar5Format.CompInfoMethodShift) & Rar5Format.CompInfoMethodMask);
+                int dictSizeLog = (int)((compInfo >> Rar5Format.CompInfoDictShift) & Rar5Format.CompInfoDictMask);
 
                 compInfoField.Value = FormatHex(compInfo, compInfoField.Length);
 
