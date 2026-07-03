@@ -421,7 +421,7 @@ internal static class RARPatcher
     public static void PatchStream(Stream stream, PatchOptions options, List<PatchResult> results)
     {
         // Skip RAR signature (7 bytes for RAR 4.x)
-        stream.Position = 7;
+        stream.Position = RARUtils.Rar4Marker.Length;
 
         // Track End of Archive block for Archive Data CRC patching
         long endArchivePosition = -1;
@@ -612,7 +612,7 @@ internal static class RARPatcher
         using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
         // Skip RAR signature (7 bytes for RAR 4.x)
-        stream.Position = 7;
+        stream.Position = RARUtils.Rar4Marker.Length;
 
         while (stream.Position + Rar4HeaderLayout.BaseHeaderSize <= stream.Length)
         {
@@ -784,14 +784,14 @@ internal static class RARPatcher
         bool modified = false;
 
         // Copy RAR signature (7 bytes)
-        if (bytesRead < 7)
+        if (bytesRead < RARUtils.Rar4Marker.Length)
         {
             return false;
         }
 
-        output.Write(original, 0, 7);
+        output.Write(original, 0, RARUtils.Rar4Marker.Length);
 
-        int pos = 7;
+        int pos = RARUtils.Rar4Marker.Length;
 
         while (pos + Rar4HeaderLayout.BaseHeaderSize <= bytesRead)
         {
@@ -982,7 +982,7 @@ internal static class RARPatcher
         }
 
         // Update Archive Data CRC at offset 7 (immediately after the 7-byte base header)
-        BitConverter.GetBytes(archiveDataCRC).CopyTo(endHeader, 7);
+        BitConverter.GetBytes(archiveDataCRC).CopyTo(endHeader, Rar4HeaderLayout.AddSize);
 
         // Recalculate the End of Archive header's own CRC
         ushort newHeaderCRC = RARUtils.CalculateHeaderCRC(endHeader);

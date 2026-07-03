@@ -404,7 +404,7 @@ internal sealed class RARArchive : IDisposable
 
     private static void WalkRar5(FileStream fs, List<RAREntry> entries, HashSet<string> seen, ref bool isSolid)
     {
-        fs.Position = 8;
+        fs.Position = RARUtils.Rar5Marker.Length;
         var reader = new RAR5HeaderReader(fs);
 
         while (reader.CanReadBaseHeader)

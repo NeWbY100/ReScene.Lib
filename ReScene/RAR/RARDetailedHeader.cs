@@ -695,7 +695,7 @@ public static class RARDetailedParser
 
             // DICT_SIZE is not a simple bit: it is the 3-bit dictionary-size field
             // (bits 5-7) and is emitted between the low and high flags.
-            int dictBits = (flags >> 5) & 0x7;
+            int dictBits = (flags >> RARFlagMasks.DictionarySizeShift) & 0x7;
             string dictSize = dictBits switch
             {
                 0 => "64 KB",
@@ -2165,8 +2165,8 @@ public static class RARDetailedParser
                 break;
             }
 
-            shift += 7;
-            if (shift > 63)
+            shift += Rar5Format.VIntShiftStep;
+            if (shift > Rar5Format.VIntMaxShift)
             {
                 break;
             }

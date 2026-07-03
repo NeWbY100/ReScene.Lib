@@ -1,3 +1,5 @@
+using ReScene.RAR.Decompression;
+
 namespace ReScene.RAR;
 
 /// <summary>
@@ -69,7 +71,7 @@ internal class RARServiceBlockInfo
     /// <summary>
     /// True if comment is stored (uncompressed), false if compressed.
     /// </summary>
-    public bool IsStored => CompressionMethod == 0x30;
+    public bool IsStored => CompressionMethod == (byte)RARMethod.Store;
 
     /// <summary>
     /// Host operating system (0=MS-DOS, 1=OS/2, 2=Windows, 3=Unix, etc.).
