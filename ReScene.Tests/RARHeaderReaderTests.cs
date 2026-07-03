@@ -597,6 +597,24 @@ public class RARHeaderReaderTests
         Assert.Equal("largefile.rar", block!.FileHeader!.FileName);
     }
 
+    [Fact]
+    public void ReadBlock_LargeFileHeader_DataSizeFoldsInHighPackSize()
+    {
+        // DataSize is what the RAR4 volume walkers (RARStream/RARArchive) use to skip past packed
+        // data. It must reflect the full 64-bit PackedSize, not just the low 32-bit AddSize, or a
+        // >= 4 GiB packed entry is under-skipped by whole multiples of 4 GiB.
+        using MemoryStream stream = BuildStreamWithBlocks(
+            BuildLargeFileHeader("bigfile.bin", packSizeLow: 0x00000100, packSizeHigh: 0x00000002,
+                unpSizeLow: 100, unpSizeHigh: 0));
+        var reader = new RARHeaderReader(stream);
+
+        RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+
+        Assert.NotNull(block);
+        Assert.Equal(0x00000100u, block!.AddSize);            // low 32 bits only
+        Assert.Equal(0x0000000200000100L, block.DataSize);    // full 64-bit packed size
+    }
+
     #endregion
 
     #region SkipBlock File Header Tests

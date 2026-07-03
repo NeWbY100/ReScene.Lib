@@ -98,6 +98,38 @@ public class RARStreamTests
     }
 
     /// <summary>
+    /// Builds a RAR4 file header with the LARGE flag set (HIGH_PACK_SIZE/HIGH_UNP_SIZE present),
+    /// so PACK_SIZE = (packSizeHigh &lt;&lt; 32) | packSizeLow. No packed data is written by this helper.
+    /// </summary>
+    private static byte[] BuildLargeFileHeader(string fileName, uint packSizeLow, uint packSizeHigh)
+    {
+        byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
+        ushort nameSize = (ushort)nameBytes.Length;
+        RARFileFlags flags = RARFileFlags.LongBlock | RARFileFlags.Large;
+
+        ushort headerSize = (ushort)(7 + 25 + 8 + nameSize); // base + fields + HIGH_PACK/HIGH_UNP + name
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74;
+        BitConverter.GetBytes((ushort)flags).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(packSizeLow).CopyTo(header, 7);
+        BitConverter.GetBytes(1024u).CopyTo(header, 11); // UNP_SIZE low
+        header[15] = 2; // Windows
+        BitConverter.GetBytes(0x5A8E3100u).CopyTo(header, 20);
+        header[24] = 29;
+        header[25] = 0x30; // store
+        BitConverter.GetBytes(nameSize).CopyTo(header, 26);
+        BitConverter.GetBytes(0x00000020u).CopyTo(header, 28);
+        BitConverter.GetBytes(packSizeHigh).CopyTo(header, 32); // HIGH_PACK_SIZE
+        BitConverter.GetBytes(0u).CopyTo(header, 36);           // HIGH_UNP_SIZE
+        nameBytes.CopyTo(header, 40);
+
+        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    /// <summary>
     /// Builds a complete synthetic RAR4 archive file (marker + archive header + file header + data + end).
     /// Returns the path to the temporary file.
     /// </summary>
@@ -1351,6 +1383,46 @@ public class RARStreamTests
 
         Assert.Equal(expected.Length, bytesRead);
         Assert.Equal(expected, actual);
+    }
+
+    #endregion
+
+    #region Large Entry Skipping (HIGH_PACK_SIZE)
+
+    [Fact]
+    public void Constructor_LargeEntry_UsesFull64BitPackedSizeForVolumeAndSkip()
+    {
+        // Archive: [LARGE "big.bin" (HIGH_PACK_SIZE=1, ADD_SIZE=0 => exactly 4 GiB of packed data),
+        //           "second.bin" normal (no data), end]. No 4 GiB of data is actually on disk.
+        string dir = CreateTestDir();
+        try
+        {
+            string path = Path.Combine(dir, "large.rar");
+            using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
+            {
+                fs.Write(Rar4Marker);
+                fs.Write(BuildArchiveHeader());
+                fs.Write(BuildLargeFileHeader("big.bin", packSizeLow: 0, packSizeHigh: 1));
+                fs.Write(BuildFileHeader("second.bin", 0, 0, method: 0x30, extraFlags: RARFileFlags.None));
+                fs.Write(BuildEndArchive());
+            }
+
+            // The volume length reflects the full 64-bit PackedSize (4 GiB), not the 32-bit low part.
+            using (var big = new RARStream(path, "big.bin"))
+            {
+                Assert.Equal(0x1_0000_0000L, big.Length);
+            }
+
+            // The walker must skip the full 4 GiB of (claimed) packed data. With the correct
+            // 64-bit skip, "second.bin" sits 4 GiB downstream — past the end of this truncated
+            // archive — so it is not found. Before the fix, only the 32-bit ADD_SIZE (0) was
+            // skipped, so the walker misparsed "second.bin" out of the data region and found it.
+            Assert.Throws<ArgumentException>(() => new RARStream(path, "second.bin"));
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
     }
 
     #endregion

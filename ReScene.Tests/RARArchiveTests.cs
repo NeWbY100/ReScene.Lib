@@ -1,3 +1,5 @@
+using System.Text;
+using Force.Crc32;
 using ReScene.RAR;
 using ReScene.RAR.Decompression;
 
@@ -652,4 +654,107 @@ public class RARArchiveTests
         Assert.True(foundServiceInfo != null, $"CMT block not found. Blocks found:\n{debugInfo}");
         Assert.Equal("CMT", foundServiceInfo!.SubType);
     }
+
+    #region Large Entry Skipping (HIGH_PACK_SIZE)
+
+    private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+
+    private static byte[] BuildArchiveHeaderBytes()
+    {
+        ushort headerSize = 13;
+        byte[] header = new byte[headerSize];
+        header[2] = 0x73;
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes((ushort)(Crc32Algorithm.Compute(header, 2, header.Length - 2) & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    private static byte[] BuildFileHeaderBytes(string fileName, uint packedSize)
+    {
+        byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
+        ushort nameSize = (ushort)nameBytes.Length;
+        ushort headerSize = (ushort)(7 + 25 + nameSize);
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74;
+        BitConverter.GetBytes((ushort)RARFileFlags.LongBlock).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(packedSize).CopyTo(header, 7);
+        BitConverter.GetBytes(packedSize).CopyTo(header, 11);
+        header[15] = 2;
+        BitConverter.GetBytes(0x5A8E3100u).CopyTo(header, 20);
+        header[24] = 29;
+        header[25] = 0x30; // store
+        BitConverter.GetBytes(nameSize).CopyTo(header, 26);
+        BitConverter.GetBytes(0x00000020u).CopyTo(header, 28);
+        nameBytes.CopyTo(header, 32);
+        BitConverter.GetBytes((ushort)(Crc32Algorithm.Compute(header, 2, header.Length - 2) & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    private static byte[] BuildLargeFileHeaderBytes(string fileName, uint packSizeLow, uint packSizeHigh)
+    {
+        byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
+        ushort nameSize = (ushort)nameBytes.Length;
+        ushort headerSize = (ushort)(7 + 25 + 8 + nameSize);
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74;
+        BitConverter.GetBytes((ushort)(RARFileFlags.LongBlock | RARFileFlags.Large)).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(packSizeLow).CopyTo(header, 7);
+        BitConverter.GetBytes(1024u).CopyTo(header, 11);
+        header[15] = 2;
+        BitConverter.GetBytes(0x5A8E3100u).CopyTo(header, 20);
+        header[24] = 29;
+        header[25] = 0x30; // store
+        BitConverter.GetBytes(nameSize).CopyTo(header, 26);
+        BitConverter.GetBytes(0x00000020u).CopyTo(header, 28);
+        BitConverter.GetBytes(packSizeHigh).CopyTo(header, 32);
+        BitConverter.GetBytes(0u).CopyTo(header, 36);
+        nameBytes.CopyTo(header, 40);
+        BitConverter.GetBytes((ushort)(Crc32Algorithm.Compute(header, 2, header.Length - 2) & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    private static byte[] BuildEndArchiveBytes()
+    {
+        byte[] header = new byte[7];
+        header[2] = 0x7B;
+        BitConverter.GetBytes((ushort)7).CopyTo(header, 5);
+        BitConverter.GetBytes((ushort)(Crc32Algorithm.Compute(header, 2, header.Length - 2) & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    [Fact]
+    public void Open_LargeEntry_SkipsFull64BitSize_DoesNotMisparseTrailingHeader()
+    {
+        // Archive: [LARGE "big.bin" (HIGH_PACK_SIZE=1, ADD_SIZE=0 => 4 GiB packed data, none on
+        // disk), "after.txt" (no data), end]. The walker must advance by the full 64-bit packed
+        // size. Before the fix it advanced by only the 32-bit ADD_SIZE (0) and misparsed the
+        // trailing "after.txt" header out of what the archive says is packed data.
+        string dir = Path.Combine(Path.GetTempPath(), "RARArchiveLarge_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            string path = Path.Combine(dir, "large.rar");
+            using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
+            {
+                fs.Write(Rar4Marker);
+                fs.Write(BuildArchiveHeaderBytes());
+                fs.Write(BuildLargeFileHeaderBytes("big.bin", packSizeLow: 0, packSizeHigh: 1));
+                fs.Write(BuildFileHeaderBytes("after.txt", packedSize: 0));
+                fs.Write(BuildEndArchiveBytes());
+            }
+
+            using RARArchive archive = RARArchive.Open(path);
+
+            Assert.Contains(archive.Files, f => f.FileName == "big.bin");
+            Assert.DoesNotContain(archive.Files, f => f.FileName == "after.txt");
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    #endregion
 }

@@ -1094,7 +1094,9 @@ public class RARPatcherTests : TempDirTestBase
         uint dosFileTime,
         byte[]? extMtimeBytes = null,
         bool extMtimeNeedsRounding = false,
-        bool hasLarge = false)
+        bool hasLarge = false,
+        byte[]? rawNameBytes = null,
+        bool hasUnicode = false)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
@@ -1109,7 +1111,9 @@ public class RARPatcherTests : TempDirTestBase
         BitConverter.GetBytes((ushort)(archCRC & 0xFFFF)).CopyTo(archiveHeader, 0);
         writer.Write(archiveHeader);
 
-        byte[] nameBytes = System.Text.Encoding.ASCII.GetBytes(fileName);
+        // rawNameBytes lets a caller model an LHD_UNICODE NAME (stdName + 0x00 + encoded data),
+        // which is not representable as a plain ASCII string.
+        byte[] nameBytes = rawNameBytes ?? System.Text.Encoding.ASCII.GetBytes(fileName);
         bool hasExtTime = extMtimeBytes is not null;
         int extTimeRegion = 0;
         if (hasExtTime)
@@ -1122,7 +1126,8 @@ public class RARPatcherTests : TempDirTestBase
         int headerSize = nameOffset + nameBytes.Length + extTimeRegion;
         ushort flags = (ushort)(RARFileFlags.LongBlock
             | (hasExtTime ? RARFileFlags.ExtTime : 0)
-            | (hasLarge ? RARFileFlags.Large : 0));
+            | (hasLarge ? RARFileFlags.Large : 0)
+            | (hasUnicode ? RARFileFlags.Unicode : 0));
 
         byte[] fileHeader = new byte[headerSize];
         fileHeader[2] = 0x74;
@@ -1320,6 +1325,149 @@ public class RARPatcherTests : TempDirTestBase
         Assert.Equal(0x30, header[extOffset + 2]);
         Assert.Equal(0x4A, header[extOffset + 3]);
         Assert.Equal(0x6C, header[extOffset + 4]);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_TwoByteRemainder_StoresMsbFirst_RoundTrips()
+    {
+        // 2-byte mtime precision (WinRAR -tsm3). The reader (RARHeaderReader.TryReadRemainder)
+        // decodes the stored bytes MSB-first: byte[0] -> bits 8-15, byte[1] -> bits 16-23. The old
+        // encoder wrote LSB-first, which only matched at 3-byte precision, so -tsm2/-tsm3 mtimes
+        // were corrupted. Choose a target remainder that is a multiple of 0x100 so the 2-byte
+        // precision (which drops bits 0-7) round-trips exactly.
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x001234);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x00, 0x00 });   // 2-byte mtime precision
+
+        string testFile = Path.Combine(TempDir, "mtime_2byte.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        long remainderTicks = 0x6C4A00;                  // low byte zero for exact 2-byte round-trip
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(remainderTicks);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        RARPatcher.PatchFile(testFile, options);
+
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        int extOffset = 32 + nameSize;
+        // MSB-first: byte[0] = bits 8-15 = 0x4A, byte[1] = bits 16-23 = 0x6C.
+        Assert.Equal(0x4A, header[extOffset + 2]);
+        Assert.Equal(0x6C, header[extOffset + 3]);
+
+        // And the reader recovers the target exactly.
+        RARFileHeader recovered = ReadFirstFileHeader(testFile);
+        Assert.Equal(target, recovered.ModifiedTime);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_OneByteRemainder_StoresMsbFirst_RoundTrips()
+    {
+        // 1-byte mtime precision (WinRAR -tsm2). The reader keeps only bits 16-23 of the 24-bit
+        // remainder (byte[0] << 16), so choose a target remainder that is a multiple of 0x10000.
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x010000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: "subs.idx",
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x00 });         // 1-byte mtime precision
+
+        string testFile = Path.Combine(TempDir, "mtime_1byte.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        long remainderTicks = 0x6C0000;                  // low two bytes zero for exact 1-byte round-trip
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(remainderTicks);
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["subs.idx"] = target
+            }
+        };
+
+        RARPatcher.PatchFile(testFile, options);
+
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        int extOffset = 32 + nameSize;
+        // MSB-first: the single stored byte carries bits 16-23 = 0x6C (old encoder wrote 0x00).
+        Assert.Equal(0x6C, header[extOffset + 2]);
+
+        RARFileHeader recovered = ReadFirstFileHeader(testFile);
+        Assert.Equal(target, recovered.ModifiedTime);
+    }
+
+    [Fact]
+    public void PatchFile_FileModifiedTimes_UnicodeFlaggedName_MatchesDecodedNameAndPatches()
+    {
+        // LHD_UNICODE header: NAME = stdName + 0x00 (+ encoded). RARUtils.DecodeFileName strips at
+        // the NUL to produce the real name; the mtime dictionary is keyed by that decoded name.
+        // Plain Encoding.ASCII kept the embedded NUL ("subs.idx\0"), so the lookup silently missed
+        // and the mtime was left unpatched.
+        string decodedName = "subs.idx";
+        byte[] rawName = [.. System.Text.Encoding.ASCII.GetBytes(decodedName), 0x00];
+
+        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
+        byte[] rarData = BuildMinimalRar4(
+            fileName: decodedName,
+            dosFileTime: EncodeDosDateTimeForTest(initial),
+            extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F },   // 0x0F4240 = 1,000,000 (3-byte)
+            rawNameBytes: rawName,
+            hasUnicode: true);
+
+        string testFile = Path.Combine(TempDir, "mtime_unicode.rar");
+        File.WriteAllBytes(testFile, rarData);
+
+        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880); // 0x6C4A30
+        var options = new PatchOptions
+        {
+            FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
+            {
+                [decodedName] = target
+            }
+        };
+
+        List<PatchResult> results = RARPatcher.PatchFile(testFile, options);
+
+        Assert.NotEmpty(results);                        // empty before the fix (ASCII decode missed)
+        Assert.Equal(decodedName, results[0].FileName);  // decoded name, no trailing NUL
+
+        byte[] patched = File.ReadAllBytes(testFile);
+        byte[] header = ExtractFileHeader(patched);
+        ushort nameSize = BitConverter.ToUInt16(header, 26);
+        int extOffset = 32 + nameSize;                   // 3-byte remainder 0x6C4A30 (count=3: 0x30,0x4A,0x6C)
+        Assert.Equal(0x30, header[extOffset + 2]);
+        Assert.Equal(0x4A, header[extOffset + 3]);
+        Assert.Equal(0x6C, header[extOffset + 4]);
+    }
+
+    /// <summary>
+    /// Parses the first file header from a patched RAR (after the 7-byte marker) for round-trip checks.
+    /// </summary>
+    private static RARFileHeader ReadFirstFileHeader(string testFile)
+    {
+        using var fs = new FileStream(testFile, FileMode.Open, FileAccess.Read);
+        fs.Seek(7, SeekOrigin.Begin);
+        var reader = new RARHeaderReader(fs);
+        while (reader.CanReadBaseHeader)
+        {
+            RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
+            if (block?.FileHeader is { } fh)
+            {
+                return fh;
+            }
+        }
+
+        throw new InvalidOperationException("No file header found in the patched archive.");
     }
 
     [Fact]

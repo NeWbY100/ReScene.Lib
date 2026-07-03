@@ -292,15 +292,18 @@ internal static class RARPatcher
     /// target <see cref="DateTime"/> at the given byte-count precision (0–3, where 3 means
     /// 100ns / NTFS resolution). Mirrors the inverse of <c>RARHeaderReader.ReadExtendedTimes</c>.
     /// </summary>
-    private static (bool NeedsRoundingFlag, int Remainder) EncodeMtimeFraction(DateTime dt, int byteCount)
+    private static (bool NeedsRoundingFlag, int Remainder) EncodeMtimeFraction(DateTime dt)
     {
         int evenSecond = (dt.Second / 2) * 2;
         var dosBase = new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, evenSecond, dt.Kind);
         long ticksAbove = dt.Ticks - dosBase.Ticks;
         bool needsRounding = ticksAbove >= TimeSpan.TicksPerSecond;
         long remainderTicks = needsRounding ? ticksAbove - TimeSpan.TicksPerSecond : ticksAbove;
-        long mask = byteCount > 0 ? (1L << (byteCount * 8)) - 1 : 0;
-        return (needsRounding, (int)(remainderTicks & mask));
+
+        // The full 24-bit 100ns remainder is always < 1s (10,000,000 ticks < 2^24), so it fits
+        // in 3 bytes. Return it unmasked; the caller stores the MOST-significant `byteCount` bytes
+        // to mirror the reader (RARHeaderReader.TryReadRemainder decodes MSB-first for count < 3).
+        return (needsRounding, (int)remainderTicks);
     }
 
     /// <summary>
@@ -358,7 +361,7 @@ internal static class RARPatcher
             return modified;
         }
 
-        (bool needsRounding, int remainder) = EncodeMtimeFraction(targetMtime, mtimeByteCount);
+        (bool needsRounding, int remainder) = EncodeMtimeFraction(targetMtime);
 
         // Update the +1s rounding bit in the mtime nibble if it changed.
         int newMtimeNibble = (mtimeNibble & ~0x4) | (needsRounding ? 0x4 : 0);
@@ -370,15 +373,18 @@ internal static class RARPatcher
             modified = true;
         }
 
-        // Overwrite remainder bytes in-place. Encoding is LSB-first per
-        // RARHeaderReader.TryReadRemainder (`bytes[j] << ((j + 3 - count) * 8)` for count=3
-        // gives shifts 0/8/16, i.e. byte[0] is the lowest 8 bits of the remainder).
+        // Overwrite remainder bytes in-place, MSB-first, exactly mirroring the reader
+        // (RARHeaderReader.TryReadRemainder decodes `bytes[j] << ((j + 3 - count) * 8)`).
+        // The stored bytes hold the MOST-significant bytes of the 24-bit 100ns remainder:
+        // count=3 -> byte[i] carries bits (i*8), count=2 -> byte[0] bits 8-15/byte[1] bits 16-23,
+        // count=1 -> byte[0] bits 16-23. The three conventions coincide only at count=3, which is
+        // why the previous LSB-first encoding corrupted -tsm2/-tsm3 (1- and 2-byte) precisions.
         int remainderOffset = extTimeOffset + 2;
         if (mtimeByteCount > 0 && remainderOffset + mtimeByteCount <= fullHeader.Length)
         {
             for (int i = 0; i < mtimeByteCount; i++)
             {
-                byte newByte = (byte)((remainder >> (i * 8)) & 0xFF);
+                byte newByte = (byte)((remainder >> ((i + 3 - mtimeByteCount) * 8)) & 0xFF);
                 if (fullHeader[remainderOffset + i] != newByte)
                 {
                     fullHeader[remainderOffset + i] = newByte;
@@ -483,7 +489,13 @@ internal static class RARPatcher
                 string? fileName = null;
                 if (nameSize > 0 && nameOffset + nameSize <= headerSize)
                 {
-                    fileName = System.Text.Encoding.ASCII.GetString(fullHeader, nameOffset, Math.Min(nameSize, headerSize - nameOffset));
+                    // Decode the name the same way the readers do (Unicode/OEM aware). Plain
+                    // Encoding.ASCII produced embedded-NUL garbage for LHD_UNICODE headers, so the
+                    // FileModifiedTimes lookup (keyed by RARUtils.DecodeFileName names) silently missed.
+                    int nameLen = Math.Min(nameSize, headerSize - nameOffset);
+                    byte[] nameBytes = new byte[nameLen];
+                    Array.Copy(fullHeader, nameOffset, nameBytes, 0, nameLen);
+                    fileName = RARUtils.DecodeFileName(nameBytes, (headerFlags & (ushort)RARFileFlags.Unicode) != 0);
                 }
 
                 bool modified = false;
@@ -656,7 +668,12 @@ internal static class RARPatcher
                 string? fileName = null;
                 if (nameSize > 0 && nameOffset + nameSize <= headerSize)
                 {
-                    fileName = System.Text.Encoding.ASCII.GetString(fullHeader, nameOffset, Math.Min(nameSize, headerSize - nameOffset));
+                    // Decode the name the same way the readers do (Unicode/OEM aware); plain ASCII
+                    // corrupts LHD_UNICODE names and garbles PatchResult.FileName.
+                    int nameLen = Math.Min(nameSize, headerSize - nameOffset);
+                    byte[] nameBytes = new byte[nameLen];
+                    Array.Copy(fullHeader, nameOffset, nameBytes, 0, nameLen);
+                    fileName = RARUtils.DecodeFileName(nameBytes, (headerFlags & (ushort)RARFileFlags.Unicode) != 0);
                 }
 
                 // Determine target values based on block type

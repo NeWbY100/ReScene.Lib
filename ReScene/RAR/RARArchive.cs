@@ -320,7 +320,7 @@ internal sealed class RARArchive : IDisposable
             long target = block.BlockPosition + block.HeaderSize;
             if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
             {
-                target += block.AddSize;
+                target += block.DataSize;
             }
             else if ((block.Flags & (ushort)RARFileFlags.LongBlock) != 0)
             {
@@ -370,7 +370,7 @@ internal sealed class RARArchive : IDisposable
             long target = block.BlockPosition + block.HeaderSize;
             if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
             {
-                target += block.AddSize;
+                target += block.DataSize;
             }
             else if ((block.Flags & (ushort)RARFileFlags.LongBlock) != 0)
             {

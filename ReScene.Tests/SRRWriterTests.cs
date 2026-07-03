@@ -857,4 +857,68 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     #endregion
+
+    #region Large Entry Handling (HIGH_PACK_SIZE)
+
+    private static void WriteRar4LargeFileHeader(BinaryWriter writer, string fileName,
+        uint packedSizeLow, uint packedSizeHigh)
+    {
+        byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
+        ushort nameSize = (ushort)nameBytes.Length;
+        RARFileFlags flags = RARFileFlags.LongBlock | RARFileFlags.Large;
+        ushort headerSize = (ushort)(7 + 25 + 8 + nameSize);
+
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74;
+        BitConverter.GetBytes((ushort)flags).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(packedSizeLow).CopyTo(header, 7);
+        BitConverter.GetBytes(1024u).CopyTo(header, 11);
+        header[15] = 2;
+        BitConverter.GetBytes(0xDEADBEEFu).CopyTo(header, 16);
+        BitConverter.GetBytes(0x5A8E3100u).CopyTo(header, 20);
+        header[24] = 29;
+        header[25] = 0x30; // store
+        BitConverter.GetBytes(nameSize).CopyTo(header, 26);
+        BitConverter.GetBytes(0x00000020u).CopyTo(header, 28);
+        BitConverter.GetBytes(packedSizeHigh).CopyTo(header, 32); // HIGH_PACK_SIZE
+        BitConverter.GetBytes(0u).CopyTo(header, 36);             // HIGH_UNP_SIZE
+        nameBytes.CopyTo(header, 40);
+
+        uint crc32 = Force.Crc32.Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(header, 0);
+        writer.Write(header);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Rar4LargeEntry_SkipsFull64BitSize_DoesNotMisparseTrailingHeaders()
+    {
+        // A LARGE (>= 4 GiB) packed entry: HIGH_PACK_SIZE=1, ADD_SIZE=0 => 4 GiB of packed data.
+        // The writer must skip the full 64-bit size before parsing the next header. Reading only
+        // the 32-bit ADD_SIZE (0) makes it land on the following header and misparse the packed-data
+        // region as extra archived files, silently producing an incorrect SRR.
+        string rarPath = Path.Combine(TempDir, "large.rar");
+        using (var fs = new FileStream(rarPath, FileMode.Create, FileAccess.Write))
+        using (var writer = new BinaryWriter(fs))
+        {
+            writer.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 });
+            WriteRar4ArchiveHeader(writer, RARArchiveFlags.None);
+            WriteRar4LargeFileHeader(writer, "big.bin", packedSizeLow: 0, packedSizeHigh: 1);
+            // "second.bin" sits 4 GiB downstream in a real archive; here it is not preceded by data.
+            WriteRar4FileHeader(writer, "second.bin", 0, 0, 2, 0xCAFEBABE, 29, 0x30, RARFileFlags.LongBlock);
+            WriteRar4EndArchive(writer);
+        }
+
+        string srrPath = Path.Combine(TempDir, "large.srr");
+        var srrWriter = new SRRWriter();
+        SRRCreationResult result = await srrWriter.CreateAsync(srrPath, [rarPath]);
+
+        Assert.True(result.Success, result.ErrorMessage);
+
+        var srr = SRRFile.Load(srrPath);
+        Assert.Contains("big.bin", srr.ArchivedFiles);
+        Assert.DoesNotContain("second.bin", srr.ArchivedFiles);
+    }
+
+    #endregion
 }

@@ -565,6 +565,18 @@ public class SRRWriter
             fs.Position = blockStart;
             byte[] headerBytes = reader.ReadBytes(headerSize);
 
+            // For file/service blocks with the LARGE flag, the true packed data size is 64-bit:
+            // (HIGH_PACK_SIZE << 32) | ADD_SIZE. HIGH_PACK_SIZE sits at header offset 32 (after
+            // ATTR), matching RARHeaderReader. Reading only the 32-bit ADD_SIZE under-skips a
+            // >= 4 GiB packed entry, dropping every subsequent header (silently) or copying garbage.
+            long fileDataSize = addSize;
+            if ((blockType == RAR4BlockType.FileHeader || blockType == RAR4BlockType.Service) &&
+                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36)
+            {
+                uint highPackSize = BitConverter.ToUInt32(headerBytes, 32);
+                fileDataSize = addSize | ((long)highPackSize << 32);
+            }
+
             // Now position is at blockStart + headerSize (start of data area)
             switch (blockType)
             {
@@ -580,23 +592,23 @@ public class SRRWriter
                     }
 
                     srrWriter.Write(headerBytes);
-                    // Skip packed file data in source
-                    fs.Seek(addSize, SeekOrigin.Current);
+                    // Skip packed file data in source (full 64-bit size for LARGE entries)
+                    fs.Seek(fileDataSize, SeekOrigin.Current);
                     break;
 
                 case RAR4BlockType.Service:
                     srrWriter.Write(headerBytes);
-                    if (addSize > 0)
+                    if (fileDataSize > 0)
                     {
                         if (IsRar4CmtServiceBlock(headerBytes, headerSize))
                         {
-                            // Copy CMT data verbatim
+                            // Copy CMT data verbatim (comments are never LARGE, so addSize suffices)
                             StreamUtilities.CopyBytes(fs, srrWriter.BaseStream, addSize);
                         }
                         else
                         {
-                            // Skip data for other service blocks (RR, AV, etc.)
-                            fs.Seek(addSize, SeekOrigin.Current);
+                            // Skip data for other service blocks (RR, AV, etc.) — full 64-bit size
+                            fs.Seek(fileDataSize, SeekOrigin.Current);
                         }
                     }
 

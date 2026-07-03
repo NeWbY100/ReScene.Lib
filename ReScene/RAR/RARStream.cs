@@ -322,11 +322,12 @@ internal class RARStream : Stream
                     return; // first file found, not split — OK
                 }
 
-                // Skip past the block
+                // Skip past the block. Use the 64-bit DataSize so a LARGE service block
+                // (>= 4 GiB) ahead of the first file header is skipped in full.
                 long target = block.BlockPosition + block.HeaderSize;
                 if (block.BlockType != RAR4BlockType.FileHeader)
                 {
-                    target += block.AddSize;
+                    target += block.DataSize;
                 }
 
                 fs.Position = Math.Min(target, fs.Length);
@@ -438,11 +439,12 @@ internal class RARStream : Stream
                 }
             }
 
-            // Skip past the block (header + data)
+            // Skip past the block (header + data). Use the 64-bit DataSize for file/service
+            // blocks so a LARGE (>= 4 GiB) packed entry is skipped in full.
             long target = block.BlockPosition + block.HeaderSize;
             if (block.BlockType is RAR4BlockType.FileHeader or RAR4BlockType.Service)
             {
-                target += block.AddSize;
+                target += block.DataSize;
             }
             else if ((block.Flags & (ushort)RARFileFlags.LongBlock) != 0)
             {

@@ -217,6 +217,20 @@ internal class RARBlockReadResult
     {
         get; set;
     }
+
+    /// <summary>
+    /// Full 64-bit size of the data area that follows this block's header. File and service
+    /// blocks report their parsed <c>PackedSize</c> (which folds in HIGH_PACK_SIZE when the
+    /// LARGE flag is set); any other block type falls back to the 32-bit <see cref="AddSize"/>.
+    /// Only meaningful when the block was read with <c>parseContents: true</c>. Walkers must use
+    /// this (not <see cref="AddSize"/>) to skip past file/service data, otherwise a &gt;= 4 GiB
+    /// packed entry is under-skipped by whole multiples of 4 GiB.
+    /// </summary>
+    public long DataSize => FileHeader is { } fh
+        ? (long)fh.PackedSize
+        : ServiceBlockInfo is { } sb
+            ? (long)sb.PackedSize
+            : AddSize;
 }
 
 /// <summary>
