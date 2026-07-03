@@ -329,20 +329,20 @@ internal static class RARUtils
         stream.Position = savedPos;
 
         // Scan for RAR5 marker first (8 bytes, superset of RAR4's first 7)
-        for (int i = 0; i <= bytesRead - 8; i++)
+        for (int i = 0; i <= bytesRead - Rar5Marker.Length; i++)
         {
-            if (buffer[i] == 0x52 && buffer[i + 1] == 0x61 &&
-                buffer[i + 2] == 0x72 && buffer[i + 3] == 0x21 &&
-                buffer[i + 4] == 0x1A && buffer[i + 5] == 0x07)
+            if (buffer[i] == Rar4Marker[0] && buffer[i + 1] == Rar4Marker[1] &&
+                buffer[i + 2] == Rar4Marker[2] && buffer[i + 3] == Rar4Marker[3] &&
+                buffer[i + 4] == Rar4Marker[4] && buffer[i + 5] == Rar4Marker[5])
             {
                 // Check RAR5 (byte 6 = 0x01, byte 7 = 0x00)
-                if (buffer[i + 6] == 0x01 && buffer[i + 7] == 0x00)
+                if (buffer[i + 6] == Rar5Marker[6] && buffer[i + 7] == Rar5Marker[7])
                 {
                     return i;
                 }
 
                 // Check RAR4 (byte 6 = 0x00)
-                if (buffer[i + 6] == 0x00)
+                if (buffer[i + 6] == Rar4Marker[6])
                 {
                     return i;
                 }
@@ -350,13 +350,13 @@ internal static class RARUtils
         }
 
         // Check the last position that could be RAR4 but not RAR5
-        if (bytesRead >= 7 && bytesRead - 7 > bytesRead - 8)
+        if (bytesRead >= Rar4Marker.Length && bytesRead - Rar4Marker.Length > bytesRead - Rar5Marker.Length)
         {
-            int i = bytesRead - 7;
-            if (buffer[i] == 0x52 && buffer[i + 1] == 0x61 &&
-                buffer[i + 2] == 0x72 && buffer[i + 3] == 0x21 &&
-                buffer[i + 4] == 0x1A && buffer[i + 5] == 0x07 &&
-                buffer[i + 6] == 0x00)
+            int i = bytesRead - Rar4Marker.Length;
+            if (buffer[i] == Rar4Marker[0] && buffer[i + 1] == Rar4Marker[1] &&
+                buffer[i + 2] == Rar4Marker[2] && buffer[i + 3] == Rar4Marker[3] &&
+                buffer[i + 4] == Rar4Marker[4] && buffer[i + 5] == Rar4Marker[5] &&
+                buffer[i + 6] == Rar4Marker[6])
             {
                 return i;
             }

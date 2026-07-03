@@ -415,9 +415,9 @@ internal enum RAR5ServiceType : ulong
 internal class RAR5HeaderReader(Stream stream)
 {
     /// <summary>
-    /// RAR 5.0 marker bytes.
+    /// RAR 5.0 marker bytes. Thin alias over <see cref="RARUtils.Rar5Marker"/>.
     /// </summary>
-    public static readonly byte[] RAR5Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    public static byte[] RAR5Marker => RARUtils.Rar5Marker.ToArray();
 
     private readonly Stream _stream = stream ?? throw new ArgumentNullException(nameof(stream));
     private readonly BinaryReader _reader = new(stream, Encoding.UTF8, leaveOpen: true);
@@ -460,7 +460,7 @@ internal class RAR5HeaderReader(Stream stream)
 
         for (int i = 0; i < 8; i++)
         {
-            if (marker[i] != RAR5Marker[i])
+            if (marker[i] != RARUtils.Rar5Marker[i])
             {
                 return false;
             }

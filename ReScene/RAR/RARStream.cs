@@ -275,7 +275,7 @@ internal class RARStream : Stream
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         bool isRar5 = RAR5HeaderReader.IsRAR5(fs);
-        fs.Position = isRar5 ? 8 : 7; // skip marker
+        fs.Position = isRar5 ? RARUtils.Rar5Marker.Length : RARUtils.Rar4Marker.Length; // skip marker
 
         if (isRar5)
         {
@@ -343,7 +343,7 @@ internal class RARStream : Stream
     {
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         bool isRar5 = RAR5HeaderReader.IsRAR5(fs);
-        fs.Position = isRar5 ? 8 : 7; // skip marker
+        fs.Position = isRar5 ? RARUtils.Rar5Marker.Length : RARUtils.Rar4Marker.Length; // skip marker
 
         if (isRar5)
         {

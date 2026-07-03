@@ -290,7 +290,7 @@ public static class RARDetailedParser
 
         for (int i = 0; i < 8; i++)
         {
-            if (buf[i] != RAR5HeaderReader.RAR5Marker[i])
+            if (buf[i] != RARUtils.Rar5Marker[i])
             {
                 return false;
             }
@@ -392,8 +392,7 @@ public static class RARDetailedParser
             return false;
         }
 
-        return sig[0] == 0x52 && sig[1] == 0x61 && sig[2] == 0x72 &&
-               sig[3] == 0x21 && sig[4] == 0x1A && sig[5] == 0x07 && sig[6] == 0x00;
+        return sig.AsSpan(0, 7).SequenceEqual(RARUtils.Rar4Marker);
     }
 
     private static RARDetailedBlock? ParseRAR4Block(BinaryReader reader, Stream stream)
