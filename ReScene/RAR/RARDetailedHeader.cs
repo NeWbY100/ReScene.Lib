@@ -741,6 +741,9 @@ public static class RARDetailedParser
         }
     }
 
+    /// <summary>All-bits-set uint value used by custom packers (e.g. QCF, RELOADED, HI2U) as a sentinel for unknown file sizes.</summary>
+    private const uint CustomPackerSentinel = 0xFFFFFFFF;
+
     private static void ParseRAR4FileHeader(BinaryReader reader, RARDetailedBlock block, long pos, long headerEnd, ushort flags, uint packSize)
     {
         var cursor = new FieldCursor(reader, pos);
@@ -751,7 +754,7 @@ public static class RARDetailedParser
         {
             unpSize = reader.ReadUInt32();
             string? unpDesc = null;
-            if (unpSize == 0xFFFFFFFF && !((RARFileFlags)flags).HasFlag(RARFileFlags.Large)) // max without LARGE flag
+            if (unpSize == CustomPackerSentinel && !((RARFileFlags)flags).HasFlag(RARFileFlags.Large)) // max without LARGE flag
             {
                 unpDesc = "Custom packer sentinel (e.g. QCF) — size unreliable";
             }
@@ -836,7 +839,7 @@ public static class RARDetailedParser
         {
             uint highPack = reader.ReadUInt32();
             string? highPackDesc = null;
-            if (highPack == 0xFFFFFFFF && unpSize == 0xFFFFFFFF)
+            if (highPack == CustomPackerSentinel && unpSize == CustomPackerSentinel)
             {
                 highPackDesc = "Custom packer sentinel (e.g. RELOADED, HI2U) — size unreliable";
             }
@@ -858,7 +861,7 @@ public static class RARDetailedParser
         {
             uint highUnp = reader.ReadUInt32();
             string? highUnpDesc = null;
-            if (highUnp == 0xFFFFFFFF && unpSize == 0xFFFFFFFF)
+            if (highUnp == CustomPackerSentinel && unpSize == CustomPackerSentinel)
             {
                 highUnpDesc = "Custom packer sentinel (e.g. RELOADED, HI2U) — size unreliable";
             }
@@ -1299,7 +1302,7 @@ public static class RARDetailedParser
                     _ => $"Unknown ({method})"
                 };
                 compInfoField.Children.Add(new RARHeaderField { Name = "METHOD", Value = $"{method} ({methodName})" });
-                compInfoField.Children.Add(new RARHeaderField { Name = "DICT_SIZE", Value = FormatDictSize(128L << dictSizeLog) });
+                compInfoField.Children.Add(new RARHeaderField { Name = "DICT_SIZE", Value = FormatDictSize((long)Rar5Format.CompInfoDictBaseKB << dictSizeLog) });
 
                 block.Fields.Add(compInfoField);
             }
@@ -2156,8 +2159,8 @@ public static class RARDetailedParser
         while (stream.Position < stream.Length)
         {
             byte b = reader.ReadByte();
-            result |= ((ulong)(b & 0x7F)) << shift;
-            if ((b & 0x80) == 0)
+            result |= ((ulong)(b & Rar5Format.VIntDataMask)) << shift;
+            if ((b & Rar5Format.VIntContinuationBit) == 0)
             {
                 break;
             }

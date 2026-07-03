@@ -42,6 +42,9 @@ internal static class Rar4HeaderLayout
     public const int AtimeNibbleShift = 4;
     public const int MtimeNibbleMask = 0x0FFF;    // clear the mtime nibble
 
+    // RAR4 compression method is stored as ASCII '0'-'6' (0x30-0x36); subtract base to get 0-6.
+    public const byte AsciiDigitZero = 0x30;
+
     // DOS date/time packing (FTIME).
     public const int DosSecondMask = 0x1F;      // *2 seconds
     public const int DosSecondEvenMask = 0x3E;  // encode: keep even seconds before >> 1

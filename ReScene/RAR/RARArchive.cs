@@ -270,7 +270,7 @@ internal sealed class RARArchive : IDisposable
             RARVersion version = entry.IsRar5
                 ? RARVersion.RAR50
                 : entry.UnpackVersion <= 20 ? RARVersion.RAR20 : RARVersion.RAR29;
-            var method = (RARMethod)(0x30 + entry.CompressionMethod);
+            var method = (RARMethod)(Rar4HeaderLayout.AsciiDigitZero + entry.CompressionMethod);
 
             byte[]? unpacked = RARDecompressor.Decompress(packed, (int)entry.UnpackedSize, method, version);
             if (unpacked is null)

@@ -290,6 +290,12 @@ internal static class Rar5Format
     public const int CompInfoDictBaseKB = 128;
 }
 
+/// <summary>RAR host OS codes (HOST_OS field).</summary>
+internal enum RarHostOs : byte
+{
+    MsDos = 0, Os2 = 1, Windows = 2, Unix = 3, MacOs = 4, BeOs = 5
+}
+
 /// <summary>
 /// Timestamp precision levels for RAR -tsm/-tsc/-tsa options.
 /// Maps directly to the RAR command-line option suffixes (0-4).

@@ -32,6 +32,9 @@ internal static class RARUtils
 
     #region CRC Validation
 
+    /// <summary>Mask applied to a full CRC-32 to obtain the 16-bit header CRC stored in RAR4 blocks.</summary>
+    private const ushort HeaderCrcMask = 0xFFFF;
+
     /// <summary>
     /// Calculates the RAR 4.x header CRC (lower 16 bits of CRC-32).
     /// The CRC is calculated over the header bytes starting from the type field (skipping the 2-byte CRC).
@@ -51,7 +54,7 @@ internal static class RARUtils
 
         // Skip the first 2 bytes (CRC field) and calculate CRC over the rest
         uint crc32 = Crc32Algorithm.Compute(headerBytes, 2, headerBytes.Length - 2);
-        return (ushort)(crc32 & 0xFFFF);
+        return (ushort)(crc32 & HeaderCrcMask);
     }
 
     /// <summary>

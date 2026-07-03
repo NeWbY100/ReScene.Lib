@@ -439,9 +439,9 @@ internal class RARHeaderReader
         uint fileTime = _reader.ReadUInt32();
         byte unpVer = _reader.ReadByte();
 
-        // Method is stored as ASCII '0'-'6', subtract 0x30 to get 0-6
+        // Method is stored as ASCII '0'-'6', subtract AsciiDigitZero to get 0-6
         byte methodRaw = _reader.ReadByte();
-        byte method = (byte)(methodRaw >= 0x30 ? methodRaw - 0x30 : methodRaw);
+        byte method = (byte)(methodRaw >= Rar4HeaderLayout.AsciiDigitZero ? methodRaw - Rar4HeaderLayout.AsciiDigitZero : methodRaw);
 
         // Read filename
         string? fileName = TryReadFileName(headerEnd, flags, out bool isDirectory, out uint fileAttributes, out uint highPackSize, out uint highUnpSize);

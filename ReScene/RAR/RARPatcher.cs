@@ -229,12 +229,12 @@ internal static class RARPatcher
     /// </returns>
     public static string GetHostOSName(byte hostOS) => hostOS switch
     {
-        0 => "MS-DOS",
-        1 => "OS/2",
-        2 => "Windows",
-        3 => "Unix",
-        4 => "Mac OS",
-        5 => "BeOS",
+        (byte)RarHostOs.MsDos => "MS-DOS",
+        (byte)RarHostOs.Os2 => "OS/2",
+        (byte)RarHostOs.Windows => "Windows",
+        (byte)RarHostOs.Unix => "Unix",
+        (byte)RarHostOs.MacOs => "Mac OS",
+        (byte)RarHostOs.BeOs => "BeOS",
         _ => $"Unknown ({hostOS})"
     };
 
