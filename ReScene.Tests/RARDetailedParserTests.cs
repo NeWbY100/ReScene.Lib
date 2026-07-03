@@ -1513,4 +1513,100 @@ public class RARDetailedParserTests
     }
 
     #endregion
+
+    #region RAR4 EXT_TIME Display Rendering Tests
+
+    /// <summary>
+    /// Builds a RAR4 file header (type 0x74) with LONG_BLOCK | EXT_TIME flags.
+    /// mtime only, 3-byte sub-second remainder [0x12, 0x34, 0x56].
+    /// extFlags = 0xB000: mtime present (bit 3) + +3 bytes precision (bits 1-0); others absent.
+    /// Ticks = 0x12 | (0x34 &lt;&lt; 8) | (0x56 &lt;&lt; 16) = 5 649 426  (100 ns each) ≈ 0.5649426 s.
+    /// </summary>
+    private static byte[] BuildFileHeaderWithExtTimeMtime3Bytes(string fileName)
+    {
+        byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
+        ushort nameLen = (ushort)nameBytes.Length;
+        // 32 base + nameLen + 2 (extFlags) + 3 (subsec bytes)
+        ushort headerSize = (ushort)(37 + nameLen);
+
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74; // File header type
+        // Flags: LONG_BLOCK (0x8000) | EXT_TIME (0x1000)
+        BitConverter.GetBytes((ushort)0x9000).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        // ADD_SIZE = 0 (no packed data)
+        BitConverter.GetBytes((uint)0).CopyTo(header, 7);
+        // UNP_SIZE = 100
+        BitConverter.GetBytes((uint)100).CopyTo(header, 11);
+        // HOST_OS = Windows
+        header[15] = 2;
+        // FILE_CRC = 0
+        BitConverter.GetBytes((uint)0).CopyTo(header, 16);
+        // FILE_TIME (DOS format, arbitrary)
+        BitConverter.GetBytes((uint)0x5A8E3100).CopyTo(header, 20);
+        // UNP_VER = 29 (RAR 2.9)
+        header[24] = 29;
+        // METHOD = 0x33 (Normal)
+        header[25] = 0x33;
+        // NAME_SIZE
+        BitConverter.GetBytes(nameLen).CopyTo(header, 26);
+        // ATTR
+        BitConverter.GetBytes((uint)0x20).CopyTo(header, 28);
+        // Filename
+        nameBytes.CopyTo(header, 32);
+        // extFlags = 0xB000: mtime rmode=0xB (present | +3 bytes), ctime/atime/arctime absent
+        BitConverter.GetBytes((ushort)0xB000).CopyTo(header, 32 + nameLen);
+        // mtime subsec bytes
+        header[32 + nameLen + 2] = 0x12;
+        header[32 + nameLen + 3] = 0x34;
+        header[32 + nameLen + 4] = 0x56;
+
+        // CRC: lower 16 bits of CRC32 of bytes from offset 2 onward
+        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(header, 0);
+        return header;
+    }
+
+    /// <summary>
+    /// Regression: pins the exact rendered output of the EXT_TIME display path in
+    /// RARDetailedParser.ParseRAR4FileHeader (RARDetailedHeader.cs:895-970) so that
+    /// a future rename of its constants cannot silently change the UI output.
+    /// </summary>
+    [Fact]
+    public void ParseRAR4_ExtTime_MtimeSubsec3Bytes_RendersExact()
+    {
+        // extFlags = 0xB000:
+        //   mtime [bits 15-12] = 0xB → present, no round-up, +3 bytes (100ns)
+        //   ctime/atime/arctime → 0x0, not present
+        // Subsec bytes [0x12, 0x34, 0x56]:
+        //   ticks = 0x12 | (0x34 << 8) | (0x56 << 16) = 5 649 426
+        //   seconds = 5649426 / 10_000_000 = 0.5649426
+        byte[] archiveHeader = BuildArchiveHeader();
+        byte[] fileHeader = BuildFileHeaderWithExtTimeMtime3Bytes("f.bin");
+        byte[] endBlock = BuildEndBlock();
+
+        using MemoryStream stream = BuildRAR4Stream(archiveHeader, fileHeader, endBlock);
+        IReadOnlyList<RARDetailedBlock> blocks = RARDetailedParser.Parse(stream);
+
+        RARDetailedBlock fileBlock = blocks.First(b => b.BlockType == "File Header");
+
+        // 1. "Extended Time Flags" top-level field value (0xB000 in hex)
+        RARHeaderField extFlagsField = fileBlock.Fields.Single(f => f.Name == "Extended Time Flags");
+        Assert.Equal("0xB000", extFlagsField.Value);
+
+        // 2. mtime child: precision label and rmode nibble
+        RARHeaderField mtimeChild = extFlagsField.Children.Single(c => c.Name == "mtime [bits 15-12]");
+        Assert.Equal("0xB (Present, +3 bytes (100ns))", mtimeChild.Value);
+
+        // 3. Absent timestamps produce "Not present" children
+        Assert.Equal("0x0 (Not present)", extFlagsField.Children.Single(c => c.Name == "ctime [bits 11-8]").Value);
+        Assert.Equal("0x0 (Not present)", extFlagsField.Children.Single(c => c.Name == "atime [bits 7-4]").Value);
+        Assert.Equal("0x0 (Not present)", extFlagsField.Children.Single(c => c.Name == "arctime [bits 3-0]").Value);
+
+        // 4. "Ext mtime subsec": hex bytes, fractional seconds (F7), and tick count
+        RARHeaderField subsecField = fileBlock.Fields.Single(f => f.Name == "Ext mtime subsec");
+        Assert.Equal("12 34 56 (0.5649426s, 5649426 ticks)", subsecField.Value);
+    }
+
+    #endregion
 }
