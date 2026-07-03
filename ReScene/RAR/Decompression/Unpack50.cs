@@ -298,6 +298,20 @@ internal class Unpack50
             return false;
         }
 
+        // STOPGAP (audit #24): this port decodes only the first block's header and
+        // tables and then decodes straight through to destSize; it never re-reads a
+        // block header or renewed Huffman tables at block boundaries. A multi-block
+        // RAR5 stream would therefore consume the next block's header/table bytes as
+        // if they were compressed symbols and desync into garbage. Detect the
+        // multi-block case via the LastBlockInFile flag (bit 0x40) — when it is NOT
+        // set, more blocks follow — and fail cleanly instead of returning garbage as
+        // success. Single-block streams (the common comment case) keep working.
+        bool lastBlockInFile = (blockFlags & 0x40) != 0;
+        if (!lastBlockInFile)
+        {
+            return false;
+        }
+
         // Check table present flag
         return (blockFlags & 0x80) != 0 || _tablesRead;
     }

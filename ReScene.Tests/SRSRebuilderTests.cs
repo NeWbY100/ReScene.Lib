@@ -486,6 +486,36 @@ public class SRSRebuilderTests : TempDirTestBase
         Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
     }
 
+    [Fact]
+    public async Task Rebuild_MP3Sample_WithTwoStackedId3v2Tags_RoundTrip_CRCMatches()
+    {
+        // Regression (audit #31): the rebuilder copied only ONE leading ID3v2 tag, then
+        // broke out of the SRS-block loop on the second "ID3" and dumped tag 2 + the raw
+        // SRSF/SRST blocks as "footer" with NO audio. The writer copies ALL stacked leading
+        // tags, so a two-tag sample must round-trip with the audio restored.
+        string samplePath = SyntheticSampleBuilder.BuildMp3WithTwoId3v2Tags(
+            Path.Combine(TempDir, "two_tags.mp3"));
+
+        string srsPath = Path.Combine(TempDir, "two_tags.srs");
+        var writer = new SRSWriter();
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        string outputPath = Path.Combine(TempDir, "rebuilt_two_tags.mp3");
+        var rebuilder = new SRSRebuilder();
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(result.CRCMatch, $"CRC mismatch: expected 0x{result.ExpectedCRC:X8}, got 0x{result.ActualCRC:X8}");
+
+        // The rebuilt file must be byte-identical to the original (both ID3v2 tags + audio).
+        byte[] original = File.ReadAllBytes(samplePath);
+        byte[] rebuilt = File.ReadAllBytes(outputPath);
+        Assert.Equal(original.Length, rebuilt.Length);
+        Assert.True(original.AsSpan().SequenceEqual(rebuilt),
+            "Rebuilt two-tag MP3 does not match original.");
+    }
+
     #endregion
 
     #region CRC Verification Tests

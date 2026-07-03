@@ -37,6 +37,40 @@ public class DecompressionTests
     }
 
     [Fact]
+    public void Decompress_Rar29_PpmFlaggedStream_FailsCleanReturnsNull()
+    {
+        // STOPGAP (audit #7/#23): PPMd decoding is unsupported — the ModelPPM port is an
+        // incomplete stub that desyncs from WinRAR's encoder. A stream that selects PPM mode
+        // (high bit 0x8000 of the first table word, i.e. high bit of the first byte set) must
+        // fail cleanly with null instead of returning desynchronized garbage as success.
+        byte[] ppmFlagged = new byte[64];
+        ppmFlagged[0] = 0x80; // sets the 0x8000 PPM flag read by Unpack29.ReadTables30
+
+        byte[]? result = RARDecompressor.Decompress(ppmFlagged, 100, RARMethod.Normal, RARVersion.RAR29);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Decompress_Rar50_MultiBlockStream_FailsCleanReturnsNull()
+    {
+        // STOPGAP (audit #24): Unpack50 decodes only the first block and never re-reads a
+        // block header/tables at block boundaries, so a multi-block RAR5 stream would desync
+        // into garbage. When the first block header clears the LastBlockInFile flag (bit 0x40)
+        // — meaning more blocks follow — decompression must fail cleanly with null.
+        // Block header bytes: blockFlags=0x80 (table present, LastBlockInFile CLEAR, byteCount=1),
+        // savedCheckSum=0xDF, blockSize=0x05. checksum = 0x5A^0x80^0x05 = 0xDF matches.
+        byte[] multiBlock = new byte[32];
+        multiBlock[0] = 0x80;
+        multiBlock[1] = 0xDF;
+        multiBlock[2] = 0x05;
+
+        byte[]? result = RARDecompressor.Decompress(multiBlock, 100, RARMethod.Normal, RARVersion.RAR50);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public void Unpack29_Decompress_DoesNotThrow()
     {
         // Arrange - test that the Unpack29 class doesn't throw on invalid data

@@ -28,31 +28,22 @@ internal class MP3ContainerRebuilder : IContainerRebuilder
 
         bool mainDataWritten = false;
 
-        // Check for ID3v2 header
-        if (srsFs.Length >= 10)
+        // Copy all leading ID3v2 header tags verbatim. The writer (MP3ContainerHandler.WriteSRS
+        // via MP3TagReader.FindAudioStart) copies EVERY stacked leading ID3v2 tag before the
+        // injected SRSF/SRST blocks, so there may be more than one. Running FindAudioStart on the
+        // SRS stream stops at the first non-ID3v2 bytes — which are the SRSF block — yielding
+        // exactly the header region [0, headerEnd). Previously only a single tag was copied, so a
+        // sample with two stacked tags dumped tag 2 + the raw SRS blocks as "footer" with no audio
+        // (audit #31).
+        long headerEnd = MP3TagReader.FindAudioStart(srsFs);
+        if (headerEnd > 0)
         {
-            byte[] id3Check = reader.ReadBytes(3);
             srsFs.Position = 0;
-
-            if (id3Check[0] == 'I' && id3Check[1] == 'D' && id3Check[2] == '3')
-            {
-                // Read ID3v2 size
-                srsFs.Position = 6;
-                byte[] id3SizeBytes = reader.ReadBytes(4);
-                int id3Size = (id3SizeBytes[0] << 21) | (id3SizeBytes[1] << 14) |
-                              (id3SizeBytes[2] << 7) | id3SizeBytes[3];
-                long id3TotalSize = 10 + id3Size;
-
-                // Copy entire ID3v2 tag
-                srsFs.Position = 0;
-                byte[] id3Data = StreamUtilities.ReadExactly(reader, (int)id3TotalSize);
-                outFs.Write(id3Data);
-            }
-            else
-            {
-                srsFs.Position = 0;
-            }
+            byte[] headerData = StreamUtilities.ReadExactly(reader, (int)headerEnd);
+            outFs.Write(headerData);
         }
+
+        srsFs.Position = headerEnd;
 
         // Read remaining blocks
         while (srsFs.Position + 8 <= srsFs.Length)

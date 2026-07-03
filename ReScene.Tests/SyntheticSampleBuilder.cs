@@ -219,6 +219,47 @@ internal static class SyntheticSampleBuilder
     }
 
     /// <summary>
+    /// Builds a minimal MP3 file with TWO stacked leading ID3v2 tags followed by audio
+    /// sync frames. Exercises the multiple-consecutive-ID3v2-tag path that the writer
+    /// (MP3TagReader.FindAudioStart) supports and the rebuilder must round-trip (audit #31).
+    /// </summary>
+    public static string BuildMp3WithTwoId3v2Tags(string path)
+    {
+        using var ms = new MemoryStream();
+
+        // Two consecutive ID3v2 tags with different payload sizes.
+        WriteId3v2Tag(ms, payloadSize: 10, fill: 0xAA);
+        WriteId3v2Tag(ms, payloadSize: 7, fill: 0xBB);
+
+        // MP3 sync frames (0xFF 0xFB = MPEG1 Layer3)
+        byte[] audioData = CreateTestData(512);
+        audioData[0] = 0xFF;
+        audioData[1] = 0xFB;
+        ms.Write(audioData);
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    private static void WriteId3v2Tag(Stream stream, int payloadSize, byte fill)
+    {
+        stream.Write(Encoding.ASCII.GetBytes("ID3"));
+        stream.WriteByte(3); // version major
+        stream.WriteByte(0); // version minor
+        stream.WriteByte(0); // flags
+
+        // Syncsafe 4-byte size (7 bits per byte). payloadSize is small, fits in the low byte.
+        stream.WriteByte(0);
+        stream.WriteByte(0);
+        stream.WriteByte(0);
+        stream.WriteByte((byte)(payloadSize & 0x7F));
+
+        byte[] payload = new byte[payloadSize];
+        Array.Fill(payload, fill);
+        stream.Write(payload);
+    }
+
+    /// <summary>
     /// Builds a minimal VOB/stream file (1024 bytes seed 42).
     /// </summary>
     public static string BuildStream(string path)

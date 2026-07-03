@@ -37,6 +37,7 @@ internal class Unpack29
     private BlockType _blockType;
     private ModelPPM? _ppm;
     private int _ppmEscChar;
+    private bool _ppmDetected;
 
     static Unpack29()
     {
@@ -104,6 +105,7 @@ internal class Unpack29
         _lastLength = 0;
         _prevLowDist = 0;
         _lowDistRepCount = 0;
+        _ppmDetected = false;
 
         // Clear old table
         Array.Clear(_unpOldTable);
@@ -128,6 +130,17 @@ internal class Unpack29
             if (_inp.InAddr >= srcData.Length)
             {
                 break;
+            }
+
+            // STOPGAP (audit #7/#23): PPMd decoding is unsupported. The ModelPPM port
+            // is an incomplete stub whose UpdateModel/Rescale do not track WinRAR's
+            // encoder, so PPM-selected streams (here, or at a mid-stream LZ->PPM
+            // switch flagged inside ReadTables30) would decode to desynchronized
+            // garbage. Fail cleanly with null instead of returning garbage as
+            // success; callers treat null as "decompression unsupported".
+            if (_ppmDetected)
+            {
+                return null;
             }
 
             if (_blockType == BlockType.PPM)
@@ -472,7 +485,14 @@ internal class Unpack29
 
             _ppmEscChar = escChar;
             _inp.InAddr += offset;
-            return true;
+
+            // STOPGAP (audit #7/#23): PPMd is unsupported (the model above is an
+            // incomplete stub that desyncs from the encoder). The model is still
+            // allocated so the retained PPM plumbing keeps compiling, but we flag
+            // PPM and fail the table read so Decompress returns null rather than
+            // handing back garbage. See the _ppmDetected guard in Decompress.
+            _ppmDetected = true;
+            return false;
         }
 
         // LZ mode

@@ -1,3 +1,4 @@
+using System.IO.Hashing;
 using ReScene.RAR.Decompression;
 
 namespace ReScene.RAR;
@@ -36,6 +37,11 @@ namespace ReScene.RAR;
 /// <param name="IsRar5">
 /// True for entries discovered in a RAR5-format archive.
 /// </param>
+/// <param name="ExpectedCrc">
+/// Unpacked-data CRC32 from the file header, used to validate decompression output.
+/// <see langword="null"/> when the header does not carry a CRC (e.g. a RAR5 entry
+/// without the CRC32 flag).
+/// </param>
 internal sealed record RAREntry(
     string FileName,
     bool IsStored,
@@ -46,7 +52,8 @@ internal sealed record RAREntry(
     byte UnpackVersion,
     long PackedSize,
     long UnpackedSize,
-    bool IsRar5);
+    bool IsRar5,
+    uint? ExpectedCrc = null);
 
 /// <summary>
 /// File-level view over a set of RAR volumes. Walks the headers once at <c>Open</c>,
@@ -272,6 +279,19 @@ internal sealed class RARArchive : IDisposable
                 return null;
             }
 
+            // STOPGAP (audit #8): the LZ decoders use a fixed 64 KB window, so a
+            // back-reference beyond 64 KB aliases and silently corrupts entries
+            // larger than the window (this path routes file bodies up to 8 MB). The
+            // decoders are also not byte-perfect on some smaller inputs. Rather than
+            // embed corrupt bytes, verify the decompressed output against the entry's
+            // header CRC and fail cleanly on mismatch. Callers skip the entry (no
+            // garbage embedded). Skipped when the header carries no CRC.
+            if (entry.ExpectedCrc is uint expectedCrc && Crc32.HashToUInt32(unpacked) != expectedCrc)
+            {
+                skipReason = "decompressed data failed CRC check";
+                return null;
+            }
+
             skipReason = null;
             return unpacked;
         }
@@ -364,7 +384,8 @@ internal sealed class RARArchive : IDisposable
                     UnpackVersion: fh.UnpackVersion,
                     PackedSize: (long)fh.PackedSize,
                     UnpackedSize: (long)fh.UnpackedSize,
-                    IsRar5: false));
+                    IsRar5: false,
+                    ExpectedCrc: fh.FileCRC));
             }
 
             long target = block.BlockPosition + block.HeaderSize;
@@ -412,7 +433,8 @@ internal sealed class RARArchive : IDisposable
                     UnpackVersion: 50,
                     PackedSize: (long)block.DataSize,
                     UnpackedSize: (long)fi.UnpackedSize,
-                    IsRar5: true));
+                    IsRar5: true,
+                    ExpectedCrc: fi.FileCRC));
             }
 
             reader.SkipBlock(block);
