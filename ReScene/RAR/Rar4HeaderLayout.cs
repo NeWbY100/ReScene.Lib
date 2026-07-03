@@ -46,6 +46,7 @@ internal static class Rar4HeaderLayout
     public const int DosSecondMask = 0x1F;      // *2 seconds
     public const int DosSecondEvenMask = 0x3E;  // encode: keep even seconds before >> 1
     public const int DosMinuteMask = 0x3F;
+    public const int DosHourMask = 0x1F;   // 5-bit hour (0-23)
     public const int DosMinuteShift = 5;
     public const int DosHourShift = 11;
     public const int DosDayMask = 0x1F;

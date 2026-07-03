@@ -269,7 +269,7 @@ internal static class RARPatcher
         uint date = (((uint)(year - Rar4HeaderLayout.DosEpochYear) & Rar4HeaderLayout.DosYearMask) << Rar4HeaderLayout.DosYearShift)
                   | (((uint)dt.Month & Rar4HeaderLayout.DosMonthMask) << Rar4HeaderLayout.DosMonthShift)
                   | ((uint)dt.Day & Rar4HeaderLayout.DosDayMask);
-        uint time = (((uint)dt.Hour & Rar4HeaderLayout.DosSecondMask) << Rar4HeaderLayout.DosHourShift)
+        uint time = (((uint)dt.Hour & Rar4HeaderLayout.DosHourMask) << Rar4HeaderLayout.DosHourShift)
                   | (((uint)dt.Minute & Rar4HeaderLayout.DosMinuteMask) << Rar4HeaderLayout.DosMinuteShift)
                   | (((uint)dt.Second & Rar4HeaderLayout.DosSecondEvenMask) >> 1);
         return (date << 16) | time;

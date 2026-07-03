@@ -97,7 +97,7 @@ internal static class RARUtils
 
         int second = (int)((timePart & Rar4HeaderLayout.DosSecondMask) * 2);
         int minute = (int)((timePart >> Rar4HeaderLayout.DosMinuteShift) & Rar4HeaderLayout.DosMinuteMask);
-        int hour = (int)((timePart >> Rar4HeaderLayout.DosHourShift) & Rar4HeaderLayout.DosSecondMask);
+        int hour = (int)((timePart >> Rar4HeaderLayout.DosHourShift) & Rar4HeaderLayout.DosHourMask);
 
         try
         {
