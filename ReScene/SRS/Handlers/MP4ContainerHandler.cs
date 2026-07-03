@@ -265,9 +265,10 @@ internal class MP4ContainerHandler : IContainerHandler
                 // Track header: extract track ID for MP4 track mapping
                 byte[] data = StreamUtilities.ReadAtMost(fs, (int)(atomEnd - fs.Position));
                 crc.Append(data);
-                // Track ID is at offset 12 (version 0) or 20 (version 1)
+                // Track ID is at offset 12 (version 0) or 20 (version 1): version(1) + flags(3) +
+                // creation(4|8) + modification(4|8) + trackID. data[0] is the version byte.
                 int version = data[0];
-                int trackIdOffset = version == 1 ? 19 : 11;
+                int trackIdOffset = version == 1 ? 20 : 12;
                 if (trackIdOffset + 4 <= data.Length)
                 {
                     currentTrackId = (int)BinaryPrimitives.ReadUInt32BigEndian(

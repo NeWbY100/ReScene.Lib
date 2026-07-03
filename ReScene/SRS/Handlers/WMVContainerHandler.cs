@@ -112,7 +112,17 @@ internal class WMVContainerHandler : IContainerHandler
         crc.GetHashAndReset(hash);
         uint crc32 = BinaryPrimitives.ReadUInt32LittleEndian(hash);
 
-        return (trackMap.Values.ToList(), crc32, totalLength);
+        // Packet payload bytes were accumulated into each track's DataLength but not into
+        // totalLength; include them so the reported size equals the file size (matching the AVI/MKV/
+        // MP4/FLAC handlers). Without this every valid WMV trips SRSWriter's "size mismatch" warning.
+        List<TrackInfo> tracks = trackMap.Values.ToList();
+        long totalSize = totalLength;
+        foreach (TrackInfo t in tracks)
+        {
+            totalSize += t.DataLength;
+        }
+
+        return (tracks, crc32, totalSize);
     }
 
     public void WriteSRS(
