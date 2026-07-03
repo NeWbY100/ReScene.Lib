@@ -173,6 +173,35 @@ public class RARVolumeNamingTests
     }
 
     [Fact]
+    public void EnumerateVolumes_OldStyle_IncludesVolumesPastR99()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "rvn_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            // Old-style sets with >101 volumes roll .r99 -> .s00 -> .s01 -> … These must all be
+            // enumerated (previously the .r?? glob capped the set at 101, so the correct match was
+            // rejected as a volume-count mismatch and rename/delete left orphans).
+            File.WriteAllText(Path.Combine(dir, "rel.rar"), "main");
+            File.WriteAllText(Path.Combine(dir, "rel.r99"), "r99");
+            File.WriteAllText(Path.Combine(dir, "rel.s00"), "s00");
+            File.WriteAllText(Path.Combine(dir, "rel.s01"), "s01");
+            File.WriteAllText(Path.Combine(dir, "rel.z99"), "z99");
+            File.WriteAllText(Path.Combine(dir, "rel.nfo"), "not a volume"); // must be excluded
+
+            List<string> vols = RARVolumeNaming.EnumerateVolumes(dir, "rel");
+
+            Assert.Equal(
+                ["rel.rar", "rel.r99", "rel.s00", "rel.s01", "rel.z99"],
+                vols.Select(Path.GetFileName));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void EnumerateVolumes_NoVolumes_ReturnsEmpty()
     {
         string dir = Path.Combine(Path.GetTempPath(), "rvn_" + Guid.NewGuid().ToString("N"));

@@ -222,6 +222,11 @@ internal sealed partial class RARProcess
         catch (Exception ex)
         {
             _logger.Error(this, ex, $"RAR process failed: {OutputFilePath}", LogTarget);
+            // Mirror the success/cancel paths: fire the process-status Completed event too, so
+            // Manager closes this process's streaming log. Firing only the compression event left
+            // the AutoFlush log StreamWriter open and locked for the rest of the session, which then
+            // broke the next run's output-directory cleanup with a sharing violation.
+            FireProcessStatusChanged(new(OperationStatus.Running, OperationStatus.Completed, OperationCompletionStatus.Error));
             FireCompressionStatusChanged(new(OperationStatus.Running, OperationStatus.Completed, OperationCompletionStatus.Error, OutputFilePath));
             throw;
         }

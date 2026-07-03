@@ -72,8 +72,24 @@ internal static partial class RARVolumeNaming
         {
             files.AddRange(rxxFiles
                 .Where(f => !f.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
-                .OrderBy(f => f));
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase));
         }
+
+        // Old-style sets with more than 101 volumes continue past .r99 as .s00, .s01, … up to .z99
+        // (see GetNextOldStyleVolume). Directory.GetFiles wildcards cannot express a character class,
+        // so glob any 3-char extension and keep only the [s-z]NN volume pattern. Without this, a
+        // >101-volume set is truncated in full-set verification (the correct match is rejected as a
+        // count mismatch), rename, and delete.
+        IOrderedEnumerable<string> extendedFiles = Directory.GetFiles(directory, $"{baseName}.???")
+            .Where(f =>
+            {
+                string ext = Path.GetExtension(f); // includes the leading dot, e.g. ".s00"
+                return ext.Length == 4
+                    && char.ToLowerInvariant(ext[1]) is >= 's' and <= 'z'
+                    && char.IsAsciiDigit(ext[2]) && char.IsAsciiDigit(ext[3]);
+            })
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase);
+        files.AddRange(extendedFiles);
 
         return files;
     }

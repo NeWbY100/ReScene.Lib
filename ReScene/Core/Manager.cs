@@ -626,8 +626,15 @@ public partial class Manager : IDisposable
 
             if (File.Exists(rarFilePath))
             {
-                // Throw error? Overwrite?
+                // Different argument combinations can filter to the same output name for a given
+                // version; the progress denominator counts each combination, so count this skip too
+                // (otherwise the bar/ETA stall well short of 100% for old versions).
                 _logger.Debug(this, $"RAR file already exists, skipping: {rarFilePath}", LogTarget.Phase2);
+                currentProgress++;
+                FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                {
+                    PhaseDescription = "Phase 2: Full RAR Creation"
+                });
                 continue;
             }
 
@@ -771,8 +778,13 @@ public partial class Manager : IDisposable
                         PatchRARFilesHostOS(completed, options.RAROptions);
                     }
 
+                    // expectedInOrder comes from the SRR's embedded .sfv (BuildExpectedVolumeCrcs),
+                    // which is ALWAYS CRC32 — regardless of whether the user's own verification file
+                    // is a .sfv or a .sha1. Hashing the produced volumes with options.HashType (SHA1)
+                    // here would compare 40-char SHA1s against 8-char CRC32s and reject every
+                    // byte-correct reconstruction, so this block must use CRC32.
                     var producedCrcs = producedVolumes
-                        .Select(v => HashCalculator.Calculate(options.HashType, v))
+                        .Select(v => HashCalculator.Calculate(HashType.CRC32, v))
                         .ToList();
 
                     VolumeMatchResult verify = VolumeMatchEvaluator.Evaluate(producedCrcs, expectedInOrder);
@@ -802,6 +814,20 @@ public partial class Manager : IDisposable
                 RenameMatchedOutput(options, rarFilePath, actualRarFilePath, rarOutputDir);
 
                 return (true, currentProgress, new WinningCombo(version, commandLineArguments));
+            }
+            catch (OperationCanceledException)
+            {
+                // User/stop cancellation must abort the whole run — propagate it.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // A single rar.exe that fails to launch (e.g. a DOS-era build in an "all versions"
+                // pack that passes File.Exists but can't start on 64-bit Windows, or an AV block)
+                // must not abort the entire brute-force. Log it, count the combination, and move on.
+                _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: RAR execution failed ({ex.Message}) — skipping this combination", LogTarget.Phase2);
+                currentProgress++;
+                continue;
             }
             finally
             {

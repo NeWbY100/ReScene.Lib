@@ -243,7 +243,14 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             bool isSplitBefore = (flags & FlagSplitBefore) != 0;
                             bool isSplitAfter = (flags & FlagSplitAfter) != 0;
 
-                            if (!isSplitBefore && archivedFileName != null)
+                            // RAR4 directory entries set all LHD_WINDOWMASK bits (0x00E0) and carry no
+                            // packed data. FindSourceFile would throw FileNotFoundException for the
+                            // directory name (File.Exists is false for a directory), aborting the whole
+                            // reconstruction — so never open a source stream for them (the header bytes
+                            // are still written above; packedSize is 0, so there is nothing to copy).
+                            bool isDirectory = (flags & 0x00E0) == 0x00E0;
+
+                            if (!isSplitBefore && archivedFileName != null && !isDirectory)
                             {
                                 if (currentSourceStream != null && currentSourceFileName != archivedFileName)
                                 {
