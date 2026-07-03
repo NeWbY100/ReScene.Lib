@@ -366,7 +366,7 @@ public static class RARDetailedParser
                 }
 
                 // Check for end of archive block
-                if (block.BlockTypeValue == 0x7B)
+                if (block.BlockTypeValue == (byte)RAR4BlockType.EndArchive)
                 {
                     break;
                 }
@@ -454,8 +454,8 @@ public static class RARDetailedParser
         block.TotalSize = headSize;
 
         // File headers (0x74), service blocks (0x7A), and any block with LONG_BLOCK flag have ADD_SIZE
-        bool hasAddSize = (headFlags & 0x8000) != 0 ||
-                          headType == 0x74 || headType == 0x7A;
+        bool hasAddSize = ((RARFileFlags)headFlags).HasFlag(RARFileFlags.LongBlock) ||
+                          headType == (byte)RAR4BlockType.FileHeader || headType == (byte)RAR4BlockType.Service;
 
         // ADD_SIZE (4 bytes) for file headers and blocks with LONG_BLOCK flag
         // Note: For file/service blocks, ADD_SIZE always exists and comes after the base 7-byte header
@@ -477,22 +477,22 @@ public static class RARDetailedParser
         // Parse type-specific fields
         switch (headType)
         {
-            case 0x73: // Archive header
+            case (byte)RAR4BlockType.ArchiveHeader: // Archive header
                 ParseRAR4ArchiveHeader(reader, block, pos, blockStart + headSize);
                 break;
-            case 0x74: // File header
+            case (byte)RAR4BlockType.FileHeader: // File header
                 ParseRAR4FileHeader(reader, block, pos, blockStart + headSize, headFlags, addSize);
                 break;
-            case 0x7A: // Service block (CMT, RR, etc.)
+            case (byte)RAR4BlockType.Service: // Service block (CMT, RR, etc.)
                 ParseRAR4ServiceBlock(reader, block, pos, blockStart + headSize, headFlags, addSize);
                 break;
-            case 0x7B: // End of archive
+            case (byte)RAR4BlockType.EndArchive: // End of archive
                 ParseRAR4EndBlock(reader, block, pos, blockStart + headSize, headFlags);
                 break;
         }
 
         // Show data area for service blocks with data
-        if (block.HasData && block.DataSize > 0 && headType == 0x7A)
+        if (block.HasData && block.DataSize > 0 && headType == (byte)RAR4BlockType.Service)
         {
             long dataStart = blockStart + headSize;
             ParseRAR4DataArea(reader, stream, block, dataStart);
@@ -573,16 +573,16 @@ public static class RARDetailedParser
 
     private static string GetRAR4BlockTypeName(byte type) => type switch
     {
-        0x72 => "Marker Block",
-        0x73 => "Archive Header",
-        0x74 => "File Header",
-        0x75 => "Comment (old)",
-        0x76 => "Extra Info (old)",
-        0x77 => "Subblock (old)",
-        0x78 => "Recovery Record (old)",
-        0x79 => "Auth Info (old)",
-        0x7A => "Service Block",
-        0x7B => "End of Archive",
+        (byte)RAR4BlockType.Marker => "Marker Block",
+        (byte)RAR4BlockType.ArchiveHeader => "Archive Header",
+        (byte)RAR4BlockType.FileHeader => "File Header",
+        (byte)RAR4BlockType.Comment => "Comment (old)",
+        (byte)RAR4BlockType.AuthInfo => "Extra Info (old)",
+        (byte)RAR4BlockType.OldService => "Subblock (old)",
+        (byte)RAR4BlockType.Protect => "Recovery Record (old)",
+        (byte)RAR4BlockType.Sign => "Auth Info (old)",
+        (byte)RAR4BlockType.Service => "Service Block",
+        (byte)RAR4BlockType.EndArchive => "End of Archive",
         _ => $"Unknown (0x{type:X2})"
     };
 
@@ -683,14 +683,14 @@ public static class RARDetailedParser
         flagsField.Children.Add(new RARHeaderField
         {
             Name = "LONG_BLOCK",
-            Value = (flags & 0x8000) != 0 ? "Has ADD_SIZE field" : "Not set"
+            Value = ((RARFileFlags)flags).HasFlag(RARFileFlags.LongBlock) ? "Has ADD_SIZE field" : "Not set"
         });
 
-        if (blockType == 0x73) // Archive header
+        if (blockType == (byte)RAR4BlockType.ArchiveHeader) // Archive header
         {
             EmitFlags(flagsField, flags, _rar4ArchiveFlags);
         }
-        else if (blockType is 0x74 or 0x7A) // File header or service block
+        else if (blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) // File header or service block
         {
             EmitFlags(flagsField, flags, _rar4FileFlagsLow);
 
@@ -713,7 +713,7 @@ public static class RARDetailedParser
 
             EmitFlags(flagsField, flags, _rar4FileFlagsHigh);
         }
-        else if (blockType == 0x7B) // End of archive
+        else if (blockType == (byte)RAR4BlockType.EndArchive) // End of archive
         {
             EmitFlags(flagsField, flags, _rar4EndFlags);
         }
@@ -752,7 +752,7 @@ public static class RARDetailedParser
         {
             unpSize = reader.ReadUInt32();
             string? unpDesc = null;
-            if (unpSize == 0xFFFFFFFF && (flags & 0x0100) == 0) // max without LARGE flag
+            if (unpSize == 0xFFFFFFFF && !((RARFileFlags)flags).HasFlag(RARFileFlags.Large)) // max without LARGE flag
             {
                 unpDesc = "Custom packer sentinel (e.g. QCF) — size unreliable";
             }
@@ -833,7 +833,7 @@ public static class RARDetailedParser
         }
 
         // HIGH_PACK_SIZE (4 bytes) - if LARGE flag set
-        if ((flags & 0x0100) != 0 && cursor.Pos + 4 <= headerEnd)
+        if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && cursor.Pos + 4 <= headerEnd)
         {
             uint highPack = reader.ReadUInt32();
             string? highPackDesc = null;
@@ -855,7 +855,7 @@ public static class RARDetailedParser
         }
 
         // HIGH_UNP_SIZE (4 bytes) - if LARGE flag set
-        if ((flags & 0x0100) != 0 && cursor.Pos + 4 <= headerEnd)
+        if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && cursor.Pos + 4 <= headerEnd)
         {
             uint highUnp = reader.ReadUInt32();
             string? highUnpDesc = null;
@@ -874,16 +874,16 @@ public static class RARDetailedParser
         if (nameSize > 0 && cursor.Pos + nameSize <= headerEnd)
         {
             byte[] nameBytes = reader.ReadBytes(nameSize);
-            string fileName = RARUtils.DecodeFileName(nameBytes, (flags & 0x0200) != 0) ?? "";
+            string fileName = RARUtils.DecodeFileName(nameBytes, ((RARFileFlags)flags).HasFlag(RARFileFlags.Unicode)) ?? "";
             block.ItemName = fileName;
             RARHeaderField nameField = cursor.EmitFixed("File Name", nameSize, nameBytes);
             nameField.Value = fileName;
-            nameField.Description = (flags & 0x0200) != 0 ? "Unicode encoded" : "OEM encoded";
+            nameField.Description = ((RARFileFlags)flags).HasFlag(RARFileFlags.Unicode) ? "Unicode encoded" : "OEM encoded";
             block.Fields.Add(nameField);
         }
 
         // SALT (8 bytes) - if SALT flag set
-        if ((flags & 0x0400) != 0 && cursor.Pos + 8 <= headerEnd)
+        if (((RARFileFlags)flags).HasFlag(RARFileFlags.Salt) && cursor.Pos + 8 <= headerEnd)
         {
             byte[] salt = reader.ReadBytes(8);
             RARHeaderField saltField = cursor.EmitFixed("Salt", 8, salt);
@@ -892,7 +892,7 @@ public static class RARDetailedParser
         }
 
         // EXT_TIME (variable) - if EXTTIME flag set
-        if ((flags & 0x1000) != 0 && cursor.Pos + 2 <= headerEnd)
+        if (((RARFileFlags)flags).HasFlag(RARFileFlags.ExtTime) && cursor.Pos + 2 <= headerEnd)
         {
             ushort extFlags = reader.ReadUInt16();
             RARHeaderField extFlagsField = cursor.EmitFixed("Extended Time Flags", 2, BitConverter.GetBytes(extFlags));
@@ -980,7 +980,7 @@ public static class RARDetailedParser
         var cursor = new FieldCursor(reader, pos);
 
         // Archive end flags
-        if ((flags & 0x0002) != 0 && cursor.Pos + 4 <= headerEnd)
+        if (((RAREndArchiveFlags)flags).HasFlag(RAREndArchiveFlags.DataCRC) && cursor.Pos + 4 <= headerEnd)
         {
             uint dataCRC = reader.ReadUInt32();
             RARHeaderField crcField = cursor.EmitFixed("Archive Data CRC", 4, BitConverter.GetBytes(dataCRC));
@@ -989,7 +989,7 @@ public static class RARDetailedParser
         }
 
         // EARC_VOLNUMBER = 0x0008
-        if ((flags & 0x0008) != 0 && cursor.Pos + 2 <= headerEnd)
+        if (((RAREndArchiveFlags)flags).HasFlag(RAREndArchiveFlags.VolNumber) && cursor.Pos + 2 <= headerEnd)
         {
             ushort volNumber = reader.ReadUInt16();
             RARHeaderField volField = cursor.EmitFixed("Volume Number", 2, BitConverter.GetBytes(volNumber));
