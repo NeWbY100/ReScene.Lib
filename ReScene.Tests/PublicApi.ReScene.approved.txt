@@ -87,7 +87,7 @@ class static ReScene.Core.Comparison.FileComparer
     method Void CompareMKVFiles(MKVFileData, MKVFileData, CompareResult, IHexDataSource, IHexDataSource)
     method Void CompareProperty(IList<PropertyDifference>, String, String, String)
     method Void CompareRARFiles(RARFileData, RARFileData, CompareResult, IReadOnlyList<RARDetailedBlock>, IReadOnlyList<RARDetailedBlock>, IHexDataSource, IHexDataSource)
-    method Void CompareSRRFiles(SRRFile, SRRFile, CompareResult)
+    method Void CompareSRRFiles(SRRFile, SRRFile, CompareResult, IHexDataSource, IHexDataSource)
     method Void CompareSRSFiles(SRSFile, SRSFile, CompareResult)
 class ReScene.Core.Comparison.FileDifference
     ctor ()

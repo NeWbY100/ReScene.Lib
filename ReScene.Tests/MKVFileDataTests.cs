@@ -544,6 +544,73 @@ public class MKVFileDataTests : TempDirTestBase
     }
 
     [Fact]
+    public void Compare_DiffersOnlyPastElementCap_IsReportedNotIdentical()
+    {
+        // [audit #4] Two MKVs identical through the element cap but differing in later bytes must not be
+        // reported identical. Both parse trees end in the same truncation marker, so the marker's own
+        // (equal) value hides the divergence; the comparer must byte-compare the still-unparsed tail.
+        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] voids = new byte[(MKVFileData.DefaultMaxElements + 100) * 2];
+        for (int i = 0; i < voids.Length; i += 2)
+        {
+            voids[i] = 0xEC;
+            voids[i + 1] = 0x80;
+        }
+
+        // Right differs only in its final 64 bytes — well past the ~1000-element cap, so the parsed
+        // trees are byte-identical up to the marker and the difference lives entirely in the tail.
+        byte[] leftVoids = (byte[])voids.Clone();
+        byte[] rightVoids = (byte[])voids.Clone();
+        for (int i = rightVoids.Length - 64; i < rightVoids.Length; i++)
+        {
+            rightVoids[i] = 0xBB;
+        }
+
+        byte[] leftBytes = Concat(ebml, Master(IdSegment, leftVoids));
+        byte[] rightBytes = Concat(ebml, Master(IdSegment, rightVoids));
+
+        MKVFileData left = MKVFileData.Load(WriteMkv("capleft.mkv", leftBytes));
+        MKVFileData right = MKVFileData.Load(WriteMkv("capright.mkv", rightBytes));
+
+        // Sanity: both trees hit the cap and end with an identical truncation marker.
+        Assert.Equal("… (truncated)", left.Elements[1].Children[^1].Name);
+        Assert.Equal("… (truncated)", right.Elements[1].Children[^1].Name);
+
+        var result = new CompareResult();
+        FileComparer.CompareMKVFiles(left, right, result,
+            new ByteArrayDataSource(leftBytes), new ByteArrayDataSource(rightBytes));
+
+        FileDifference diff = Assert.Single(result.FileDifferences);
+        Assert.Equal(DifferenceType.Modified, diff.Type);
+        Assert.Contains("truncated", diff.FileName, StringComparison.Ordinal);
+        Assert.Equal("Uncompared Tail", Assert.Single(diff.PropertyDifferences).PropertyName);
+    }
+
+    [Fact]
+    public void Compare_IdenticalPastElementCap_NoDifference()
+    {
+        // [audit #4] The mirror guard: two byte-identical truncated files must still compare equal once
+        // the tail is byte-compared, so the fix does not introduce a false positive on identical input.
+        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] voids = new byte[(MKVFileData.DefaultMaxElements + 100) * 2];
+        for (int i = 0; i < voids.Length; i += 2)
+        {
+            voids[i] = 0xEC;
+            voids[i + 1] = 0x80;
+        }
+
+        byte[] bytes = Concat(ebml, Master(IdSegment, voids));
+        MKVFileData left = MKVFileData.Load(WriteMkv("capsame_l.mkv", bytes));
+        MKVFileData right = MKVFileData.Load(WriteMkv("capsame_r.mkv", bytes));
+
+        var result = new CompareResult();
+        FileComparer.CompareMKVFiles(left, right, result,
+            new ByteArrayDataSource(bytes), new ByteArrayDataSource((byte[])bytes.Clone()));
+
+        Assert.Empty(result.FileDifferences);
+    }
+
+    [Fact]
     public void Load_CustomElementCap_IsHonored()
     {
         // The cap is user-configurable; a small explicit value must truncate accordingly.

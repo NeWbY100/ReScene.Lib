@@ -1,5 +1,6 @@
 using ReScene.Core.Comparison;
 using ReScene.Hex;
+using ReScene.RAR;
 using ReScene.SRR;
 
 namespace ReScene.Tests;
@@ -194,6 +195,159 @@ public class FileComparerCoreTests
         FileDifference stored = Assert.Single(result.StoredFileDifferences);
         Assert.Equal("release.sfv", stored.FileName);
         Assert.Equal(DifferenceType.Added, stored.Type);
+    }
+
+    [Fact]
+    public void CompareSRRFiles_SameStoredFileDifferentContent_ReportsModified()
+    {
+        // [audit #3] Same stored-file name and length on both sides, but different payload bytes. The
+        // engine must byte-compare the payloads at DataOffset via the sources and report a Modified
+        // difference — otherwise two SRRs whose release.nfo/.sfv content differs read as identical.
+        byte[] leftBytes = new byte[64];
+        byte[] rightBytes = new byte[64];
+        for (int i = 0; i < 16; i++)
+        {
+            leftBytes[10 + i] = (byte)i;
+            rightBytes[10 + i] = (byte)(i ^ 0xFF);
+        }
+
+        var left = new SRRFile();
+        left._storedFiles.Add(new SRRStoredFileBlock { FileName = "release.nfo", FileLength = 16, DataOffset = 10 });
+        var right = new SRRFile();
+        right._storedFiles.Add(new SRRStoredFileBlock { FileName = "release.nfo", FileLength = 16, DataOffset = 10 });
+
+        var result = new CompareResult();
+        FileComparer.CompareSRRFiles(left, right, result,
+            new ByteArrayDataSource(leftBytes), new ByteArrayDataSource(rightBytes));
+
+        FileDifference diff = Assert.Single(result.StoredFileDifferences);
+        Assert.Equal("release.nfo", diff.FileName);
+        Assert.Equal(DifferenceType.Modified, diff.Type);
+        Assert.Equal("Content", Assert.Single(diff.PropertyDifferences).PropertyName);
+    }
+
+    [Fact]
+    public void CompareSRRFiles_SameStoredFileDifferentLength_ReportsModifiedWithoutSources()
+    {
+        // [audit #3] A stored-file length change is visible from the block metadata alone, so it must be
+        // reported even when no byte sources are supplied.
+        var left = new SRRFile();
+        left._storedFiles.Add(new SRRStoredFileBlock { FileName = "release.sfv", FileLength = 100 });
+        var right = new SRRFile();
+        right._storedFiles.Add(new SRRStoredFileBlock { FileName = "release.sfv", FileLength = 120 });
+
+        var result = new CompareResult();
+        FileComparer.CompareSRRFiles(left, right, result);
+
+        FileDifference diff = Assert.Single(result.StoredFileDifferences);
+        Assert.Equal(DifferenceType.Modified, diff.Type);
+
+        PropertyDifference len = Assert.Single(diff.PropertyDifferences);
+        Assert.Equal("File Length", len.PropertyName);
+        Assert.Equal("100 bytes", len.LeftValue);
+        Assert.Equal("120 bytes", len.RightValue);
+    }
+
+    [Fact]
+    public void CompareSRRFiles_SameStoredFileSameContent_NoDifference()
+    {
+        // [audit #3] Identical name, length, and payload bytes must produce no stored-file difference —
+        // guards the new content comparison against reporting a false positive.
+        byte[] bytes = new byte[64];
+        for (int i = 0; i < 16; i++)
+        {
+            bytes[10 + i] = (byte)(i * 7 + 3);
+        }
+
+        var left = new SRRFile();
+        left._storedFiles.Add(new SRRStoredFileBlock { FileName = "release.nfo", FileLength = 16, DataOffset = 10 });
+        var right = new SRRFile();
+        right._storedFiles.Add(new SRRStoredFileBlock { FileName = "release.nfo", FileLength = 16, DataOffset = 10 });
+
+        var result = new CompareResult();
+        FileComparer.CompareSRRFiles(left, right, result,
+            new ByteArrayDataSource(bytes), new ByteArrayDataSource((byte[])bytes.Clone()));
+
+        Assert.Empty(result.StoredFileDifferences);
+    }
+
+    // ---- CompareDetailedBlocks (alignment) -------------------------------
+
+    private static RARDetailedBlock ArchiveBlock() => new() { BlockType = "Archive Header" };
+
+    private static RARDetailedBlock FileBlock(string itemName, params (string Name, string Value)[] fields)
+    {
+        var block = new RARDetailedBlock { BlockType = "File Header", ItemName = itemName };
+        foreach ((string name, string value) in fields)
+        {
+            block.Fields.Add(new RARHeaderField { Name = name, Value = value });
+        }
+
+        return block;
+    }
+
+    private static RARDetailedBlock ServiceBlock(string itemName) =>
+        new() { BlockType = "Service Block", ItemName = itemName };
+
+    [Fact]
+    public void CompareDetailedBlocks_InsertedServiceBlock_ReportsInsertionNotEveryFileModified()
+    {
+        // [audit #18] The right archive carries an extra CMT service block before the file headers.
+        // Strict index pairing would compare each file header against the wrong counterpart and flag
+        // every field as "modified"; identity alignment must instead report only the inserted block.
+        List<RARDetailedBlock> left =
+        [
+            ArchiveBlock(),
+            FileBlock("a.txt", ("Packed Size", "100")),
+            FileBlock("b.txt", ("Packed Size", "200")),
+        ];
+        List<RARDetailedBlock> right =
+        [
+            ArchiveBlock(),
+            ServiceBlock("CMT"),
+            FileBlock("a.txt", ("Packed Size", "100")),
+            FileBlock("b.txt", ("Packed Size", "200")),
+        ];
+
+        var result = new CompareResult();
+        FileComparer.CompareDetailedBlocks(left, right, result);
+
+        // The inserted CMT service block is the only file-level difference, reported as Added.
+        FileDifference inserted = Assert.Single(result.FileDifferences);
+        Assert.Equal("CMT", inserted.FileName);
+        Assert.Equal(DifferenceType.Added, inserted.Type);
+
+        // a.txt and b.txt matched by identity → their fields are not misattributed as modified.
+        Assert.DoesNotContain(result.FileDifferences, d => d.FileName is "a.txt" or "b.txt");
+
+        // The count mismatch is still surfaced as an archive-level hint.
+        Assert.Contains(result.ArchiveDifferences, d => d.PropertyName == "Block Count");
+    }
+
+    [Fact]
+    public void CompareDetailedBlocks_MatchedFilesWithChangedField_ReportsOnlyChangedFile()
+    {
+        // A genuine field change on one matched file must be attributed to that file alone.
+        List<RARDetailedBlock> left =
+        [
+            ArchiveBlock(),
+            FileBlock("a.txt", ("Packed Size", "100")),
+            FileBlock("b.txt", ("Packed Size", "200")),
+        ];
+        List<RARDetailedBlock> right =
+        [
+            ArchiveBlock(),
+            FileBlock("a.txt", ("Packed Size", "100")),
+            FileBlock("b.txt", ("Packed Size", "999")),
+        ];
+
+        var result = new CompareResult();
+        FileComparer.CompareDetailedBlocks(left, right, result);
+
+        FileDifference diff = Assert.Single(result.FileDifferences);
+        Assert.Equal("b.txt", diff.FileName);
+        Assert.Equal(DifferenceType.Modified, diff.Type);
+        Assert.Equal("Packed Size", Assert.Single(diff.PropertyDifferences).PropertyName);
     }
 
     // ---- BlockDataMatches -------------------------------------------------

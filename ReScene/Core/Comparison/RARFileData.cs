@@ -127,7 +127,28 @@ public class RARFileData
                 }
             }
 
-            headerReader.SkipBlock(block, includeData: block.BlockType != RAR4BlockType.FileHeader);
+            // Advance past this block. RARFileData.Load only ever runs on real .rar files, whose
+            // FileHeader blocks are followed by the packed file data. RARHeaderReader.SkipBlock is shared
+            // with the SRR walker (where that data is absent) and deliberately never skips FileHeader
+            // data, so seek past it explicitly here — otherwise the next ReadBlock parses media bytes as
+            // a header and every file after the first is lost. Non-file blocks keep the shared skip
+            // (which already includes their service-block data).
+            if (block.BlockType == RAR4BlockType.FileHeader)
+            {
+                Stream stream = reader.BaseStream;
+                ulong packedSize = block.FileHeader?.PackedSize ?? block.AddSize;
+                long target = block.BlockPosition + block.HeaderSize + (long)packedSize;
+                if (target <= block.BlockPosition || target > stream.Length)
+                {
+                    break;
+                }
+
+                stream.Position = target;
+            }
+            else
+            {
+                headerReader.SkipBlock(block, includeData: true);
+            }
         }
     }
 

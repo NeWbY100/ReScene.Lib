@@ -150,6 +150,12 @@ public sealed class MKVFileData
     /// </summary>
     public const long MaxLeafValueBytes = 1L * 1024 * 1024;
 
+    /// <summary>
+    /// The <see cref="EBMLElement.Name"/> of the synthetic marker appended when parsing stops at the
+    /// element cap. The comparer recognizes it to byte-compare the still-unparsed tail of both files.
+    /// </summary>
+    internal const string TruncationMarkerName = "… (truncated)";
+
     private const int BinaryPreviewBytes = 16;
 
     private const ulong EbmlIdCluster = 0x1F43B675;
@@ -228,7 +234,7 @@ public sealed class MKVFileData
             {
                 target.Add(new EBMLElement
                 {
-                    Name = "… (truncated)",
+                    Name = TruncationMarkerName,
                     Position = stream.Position,
                     ValueType = EBMLValueType.Unknown,
                     Value = $"element cap of {maxElements} reached"

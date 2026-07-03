@@ -42,7 +42,7 @@ public static class FileComparer
 
         if (leftData is SRRFileData leftSRR && rightData is SRRFileData rightSRR)
         {
-            CompareSRRFiles(leftSRR.SRRFile, rightSRR.SRRFile, result);
+            CompareSRRFiles(leftSRR.SRRFile, rightSRR.SRRFile, result, leftSource, rightSource);
         }
         else if (leftData is SRSFile leftSRS && rightData is SRSFile rightSRS)
         {
@@ -99,7 +99,14 @@ public static class FileComparer
     /// <param name="result">
     /// The result to populate with differences.
     /// </param>
-    public static void CompareSRRFiles(SRRFile left, SRRFile right, CompareResult result)
+    /// <param name="leftSource">
+    /// Optional byte-level data source for the left SRR, used to byte-compare stored-file payloads.
+    /// </param>
+    /// <param name="rightSource">
+    /// Optional byte-level data source for the right SRR, used to byte-compare stored-file payloads.
+    /// </param>
+    public static void CompareSRRFiles(SRRFile left, SRRFile right, CompareResult result,
+        IHexDataSource? leftSource = null, IHexDataSource? rightSource = null)
     {
         CompareProperty(result._archiveDifferences, "App Name", left.HeaderBlock?.AppName, right.HeaderBlock?.AppName);
         CompareProperty(result._archiveDifferences, "RAR Version", FormatRARVersion(left.RARVersion), FormatRARVersion(right.RARVersion));
@@ -171,14 +178,17 @@ public static class FileComparer
             }
         }
 
-        // Compare stored files (normalize path separators for cross-platform compatibility)
-        var leftStored = left.StoredFiles.Select(s => s.FileName.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var rightStored = right.StoredFiles.Select(s => s.FileName.Replace('\\', '/')).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Compare stored files (normalize path separators for cross-platform compatibility). Beyond
+        // presence, a file on both sides must also be diffed on length and — when byte sources are
+        // available — on payload bytes, or two SRRs whose stored .nfo/.sfv differ in content report
+        // as identical.
+        Dictionary<string, SRRStoredFileBlock> leftStored = BuildStoredFileMap(left.StoredFiles);
+        Dictionary<string, SRRStoredFileBlock> rightStored = BuildStoredFileMap(right.StoredFiles);
 
-        foreach (string? file in leftStored.Union(rightStored).OrderBy(f => f))
+        foreach (string? file in leftStored.Keys.Union(rightStored.Keys).OrderBy(f => f))
         {
-            bool inLeft = leftStored.Contains(file);
-            bool inRight = rightStored.Contains(file);
+            bool inLeft = leftStored.TryGetValue(file, out SRRStoredFileBlock? lb);
+            bool inRight = rightStored.TryGetValue(file, out SRRStoredFileBlock? rb);
 
             if (inLeft != inRight)
             {
@@ -187,8 +197,56 @@ public static class FileComparer
                     FileName = file,
                     Type = inLeft ? DifferenceType.Removed : DifferenceType.Added
                 });
+
+                continue;
+            }
+
+            var storedDiff = new FileDifference { FileName = file };
+
+            if (lb!.FileLength != rb!.FileLength)
+            {
+                storedDiff.Type = DifferenceType.Modified;
+                storedDiff._propertyDifferences.Add(new PropertyDifference
+                {
+                    PropertyName = "File Length",
+                    LeftValue = $"{lb.FileLength:N0} bytes",
+                    RightValue = $"{rb.FileLength:N0} bytes"
+                });
+            }
+            else if (leftSource is not null && rightSource is not null && lb.FileLength > 0
+                && !BlockDataMatches(leftSource, lb.DataOffset, rightSource, rb.DataOffset, lb.FileLength))
+            {
+                // Same name and length, but the stored payload bytes differ (e.g. a re-created SRR
+                // whose release.nfo/.sfv was regenerated) — surface it rather than report identical.
+                storedDiff.Type = DifferenceType.Modified;
+                storedDiff._propertyDifferences.Add(new PropertyDifference
+                {
+                    PropertyName = "Content",
+                    LeftValue = "(content differs)",
+                    RightValue = "(content differs)"
+                });
+            }
+
+            if (storedDiff.Type != DifferenceType.None)
+            {
+                result._storedFileDifferences.Add(storedDiff);
             }
         }
+    }
+
+    /// <summary>
+    /// Builds a lookup of stored-file blocks keyed by their path-normalized name (case-insensitive),
+    /// keeping the first block when a name repeats.
+    /// </summary>
+    private static Dictionary<string, SRRStoredFileBlock> BuildStoredFileMap(IReadOnlyList<SRRStoredFileBlock> storedFiles)
+    {
+        var map = new Dictionary<string, SRRStoredFileBlock>(StringComparer.OrdinalIgnoreCase);
+        foreach (SRRStoredFileBlock block in storedFiles)
+        {
+            map.TryAdd(block.FileName.Replace('\\', '/'), block);
+        }
+
+        return map;
     }
 
     /// <summary>
@@ -309,6 +367,15 @@ public static class FileComparer
                 EBMLElement? le = i < leftN ? leftGroup![i] : null;
                 EBMLElement? re = i < rightN ? rightGroup![i] : null;
 
+                // A truncation marker stands in for "everything from here to EOF was not parsed".
+                // Two files identical up to the element cap can still differ in later clusters, and the
+                // markers' own (equal) values would hide that — so byte-compare the unparsed tails.
+                if ((le is not null && IsTruncationMarker(le)) || (re is not null && IsTruncationMarker(re)))
+                {
+                    CompareUnparsedTails(result, parentPath, le, re, i, leftSource, rightSource);
+                    continue;
+                }
+
                 if (le is not null && re is not null)
                 {
                     string path = ElementPath(parentPath, le, i);
@@ -360,6 +427,49 @@ public static class FileComparer
                     });
                 }
             }
+        }
+    }
+
+    private static bool IsTruncationMarker(EBMLElement element) =>
+        string.Equals(element.Name, MKVFileData.TruncationMarkerName, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Handles a pair (or single-sided) truncation marker: the element parser stopped at the cap, so
+    /// everything from the marker's position to EOF is still unparsed. Byte-compares that tail via the
+    /// data sources, or — when no sources are available — reports it as an unverified tail so the two
+    /// files can never be declared identical on truncated input.
+    /// </summary>
+    private static void CompareUnparsedTails(CompareResult result, string parentPath,
+        EBMLElement? left, EBMLElement? right, int occurrenceIndex,
+        IHexDataSource? leftSource, IHexDataSource? rightSource)
+    {
+        EBMLElement marker = (left ?? right)!;
+        string path = ElementPath(parentPath, marker, occurrenceIndex);
+
+        long leftPos = left?.Position ?? -1;
+        long rightPos = right?.Position ?? -1;
+
+        if (leftSource is null || rightSource is null)
+        {
+            AddElementDifference(result, path, "Uncompared Tail",
+                left is not null ? "(parsing truncated)" : "(fully parsed)",
+                right is not null ? "(parsing truncated)" : "(fully parsed)");
+            return;
+        }
+
+        long leftTail = leftPos >= 0 ? Math.Max(0, leftSource.Length - leftPos) : 0;
+        long rightTail = rightPos >= 0 ? Math.Max(0, rightSource.Length - rightPos) : 0;
+
+        if (leftTail != rightTail)
+        {
+            AddElementDifference(result, path, "Uncompared Tail",
+                $"{leftTail:N0} bytes", $"{rightTail:N0} bytes");
+            return;
+        }
+
+        if (leftTail > 0 && !BlockDataMatches(leftSource, leftPos, rightSource, rightPos, leftTail))
+        {
+            AddElementDifference(result, path, "Uncompared Tail", "(content differs)", "(content differs)");
         }
     }
 
@@ -491,77 +601,165 @@ public static class FileComparer
             });
         }
 
-        int count = Math.Min(leftBlocks.Count, rightBlocks.Count);
-        for (int i = 0; i < count; i++)
+        // Align blocks by identity rather than by list index: one inserted or removed block (e.g. a
+        // CMT service block, or a RAR5 encryption/recovery header) otherwise shifts every following
+        // pair and misattributes their fields as "modified", while Math.Min silently drops the trailing
+        // unmatched blocks. Item blocks (file/service) are keyed by (BlockType, ItemName); other blocks
+        // by BlockType. Repeated keys carry an occurrence index so genuine duplicates still pair in order.
+        var leftByKey = new Dictionary<string, RARDetailedBlock>(StringComparer.Ordinal);
+        var rightByKey = new Dictionary<string, RARDetailedBlock>(StringComparer.Ordinal);
+        var orderedKeys = new List<string>();
+
+        var leftOccurrences = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (RARDetailedBlock block in leftBlocks)
         {
-            RARDetailedBlock lb = leftBlocks[i];
-            RARDetailedBlock rb = rightBlocks[i];
+            string key = BuildBlockKey(block, leftOccurrences);
+            leftByKey[key] = block;
+            orderedKeys.Add(key);
+        }
 
-            bool isItemBlock = lb.BlockType.Contains("File", StringComparison.Ordinal) || lb.BlockType.Contains("Service", StringComparison.Ordinal);
-
-            FileDifference? fileDiff = null;
-            if (isItemBlock)
+        var rightOccurrences = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (RARDetailedBlock block in rightBlocks)
+        {
+            string key = BuildBlockKey(block, rightOccurrences);
+            rightByKey[key] = block;
+            if (!leftByKey.ContainsKey(key))
             {
-                fileDiff = new FileDifference
-                {
-                    FileName = lb.ItemName ?? rb.ItemName ?? $"Block [{i}]"
-                };
+                orderedKeys.Add(key);
+            }
+        }
+
+        foreach (string key in orderedKeys)
+        {
+            leftByKey.TryGetValue(key, out RARDetailedBlock? lb);
+            rightByKey.TryGetValue(key, out RARDetailedBlock? rb);
+
+            if (lb is not null && rb is not null)
+            {
+                CompareBlockPair(lb, rb, result, leftSource, rightSource);
+            }
+            else if (lb is not null)
+            {
+                AddBlockPresenceDifference(result, lb, DifferenceType.Removed);
+            }
+            else if (rb is not null)
+            {
+                AddBlockPresenceDifference(result, rb, DifferenceType.Added);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns whether a block type names a per-item block (file or service block) rather than an
+    /// archive-level block, so its differences are routed to the file-difference list.
+    /// </summary>
+    private static bool IsItemBlock(string blockType) =>
+        blockType.Contains("File", StringComparison.Ordinal) || blockType.Contains("Service", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Builds a per-side alignment key for a detailed block and advances its occurrence counter, so a
+    /// block only ever pairs with the same-identity block on the other side (or, failing that, with the
+    /// next same-identity occurrence).
+    /// </summary>
+    private static string BuildBlockKey(RARDetailedBlock block, Dictionary<string, int> occurrences)
+    {
+        string identity = IsItemBlock(block.BlockType)
+            ? $"{block.BlockType} {block.ItemName ?? string.Empty}"
+            : block.BlockType;
+
+        int occurrence = occurrences.TryGetValue(identity, out int n) ? n : 0;
+        occurrences[identity] = occurrence + 1;
+        return $"{identity} #{occurrence}";
+    }
+
+    /// <summary>
+    /// Compares a matched pair of detailed blocks field by field (and, when sources are available, by
+    /// data payload), routing differences to the owning file entry or to the archive-level list.
+    /// </summary>
+    private static void CompareBlockPair(RARDetailedBlock lb, RARDetailedBlock rb, CompareResult result,
+        IHexDataSource? leftSource, IHexDataSource? rightSource)
+    {
+        FileDifference? fileDiff = null;
+        if (IsItemBlock(lb.BlockType))
+        {
+            fileDiff = new FileDifference
+            {
+                FileName = lb.ItemName ?? rb.ItemName ?? lb.BlockType
+            };
+        }
+
+        int fieldCount = Math.Max(lb.Fields.Count, rb.Fields.Count);
+        for (int f = 0; f < fieldCount; f++)
+        {
+            RARHeaderField? lf = f < lb.Fields.Count ? lb.Fields[f] : null;
+            RARHeaderField? rf = f < rb.Fields.Count ? rb.Fields[f] : null;
+
+            string name = lf?.Name ?? rf?.Name ?? $"Field {f}";
+
+            // Skip Header CRC - it's a consequence of other field changes
+            if (name is "Header CRC" or "CRC32")
+            {
+                continue;
             }
 
-            int fieldCount = Math.Max(lb.Fields.Count, rb.Fields.Count);
-            for (int f = 0; f < fieldCount; f++)
+            string leftVal = lf?.Value ?? "N/A";
+            string rightVal = rf?.Value ?? "N/A";
+
+            if (leftVal != rightVal)
             {
-                RARHeaderField? lf = f < lb.Fields.Count ? lb.Fields[f] : null;
-                RARHeaderField? rf = f < rb.Fields.Count ? rb.Fields[f] : null;
-
-                string name = lf?.Name ?? rf?.Name ?? $"Field {f}";
-
-                // Skip Header CRC - it's a consequence of other field changes
-                if (name is "Header CRC" or "CRC32")
+                RouteDifference(result, fileDiff, new PropertyDifference
                 {
-                    continue;
-                }
-
-                string leftVal = lf?.Value ?? "N/A";
-                string rightVal = rf?.Value ?? "N/A";
-
-                if (leftVal != rightVal)
-                {
-                    var propDiff = new PropertyDifference
-                    {
-                        PropertyName = name,
-                        LeftValue = leftVal,
-                        RightValue = rightVal
-                    };
-
-                    RouteDifference(result, fileDiff, propDiff);
-                }
+                    PropertyName = name,
+                    LeftValue = leftVal,
+                    RightValue = rightVal
+                });
             }
+        }
 
-            // Byte-compare the data payload when sources are available and both blocks have data of equal size.
-            // Different sizes are already surfaced via the Pack Size / Data Size header field comparison above.
-            if (leftSource is not null && rightSource is not null
-                && lb.HasData && rb.HasData
-                && lb.DataSize > 0 && lb.DataSize == rb.DataSize)
+        // Byte-compare the data payload when sources are available and both blocks have data of equal size.
+        // Different sizes are already surfaced via the Pack Size / Data Size header field comparison above.
+        if (leftSource is not null && rightSource is not null
+            && lb.HasData && rb.HasData
+            && lb.DataSize > 0 && lb.DataSize == rb.DataSize
+            && !BlockDataMatches(leftSource, lb.StartOffset + lb.HeaderSize,
+                                 rightSource, rb.StartOffset + rb.HeaderSize, lb.DataSize))
+        {
+            RouteDifference(result, fileDiff, new PropertyDifference
             {
-                if (!BlockDataMatches(leftSource, lb.StartOffset + lb.HeaderSize,
-                                      rightSource, rb.StartOffset + rb.HeaderSize, lb.DataSize))
-                {
-                    var propDiff = new PropertyDifference
-                    {
-                        PropertyName = "Block Data",
-                        LeftValue = $"{lb.DataSize:N0} bytes (different)",
-                        RightValue = $"{rb.DataSize:N0} bytes (different)"
-                    };
+                PropertyName = "Block Data",
+                LeftValue = $"{lb.DataSize:N0} bytes (different)",
+                RightValue = $"{rb.DataSize:N0} bytes (different)"
+            });
+        }
 
-                    RouteDifference(result, fileDiff, propDiff);
-                }
-            }
+        if (fileDiff != null && fileDiff.Type != DifferenceType.None)
+        {
+            result._fileDifferences.Add(fileDiff);
+        }
+    }
 
-            if (fileDiff != null && fileDiff.Type != DifferenceType.None)
+    /// <summary>
+    /// Records a block that is present on only one side as Added or Removed: item blocks become a
+    /// file difference, other blocks an archive-level property difference.
+    /// </summary>
+    private static void AddBlockPresenceDifference(CompareResult result, RARDetailedBlock block, DifferenceType type)
+    {
+        if (IsItemBlock(block.BlockType))
+        {
+            result._fileDifferences.Add(new FileDifference
             {
-                result._fileDifferences.Add(fileDiff);
-            }
+                FileName = block.ItemName ?? block.BlockType,
+                Type = type
+            });
+        }
+        else
+        {
+            result._archiveDifferences.Add(new PropertyDifference
+            {
+                PropertyName = block.BlockType,
+                LeftValue = type == DifferenceType.Removed ? "present" : "(absent)",
+                RightValue = type == DifferenceType.Added ? "present" : "(absent)"
+            });
         }
     }
 
