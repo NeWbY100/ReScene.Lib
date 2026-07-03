@@ -144,6 +144,13 @@ internal static partial class RarVersionSelector
     {
         var validDirectories = new List<(string Path, int Version)>();
 
+        // Folder-name allow-list applied ON TOP OF the version ranges: when non-empty, only these
+        // folders run — so same-version variant folders (e.g. winrar-390 vs winrar-390-beta1, both
+        // version 390) can be excluded individually. Empty means no folder filter.
+        HashSet<string>? allowedFolders = options.RAROptions.AllowedVersionFolders.Count > 0
+            ? new HashSet<string>(options.RAROptions.AllowedVersionFolders, StringComparer.OrdinalIgnoreCase)
+            : null;
+
         foreach (string dir in directories)
         {
             string rarExeFilePath = Path.Combine(dir, "rar.exe");
@@ -160,10 +167,18 @@ internal static partial class RarVersionSelector
                 continue;
             }
 
-            if (options.RAROptions.RARVersions.Any(r => r.InRange(version)))
+            if (!options.RAROptions.RARVersions.Any(r => r.InRange(version)))
             {
-                validDirectories.Add((dir, version));
+                continue;
             }
+
+            if (allowedFolders is not null && !allowedFolders.Contains(dirName))
+            {
+                logger.Information(logSource, $"WinRAR version folder not in selection: {dirName}");
+                continue;
+            }
+
+            validDirectories.Add((dir, version));
         }
 
         return validDirectories;

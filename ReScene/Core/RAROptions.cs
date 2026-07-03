@@ -36,6 +36,15 @@ public class RAROptions
     public IReadOnlyList<VersionRange> RARVersions { get; init; } = [];
 
     /// <summary>
+    /// Gets the allow-list of WinRAR version folder NAMES (e.g. "winrar-390-beta1") to run.
+    /// Applied ON TOP OF <see cref="RARVersions"/>: when non-empty, only folders whose name is in
+    /// this set (case-insensitive) are used, so same-version variant folders (a release build vs a
+    /// beta that both parse to the same version) can be included or excluded individually. Empty
+    /// means no folder filter — every folder whose parsed version is in range is kept.
+    /// </summary>
+    public IReadOnlyList<string> AllowedVersionFolders { get; set; } = [];
+
+    /// <summary>
     /// Gets or sets a value indicating whether to delete the RAR files if checksum does not match.
     /// </summary>
     public bool DeleteRARFiles

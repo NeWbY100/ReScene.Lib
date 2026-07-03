@@ -35,6 +35,12 @@ internal static class BruteForceProgressCalculator
     {
         int size = 0;
 
+        // Same folder-name allow-list the selector applies, so progress accounting counts only the
+        // folders that will actually run. Empty means no folder filter.
+        HashSet<string>? allowedFolders = options.RAROptions.AllowedVersionFolders.Count > 0
+            ? new HashSet<string>(options.RAROptions.AllowedVersionFolders, StringComparer.OrdinalIgnoreCase)
+            : null;
+
         for (int a = 0; a < (options.RAROptions.SetFileArchiveAttribute == TriState.Checked ? 2 : 1); a++)
         {
             for (int b = 0; b < (options.RAROptions.SetFileNotContentIndexedAttribute == TriState.Checked ? 2 : 1); b++)
@@ -42,6 +48,11 @@ internal static class BruteForceProgressCalculator
                 Parallel.ForEach(allValidRarDirectories, (rarVersionDirectory, s, i) =>
                 {
                     int version = rarVersionDirectory.Version;
+
+                    if (allowedFolders is not null && !allowedFolders.Contains(Path.GetFileName(rarVersionDirectory.Path)))
+                    {
+                        return;
+                    }
 
                     Parallel.ForEach(options.RAROptions.CommandLineArguments, (commandLineArguments, s2, j) =>
                     {

@@ -263,6 +263,7 @@ class ReScene.Core.RAROptions
     property HashSet<String> ArchiveDirectoryPaths { get; set; }
     property HashSet<String> ArchiveFilePaths { get; set; }
     property IReadOnlyList<RARCommandLineArgument[]> CommandLineArguments { get; set; }
+    property IReadOnlyList<String> AllowedVersionFolders { get; set; }
     property IReadOnlyList<String> OriginalRarFileNames { get; set; }
     property IReadOnlyList<VersionRange> RARVersions { get; set; }
     property Nullable<Boolean> DetectedLargeFlag { get; set; }

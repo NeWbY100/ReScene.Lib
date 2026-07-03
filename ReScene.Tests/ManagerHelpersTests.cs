@@ -227,6 +227,66 @@ public class ManagerHelpersTests
 
     #endregion
 
+    #region GetValidRarDirectories folder allow-list
+
+    private static (string Path, int Version)[] RunGetValidRarDirectories(string root, IReadOnlyList<string> allowedFolders)
+    {
+        var options = new BruteForceOptions(root, root, root)
+        {
+            RAROptions = new RAROptions
+            {
+                RARVersions = [new VersionRange(390, 391)],   // covers the normalised version 390
+                AllowedVersionFolders = [.. allowedFolders],
+            },
+        };
+
+        return RarVersionSelector
+            .GetValidRarDirectories(Directory.GetDirectories(root), options, NullReSceneLogger.Instance, new object())
+            .ToArray();
+    }
+
+    [Fact]
+    public void GetValidRarDirectories_AllowList_KeepsOnlyNamedSameVersionFolder()
+    {
+        // Both folders parse to version 390; the allow-list must distinguish them by folder name.
+        using var tmp = new TempDir();
+        string keep = tmp.VersionDir("winrar-390");
+        tmp.VersionDir("winrar-390-beta1");
+
+        (string Path, int Version)[] result = RunGetValidRarDirectories(tmp.Path, ["winrar-390"]);
+
+        (string Path, int Version) only = Assert.Single(result);
+        Assert.Equal(keep, only.Path);
+        Assert.Equal(390, only.Version);
+    }
+
+    [Fact]
+    public void GetValidRarDirectories_EmptyAllowList_KeepsEveryInRangeFolder()
+    {
+        using var tmp = new TempDir();
+        tmp.VersionDir("winrar-390");
+        tmp.VersionDir("winrar-390-beta1");
+
+        (string Path, int Version)[] result = RunGetValidRarDirectories(tmp.Path, []);
+
+        Assert.Equal(2, result.Length);
+        Assert.All(result, r => Assert.Equal(390, r.Version));
+    }
+
+    [Fact]
+    public void GetValidRarDirectories_AllowList_IsCaseInsensitive()
+    {
+        using var tmp = new TempDir();
+        string keep = tmp.VersionDir("winrar-390");
+        tmp.VersionDir("winrar-390-beta1");
+
+        (string Path, int Version)[] result = RunGetValidRarDirectories(tmp.Path, ["WINRAR-390"]);
+
+        Assert.Equal(keep, Assert.Single(result).Path);
+    }
+
+    #endregion
+
     /// <summary>A self-cleaning unique temporary directory for filesystem tests.</summary>
     private sealed class TempDir : IDisposable
     {
@@ -241,6 +301,15 @@ public class ManagerHelpersTests
             string full = System.IO.Path.Combine(Path, name);
             System.IO.File.WriteAllText(full, contents);
             return full;
+        }
+
+        /// <summary>Creates a WinRAR version subfolder containing a rar.exe stub and returns its path.</summary>
+        public string VersionDir(string name)
+        {
+            string dir = System.IO.Path.Combine(Path, name);
+            Directory.CreateDirectory(dir);
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "rar.exe"), "stub");
+            return dir;
         }
 
         public void Dispose()
