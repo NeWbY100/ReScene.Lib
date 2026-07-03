@@ -265,13 +265,13 @@ internal static class RARPatcher
     /// </summary>
     private static uint EncodeDosDate(DateTime dt)
     {
-        int year = Math.Clamp(dt.Year, 1980, 2107);
-        uint date = (((uint)(year - 1980) & 0x7F) << 9)
-                  | (((uint)dt.Month & 0xF) << 5)
-                  | ((uint)dt.Day & 0x1F);
-        uint time = (((uint)dt.Hour & 0x1F) << 11)
-                  | (((uint)dt.Minute & 0x3F) << 5)
-                  | (((uint)dt.Second & 0x3E) >> 1);
+        int year = Math.Clamp(dt.Year, Rar4HeaderLayout.DosEpochYear, Rar4HeaderLayout.DosMaxYear);
+        uint date = (((uint)(year - Rar4HeaderLayout.DosEpochYear) & Rar4HeaderLayout.DosYearMask) << Rar4HeaderLayout.DosYearShift)
+                  | (((uint)dt.Month & Rar4HeaderLayout.DosMonthMask) << Rar4HeaderLayout.DosMonthShift)
+                  | ((uint)dt.Day & Rar4HeaderLayout.DosDayMask);
+        uint time = (((uint)dt.Hour & Rar4HeaderLayout.DosSecondMask) << Rar4HeaderLayout.DosHourShift)
+                  | (((uint)dt.Minute & Rar4HeaderLayout.DosMinuteMask) << Rar4HeaderLayout.DosMinuteShift)
+                  | (((uint)dt.Second & Rar4HeaderLayout.DosSecondEvenMask) >> 1);
         return (date << 16) | time;
     }
 
@@ -340,9 +340,9 @@ internal static class RARPatcher
         }
 
         ushort extFlags = BitConverter.ToUInt16(fullHeader, extTimeOffset);
-        int mtimeNibble = (extFlags >> 12) & 0xF;
-        bool mtimePresent = (mtimeNibble & 0x8) != 0;
-        int mtimeByteCount = mtimeNibble & 0x3;
+        int mtimeNibble = (extFlags >> Rar4HeaderLayout.MtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+        bool mtimePresent = (mtimeNibble & Rar4HeaderLayout.ExtTimePresentBit) != 0;
+        int mtimeByteCount = mtimeNibble & Rar4HeaderLayout.ExtTimePrecisionMask;
 
         if (!mtimePresent)
         {
@@ -352,10 +352,10 @@ internal static class RARPatcher
         (bool needsRounding, int remainder) = EncodeMtimeFraction(targetMtime);
 
         // Update the +1s rounding bit in the mtime nibble if it changed.
-        int newMtimeNibble = (mtimeNibble & ~0x4) | (needsRounding ? 0x4 : 0);
+        int newMtimeNibble = (mtimeNibble & ~Rar4HeaderLayout.ExtTimeRoundUpBit) | (needsRounding ? Rar4HeaderLayout.ExtTimeRoundUpBit : 0);
         if (newMtimeNibble != mtimeNibble)
         {
-            ushort newExtFlags = (ushort)((extFlags & 0x0FFF) | (newMtimeNibble << 12));
+            ushort newExtFlags = (ushort)((extFlags & Rar4HeaderLayout.MtimeNibbleMask) | (newMtimeNibble << Rar4HeaderLayout.MtimeNibbleShift));
             byte[] flagBytes = BitConverter.GetBytes(newExtFlags);
             Array.Copy(flagBytes, 0, fullHeader, extTimeOffset, 2);
             modified = true;
@@ -428,13 +428,13 @@ internal static class RARPatcher
         ushort endArchiveFlags = 0;
         ushort endArchiveHeaderSize = 0;
 
-        while (stream.Position + 7 <= stream.Length)
+        while (stream.Position + Rar4HeaderLayout.BaseHeaderSize <= stream.Length)
         {
             long blockStart = stream.Position;
 
             // Read base header
-            byte[] baseHeader = new byte[7];
-            if (stream.Read(baseHeader, 0, 7) != 7)
+            byte[] baseHeader = new byte[Rar4HeaderLayout.BaseHeaderSize];
+            if (stream.Read(baseHeader, 0, Rar4HeaderLayout.BaseHeaderSize) != Rar4HeaderLayout.BaseHeaderSize)
             {
                 break;
             }
@@ -442,7 +442,7 @@ internal static class RARPatcher
             byte blockType = baseHeader[Rar4HeaderLayout.Type];
             ushort headerSize = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.HeaderSize);
 
-            if (headerSize < 7 || blockStart + headerSize > stream.Length)
+            if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > stream.Length)
             {
                 break;
             }
@@ -614,13 +614,13 @@ internal static class RARPatcher
         // Skip RAR signature (7 bytes for RAR 4.x)
         stream.Position = 7;
 
-        while (stream.Position + 7 <= stream.Length)
+        while (stream.Position + Rar4HeaderLayout.BaseHeaderSize <= stream.Length)
         {
             long blockStart = stream.Position;
 
             // Read base header
-            byte[] baseHeader = new byte[7];
-            if (stream.Read(baseHeader, 0, 7) != 7)
+            byte[] baseHeader = new byte[Rar4HeaderLayout.BaseHeaderSize];
+            if (stream.Read(baseHeader, 0, Rar4HeaderLayout.BaseHeaderSize) != Rar4HeaderLayout.BaseHeaderSize)
             {
                 break;
             }
@@ -628,7 +628,7 @@ internal static class RARPatcher
             byte blockType = baseHeader[Rar4HeaderLayout.Type];
             ushort headerSize = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.HeaderSize);
 
-            if (headerSize < 7 || blockStart + headerSize > stream.Length)
+            if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > stream.Length)
             {
                 break;
             }
@@ -793,7 +793,7 @@ internal static class RARPatcher
 
         int pos = 7;
 
-        while (pos + 7 <= bytesRead)
+        while (pos + Rar4HeaderLayout.BaseHeaderSize <= bytesRead)
         {
             int blockStart = pos;
 
@@ -802,7 +802,7 @@ internal static class RARPatcher
             ushort flags = BitConverter.ToUInt16(original, pos + Rar4HeaderLayout.Flags);
             ushort headerSize = BitConverter.ToUInt16(original, pos + Rar4HeaderLayout.HeaderSize);
 
-            if (headerSize < 7 || blockStart + headerSize > bytesRead)
+            if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > bytesRead)
             {
                 break;
             }

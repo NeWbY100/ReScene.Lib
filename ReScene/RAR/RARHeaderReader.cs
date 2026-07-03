@@ -268,7 +268,7 @@ internal class RARHeaderReader
     /// <summary>
     /// Checks if there are enough bytes remaining to read a base header.
     /// </summary>
-    public bool CanReadBaseHeader => _stream.Position + 7 <= _stream.Length;
+    public bool CanReadBaseHeader => _stream.Position + Rar4HeaderLayout.BaseHeaderSize <= _stream.Length;
 
     /// <summary>
     /// Peeks at the next block type without advancing the stream position.
@@ -314,7 +314,7 @@ internal class RARHeaderReader
         ushort flags = _reader.ReadUInt16();
         ushort headerSize = _reader.ReadUInt16();
 
-        if (headerSize < 7 || blockStart + headerSize > _stream.Length)
+        if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > _stream.Length)
         {
             return null;
         }
@@ -577,15 +577,15 @@ internal class RARHeaderReader
             return;
         }
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < Rar4HeaderLayout.ExtTimeFieldCount; i++)
         {
-            int rmode = (extFlags >> ((3 - i) * 4)) & 0xF;
+            int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * Rar4HeaderLayout.ExtTimeNibbleBits)) & Rar4HeaderLayout.ExtTimeNibbleMask;
 
             // Determine precision for this time type
-            // rmode & 0x8 = time present flag
-            // rmode & 0x3 = number of extra precision bytes (0-3)
+            // rmode & ExtTimePresentBit = time present flag
+            // rmode & ExtTimePrecisionMask = number of extra precision bytes (0-3)
             TimestampPrecision precision;
-            if ((rmode & 0x8) == 0)
+            if ((rmode & Rar4HeaderLayout.ExtTimePresentBit) == 0)
             {
                 // Time not present in extended time structure
                 // For mtime, keep existing precision (from DOS time)
@@ -595,7 +595,7 @@ internal class RARHeaderReader
             else
             {
                 // Time is present - precision based on extra byte count
-                precision = PrecisionFromExtraBytes(rmode & 0x3);
+                precision = PrecisionFromExtraBytes(rmode & Rar4HeaderLayout.ExtTimePrecisionMask);
             }
 
             // mtime uses base DOS time; ctime/atime have their own DOS time
@@ -606,12 +606,12 @@ internal class RARHeaderReader
             }
 
             DateTime? time = RARUtils.DosDateToDateTime(dosTime);
-            if ((rmode & 0x4) != 0 && time.HasValue)
+            if ((rmode & Rar4HeaderLayout.ExtTimeRoundUpBit) != 0 && time.HasValue)
             {
                 time = time.Value.AddSeconds(1);
             }
 
-            int count = rmode & 0x3;
+            int count = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
             if (!TryReadRemainder(headerEnd, count, out int remainder))
             {
                 return;
@@ -807,24 +807,24 @@ internal class RARHeaderReader
                 ushort extFlags = _reader.ReadUInt16();
 
                 // mtime is at position 0 (bits 12-15)
-                int mtimeRmode = (extFlags >> 12) & 0xF;
-                if ((mtimeRmode & 0x8) != 0)
+                int mtimeRmode = (extFlags >> Rar4HeaderLayout.MtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                if ((mtimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
                 {
-                    mtimePrecision = PrecisionFromExtraBytes(mtimeRmode & 0x3);
+                    mtimePrecision = PrecisionFromExtraBytes(mtimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
                 }
 
                 // ctime is at position 1 (bits 8-11)
-                int ctimeRmode = (extFlags >> 8) & 0xF;
-                if ((ctimeRmode & 0x8) != 0)
+                int ctimeRmode = (extFlags >> Rar4HeaderLayout.CtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                if ((ctimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
                 {
-                    ctimePrecision = PrecisionFromExtraBytes(ctimeRmode & 0x3);
+                    ctimePrecision = PrecisionFromExtraBytes(ctimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
                 }
 
                 // atime is at position 2 (bits 4-7)
-                int atimeRmode = (extFlags >> 4) & 0xF;
-                if ((atimeRmode & 0x8) != 0)
+                int atimeRmode = (extFlags >> Rar4HeaderLayout.AtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                if ((atimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
                 {
-                    atimePrecision = PrecisionFromExtraBytes(atimeRmode & 0x3);
+                    atimePrecision = PrecisionFromExtraBytes(atimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
                 }
             }
         }

@@ -901,20 +901,21 @@ public static class RARDetailedParser
             // Decode flag bits for each timestamp
             string[] timeLabels = { "mtime", "ctime", "atime", "arctime" };
             string[] precisionLabels = { "DOS (1s)", "+1 byte (~6.5ms)", "+2 bytes (~25.6\u00B5s)", "+3 bytes (100ns)" };
-            for (int t = 0; t < 4; t++)
+            for (int t = 0; t < Rar4HeaderLayout.ExtTimeFieldCount; t++)
             {
-                int rmode = (extFlags >> ((3 - t) * 4)) & 0xF;
-                bool present = (rmode & 0x8) != 0;
-                bool roundUp = (rmode & 0x4) != 0;
-                int extraBytes = rmode & 0x3;
+                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * Rar4HeaderLayout.ExtTimeNibbleBits)) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                bool present = (rmode & Rar4HeaderLayout.ExtTimePresentBit) != 0;
+                bool roundUp = (rmode & Rar4HeaderLayout.ExtTimeRoundUpBit) != 0;
+                int extraBytes = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
 
                 string desc = present
                     ? $"Present, {precisionLabels[extraBytes]}{(roundUp ? ", +1s rounding" : "")}"
                     : "Not present";
 
+                int bitLow = (Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * Rar4HeaderLayout.ExtTimeNibbleBits;
                 extFlagsField.Children.Add(new RARHeaderField
                 {
-                    Name = $"{timeLabels[t]} [bits {(3 - t) * 4 + 3}-{(3 - t) * 4}]",
+                    Name = $"{timeLabels[t]} [bits {bitLow + Rar4HeaderLayout.ExtTimeNibbleBits - 1}-{bitLow}]",
                     Value = $"0x{rmode:X} ({desc})"
                 });
             }
@@ -922,10 +923,10 @@ public static class RARDetailedParser
             block.Fields.Add(extFlagsField);
 
             // Parse each time field (mtime, ctime, atime, arctime)
-            for (int i = 0; i < 4 && cursor.Pos < headerEnd; i++)
+            for (int i = 0; i < Rar4HeaderLayout.ExtTimeFieldCount && cursor.Pos < headerEnd; i++)
             {
-                int rmode = (extFlags >> ((3 - i) * 4)) & 0xF;
-                if ((rmode & 0x8) == 0)
+                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * Rar4HeaderLayout.ExtTimeNibbleBits)) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                if ((rmode & Rar4HeaderLayout.ExtTimePresentBit) == 0)
                 {
                     continue;
                 }
@@ -946,7 +947,7 @@ public static class RARDetailedParser
                     block.Fields.Add(dosField);
                 }
 
-                int count = rmode & 0x3;
+                int count = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
                 if (count > 0 && cursor.Pos + count <= headerEnd)
                 {
                     byte[] remainder = reader.ReadBytes(count);

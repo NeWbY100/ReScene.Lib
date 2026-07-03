@@ -91,14 +91,13 @@ internal static class RARUtils
         uint datePart = (dosDate >> 16) & 0xFFFF;
         uint timePart = dosDate & 0xFFFF;
 
-        int day = (int)(datePart & 0x1F);
-        int month = (int)((datePart >> 5) & 0x0F);
-        const int dosEpochYear = 1980;
-        int year = (int)((datePart >> 9) & 0x7F) + dosEpochYear;
+        int day = (int)(datePart & Rar4HeaderLayout.DosDayMask);
+        int month = (int)((datePart >> Rar4HeaderLayout.DosMonthShift) & Rar4HeaderLayout.DosMonthMask);
+        int year = (int)((datePart >> Rar4HeaderLayout.DosYearShift) & Rar4HeaderLayout.DosYearMask) + Rar4HeaderLayout.DosEpochYear;
 
-        int second = (int)((timePart & 0x1F) * 2);
-        int minute = (int)((timePart >> 5) & 0x3F);
-        int hour = (int)((timePart >> 11) & 0x1F);
+        int second = (int)((timePart & Rar4HeaderLayout.DosSecondMask) * 2);
+        int minute = (int)((timePart >> Rar4HeaderLayout.DosMinuteShift) & Rar4HeaderLayout.DosMinuteMask);
+        int hour = (int)((timePart >> Rar4HeaderLayout.DosHourShift) & Rar4HeaderLayout.DosSecondMask);
 
         try
         {
