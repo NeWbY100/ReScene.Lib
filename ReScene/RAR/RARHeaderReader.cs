@@ -415,9 +415,7 @@ internal class RARHeaderReader
     {
         // UNP_SIZE(4) + HOST_OS(1) + CRC(4) + TIME(4) + VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4)
         const int fileFieldsSize = 4 + 1 + 4 + 4 + 1 + 1 + 2 + 4;
-        const int baseHeaderSize = 7; // CRC(2) + TYPE(1) + FLAGS(2) + SIZE(2)
-        const int addSizeField = 4;
-        const int minFileHeaderSize = baseHeaderSize + addSizeField + fileFieldsSize;
+        const int minFileHeaderSize = Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength + fileFieldsSize;
 
         if (block.HeaderSize < minFileHeaderSize)
         {
@@ -735,7 +733,7 @@ internal class RARHeaderReader
         // + NAME (variable, minimum 1 byte)
 
         const int serviceFieldsSize = 21; // UNP_SIZE(4) + HOST_OS(1) + CRC(4) + TIME(4) + VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4)
-        const int minServiceHeaderSize = 7 + 4 + serviceFieldsSize + 1; // base + ADD_SIZE + fields + min name
+        const int minServiceHeaderSize = Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength + serviceFieldsSize + 1; // base + ADD_SIZE + fields + min name
 
         if (block.HeaderSize < minServiceHeaderSize)
         {

@@ -218,18 +218,6 @@ internal class PatchOptions
 /// </summary>
 internal static class RARPatcher
 {
-    // RAR 4.x header field offsets (from block start)
-    private const int OffsetCRC = 0;
-    private const int OffsetType = 2;
-    private const int OffsetFlags = 3;
-    private const int OffsetHeaderSize = 5;
-    private const int OffsetAddSize = 7;       // For file headers and service blocks
-    private const int OffsetHighPackSize = 32;  // HIGH_PACK_SIZE (only when LARGE flag set)
-    private const int OffsetHostOS = 15;
-    private const int OffsetFileTime = 20;
-    private const int OffsetNameSize = 26;
-    private const int OffsetAttr = 28;
-
     /// <summary>
     /// Host OS name lookup.
     /// </summary>
@@ -256,14 +244,14 @@ internal static class RARPatcher
     /// </summary>
     private static long GetBlockDataSize(byte[] fullHeader, ushort headerSize)
     {
-        uint addSize = BitConverter.ToUInt32(fullHeader, OffsetAddSize);
-        ushort flags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
-        byte blockType = fullHeader[OffsetType];
+        uint addSize = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.AddSize);
+        ushort flags = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.Flags);
+        byte blockType = fullHeader[Rar4HeaderLayout.Type];
 
         if ((blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) &&
-            (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36)
+            (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= Rar4HeaderLayout.FixedFieldsEnd + 4)
         {
-            uint highPack = BitConverter.ToUInt32(fullHeader, OffsetHighPackSize);
+            uint highPack = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.HighPackSizeOffset);
             return addSize | ((long)highPack << 32);
         }
 
@@ -323,7 +311,7 @@ internal static class RARPatcher
             return false;
         }
 
-        ushort flags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
+        ushort flags = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.Flags);
         bool hasExtTime = (flags & (ushort)RARFileFlags.ExtTime) != 0;
         bool hasLarge = (flags & (ushort)RARFileFlags.Large) != 0;
         bool hasSalt = (flags & (ushort)RARFileFlags.Salt) != 0;
@@ -332,10 +320,10 @@ internal static class RARPatcher
 
         // Always patch DOS FTIME — it's at a fixed offset, regardless of EXT_TIME presence.
         uint targetDos = EncodeDosDate(targetMtime);
-        if (BitConverter.ToUInt32(fullHeader, OffsetFileTime) != targetDos)
+        if (BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.FileTime) != targetDos)
         {
             byte[] dosBytes = BitConverter.GetBytes(targetDos);
-            Array.Copy(dosBytes, 0, fullHeader, OffsetFileTime, 4);
+            Array.Copy(dosBytes, 0, fullHeader, Rar4HeaderLayout.FileTime, 4);
             modified = true;
         }
 
@@ -345,7 +333,7 @@ internal static class RARPatcher
         }
 
         // EXT_TIME starts after FILE_NAME (and optional HIGH_* / SALT).
-        int extTimeOffset = 32 + (hasLarge ? 8 : 0) + nameSize + (hasSalt ? 8 : 0);
+        int extTimeOffset = Rar4HeaderLayout.FixedFieldsEnd + (hasLarge ? 8 : 0) + nameSize + (hasSalt ? 8 : 0);
         if (extTimeOffset + 2 > fullHeader.Length)
         {
             return modified;
@@ -451,8 +439,8 @@ internal static class RARPatcher
                 break;
             }
 
-            byte blockType = baseHeader[OffsetType];
-            ushort headerSize = BitConverter.ToUInt16(baseHeader, OffsetHeaderSize);
+            byte blockType = baseHeader[Rar4HeaderLayout.Type];
+            ushort headerSize = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.HeaderSize);
 
             if (headerSize < 7 || blockStart + headerSize > stream.Length)
             {
@@ -463,7 +451,7 @@ internal static class RARPatcher
             bool isFileHeader = blockType == (byte)RAR4BlockType.FileHeader;
             bool isServiceBlock = blockType == (byte)RAR4BlockType.Service;
 
-            if ((isFileHeader || (isServiceBlock && options.PatchServiceBlocks)) && headerSize >= 32)
+            if ((isFileHeader || (isServiceBlock && options.PatchServiceBlocks)) && headerSize >= Rar4HeaderLayout.FixedFieldsEnd)
             {
                 // Read full header
                 stream.Position = blockStart;
@@ -474,18 +462,18 @@ internal static class RARPatcher
                 }
 
                 // Extract current values
-                ushort originalCRC = BitConverter.ToUInt16(fullHeader, OffsetCRC);
-                byte originalHostOS = fullHeader[OffsetHostOS];
-                uint originalAttr = BitConverter.ToUInt32(fullHeader, OffsetAttr);
-                uint originalFileTime = BitConverter.ToUInt32(fullHeader, OffsetFileTime);
+                ushort originalCRC = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.Crc);
+                byte originalHostOS = fullHeader[Rar4HeaderLayout.HostOs];
+                uint originalAttr = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.Attr);
+                uint originalFileTime = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.FileTime);
 
                 // Extract filename. The name starts after the fixed fields, plus the
                 // 8-byte HIGH_PACK_SIZE/HIGH_UNP_SIZE pair when the LARGE flag is set.
-                // Reading from a fixed offset 32 corrupted the name on LARGE headers
+                // Reading from FixedFieldsEnd corrupted the name on LARGE headers
                 // (files > 2 GB), which made the FileModifiedTimes lookup silently miss.
-                ushort nameSize = BitConverter.ToUInt16(fullHeader, OffsetNameSize);
-                ushort headerFlags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
-                int nameOffset = 32 + (((headerFlags & (ushort)RARFileFlags.Large) != 0) ? 8 : 0);
+                ushort nameSize = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.NameSize);
+                ushort headerFlags = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.Flags);
+                int nameOffset = Rar4HeaderLayout.FixedFieldsEnd + (((headerFlags & (ushort)RARFileFlags.Large) != 0) ? 8 : 0);
                 string? fileName = null;
                 if (nameSize > 0 && nameOffset + nameSize <= headerSize)
                 {
@@ -507,9 +495,9 @@ internal static class RARPatcher
 
                 // Patch Host OS if target value is set
                 byte newHostOS = originalHostOS;
-                if (targetHostOS.HasValue && fullHeader[OffsetHostOS] != targetHostOS.Value)
+                if (targetHostOS.HasValue && fullHeader[Rar4HeaderLayout.HostOs] != targetHostOS.Value)
                 {
-                    fullHeader[OffsetHostOS] = targetHostOS.Value;
+                    fullHeader[Rar4HeaderLayout.HostOs] = targetHostOS.Value;
                     newHostOS = targetHostOS.Value;
                     modified = true;
                 }
@@ -520,7 +508,7 @@ internal static class RARPatcher
                 {
                     newAttr = targetAttr.Value;
                     byte[] attrBytes = BitConverter.GetBytes(newAttr);
-                    Array.Copy(attrBytes, 0, fullHeader, OffsetAttr, 4);
+                    Array.Copy(attrBytes, 0, fullHeader, Rar4HeaderLayout.Attr, 4);
                     modified = true;
                 }
 
@@ -528,7 +516,7 @@ internal static class RARPatcher
                 if (targetFileTime.HasValue && originalFileTime != targetFileTime.Value)
                 {
                     byte[] timeBytes = BitConverter.GetBytes(targetFileTime.Value);
-                    Array.Copy(timeBytes, 0, fullHeader, OffsetFileTime, 4);
+                    Array.Copy(timeBytes, 0, fullHeader, Rar4HeaderLayout.FileTime, 4);
                     modified = true;
                 }
 
@@ -545,7 +533,7 @@ internal static class RARPatcher
 
                     // Update CRC in header
                     byte[] crcBytes = BitConverter.GetBytes(newCRC);
-                    Array.Copy(crcBytes, 0, fullHeader, OffsetCRC, 2);
+                    Array.Copy(crcBytes, 0, fullHeader, Rar4HeaderLayout.Crc, 2);
 
                     // Write modified header back
                     stream.Position = blockStart;
@@ -574,13 +562,13 @@ internal static class RARPatcher
                 if (blockType == (byte)RAR4BlockType.EndArchive)
                 {
                     endArchivePosition = blockStart;
-                    endArchiveFlags = BitConverter.ToUInt16(baseHeader, OffsetFlags);
+                    endArchiveFlags = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.Flags);
                     endArchiveHeaderSize = headerSize;
                 }
 
                 // Skip this block
                 // For blocks with LONG_BLOCK flag or file headers, read ADD_SIZE
-                ushort flags = BitConverter.ToUInt16(baseHeader, OffsetFlags);
+                ushort flags = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.Flags);
                 long dataSize = ComputeNonFileBlockDataSize(stream, blockStart, blockType, flags, headerSize);
 
                 stream.Position = blockStart + headerSize + dataSize;
@@ -598,7 +586,7 @@ internal static class RARPatcher
         // so it becomes stale after patching any header bytes within that range.
         if (results.Count > 0 && endArchivePosition >= 0 &&
             (endArchiveFlags & (ushort)RAREndArchiveFlags.DataCRC) != 0 &&
-            endArchiveHeaderSize >= 11) // 7 base + 4 Archive Data CRC minimum
+            endArchiveHeaderSize >= Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength) // base + 4 Archive Data CRC minimum
         {
             PatchEndOfArchiveCRC(stream, endArchivePosition, endArchiveHeaderSize);
         }
@@ -637,8 +625,8 @@ internal static class RARPatcher
                 break;
             }
 
-            byte blockType = baseHeader[OffsetType];
-            ushort headerSize = BitConverter.ToUInt16(baseHeader, OffsetHeaderSize);
+            byte blockType = baseHeader[Rar4HeaderLayout.Type];
+            ushort headerSize = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.HeaderSize);
 
             if (headerSize < 7 || blockStart + headerSize > stream.Length)
             {
@@ -648,7 +636,7 @@ internal static class RARPatcher
             bool isFileHeader = blockType == (byte)RAR4BlockType.FileHeader;
             bool isServiceBlock = blockType == (byte)RAR4BlockType.Service;
 
-            if ((isFileHeader || (isServiceBlock && options.PatchServiceBlocks)) && headerSize >= 32)
+            if ((isFileHeader || (isServiceBlock && options.PatchServiceBlocks)) && headerSize >= Rar4HeaderLayout.FixedFieldsEnd)
             {
                 // Read full header
                 stream.Position = blockStart;
@@ -658,13 +646,13 @@ internal static class RARPatcher
                     break;
                 }
 
-                ushort originalCRC = BitConverter.ToUInt16(fullHeader, OffsetCRC);
-                byte originalHostOS = fullHeader[OffsetHostOS];
-                uint originalAttr = BitConverter.ToUInt32(fullHeader, OffsetAttr);
+                ushort originalCRC = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.Crc);
+                byte originalHostOS = fullHeader[Rar4HeaderLayout.HostOs];
+                uint originalAttr = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.Attr);
 
-                ushort nameSize = BitConverter.ToUInt16(fullHeader, OffsetNameSize);
-                ushort headerFlags = BitConverter.ToUInt16(fullHeader, OffsetFlags);
-                int nameOffset = 32 + (((headerFlags & (ushort)RARFileFlags.Large) != 0) ? 8 : 0);
+                ushort nameSize = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.NameSize);
+                ushort headerFlags = BitConverter.ToUInt16(fullHeader, Rar4HeaderLayout.Flags);
+                int nameOffset = Rar4HeaderLayout.FixedFieldsEnd + (((headerFlags & (ushort)RARFileFlags.Large) != 0) ? 8 : 0);
                 string? fileName = null;
                 if (nameSize > 0 && nameOffset + nameSize <= headerSize)
                 {
@@ -703,7 +691,7 @@ internal static class RARPatcher
             }
             else
             {
-                ushort flags = BitConverter.ToUInt16(baseHeader, OffsetFlags);
+                ushort flags = BitConverter.ToUInt16(baseHeader, Rar4HeaderLayout.Flags);
                 long dataSize = ComputeNonFileBlockDataSize(stream, blockStart, blockType, flags, headerSize);
 
                 stream.Position = blockStart + headerSize + dataSize;
@@ -740,10 +728,10 @@ internal static class RARPatcher
 
             // Check for 64-bit size (HIGH_PACK_SIZE) on file/service blocks with LARGE flag
             if ((blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) &&
-                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36 &&
-                blockStart + 36 <= stream.Length)
+                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= Rar4HeaderLayout.FixedFieldsEnd + 4 &&
+                blockStart + Rar4HeaderLayout.FixedFieldsEnd + 4 <= stream.Length)
             {
-                stream.Position = blockStart + OffsetHighPackSize;
+                stream.Position = blockStart + Rar4HeaderLayout.HighPackSizeOffset;
                 byte[] highPackBytes = new byte[4];
                 stream.ReadExactly(highPackBytes, 0, 4);
                 uint highPack = BitConverter.ToUInt32(highPackBytes, 0);
@@ -810,9 +798,9 @@ internal static class RARPatcher
             int blockStart = pos;
 
             // Read base header fields
-            byte blockType = original[pos + OffsetType];
-            ushort flags = BitConverter.ToUInt16(original, pos + OffsetFlags);
-            ushort headerSize = BitConverter.ToUInt16(original, pos + OffsetHeaderSize);
+            byte blockType = original[pos + Rar4HeaderLayout.Type];
+            ushort flags = BitConverter.ToUInt16(original, pos + Rar4HeaderLayout.Flags);
+            ushort headerSize = BitConverter.ToUInt16(original, pos + Rar4HeaderLayout.HeaderSize);
 
             if (headerSize < 7 || blockStart + headerSize > bytesRead)
             {
@@ -826,42 +814,42 @@ internal static class RARPatcher
             bool hasAddSize = (flags & (ushort)RARFileFlags.LongBlock) != 0 ||
                               isFileHeader || isServiceBlock;
             uint addSize = 0;
-            if (hasAddSize && blockStart + 11 <= bytesRead)
+            if (hasAddSize && blockStart + Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength <= bytesRead)
             {
-                addSize = BitConverter.ToUInt32(original, blockStart + OffsetAddSize);
+                addSize = BitConverter.ToUInt32(original, blockStart + Rar4HeaderLayout.AddSize);
             }
 
-            if ((isFileHeader || isServiceBlock) && headerSize >= 32)
+            if ((isFileHeader || isServiceBlock) && headerSize >= Rar4HeaderLayout.FixedFieldsEnd)
             {
                 bool hasLarge = (flags & (ushort)RARFileFlags.Large) != 0;
 
                 if (wantLarge && !hasLarge)
                 {
-                    // ADD LARGE: insert 8 bytes at offset 32 (after ATTR field)
+                    // ADD LARGE: insert 8 bytes at FixedFieldsEnd (after ATTR field)
                     byte[] header = new byte[headerSize + 8];
-                    // Copy bytes 0-31 (up to and including ATTR)
-                    Array.Copy(original, blockStart, header, 0, 32);
-                    // Insert HIGH_PACK_SIZE and HIGH_UNP_SIZE at offset 32
-                    BitConverter.GetBytes(options.HighPackSize).CopyTo(header, 32);
-                    BitConverter.GetBytes(options.HighUnpSize).CopyTo(header, 36);
-                    // Copy remaining header bytes (from offset 32 onward in original)
-                    int remaining = headerSize - 32;
+                    // Copy fixed fields (0..FixedFieldsEnd-1, up to and including ATTR)
+                    Array.Copy(original, blockStart, header, 0, Rar4HeaderLayout.FixedFieldsEnd);
+                    // Insert HIGH_PACK_SIZE and HIGH_UNP_SIZE at FixedFieldsEnd
+                    BitConverter.GetBytes(options.HighPackSize).CopyTo(header, Rar4HeaderLayout.FixedFieldsEnd);
+                    BitConverter.GetBytes(options.HighUnpSize).CopyTo(header, Rar4HeaderLayout.FixedFieldsEnd + 4);
+                    // Copy remaining header bytes (from FixedFieldsEnd onward in original)
+                    int remaining = headerSize - Rar4HeaderLayout.FixedFieldsEnd;
                     if (remaining > 0)
                     {
-                        Array.Copy(original, blockStart + 32, header, 40, remaining);
+                        Array.Copy(original, blockStart + Rar4HeaderLayout.FixedFieldsEnd, header, Rar4HeaderLayout.FixedFieldsEnd + 8, remaining);
                     }
 
                     // Update flags: set LARGE bit
                     ushort newFlags = (ushort)(flags | (ushort)RARFileFlags.Large);
-                    BitConverter.GetBytes(newFlags).CopyTo(header, OffsetFlags);
+                    BitConverter.GetBytes(newFlags).CopyTo(header, Rar4HeaderLayout.Flags);
 
                     // Update header size (+8)
                     ushort newHeaderSize = (ushort)(headerSize + 8);
-                    BitConverter.GetBytes(newHeaderSize).CopyTo(header, OffsetHeaderSize);
+                    BitConverter.GetBytes(newHeaderSize).CopyTo(header, Rar4HeaderLayout.HeaderSize);
 
                     // Recalculate CRC
                     ushort newCRC = RARUtils.CalculateHeaderCRC(header);
-                    BitConverter.GetBytes(newCRC).CopyTo(header, OffsetCRC);
+                    BitConverter.GetBytes(newCRC).CopyTo(header, Rar4HeaderLayout.Crc);
 
                     // Write modified header
                     output.Write(header, 0, header.Length);
@@ -869,8 +857,8 @@ internal static class RARPatcher
                 }
                 else if (!wantLarge && hasLarge)
                 {
-                    // REMOVE LARGE: remove 8 bytes at offset 32
-                    if (headerSize < 40)
+                    // REMOVE LARGE: remove 8 bytes at FixedFieldsEnd
+                    if (headerSize < Rar4HeaderLayout.FixedFieldsEnd + 8)
                     {
                         // Header too small to contain HIGH fields, just copy as-is
                         output.Write(original, blockStart, headerSize);
@@ -878,26 +866,26 @@ internal static class RARPatcher
                     else
                     {
                         byte[] header = new byte[headerSize - 8];
-                        // Copy bytes 0-31
-                        Array.Copy(original, blockStart, header, 0, 32);
+                        // Copy fixed fields (0..FixedFieldsEnd-1)
+                        Array.Copy(original, blockStart, header, 0, Rar4HeaderLayout.FixedFieldsEnd);
                         // Skip 8 bytes (HIGH_PACK_SIZE + HIGH_UNP_SIZE), copy rest
-                        int remaining = headerSize - 40;
+                        int remaining = headerSize - (Rar4HeaderLayout.FixedFieldsEnd + 8);
                         if (remaining > 0)
                         {
-                            Array.Copy(original, blockStart + 40, header, 32, remaining);
+                            Array.Copy(original, blockStart + Rar4HeaderLayout.FixedFieldsEnd + 8, header, Rar4HeaderLayout.FixedFieldsEnd, remaining);
                         }
 
                         // Update flags: clear LARGE bit
                         ushort newFlags = (ushort)(flags & ~(ushort)RARFileFlags.Large);
-                        BitConverter.GetBytes(newFlags).CopyTo(header, OffsetFlags);
+                        BitConverter.GetBytes(newFlags).CopyTo(header, Rar4HeaderLayout.Flags);
 
                         // Update header size (-8)
                         ushort newHeaderSize = (ushort)(headerSize - 8);
-                        BitConverter.GetBytes(newHeaderSize).CopyTo(header, OffsetHeaderSize);
+                        BitConverter.GetBytes(newHeaderSize).CopyTo(header, Rar4HeaderLayout.HeaderSize);
 
                         // Recalculate CRC
                         ushort newCRC = RARUtils.CalculateHeaderCRC(header);
-                        BitConverter.GetBytes(newCRC).CopyTo(header, OffsetCRC);
+                        BitConverter.GetBytes(newCRC).CopyTo(header, Rar4HeaderLayout.Crc);
 
                         // Write modified header
                         output.Write(header, 0, header.Length);
@@ -998,7 +986,7 @@ internal static class RARPatcher
 
         // Recalculate the End of Archive header's own CRC
         ushort newHeaderCRC = RARUtils.CalculateHeaderCRC(endHeader);
-        BitConverter.GetBytes(newHeaderCRC).CopyTo(endHeader, OffsetCRC);
+        BitConverter.GetBytes(newHeaderCRC).CopyTo(endHeader, Rar4HeaderLayout.Crc);
 
         // Write back
         stream.Position = endArchivePosition;

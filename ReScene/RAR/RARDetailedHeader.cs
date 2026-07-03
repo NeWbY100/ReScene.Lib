@@ -335,7 +335,7 @@ public static class RARDetailedParser
         // Parse remaining blocks
         int maxBlocks = 100000; // Safety limit
         int blockCount = 0;
-        while (stream.Position + 7 <= stream.Length && blockCount < maxBlocks)
+        while (stream.Position + Rar4HeaderLayout.BaseHeaderSize <= stream.Length && blockCount < maxBlocks)
         {
             long blockStart = stream.Position;
 
@@ -376,8 +376,8 @@ public static class RARDetailedParser
             catch
             {
                 // Skip to try finding more blocks - move forward by minimum header size
-                stream.Position = blockStart + 7;
-                if (stream.Position > stream.Length - 7)
+                stream.Position = blockStart + Rar4HeaderLayout.BaseHeaderSize;
+                if (stream.Position > stream.Length - Rar4HeaderLayout.BaseHeaderSize)
                 {
                     break;
                 }
@@ -400,7 +400,7 @@ public static class RARDetailedParser
     {
         long blockStart = stream.Position;
 
-        if (blockStart + 7 > stream.Length)
+        if (blockStart + Rar4HeaderLayout.BaseHeaderSize > stream.Length)
         {
             return null;
         }
@@ -445,9 +445,9 @@ public static class RARDetailedParser
         headSizeField.Value = $"{headSize} bytes";
         block.Fields.Add(headSizeField);
 
-        if (headSize < 7)
+        if (headSize < Rar4HeaderLayout.BaseHeaderSize)
         {
-            block.TotalSize = 7;
+            block.TotalSize = Rar4HeaderLayout.BaseHeaderSize;
             return block;
         }
 
