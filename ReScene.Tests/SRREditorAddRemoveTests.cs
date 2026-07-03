@@ -75,6 +75,42 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         Assert.True(addedBlockStart < rarOffset, "New stored block must come before the RARFile block");
     }
 
+    // Real-world SRR with genuine embedded RAR headers (store_little.srr): a stored-file edit must
+    // preserve the entire RAR region byte-exactly. Previously the block walker mis-parsed the
+    // embedded RAR4 file header (LONG_BLOCK + phantom ADD_SIZE) as an over-long SRR block, broke the
+    // loop, and CommitViaTempFile wrote a truncated file — silently destroying all reconstruction
+    // metadata.
+    [Fact]
+    public void AddStoredFiles_RealSRRWithEmbeddedRar_PreservesRarRegionByteExact()
+    {
+        string src = Path.Combine(AppContext.BaseDirectory, "TestData", "store_little", "store_little.srr");
+        string srrPath = Path.Combine(TempDir, "store_little.srr");
+        File.Copy(src, srrPath);
+
+        byte[] original = File.ReadAllBytes(srrPath);
+        int rarOffset = IndexOf(original, RarFileSentinel);
+        Assert.True(rarOffset > 0, "RARFile block sentinel not found in the real SRR");
+        byte[] originalRarTail = original[rarOffset..];
+
+        SRRFile before = SRRFile.Load(srrPath);
+        int rarFilesBefore = before.RARFiles.Count;
+        Assert.True(rarFilesBefore >= 1);
+
+        string newFile = WriteFile("added.nfo", [9, 9, 9, 9]);
+        SRREditor.AddStoredFiles(srrPath, [("added.nfo", newFile)]);
+
+        // The embedded RAR region (first 0x71 block to EOF) must be byte-identical after the edit.
+        byte[] edited = File.ReadAllBytes(srrPath);
+        int rarOffsetAfter = IndexOf(edited, RarFileSentinel);
+        Assert.True(rarOffsetAfter > 0);
+        Assert.Equal(originalRarTail, edited[rarOffsetAfter..]);
+
+        // The correct parser still sees the same RAR file(s) plus the newly added stored file.
+        SRRFile after = SRRFile.Load(srrPath);
+        Assert.Equal(rarFilesBefore, after.RARFiles.Count);
+        Assert.Contains("added.nfo", after.StoredFiles.Select(b => b.FileName));
+    }
+
     // Adding to a header-only SRR: the new stored file lands immediately after the header
     // (there is no stored-file run to follow), and is the sole stored block on reload.
     [Fact]

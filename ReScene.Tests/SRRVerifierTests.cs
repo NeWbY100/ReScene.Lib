@@ -20,6 +20,20 @@ public class SRRVerifierTests : TempDirTestBase
         Assert.True(result.BlocksScanned >= 2);
     }
 
+    // A real SRR with genuine embedded RAR headers must verify as VALID. Previously the walker
+    // applied SRR ADD_SIZE framing to the embedded RAR4 file header (LONG_BLOCK + phantom packed
+    // size), so it always false-errored "extends past end of file" on every real archived SRR.
+    [Fact]
+    public void Verify_RealSRRWithEmbeddedRar_ReturnsValid()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "store_little", "store_little.srr");
+
+        SRRVerifyResult result = SRRVerifier.Verify(path);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Issues, i => i.Severity == SRRVerifyIssueSeverity.Error);
+    }
+
     [Fact]
     public void Verify_TruncatedFile_ReportsError()
     {

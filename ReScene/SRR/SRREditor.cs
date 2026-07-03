@@ -399,10 +399,11 @@ public static class SRREditor
     }
 
     /// <summary>
-    /// Runs <paramref name="body"/> against a freshly created temporary output file, then
-    /// atomically replaces <paramref name="srrFilePath"/> with it (Delete-then-Move). If
-    /// <paramref name="body"/> throws, the temporary file is removed and the original SRR is
-    /// left untouched. The body is given only the output stream; it opens its own input.
+    /// Runs <paramref name="body"/> against a freshly created temporary output file, then replaces
+    /// <paramref name="srrFilePath"/> with it via a single overwriting move. The original is never
+    /// pre-deleted, so if anything throws (including the move) the original SRR is left intact and
+    /// only the temp file is cleaned up. The body is given only the output stream; it opens its own
+    /// input.
     /// </summary>
     private static void CommitViaTempFile(string srrFilePath, Action<FileStream> body)
     {
@@ -415,11 +416,14 @@ public static class SRREditor
                 body(output);
             }
 
-            File.Delete(srrFilePath);
-            File.Move(tempPath, srrFilePath);
+            // Overwriting move: atomic on the same volume, and — crucially — the destination is not
+            // deleted first. A previous Delete-then-Move could destroy BOTH copies if the Move threw
+            // (transient lock on the temp / destination name), permanently losing the user's SRR.
+            File.Move(tempPath, srrFilePath, overwrite: true);
         }
         catch
         {
+            // Safe: the original was never removed, so deleting the temp cannot lose data.
             if (File.Exists(tempPath))
             {
                 File.Delete(tempPath);
@@ -460,6 +464,18 @@ public static class SRREditor
         if (headerSize < BaseHeaderSize)
         {
             return false;
+        }
+
+        if (typeRaw == (byte)SRRBlockType.RARFile)
+        {
+            // Everything from the first RAR volume block to EOF is embedded RAR headers (plus any
+            // OSO-hash / padding blocks that follow them), which are NOT SRR-framed. Stored-file
+            // edits never touch this region, so treat it as one opaque tail copied verbatim.
+            // Applying SRR ADD_SIZE framing here instead mis-parses the embedded RAR4 file headers
+            // (LONG_BLOCK with a phantom ADD_SIZE = packed size that overruns the file), which broke
+            // the walk at the first such header and silently truncated the whole RAR region.
+            header = new SrrBlockHeader(blockStart, crc, typeRaw, flags, headerSize, 0, input.Length - blockStart);
+            return true;
         }
 
         uint addSize = 0;

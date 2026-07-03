@@ -87,6 +87,17 @@ public static class SRRVerifier
                 });
             }
 
+            if (typeRaw == (byte)SRRBlockType.RARFile)
+            {
+                // The first RAR volume block begins the embedded RAR-header region, which is NOT
+                // SRR-framed. Validate the SRR structure up to here and stop — applying SRR
+                // ADD_SIZE framing to the embedded RAR4 file headers (LONG_BLOCK with a phantom
+                // packed-size ADD_SIZE) always false-errored "extends past end of file" on every
+                // real SRR that contains archived files.
+                blocksScanned++;
+                break;
+            }
+
             uint addSize = 0;
             bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
                               || typeRaw == (byte)SRRBlockType.StoredFile;
