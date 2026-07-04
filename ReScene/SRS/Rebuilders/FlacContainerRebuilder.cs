@@ -26,11 +26,11 @@ internal class FlacContainerRebuilder : IContainerRebuilder
 
         // Write fLaC marker
         outFs.Write("fLaC"u8);
-        srsFs.Position = 4;
+        srsFs.Position = FlacConstants.MarkerSize;
 
         int srsBlockCount = 0;
 
-        while (srsFs.Position + 4 <= srsFs.Length)
+        while (srsFs.Position + FlacConstants.BlockHeaderSize <= srsFs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long blockStart = srsFs.Position;
@@ -47,14 +47,14 @@ internal class FlacContainerRebuilder : IContainerRebuilder
                 && srsBlockCount <= FlacConstants.MaxSrsBlockCount)
             {
                 srsBlockCount++;
-                srsFs.Position = blockStart + 4 + payloadSize;
+                srsFs.Position = blockStart + FlacConstants.BlockHeaderSize + payloadSize;
                 continue;
             }
 
             // Copy block header and content
             srsFs.Position = blockStart;
-            byte[] rawHeader = new byte[4];
-            srsFs.ReadExactly(rawHeader, 0, 4);
+            byte[] rawHeader = new byte[FlacConstants.BlockHeaderSize];
+            srsFs.ReadExactly(rawHeader, 0, FlacConstants.BlockHeaderSize);
             outFs.Write(rawHeader);
 
             if (payloadSize > 0)

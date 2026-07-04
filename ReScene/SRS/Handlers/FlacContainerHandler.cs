@@ -35,14 +35,14 @@ internal class FlacContainerHandler : IContainerHandler
         }
 
         // Read fLaC marker
-        byte[] marker = new byte[4];
-        fs.ReadExactly(marker, 0, 4);
-        otherLength += 4;
+        byte[] marker = new byte[FlacConstants.MarkerSize];
+        fs.ReadExactly(marker, 0, FlacConstants.MarkerSize);
+        otherLength += FlacConstants.MarkerSize;
         crc.Append(marker);
 
         using var reader = new BinaryReader(fs, Encoding.UTF8, leaveOpen: true);
 
-        while (fs.Position + 4 <= fs.Length)
+        while (fs.Position + FlacConstants.BlockHeaderSize <= fs.Length)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -57,7 +57,7 @@ internal class FlacContainerHandler : IContainerHandler
                 (byte)(payloadSize >> 8),
                 (byte)payloadSize
             ];
-            otherLength += 4;
+            otherLength += FlacConstants.BlockHeaderSize;
             crc.Append(blockHeader);
 
             if (payloadSize > 0)
@@ -139,7 +139,7 @@ internal class FlacContainerHandler : IContainerHandler
         }
 
         // Copy fLaC marker
-        byte[] marker = reader.ReadBytes(4);
+        byte[] marker = reader.ReadBytes(FlacConstants.MarkerSize);
         outFs.Write(marker);
 
         // Inject SRSF/SRST right after fLaC marker
@@ -150,7 +150,7 @@ internal class FlacContainerHandler : IContainerHandler
         }
 
         // Copy metadata blocks, skip frame data
-        while (inFs.Position + 4 <= inFs.Length)
+        while (inFs.Position + FlacConstants.BlockHeaderSize <= inFs.Length)
         {
             ct.ThrowIfCancellationRequested();
 

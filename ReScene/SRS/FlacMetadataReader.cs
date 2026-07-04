@@ -33,8 +33,8 @@ internal static class FlacMetadataReader
 
         // Expect fLaC marker
         stream.Position = offset;
-        Span<byte> marker = stackalloc byte[4];
-        if (stream.Read(marker) < 4)
+        Span<byte> marker = stackalloc byte[FlacConstants.MarkerSize];
+        if (stream.Read(marker) < FlacConstants.MarkerSize)
         {
             throw new InvalidDataException("Stream too short to contain fLaC marker.");
         }
@@ -44,11 +44,11 @@ internal static class FlacMetadataReader
             throw new InvalidDataException("Expected fLaC marker not found.");
         }
 
-        offset += 4; // skip fLaC marker
+        offset += FlacConstants.MarkerSize; // skip fLaC marker
 
         // Walk metadata blocks until we find the last one
         using var reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen: true);
-        while (stream.Position + 4 <= stream.Length)
+        while (stream.Position + FlacConstants.BlockHeaderSize <= stream.Length)
         {
             (bool isLast, byte _, int length) = ReadMetadataBlockHeader(reader);
             stream.Position += length; // skip payload
