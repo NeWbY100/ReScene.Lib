@@ -57,7 +57,17 @@ internal sealed class InputDirectoryPreparer(
 
         foreach (string file in opts.ArchiveFilePaths)
         {
-            string filePath = Path.Combine(releaseDir, file);
+            // A key that escapes releaseDir (path traversal) is treated as missing rather than
+            // probing File.Exists outside it (an existence oracle) — parity with the guarded
+            // copy/CRC loops.
+            if (!FileOperations.TryResolveRelativePath(releaseDir, file, out string safeFile))
+            {
+                missing.Add(file);
+                _logger.Error(_logSource, $"  MISSING: {file}", LogTarget.System);
+                continue;
+            }
+
+            string filePath = Path.Combine(releaseDir, safeFile);
             if (!File.Exists(filePath))
             {
                 missing.Add(file);
@@ -180,7 +190,12 @@ internal sealed class InputDirectoryPreparer(
         long totalBytes = 0;
         foreach (KeyValuePair<string, string> entry in expectedCrcs)
         {
-            string filePath = Path.Combine(inputDirectory, entry.Key);
+            if (!FileOperations.TryResolveRelativePath(inputDirectory, entry.Key, out string safeKey))
+            {
+                continue;
+            }
+
+            string filePath = Path.Combine(inputDirectory, safeKey);
             if (File.Exists(filePath))
             {
                 totalBytes += new FileInfo(filePath).Length;
@@ -198,7 +213,16 @@ internal sealed class InputDirectoryPreparer(
 
             string relativePath = entry.Key;
             string expectedCRC = entry.Value;
-            string filePath = Path.Combine(inputDirectory, relativePath);
+
+            // A key that escapes inputDirectory (path traversal) is treated as missing rather than
+            // reading/CRC-ing a file outside the input directory.
+            if (!FileOperations.TryResolveRelativePath(inputDirectory, relativePath, out string safeKey))
+            {
+                missing.Add(relativePath);
+                continue;
+            }
+
+            string filePath = Path.Combine(inputDirectory, safeKey);
 
             if (!File.Exists(filePath))
             {

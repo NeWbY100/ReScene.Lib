@@ -125,8 +125,19 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                         byte[] nameBytes = reader.ReadBytes(nameLen);
                         currentRarFileName = Encoding.UTF8.GetString(nameBytes);
 
+                        // Guard against path traversal (Zip-Slip): a malicious SRR could name a
+                        // volume "..\..\x" or an absolute path, which Path.Combine would resolve
+                        // outside outputDirectory (arbitrary file write). Resolve the name through
+                        // the containment check and reject anything that escapes the output dir.
+                        if (!FileOperations.TryResolveRelativePath(outputDirectory, currentRarFileName,
+                                out string safeRarRelativePath))
+                        {
+                            throw new InvalidDataException(
+                                $"SRR contains an unsafe RAR file path that escapes the output directory: '{currentRarFileName}'");
+                        }
+
                         // Open new output file
-                        currentOutputPath = Path.Combine(outputDirectory, currentRarFileName);
+                        currentOutputPath = Path.Combine(outputDirectory, safeRarRelativePath);
                         Directory.CreateDirectory(Path.GetDirectoryName(currentOutputPath)!);
                         outputStream = new FileStream(currentOutputPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
@@ -357,10 +368,17 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
     internal static string FindSourceFile(string inputDirectory, string archivedFileName)
     {
-        string directPath = Path.Combine(inputDirectory, archivedFileName);
-        if (File.Exists(directPath))
+        // Only trust the archived name for a direct/subdirectory lookup if it stays within
+        // inputDirectory; a malicious "..\..\x" must not read files outside it and splice their
+        // bytes into the output (path traversal). The by-filename fallbacks below use
+        // Path.GetFileName, which strips directory components and is always contained.
+        if (FileOperations.TryResolveRelativePath(inputDirectory, archivedFileName, out string safeRelative))
         {
-            return directPath;
+            string directPath = Path.Combine(inputDirectory, safeRelative);
+            if (File.Exists(directPath))
+            {
+                return directPath;
+            }
         }
 
         string flatPath = Path.Combine(inputDirectory, Path.GetFileName(archivedFileName));
@@ -373,9 +391,10 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         string searchName = Path.GetFileName(archivedFileName);
         string? subDir = Path.GetDirectoryName(archivedFileName);
 
-        if (!string.IsNullOrEmpty(subDir))
+        if (!string.IsNullOrEmpty(subDir)
+            && FileOperations.TryResolveRelativePath(inputDirectory, subDir, out string safeSubDir))
         {
-            string subDirPath = Path.Combine(inputDirectory, subDir);
+            string subDirPath = Path.Combine(inputDirectory, safeSubDir);
             if (Directory.Exists(subDirPath))
             {
                 searchDir = subDirPath;

@@ -141,6 +141,33 @@ public class SRRReconstructorTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task ReconstructAsync_TraversalRarName_RejectsAndWritesNothingOutsideOutputDir()
+    {
+        // A malicious SRR naming its volume "..\evil.rar" must not write outside the output
+        // directory (path traversal / Zip-Slip). The escape target resolves to TempDir (the parent
+        // of _outputDir), which the harness cleans up.
+        const string archivedName = "movie.mkv";
+        File.WriteAllBytes(Path.Combine(_inputDir, archivedName), SourcePayload);
+
+        string srr = new SRRTestDataBuilder()
+            .AddSRRHeader("ReScene.Tests")
+            .AddRarFileWithHeaders(@"..\evil.rar", h => h
+                .AddArchiveHeader()
+                .AddFileHeader(archivedName, packedSize: (uint)SourcePayload.Length, unpackedSize: (uint)SourcePayload.Length)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "traversal.srr");
+
+        string escapedPath = Path.Combine(TempDir, "evil.rar");
+
+        var reconstructor = new SRRReconstructor();
+        await Assert.ThrowsAsync<InvalidDataException>(() => reconstructor.ReconstructAsync(
+            srr, _inputDir, _outputDir, [@"..\evil.rar"], [], HashType.CRC32, CancellationToken.None));
+
+        Assert.False(File.Exists(escapedPath),
+            "SRR reconstruction wrote a RAR volume outside the output directory (path traversal).");
+    }
+
+    [Fact]
     public async Task ReconstructAsync_AlreadyCancelled_Throws()
     {
         byte[] source = [.. Enumerable.Range(0, 64).Select(i => (byte)i)];
@@ -187,6 +214,44 @@ public class SRRReconstructorTests : TempDirTestBase
     [Fact]
     public void FindSourceFile_Missing_Throws()
         => Assert.Throws<FileNotFoundException>(() => SRRReconstructor.FindSourceFile(_inputDir, "absent.mkv"));
+
+    [Fact]
+    public void FindSourceFile_SubdirName_ResolvesThroughGuardedDirectPath()
+    {
+        // A legit subdirectory archived name must still resolve to the file inside the input dir
+        // through the (now guard-gated) direct-path branch — the guard must not regress this.
+        string cd1Dir = Path.Combine(_inputDir, "CD1");
+        Directory.CreateDirectory(cd1Dir);
+        string expected = Path.Combine(cd1Dir, "movie.mkv");
+        File.WriteAllText(expected, "data");
+
+        Assert.Equal(expected, SRRReconstructor.FindSourceFile(_inputDir, "CD1/movie.mkv"));
+    }
+
+    [Fact]
+    public void FindSourceFile_AbsolutePathName_DoesNotResolveOutsideInputDir()
+    {
+        // An absolute archived name must not be honored verbatim (Path.Combine would return the
+        // rooted path, discarding the input dir) — the containment guard rejects it.
+        string outsidePath = Path.Combine(TempDir, "secret.key");
+        File.WriteAllText(outsidePath, "sensitive");
+
+        Assert.Throws<FileNotFoundException>(() =>
+            SRRReconstructor.FindSourceFile(_inputDir, outsidePath));
+    }
+
+    [Fact]
+    public void FindSourceFile_TraversalName_DoesNotResolveOutsideInputDir()
+    {
+        // A malicious archived name escaping the input directory must not resolve to (and later
+        // have its bytes spliced from) a file outside it (path traversal / arbitrary read). The
+        // external file exists — _inputDir is TempDir\input, so "..\secret.key" points at
+        // TempDir\secret.key — but FindSourceFile must not return it.
+        File.WriteAllText(Path.Combine(TempDir, "secret.key"), "sensitive");
+
+        Assert.Throws<FileNotFoundException>(() =>
+            SRRReconstructor.FindSourceFile(_inputDir, @"..\secret.key"));
+    }
 
     [Fact]
     public async Task CopyBytesAsync_CopiesExactCount()

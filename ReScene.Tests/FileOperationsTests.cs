@@ -54,6 +54,17 @@ public class FileOperationsTests : TempDirTestBase
     }
 
     [Fact]
+    public void TryResolveRelativePath_InvalidPathCharacters_ReturnsFalseNotThrows()
+    {
+        // A genuinely invalid name (embedded NUL) makes Path.GetFullPath throw. The guard must
+        // treat it as unresolvable and return false rather than letting the exception abort the
+        // whole reconstruction/timestamp run.
+        bool ok = FileOperations.TryResolveRelativePath(TempDir, "a\0b.txt", out string rel);
+        Assert.False(ok);
+        Assert.Equal(string.Empty, rel);
+    }
+
+    [Fact]
     public void TryResolveRelativePath_DotSlashPrefix_StripsAndReturnsNormalizedRelative()
     {
         // Leading "./" is stripped and the remaining path normalized to OS separators.
@@ -224,6 +235,30 @@ public class FileOperationsTests : TempDirTestBase
 
         Assert.Single(result);
         Assert.Equal(only, result[0]);
+    }
+
+    #endregion
+
+    #region Timestamp path-traversal guard
+
+    [Fact]
+    public void ApplyFileTimestampEntries_UnsafeRelativePath_LeavesOutsideFileUntouched()
+    {
+        // A timestamp entry whose relative path escapes the base directory must be skipped, not
+        // applied to a file outside the reconstruction directory (path traversal).
+        string baseDir = Path.Combine(TempDir, "base");
+        Directory.CreateDirectory(baseDir);
+
+        string outsidePath = Path.Combine(TempDir, "outside.txt");
+        File.WriteAllText(outsidePath, "x");
+        var originalTime = new DateTime(2001, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(outsidePath, originalTime);
+
+        // "..\outside.txt" relative to TempDir\base resolves to TempDir\outside.txt.
+        var entries = new Dictionary<string, DateTime> { [@"..\outside.txt"] = new DateTime(2020, 12, 31) };
+        FileOperations.ApplyFileTimestampEntries(baseDir, entries, File.SetLastWriteTime, "modified");
+
+        Assert.Equal(originalTime, File.GetLastWriteTimeUtc(outsidePath));
     }
 
     #endregion

@@ -71,8 +71,19 @@ internal static class FileOperations
             return false;
         }
 
-        string basePath = Path.GetFullPath(baseFullPath);
-        string fullPath = Path.GetFullPath(Path.Combine(basePath, normalized));
+        string basePath;
+        string fullPath;
+        try
+        {
+            basePath = Path.GetFullPath(baseFullPath);
+            // normalized is attacker-controlled; a genuinely invalid path (embedded NUL, stray
+            // colon, etc.) makes GetFullPath throw. Treat any such name as unresolvable → reject.
+            fullPath = Path.GetFullPath(Path.Combine(basePath, normalized));
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
+        }
 
         string basePrefix = basePath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
             ? basePath
@@ -480,7 +491,15 @@ internal static class FileOperations
         foreach (KeyValuePair<string, DateTime> entry in timestamps)
         {
             string relativePath = entry.Key;
-            string filePath = Path.Combine(inputDirectory, relativePath);
+            // Reject entries whose relative path escapes the base directory (path traversal): a
+            // crafted SRR must not re-timestamp files outside the reconstruction directory.
+            if (!TryResolveRelativePath(inputDirectory, relativePath, out string safeRelativePath))
+            {
+                logger?.Warning(null, $"Skipping {label} timestamp for unsafe path: {relativePath}");
+                continue;
+            }
+
+            string filePath = Path.Combine(inputDirectory, safeRelativePath);
             if (!File.Exists(filePath))
             {
                 continue;
@@ -557,7 +576,15 @@ internal static class FileOperations
         foreach (KeyValuePair<string, DateTime> entry in timestamps)
         {
             string relativePath = entry.Key;
-            string dirPath = Path.Combine(inputDirectory, relativePath);
+            // Reject entries whose relative path escapes the base directory (path traversal): a
+            // crafted SRR must not re-timestamp directories outside the reconstruction directory.
+            if (!TryResolveRelativePath(inputDirectory, relativePath, out string safeRelativePath))
+            {
+                logger?.Warning(null, $"Skipping {label} timestamp for unsafe path: {relativePath}");
+                continue;
+            }
+
+            string dirPath = Path.Combine(inputDirectory, safeRelativePath);
             if (!Directory.Exists(dirPath))
             {
                 continue;
