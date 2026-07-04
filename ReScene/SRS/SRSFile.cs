@@ -106,7 +106,7 @@ public class SRSFile
         }
 
         // RIFF (AVI)
-        if (magic[0] == 'R' && magic[1] == 'I' && magic[2] == 'F' && magic[3] == 'F')
+        if (Encoding.ASCII.GetString(magic, 0, 4) == RiffFourCC.Riff)
         {
             return SRSContainerType.AVI;
         }
@@ -114,10 +114,9 @@ public class SRSFile
         // STREAM/M2TS: "STRM\x08\x00\x00\x00" or "M2TS\x08\x00\x00\x00"
         if (magic.Length >= 8)
         {
-            if ((magic[0] == 'S' && magic[1] == 'T' && magic[2] == 'R' && magic[3] == 'M'
-                 && magic[4] == 0x08 && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00)
-                || (magic[0] == 'M' && magic[1] == '2' && magic[2] == 'T' && magic[3] == 'S'
-                    && magic[4] == 0x08 && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00))
+            string container4cc = Encoding.ASCII.GetString(magic, 0, 4);
+            if ((container4cc == StreamFourCC.Strm || container4cc == StreamFourCC.M2ts)
+                && magic[4] == SrsBlockLayout.HeaderSize && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00)
             {
                 return SRSContainerType.Stream;
             }

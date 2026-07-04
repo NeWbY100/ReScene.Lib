@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
+using System.Text;
 
 namespace ReScene.SRS;
 
@@ -67,7 +68,7 @@ internal class StreamContainerHandler : IContainerHandler
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
         // Write STREAM marker
-        outFs.Write("STRM"u8);
+        outFs.Write(Encoding.ASCII.GetBytes(StreamFourCC.Strm));
         Span<byte> markerSize = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(markerSize, SrsBlockLayout.HeaderSize);
         outFs.Write(markerSize);

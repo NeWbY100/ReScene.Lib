@@ -268,7 +268,7 @@ public class SRSWriter
         }
 
         // RIFF (AVI)
-        if (magic[0] == 'R' && magic[1] == 'I' && magic[2] == 'F' && magic[3] == 'F')
+        if (Encoding.ASCII.GetString(magic[..4]) == RiffFourCC.Riff)
         {
             // Some old MP3s use RIFF container
             if (filePath.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))

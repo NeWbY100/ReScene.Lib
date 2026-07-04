@@ -64,7 +64,7 @@ internal class AVIContainerHandler : IContainerHandler
         long totalLength = fs.Length;
         int lastPercent = -1;
 
-        while (fs.Position + 8 <= end)
+        while (fs.Position + RiffFourCC.ChunkHeaderSize <= end)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -80,16 +80,16 @@ internal class AVIContainerHandler : IContainerHandler
 
             long chunkStart = fs.Position;
 
-            byte[] headerBytes = reader.ReadBytes(8);
-            if (headerBytes.Length < 8)
+            byte[] headerBytes = reader.ReadBytes(RiffFourCC.ChunkHeaderSize);
+            if (headerBytes.Length < RiffFourCC.ChunkHeaderSize)
             {
                 break;
             }
 
             string fourcc = Encoding.ASCII.GetString(headerBytes, 0, 4);
-            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(4));
+            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(headerBytes.AsSpan(RiffFourCC.SizeOffset));
 
-            otherLength += 8;
+            otherLength += RiffFourCC.ChunkHeaderSize;
             crc.Append(headerBytes);
 
             if (fourcc is "RIFF" or "LIST")
@@ -99,7 +99,7 @@ internal class AVIContainerHandler : IContainerHandler
                 otherLength += 4;
                 crc.Append(subType);
 
-                long childEnd = chunkStart + 8 + chunkSize;
+                long childEnd = chunkStart + RiffFourCC.ChunkHeaderSize + chunkSize;
                 if (childEnd > end)
                 {
                     childEnd = end;
@@ -175,19 +175,19 @@ internal class AVIContainerHandler : IContainerHandler
     {
         inFs.Position = start;
 
-        while (inFs.Position + 8 <= end)
+        while (inFs.Position + RiffFourCC.ChunkHeaderSize <= end)
         {
             ct.ThrowIfCancellationRequested();
             long chunkStart = inFs.Position;
 
-            byte[] header = reader.ReadBytes(8);
-            if (header.Length < 8)
+            byte[] header = reader.ReadBytes(RiffFourCC.ChunkHeaderSize);
+            if (header.Length < RiffFourCC.ChunkHeaderSize)
             {
                 break;
             }
 
             string fourcc = Encoding.ASCII.GetString(header, 0, 4);
-            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4));
+            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(RiffFourCC.SizeOffset));
 
             if (fourcc is "RIFF" or "LIST")
             {
@@ -209,7 +209,7 @@ internal class AVIContainerHandler : IContainerHandler
                     moviInjected = true;
                 }
 
-                long childEnd = chunkStart + 8 + chunkSize;
+                long childEnd = chunkStart + RiffFourCC.ChunkHeaderSize + chunkSize;
                 if (childEnd > end)
                 {
                     childEnd = end;

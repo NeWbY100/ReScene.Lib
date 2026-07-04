@@ -24,7 +24,7 @@ internal class AVIContainerRebuilder : IContainerRebuilder
         // Index the media file's movi chunks near the signature area.
         // This builds a per-track queue of (dataOffset, size) for each chunk.
         long minOffset = trackOffsets.Values.Min();
-        long mediaScanStart = Math.Max(0, minOffset - 8);
+        long mediaScanStart = Math.Max(0, minOffset - RiffFourCC.ChunkHeaderSize);
         Dictionary<uint, Queue<(long DataOffset, int Size)>> mediaChunks =
             IndexMediaRiffChunks(mediaFilePath, mediaScanStart, tracks, ct);
 
@@ -60,9 +60,9 @@ internal class AVIContainerRebuilder : IContainerRebuilder
             bufferSize: 80 * 1024);
         fs.Position = scanStart;
 
-        byte[] headerBuf = new byte[8];
+        byte[] headerBuf = new byte[RiffFourCC.ChunkHeaderSize];
 
-        while (fs.Position + 8 <= fs.Length)
+        while (fs.Position + RiffFourCC.ChunkHeaderSize <= fs.Length)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -81,14 +81,14 @@ internal class AVIContainerRebuilder : IContainerRebuilder
                 break;
             }
 
-            int hdrRead = StreamUtilities.ReadFully(fs, headerBuf, 0, 8);
-            if (hdrRead < 8)
+            int hdrRead = StreamUtilities.ReadFully(fs, headerBuf, 0, RiffFourCC.ChunkHeaderSize);
+            if (hdrRead < RiffFourCC.ChunkHeaderSize)
             {
                 break;
             }
 
             string fourcc = Encoding.ASCII.GetString(headerBuf, 0, 4);
-            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(headerBuf.AsSpan(4));
+            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(headerBuf.AsSpan(RiffFourCC.SizeOffset));
 
             if (fourcc is "RIFF" or "LIST")
             {
@@ -145,24 +145,24 @@ internal class AVIContainerRebuilder : IContainerRebuilder
     {
         srsFs.Position = start;
 
-        while (srsFs.Position + 8 <= end)
+        while (srsFs.Position + RiffFourCC.ChunkHeaderSize <= end)
         {
             ct.ThrowIfCancellationRequested();
             long chunkStart = srsFs.Position;
 
-            byte[] header = reader.ReadBytes(8);
-            if (header.Length < 8)
+            byte[] header = reader.ReadBytes(RiffFourCC.ChunkHeaderSize);
+            if (header.Length < RiffFourCC.ChunkHeaderSize)
             {
                 break;
             }
 
             string fourcc = Encoding.ASCII.GetString(header, 0, 4);
-            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4));
+            uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(RiffFourCC.SizeOffset));
 
-            if (fourcc is "SRSF" or "SRST")
+            if (fourcc is SrsFourCC.SrsFile or SrsFourCC.SrsTrack)
             {
                 // Skip SRS metadata blocks - don't copy them to output
-                srsFs.Position = chunkStart + 8 + chunkSize;
+                srsFs.Position = chunkStart + RiffFourCC.ChunkHeaderSize + chunkSize;
                 if (chunkSize % 2 != 0 && srsFs.Position < end)
                 {
                     srsFs.Position++;
@@ -180,7 +180,7 @@ internal class AVIContainerRebuilder : IContainerRebuilder
                 byte[] subType = reader.ReadBytes(4);
                 outFs.Write(subType);
 
-                long childEnd = chunkStart + 8 + chunkSize;
+                long childEnd = chunkStart + RiffFourCC.ChunkHeaderSize + chunkSize;
                 if (childEnd > end)
                 {
                     childEnd = end;
