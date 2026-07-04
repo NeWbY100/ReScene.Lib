@@ -55,6 +55,28 @@ public class DecompressionTests
         Assert.Equal("Test comment.", result);
     }
 
+    [Theory]
+    [InlineData(20)] // tables parse, decode yields a partial "Test  " before starving
+    [InlineData(16)] // tables parse, decode yields zero output before starving
+    [InlineData(12)] // tables parse, decode yields zero output before starving
+    public void DecompressComment_TruncatedStream_FailsCleanReturnsNull(int keepBytes)
+    {
+        // Regression (review finding #4): the LZ decode loop breaks when the input is exhausted
+        // and previously returned the partially-filled (zero-padded) destination buffer as success.
+        // A truncated stream that parses its tables but starves mid-decode must fail cleanly (null),
+        // not hand back wrong bytes. Full stream = 24 bytes -> "Test comment." (13 bytes).
+        //
+        // All three prefixes here parse ReadTables30 and reach the new `destPtr < destSize` guard
+        // (verified: without the fix they returned non-null partial buffers — "Test  ", "", "" —
+        // NOT a null ReadTables failure), so each row genuinely exercises the fixed code path.
+        byte[] full = Convert.FromHexString("0c0ccbecc92a2084d08325f307067fc1fff51ce2f5231cfa");
+        byte[] truncated = full[..keepBytes];
+
+        string? result = RARDecompressor.DecompressComment(truncated, 13, 0x33);
+
+        Assert.Null(result);
+    }
+
     [Fact]
     public void Decompress_Rar29_PpmFlaggedStream_FailsCleanReturnsNull()
     {
