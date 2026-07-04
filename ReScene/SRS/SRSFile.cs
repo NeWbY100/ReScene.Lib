@@ -147,7 +147,7 @@ public class SRSFile
         }
 
         // MP3: ID3 tag, SRSF block, or sync word
-        if (magic[0] == 'I' && magic[1] == 'D' && magic[2] == '3')
+        if (magic[0] == Mp3Constants.Id3v2Magic[0] && magic[1] == Mp3Constants.Id3v2Magic[1] && magic[2] == Mp3Constants.Id3v2Magic[2])
         {
             return SRSContainerType.MP3;
         }
@@ -157,7 +157,7 @@ public class SRSFile
             return SRSContainerType.MP3;
         }
 
-        if (magic[0] == 0xFF && (magic[1] & 0xE0) == 0xE0)
+        if (magic[0] == Mp3Constants.SyncByte0 && (magic[1] & Mp3Constants.SyncMask1) == Mp3Constants.SyncMask1)
         {
             return SRSContainerType.MP3;
         }
@@ -344,9 +344,9 @@ public class SRSFile
                     BlockPosition = headerEnd,
                     BlockSize = size,
                     Label = "ID3v2",
-                    ChunkId = "ID3",
-                    HeaderSize = 10,
-                    PayloadSize = size - 10
+                    ChunkId = Mp3Constants.Id3v2Magic,
+                    HeaderSize = MP3TagReader.Id3v2HeaderSize,
+                    PayloadSize = size - MP3TagReader.Id3v2HeaderSize
                 });
                 headerEnd += size;
             }
@@ -423,8 +423,8 @@ public class SRSFile
                 BlockSize = id3v1Size,
                 Label = "ID3v1",
                 ChunkId = "TAG",
-                HeaderSize = 3,
-                PayloadSize = id3v1Size - 3
+                HeaderSize = Mp3Constants.Id3v1MagicSize,
+                PayloadSize = id3v1Size - Mp3Constants.Id3v1MagicSize
             });
             endOffset -= id3v1Size;
         }
@@ -439,8 +439,8 @@ public class SRSFile
                 BlockSize = lyrics3v2Size,
                 Label = "Lyrics3v2",
                 ChunkId = "LYRICS200",
-                HeaderSize = 11, // "LYRICSBEGIN"
-                PayloadSize = lyrics3v2Size - 11
+                HeaderSize = Mp3Constants.Lyrics3BeginMagicSize,
+                PayloadSize = lyrics3v2Size - Mp3Constants.Lyrics3BeginMagicSize
             });
             endOffset -= lyrics3v2Size;
         }
@@ -456,8 +456,8 @@ public class SRSFile
                     BlockSize = lyrics3v1Size,
                     Label = "Lyrics3v1",
                     ChunkId = "LYRICS",
-                    HeaderSize = 11, // "LYRICSBEGIN"
-                    PayloadSize = lyrics3v1Size - 11
+                    HeaderSize = Mp3Constants.Lyrics3BeginMagicSize,
+                    PayloadSize = lyrics3v1Size - Mp3Constants.Lyrics3BeginMagicSize
                 });
                 endOffset -= lyrics3v1Size;
             }
@@ -492,9 +492,9 @@ public class SRSFile
                 BlockPosition = 0,
                 BlockSize = id3Size,
                 Label = "ID3v2",
-                ChunkId = "ID3",
-                HeaderSize = 10,
-                PayloadSize = id3Size - 10
+                ChunkId = Mp3Constants.Id3v2Magic,
+                HeaderSize = MP3TagReader.Id3v2HeaderSize,
+                PayloadSize = id3Size - MP3TagReader.Id3v2HeaderSize
             });
             fs.Position = id3Size;
         }
@@ -505,31 +505,31 @@ public class SRSFile
 
         // Skip fLaC marker
         long markerPos = fs.Position;
-        fs.Position += 4;
+        fs.Position += FlacConstants.MarkerSize;
 
         srs._containerChunks.Add(new SRSContainerChunk
         {
             BlockPosition = markerPos,
-            BlockSize = 4,
-            Label = "fLaC",
-            ChunkId = "fLaC",
-            HeaderSize = 4,
+            BlockSize = FlacConstants.MarkerSize,
+            Label = FlacConstants.Marker,
+            ChunkId = FlacConstants.Marker,
+            HeaderSize = FlacConstants.MarkerSize,
             PayloadSize = 0
         });
 
-        while (fs.Position + 4 <= fs.Length)
+        while (fs.Position + FlacConstants.BlockHeaderSize <= fs.Length)
         {
             long frameOffset = fs.Position;
             (bool isLast, byte type, int payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
-            int headerSize = 4;
+            int headerSize = FlacConstants.BlockHeaderSize;
 
             long payloadStart = fs.Position;
 
-            if (type == 0x73) // 's' = SRSF
+            if (type == (byte)FlacSrsBlockType.Srsf)
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize);
             }
-            else if (type == 0x74) // 't' = SRST
+            else if (type == (byte)FlacSrsBlockType.Srst)
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
             }

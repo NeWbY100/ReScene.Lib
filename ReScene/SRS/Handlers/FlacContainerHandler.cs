@@ -49,7 +49,7 @@ internal class FlacContainerHandler : IContainerHandler
             (bool isLast, byte blockType, int payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
             // Reconstruct the 4-byte header for CRC
-            byte typeByte = (byte)((isLast ? 0x80 : 0) | blockType);
+            byte typeByte = (byte)((isLast ? FlacConstants.LastBlockFlag : 0) | blockType);
             byte[] blockHeader =
             [
                 typeByte,
@@ -65,7 +65,7 @@ internal class FlacContainerHandler : IContainerHandler
                 byte[] data = StreamUtilities.ReadAtMost(fs, payloadSize);
                 crc.Append(data);
 
-                if (blockType > 6)
+                if (blockType > FlacConstants.MaxStandardType)
                 {
                     // Non-standard block type; shouldn't happen in well-formed FLAC
                     track.DataLength += payloadSize;
@@ -157,7 +157,7 @@ internal class FlacContainerHandler : IContainerHandler
             (bool isLast, byte blockType, int payloadSize) = FlacMetadataReader.ReadMetadataBlockHeader(reader);
 
             // Write block header
-            byte typeByte = (byte)((isLast ? 0x80 : 0) | blockType);
+            byte typeByte = (byte)((isLast ? FlacConstants.LastBlockFlag : 0) | blockType);
             outFs.WriteByte(typeByte);
             outFs.WriteByte((byte)(payloadSize >> 16));
             outFs.WriteByte((byte)(payloadSize >> 8));
@@ -184,7 +184,7 @@ internal class FlacContainerHandler : IContainerHandler
         SRSCreationOptions options)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.WriteByte(0x73); // 's' type
+        outFs.WriteByte((byte)FlacSrsBlockType.Srsf);
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
         outFs.WriteByte((byte)(payload.Length >> 8));
@@ -195,7 +195,7 @@ internal class FlacContainerHandler : IContainerHandler
     private static void WriteSrstFlac(Stream outFs, TrackInfo track, bool bigFile)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.WriteByte(0x74); // 't' type
+        outFs.WriteByte((byte)FlacSrsBlockType.Srst);
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
         outFs.WriteByte((byte)(payload.Length >> 8));

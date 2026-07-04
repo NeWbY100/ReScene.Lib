@@ -304,13 +304,13 @@ public class SRSWriter
         }
 
         // ID3 tag (MP3 or FLAC with ID3v2)
-        if (magic[0] == 'I' && magic[1] == 'D' && magic[2] == '3')
+        if (magic[0] == Mp3Constants.Id3v2Magic[0] && magic[1] == Mp3Constants.Id3v2Magic[1] && magic[2] == Mp3Constants.Id3v2Magic[2])
         {
             // Check if FLAC follows the ID3 header
-            if (read >= 10)
+            if (read >= MP3TagReader.Id3v2HeaderSize)
             {
                 int id3Size = (magic[6] << 21) | (magic[7] << 14) | (magic[8] << 7) | magic[9];
-                fs.Position = 10 + id3Size;
+                fs.Position = MP3TagReader.Id3v2HeaderSize + id3Size;
                 Span<byte> check = stackalloc byte[4];
                 if (fs.Read(check) == 4 &&
                     check[0] == 'f' && check[1] == 'L' && check[2] == 'a' && check[3] == 'C')
@@ -337,7 +337,7 @@ public class SRSWriter
         }
 
         // MP3 sync word
-        if ((magic[0] & 0xFF) == 0xFF && (magic[1] & 0xE0) == 0xE0)
+        if (magic[0] == Mp3Constants.SyncByte0 && (magic[1] & Mp3Constants.SyncMask1) == Mp3Constants.SyncMask1)
         {
             return SRSContainerType.MP3;
         }

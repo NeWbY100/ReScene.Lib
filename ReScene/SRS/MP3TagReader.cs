@@ -10,11 +10,16 @@ namespace ReScene.SRS;
 /// </summary>
 internal static class MP3TagReader
 {
-    private const int Id3v2HeaderSize = 10;
+    internal const int Id3v2HeaderSize = 10;
     private const int Id3v1TagSize = 128;
     private const int ApeTagHeaderSize = 32;
     private const int Lyrics3v2FooterSize = 15;
     private const int MaxLyrics3v1Size = 5100;
+    private const int Lyrics3v2SizeFieldLength = 6;    // 6-byte ASCII decimal size field before "LYRICS200"
+    private const int Lyrics3v2MarkerLength = 9;       // length of "LYRICS200" end marker
+    private const int Lyrics3v1EndMarkerLength = 9;    // length of "LYRICSEND" end marker (distinct string from LYRICS200)
+    private const byte SyncSafeByteMask = 0x7F;        // 7-bit mask for each byte of a sync-safe integer
+    private const int ApeV2Version = 2000;             // APEv2 version value (APEv1 = 1000)
 
     /// <summary>
     /// Returns the byte offset where audio data begins (after all header tags).
@@ -199,20 +204,20 @@ internal static class MP3TagReader
 
         // Check for "LYRICS200" at the end
         ReadOnlySpan<byte> lyrics200 = "LYRICS200"u8;
-        if (!footer.Slice(6, 9).SequenceEqual(lyrics200))
+        if (!footer.Slice(Lyrics3v2SizeFieldLength, Lyrics3v2MarkerLength).SequenceEqual(lyrics200))
         {
             return (false, 0);
         }
 
         // Parse 6-byte ASCII decimal size
-        string sizeStr = Encoding.ASCII.GetString(footer[..6]);
+        string sizeStr = Encoding.ASCII.GetString(footer[..Lyrics3v2SizeFieldLength]);
         if (!int.TryParse(sizeStr, out int lyricsSize))
         {
             return (false, 0);
         }
 
-        // Total tag size = content size + 6 (size field) + 9 ("LYRICS200")
-        int totalSize = lyricsSize + 6 + 9;
+        // Total tag size = content size + size field + "LYRICS200"
+        int totalSize = lyricsSize + Lyrics3v2SizeFieldLength + Lyrics3v2MarkerLength;
         return (true, totalSize);
     }
 
@@ -233,15 +238,15 @@ internal static class MP3TagReader
     public static (bool found, int size) DetectLyrics3v1(Stream stream, long endOffset)
     {
         // Need at least 9 bytes ("LYRICSEND") before endOffset
-        if (endOffset - 9 < 0)
+        if (endOffset - Lyrics3v1EndMarkerLength < 0)
         {
             return (false, 0);
         }
 
-        stream.Position = endOffset - 9;
-        Span<byte> endMarker = stackalloc byte[9];
+        stream.Position = endOffset - Lyrics3v1EndMarkerLength;
+        Span<byte> endMarker = stackalloc byte[Lyrics3v1EndMarkerLength];
         int read = stream.Read(endMarker);
-        if (read < 9)
+        if (read < Lyrics3v1EndMarkerLength)
         {
             return (false, 0);
         }
@@ -314,7 +319,7 @@ internal static class MP3TagReader
         uint tagSize = BinaryPrimitives.ReadUInt32LittleEndian(footer[12..]);
 
         // APEv2 has a 32-byte header in addition; APEv1 has no header
-        int headerSize = version == 2000 ? ApeTagHeaderSize : 0;
+        int headerSize = version == ApeV2Version ? ApeTagHeaderSize : 0;
 
         int totalSize = (int)tagSize + headerSize;
         return (true, totalSize);
@@ -353,10 +358,10 @@ internal static class MP3TagReader
     {
         return
         [
-            (byte)((size >> 21) & 0x7F),
-            (byte)((size >> 14) & 0x7F),
-            (byte)((size >> 7) & 0x7F),
-            (byte)(size & 0x7F)
+            (byte)((size >> 21) & SyncSafeByteMask),
+            (byte)((size >> 14) & SyncSafeByteMask),
+            (byte)((size >> 7) & SyncSafeByteMask),
+            (byte)(size & SyncSafeByteMask)
         ];
     }
 }

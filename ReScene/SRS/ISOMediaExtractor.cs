@@ -18,6 +18,9 @@ public static class ISOMediaExtractor
         ".flac", ".mp3"
     };
 
+    /// <summary>Length of the VOB title-set prefix (e.g., "VTS_01").</summary>
+    private const int VobTitlePrefixLength = 6;
+
     /// <summary>
     /// Lists all media files found inside an ISO image.
     /// </summary>
@@ -385,9 +388,9 @@ public static class ISOMediaExtractor
             }
 
             // Extract title set prefix: VTS_01 from VTS_01_1.VOB
-            if (fileName.Length >= 6 && fileName.StartsWith("VTS_", StringComparison.Ordinal))
+            if (fileName.Length >= VobTitlePrefixLength && fileName.StartsWith("VTS_", StringComparison.Ordinal))
             {
-                string prefix = fileName[..6]; // "VTS_01"
+                string prefix = fileName[..VobTitlePrefixLength]; // "VTS_01"
                 if (!titleSets.TryGetValue(prefix, out List<string>? files))
                 {
                     files = [];

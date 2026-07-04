@@ -13,8 +13,6 @@ namespace ReScene.SRS;
 /// </remarks>
 internal static class FlacMetadataReader
 {
-    private const int Id3v2HeaderSize = 10;
-
     /// <summary>
     /// Returns the byte offset where FLAC frame data begins (after all metadata blocks).
     /// Handles optional ID3v2 wrapper before the fLaC marker.
@@ -78,14 +76,14 @@ internal static class FlacMetadataReader
     {
         stream.Position = 0;
 
-        if (stream.Length < Id3v2HeaderSize)
+        if (stream.Length < MP3TagReader.Id3v2HeaderSize)
         {
             return (false, 0);
         }
 
-        Span<byte> header = stackalloc byte[Id3v2HeaderSize];
+        Span<byte> header = stackalloc byte[MP3TagReader.Id3v2HeaderSize];
         int read = stream.Read(header);
-        if (read < Id3v2HeaderSize)
+        if (read < MP3TagReader.Id3v2HeaderSize)
         {
             return (false, 0);
         }
@@ -96,7 +94,7 @@ internal static class FlacMetadataReader
         }
 
         int size = MP3TagReader.DecodeSyncSafeInt(header[6], header[7], header[8], header[9]);
-        int totalSize = Id3v2HeaderSize + size;
+        int totalSize = MP3TagReader.Id3v2HeaderSize + size;
 
         return (true, totalSize);
     }
@@ -115,11 +113,11 @@ internal static class FlacMetadataReader
     public static (bool isLast, byte type, int length) ReadMetadataBlockHeader(BinaryReader reader)
     {
         byte typeByte = reader.ReadByte();
-        bool isLast = (typeByte & 0x80) != 0;
-        byte type = (byte)(typeByte & 0x7F);
+        bool isLast = (typeByte & FlacConstants.LastBlockFlag) != 0;
+        byte type = (byte)(typeByte & FlacConstants.BlockTypeMask);
 
-        byte[] sizeBytes = reader.ReadBytes(3);
-        if (sizeBytes.Length < 3)
+        byte[] sizeBytes = reader.ReadBytes(FlacConstants.BlockSizeFieldWidth);
+        if (sizeBytes.Length < FlacConstants.BlockSizeFieldWidth)
         {
             throw new InvalidDataException("Unexpected end of stream reading metadata block header.");
         }
@@ -138,15 +136,15 @@ internal static class FlacMetadataReader
     /// <returns>
     /// A human-readable block type name.
     /// </returns>
-    public static string GetBlockTypeName(byte type) => type switch
+    public static string GetBlockTypeName(byte type) => (FlacBlockType)type switch
     {
-        0 => "STREAMINFO",
-        1 => "PADDING",
-        2 => "APPLICATION",
-        3 => "SEEKTABLE",
-        4 => "VORBIS_COMMENT",
-        5 => "CUESHEET",
-        6 => "PICTURE",
+        FlacBlockType.Streaminfo => "STREAMINFO",
+        FlacBlockType.Padding => "PADDING",
+        FlacBlockType.Application => "APPLICATION",
+        FlacBlockType.Seektable => "SEEKTABLE",
+        FlacBlockType.VorbisComment => "VORBIS_COMMENT",
+        FlacBlockType.Cuesheet => "CUESHEET",
+        FlacBlockType.Picture => "PICTURE",
         _ => $"UNKNOWN({type})"
     };
 }

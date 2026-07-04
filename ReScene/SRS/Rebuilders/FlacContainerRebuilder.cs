@@ -36,14 +36,15 @@ internal class FlacContainerRebuilder : IContainerRebuilder
             long blockStart = srsFs.Position;
 
             byte typeByte = reader.ReadByte();
-            bool isLast = (typeByte & 0x80) != 0;
-            byte type = (byte)(typeByte & 0x7F);
+            bool isLast = (typeByte & FlacConstants.LastBlockFlag) != 0;
+            byte type = (byte)(typeByte & FlacConstants.BlockTypeMask);
 
-            byte[] sizeBytes = reader.ReadBytes(3);
+            byte[] sizeBytes = reader.ReadBytes(FlacConstants.BlockSizeFieldWidth);
             int payloadSize = (sizeBytes[0] << 16) | (sizeBytes[1] << 8) | sizeBytes[2];
 
-            // SRS FLAC blocks: 's' (0x73) = SRSF, 't' (0x74) = SRST, 'u' (0x75) = fingerprint
-            if (type is 0x73 or 0x74 or 0x75 && srsBlockCount <= 3)
+            // SRS FLAC blocks: 's' (SRSF), 't' (SRST), 'u' (fingerprint)
+            if (((FlacSrsBlockType)type) is FlacSrsBlockType.Srsf or FlacSrsBlockType.Srst or FlacSrsBlockType.Fingerprint
+                && srsBlockCount <= FlacConstants.MaxSrsBlockCount)
             {
                 srsBlockCount++;
                 srsFs.Position = blockStart + 4 + payloadSize;
