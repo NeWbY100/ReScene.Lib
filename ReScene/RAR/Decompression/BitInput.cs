@@ -88,7 +88,7 @@ internal class BitInput
         bitField |= InBuf[InAddr + 2];
 
         // Shift by (8 - InBit) to align
-        bitField >>= (8 - InBit);
+        bitField >>= 8 - InBit;
 
         return bitField & 0xFFFF;
     }

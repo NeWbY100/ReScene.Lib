@@ -1168,7 +1168,7 @@ public class RARDetailedParserTests
         // CRC32
         bodyBw.Write((uint)0x12345678);
         // Compression info: version=0, solid=0, method=3 (Normal), dict size log=0
-        ulong compInfo = (3UL << 7); // method=3 at bits 7-9
+        ulong compInfo = 3UL << 7; // method=3 at bits 7-9
         bodyBw.Write(EncodeVInt(compInfo));
         // Host OS = Windows (0)
         bodyBw.Write(EncodeVInt(0));

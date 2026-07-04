@@ -117,7 +117,7 @@ internal static class HuffmanDecoder
             uint dist = bitField - dec.DecodeLen[curBitLen - 1];
 
             // Right align the distance
-            dist >>= (16 - curBitLen);
+            dist >>= 16 - curBitLen;
 
             // Calculate position in code list
             uint pos;
@@ -178,7 +178,7 @@ internal static class HuffmanDecoder
         uint dist = bitField - dec.DecodeLen[bits - 1];
 
         // Right align the distance
-        dist >>= (16 - bits);
+        dist >>= 16 - bits;
 
         // Calculate position in code list
         uint pos = dec.DecodePos[bits] + dist;

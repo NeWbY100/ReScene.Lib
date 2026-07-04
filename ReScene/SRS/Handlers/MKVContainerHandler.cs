@@ -171,7 +171,7 @@ internal class MKVContainerHandler : IContainerHandler
                 ProfileEBMLElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
                     isSegmentLevel: elemId == EBMLIds.Segment || isSegmentLevel, ct, state, onPosition);
             }
-            else if (elemId == EBMLIds.SimpleBlock || elemId == EBMLIds.Block)
+            else if (elemId is EBMLIds.SimpleBlock or EBMLIds.Block)
             {
                 // Parse block: track number (EBML VINT) + timecode (2 bytes) + flags (1 byte)
                 if (!EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
@@ -410,7 +410,7 @@ internal class MKVContainerHandler : IContainerHandler
                 outFs.Write(rawHeader);
                 // Skip attachment data
             }
-            else if (elemId == EBMLIds.SimpleBlock || elemId == EBMLIds.Block)
+            else if (elemId is EBMLIds.SimpleBlock or EBMLIds.Block)
             {
                 // Write header + block header (including lacing header), skip frame data
                 outFs.Write(rawHeader);

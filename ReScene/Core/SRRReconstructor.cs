@@ -346,11 +346,11 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     }
 
     private static bool IsSRRBlockType(byte type)
-        => type == (byte)SRRBlockType.Header
-        || type == (byte)SRRBlockType.StoredFile
-        || type == (byte)SRRBlockType.OSOHash
-        || type == (byte)SRRBlockType.RARPadding
-        || type == (byte)SRRBlockType.RARFile;
+        => type is ((byte)SRRBlockType.Header)
+        or ((byte)SRRBlockType.StoredFile)
+        or ((byte)SRRBlockType.OSOHash)
+        or ((byte)SRRBlockType.RARPadding)
+        or ((byte)SRRBlockType.RARFile);
 
     internal static string FindSourceFile(string inputDirectory, string archivedFileName)
     {

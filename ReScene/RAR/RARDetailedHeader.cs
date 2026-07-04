@@ -689,7 +689,7 @@ public static class RARDetailedParser
         {
             EmitFlags(flagsField, flags, _rar4ArchiveFlags);
         }
-        else if (blockType == (byte)RAR4BlockType.FileHeader || blockType == (byte)RAR4BlockType.Service) // File header or service block
+        else if (blockType is ((byte)RAR4BlockType.FileHeader) or ((byte)RAR4BlockType.Service)) // File header or service block
         {
             EmitFlags(flagsField, flags, _rar4FileFlagsLow);
 

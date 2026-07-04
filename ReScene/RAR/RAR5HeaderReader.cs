@@ -613,7 +613,7 @@ internal class RAR5HeaderReader(Stream stream)
 
         // Validate CRC - CRC covers from header size field to end of header
         long currentPos = _stream.Position;
-        long crcDataSize = (headerContentStart + (long)headerSize) - headerSizePosition;
+        long crcDataSize = headerContentStart + (long)headerSize - headerSizePosition;
         if (crcDataSize is <= 0 or > int.MaxValue)
         {
             return result;
@@ -622,7 +622,7 @@ internal class RAR5HeaderReader(Stream stream)
         _stream.Position = headerSizePosition;
         byte[] headerData = _reader.ReadBytes((int)crcDataSize);
         uint calculatedCRC = Force.Crc32.Crc32Algorithm.Compute(headerData);
-        result.CRCValid = (crc == calculatedCRC);
+        result.CRCValid = crc == calculatedCRC;
         _stream.Position = currentPos;
 
         return result;

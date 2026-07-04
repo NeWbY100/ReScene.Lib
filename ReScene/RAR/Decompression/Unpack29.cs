@@ -54,7 +54,7 @@ internal class Unpack29
         int dist = 0, bitLength = 0, slot = 0;
         for (int i = 0; i < _dBitLengthCounts.Length; i++, bitLength++)
         {
-            for (int j = 0; j < _dBitLengthCounts[i]; j++, slot++, dist += (1 << bitLength))
+            for (int j = 0; j < _dBitLengthCounts[i]; j++, slot++, dist += 1 << bitLength)
             {
                 if (slot < _dDecode.Length)
                 {

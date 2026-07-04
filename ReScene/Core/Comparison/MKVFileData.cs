@@ -524,7 +524,7 @@ public sealed class MKVFileData
             return false;
         }
 
-        int valueBits = (sizeLen * 7);
+        int valueBits = sizeLen * 7;
         ulong allOnes = valueBits >= 64 ? ulong.MaxValue : (1UL << valueBits) - 1;
         return size == allOnes;
     }

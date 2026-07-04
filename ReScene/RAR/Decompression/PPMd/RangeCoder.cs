@@ -125,7 +125,7 @@ internal class RangeCoder
 
                 // Range is too small, adjust it
                 // range = -(int)low & (BOT-1)
-                Range = (uint)(-(int)Low) & (BOT - 1);
+                Range = (uint)-(int)Low & (BOT - 1);
             }
 
             // Shift in a new byte

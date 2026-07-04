@@ -188,7 +188,7 @@ internal class FlacContainerHandler : IContainerHandler
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
         outFs.WriteByte((byte)(payload.Length >> 8));
-        outFs.WriteByte((byte)(payload.Length));
+        outFs.WriteByte((byte)payload.Length);
         outFs.Write(payload);
     }
 
@@ -199,7 +199,7 @@ internal class FlacContainerHandler : IContainerHandler
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
         outFs.WriteByte((byte)(payload.Length >> 8));
-        outFs.WriteByte((byte)(payload.Length));
+        outFs.WriteByte((byte)payload.Length);
         outFs.Write(payload);
     }
 

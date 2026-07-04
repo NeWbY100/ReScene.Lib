@@ -282,7 +282,7 @@ internal static class RARPatcher
     /// </summary>
     private static (bool NeedsRoundingFlag, int Remainder) EncodeMtimeFraction(DateTime dt)
     {
-        int evenSecond = (dt.Second / 2) * 2;
+        int evenSecond = dt.Second / 2 * 2;
         var dosBase = new DateTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, evenSecond, dt.Kind);
         long ticksAbove = dt.Ticks - dosBase.Ticks;
         bool needsRounding = ticksAbove >= TimeSpan.TicksPerSecond;
