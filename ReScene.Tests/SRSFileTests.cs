@@ -51,6 +51,19 @@ public class SRSFileTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task Load_Id3WrappedFlacSRS_DetectsFlacNotMp3()
+    {
+        // An SRS from an ID3-wrapped FLAC begins with the copied ID3v2 tag. Detection must look
+        // past the tag for the fLaC marker rather than assuming ID3-leading == MP3 (finding #6).
+        string srsPath = await CreateSRSFromSynthetic(
+            BuildSyntheticFlacWithId3("flac_id3_detect.flac"), "flac_id3_detect.srs");
+
+        var srs = SRSFile.Load(srsPath);
+
+        Assert.Equal(SRSContainerType.FLAC, srs.ContainerType);
+    }
+
+    [Fact]
     public async Task Load_MP3SRS_DetectsContainerType()
     {
         string srsPath = await CreateSRSFromSynthetic(BuildSyntheticMP3("mp3_detect.mp3"), "mp3_detect.srs");
@@ -482,6 +495,9 @@ public class SRSFileTests : TempDirTestBase
 
     private string BuildSyntheticFlac(string fileName) =>
         SyntheticSampleBuilder.BuildFlac(Path.Combine(TempDir, fileName));
+
+    private string BuildSyntheticFlacWithId3(string fileName) =>
+        SyntheticSampleBuilder.BuildFlacWithId3(Path.Combine(TempDir, fileName));
 
     private string BuildSyntheticMP3(string fileName) =>
         SyntheticSampleBuilder.BuildMp3(Path.Combine(TempDir, fileName));

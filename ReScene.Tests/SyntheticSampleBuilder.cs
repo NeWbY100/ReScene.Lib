@@ -185,6 +185,46 @@ internal static class SyntheticSampleBuilder
     }
 
     /// <summary>
+    /// Builds a minimal FLAC file wrapped in a leading ID3v2 tag (non-standard for FLAC, but
+    /// produced by some taggers): ID3v2 header + payload, then fLaC marker + STREAMINFO + frame data.
+    /// </summary>
+    public static string BuildFlacWithId3(string path)
+    {
+        using var ms = new MemoryStream();
+
+        // Leading ID3v2 tag (26 bytes total: 10-byte header + 16-byte payload)
+        ms.Write(Encoding.ASCII.GetBytes("ID3"));
+        ms.WriteByte(3); // version major
+        ms.WriteByte(0); // version minor
+        ms.WriteByte(0); // flags
+        const int id3PayloadSize = 16;
+        ms.WriteByte(0); // syncsafe size (4 bytes)
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.WriteByte(id3PayloadSize);
+        // Distinct seed so the ID3 payload bytes differ from the frame data below — otherwise the
+        // signature scanner could lock onto the ID3 region instead of the true frame offset.
+        ms.Write(CreateTestData(id3PayloadSize, seed: 7));
+
+        // fLaC marker
+        ms.Write(Encoding.ASCII.GetBytes("fLaC"));
+
+        // STREAMINFO metadata block (type=0, last=true)
+        byte[] streamInfo = new byte[34];
+        ms.WriteByte(0x80); // is_last=1, type=0
+        ms.WriteByte(0);
+        ms.WriteByte(0);
+        ms.WriteByte(34); // BE24 size
+        ms.Write(streamInfo);
+
+        // Frame data (simulated)
+        ms.Write(CreateTestData(512));
+
+        File.WriteAllBytes(path, ms.ToArray());
+        return path;
+    }
+
+    /// <summary>
     /// Builds a minimal MP3 file: ID3v2 header + audio sync frames
     /// (512 bytes seed 42, with the first two bytes forced to the MP3 sync word).
     /// </summary>

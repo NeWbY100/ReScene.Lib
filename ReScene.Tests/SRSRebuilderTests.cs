@@ -915,6 +915,33 @@ public class SRSRebuilderTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task Rebuild_Id3WrappedFlacSample_OutputFileMatchesOriginal()
+    {
+        // A FLAC with a leading ID3v2 tag must round-trip byte-exactly: creation stores the tag,
+        // and rebuild must restore it (not hard-write fLaC at offset 0) and route to the FLAC
+        // rebuilder rather than MP3 (finding #6).
+        string samplePath = SyntheticSampleBuilder.BuildFlacWithId3(
+            Path.Combine(TempDir, "test_sample_id3.flac"));
+
+        string srsPath = Path.Combine(TempDir, "test_id3.srs");
+        var writer = new SRSWriter();
+        SRSCreationResult createResult = await writer.CreateAsync(srsPath, samplePath);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        string outputPath = Path.Combine(TempDir, "rebuilt_sample_id3.flac");
+        var rebuilder = new SRSRebuilder();
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srsPath, samplePath, outputPath);
+
+        Assert.True(result.Success, result.ErrorMessage);
+
+        byte[] original = File.ReadAllBytes(samplePath);
+        byte[] rebuilt = File.ReadAllBytes(outputPath);
+        Assert.Equal(original.Length, rebuilt.Length);
+        Assert.True(original.AsSpan().SequenceEqual(rebuilt),
+            "Rebuilt ID3-wrapped FLAC file does not match original.");
+    }
+
+    [Fact]
     public async Task Rebuild_MP3Sample_OutputFileMatchesOriginal()
     {
         string samplePath = BuildSyntheticMP3();

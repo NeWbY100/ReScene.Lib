@@ -24,9 +24,20 @@ internal class FlacContainerRebuilder : IContainerRebuilder
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
 
+        // Copy a leading ID3v2 wrapper (if the original FLAC had one) verbatim before the fLaC
+        // marker; the FLAC writer stored it at the start of the SRS. Without this the tag would be
+        // dropped from the output and the metadata walk would start inside the tag (finding #6).
+        (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(srsFs);
+        if (id3Found)
+        {
+            srsFs.Position = 0;
+            byte[] id3Data = StreamUtilities.ReadExactly(reader, id3Size);
+            outFs.Write(id3Data);
+        }
+
         // Write fLaC marker
         outFs.Write("fLaC"u8);
-        srsFs.Position = FlacConstants.MarkerSize;
+        srsFs.Position = (id3Found ? id3Size : 0) + FlacConstants.MarkerSize;
 
         int srsBlockCount = 0;
 

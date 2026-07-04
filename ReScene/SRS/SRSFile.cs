@@ -66,9 +66,9 @@ public class SRSFile
         // Read first 16 bytes for container detection
         byte[] magic = new byte[Math.Min(16, fs.Length)];
         fs.ReadExactly(magic, 0, magic.Length);
-        fs.Position = 0;
 
-        srs.ContainerType = DetectContainer(magic);
+        srs.ContainerType = DetectContainer(magic, fs);
+        fs.Position = 0;
 
         switch (srs.ContainerType)
         {
@@ -98,7 +98,7 @@ public class SRSFile
         return srs;
     }
 
-    private static SRSContainerType DetectContainer(byte[] magic)
+    private static SRSContainerType DetectContainer(byte[] magic, Stream fs)
     {
         if (magic.Length < 4)
         {
@@ -149,6 +149,21 @@ public class SRSFile
         // MP3: ID3 tag, SRSF block, or sync word
         if (magic[0] == Mp3Constants.Id3v2Magic[0] && magic[1] == Mp3Constants.Id3v2Magic[1] && magic[2] == Mp3Constants.Id3v2Magic[2])
         {
+            // A FLAC wrapped in a leading ID3v2 tag (stored verbatim by the FLAC writer) also begins
+            // with the ID3 magic. Look past the tag for the fLaC marker before assuming MP3, mirroring
+            // SRSWriter.DetectContainerType on the sample side (finding #6).
+            (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
+            if (id3Found && fs.Length >= id3Size + FlacConstants.MarkerSize)
+            {
+                fs.Position = id3Size;
+                Span<byte> check = stackalloc byte[FlacConstants.MarkerSize];
+                if (fs.Read(check) == FlacConstants.MarkerSize &&
+                    check[0] == 'f' && check[1] == 'L' && check[2] == 'a' && check[3] == 'C')
+                {
+                    return SRSContainerType.FLAC;
+                }
+            }
+
             return SRSContainerType.MP3;
         }
 
