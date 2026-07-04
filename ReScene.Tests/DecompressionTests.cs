@@ -1,9 +1,28 @@
 using ReScene.RAR.Decompression;
+using ReScene.RAR.Decompression.PPMd;
 
 namespace ReScene.Tests;
 
 public class DecompressionTests
 {
+    [Fact]
+    public void SubAllocator_InitSubAllocator_PartitionsMemoryToUnrarSizing()
+    {
+        // Characterization test pinning the PPMd allocator partition math against unrar's
+        // suballoc.cpp:
+        //   size2 = FIXED_UNIT_SIZE * (SIZE / 8 / FIXED_UNIT_SIZE * 7)
+        // The parentheses are load-bearing: integer division truncates, so hoisting the
+        // leading FIXED_UNIT_SIZE multiply out of the group changes the result. With saMB=1
+        // (_subAllocatorSize = 1 MiB, FIXED_UNIT_SIZE = 12): size2 = 917448, size1 = 131128,
+        // hence _fakeUnitsStart lands at 131128. Dropping the parens shifts it to 131072.
+        SubAllocator allocator = new();
+        Assert.True(allocator.StartSubAllocator(1));
+
+        allocator.InitSubAllocator();
+
+        Assert.Equal(131128, allocator.FakeUnitsStart);
+    }
+
     [Fact]
     public void DecompressComment_StoreMethod_ReturnsOriginalData()
     {

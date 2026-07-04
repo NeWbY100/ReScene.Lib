@@ -78,7 +78,7 @@ internal class SubAllocator
         Array.Clear(_freeListPos);
         _pText = _heapStart;
 
-        int size2 = FIXED_UNIT_SIZE * _subAllocatorSize / 8 / FIXED_UNIT_SIZE * 7;
+        int size2 = FIXED_UNIT_SIZE * (_subAllocatorSize / 8 / FIXED_UNIT_SIZE * 7);
         int realSize2 = size2 / FIXED_UNIT_SIZE * UNIT_SIZE;
         int size1 = _subAllocatorSize - size2;
         int realSize1 = size1 / FIXED_UNIT_SIZE * UNIT_SIZE + UNIT_SIZE;

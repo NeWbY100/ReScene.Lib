@@ -15,6 +15,11 @@ internal static class Rar4HeaderLayout
     public const int AddSize = 7;             // ADD_SIZE field offset (file/service blocks)
     public const int AddSizeFieldLength = 4;
 
+    // End-of-archive Archive Data CRC (a CRC32 present when RAREndArchiveFlags.DataCRC is set).
+    // It is written immediately after the base header, so its offset is BaseHeaderSize — the
+    // EndArchive block has no ADD_SIZE field, hence the dedicated length constant.
+    public const int EndArchiveDataCrcLength = 4;
+
     // File-header fixed fields (after the base header).
     public const int HostOs = 15;
     public const int FileTime = 20;

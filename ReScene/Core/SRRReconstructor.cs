@@ -77,9 +77,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                     break;
                 }
 
-                // Determine ADD_SIZE for blocks with LONG_BLOCK flag or stored file blocks
+                // Determine ADD_SIZE for blocks with LONG_BLOCK flag or stored file blocks.
+                // LONG_BLOCK is the shared 0x8000 base-header bit (SRRBlockFlags.LongBlock mirrors
+                // RARFileFlags.LongBlock); this flag word is read before the SRR-vs-RAR block
+                // discrimination below, so the same value gates both the SRR and embedded-RAR paths.
                 uint addSize = 0;
-                bool hasLongBlock = (flags & (ushort)RARFileFlags.LongBlock) != 0;
+                bool hasLongBlock = (flags & (ushort)SRRBlockFlags.LongBlock) != 0;
 
                 if (IsSRRBlockType(blockType))
                 {

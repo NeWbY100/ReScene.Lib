@@ -586,7 +586,7 @@ internal static class RARPatcher
         // so it becomes stale after patching any header bytes within that range.
         if (results.Count > 0 && endArchivePosition >= 0 &&
             (endArchiveFlags & (ushort)RAREndArchiveFlags.DataCRC) != 0 &&
-            endArchiveHeaderSize >= Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength) // base + 4 Archive Data CRC minimum
+            endArchiveHeaderSize >= Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.EndArchiveDataCrcLength) // base + 4-byte Archive Data CRC minimum
         {
             PatchEndOfArchiveCRC(stream, endArchivePosition, endArchiveHeaderSize);
         }
@@ -982,7 +982,7 @@ internal static class RARPatcher
         }
 
         // Update Archive Data CRC at offset 7 (immediately after the 7-byte base header)
-        BitConverter.GetBytes(archiveDataCRC).CopyTo(endHeader, Rar4HeaderLayout.AddSize);
+        BitConverter.GetBytes(archiveDataCRC).CopyTo(endHeader, Rar4HeaderLayout.BaseHeaderSize);
 
         // Recalculate the End of Archive header's own CRC
         ushort newHeaderCRC = RARUtils.CalculateHeaderCRC(endHeader);
