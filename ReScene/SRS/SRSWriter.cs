@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace ReScene.SRS;
 
 /// <summary>
@@ -284,7 +286,7 @@ public class SRSWriter
         }
 
         // MP4 (ftyp at offset 4)
-        if (read >= 8 && magic[4] == 'f' && magic[5] == 't' && magic[6] == 'y' && magic[7] == 'p')
+        if (read >= 8 && Encoding.ASCII.GetString(magic.Slice(4, 4)) == Mp4AtomTypes.Ftyp)
         {
             return SRSContainerType.MP4;
         }

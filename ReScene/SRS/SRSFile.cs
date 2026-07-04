@@ -130,7 +130,7 @@ public class SRSFile
         }
 
         // MP4: bytes[4:8] == "ftyp"
-        if (magic.Length >= 8 && magic[4] == 'f' && magic[5] == 't' && magic[6] == 'y' && magic[7] == 'p')
+        if (magic.Length >= 8 && Encoding.ASCII.GetString(magic, 4, 4) == Mp4AtomTypes.Ftyp)
         {
             return SRSContainerType.MP4;
         }
@@ -657,7 +657,7 @@ public class SRSFile
     {
         fs.Position = start;
 
-        while (fs.Position + 8 <= end)
+        while (fs.Position + Mp4AtomTypes.AtomHeaderSize <= end)
         {
             long frameOffset = fs.Position;
 
@@ -665,10 +665,10 @@ public class SRSFile
             byte[] sizeBytes = reader.ReadBytes(4);
             uint size32 = (uint)((sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]);
             string type = new(reader.ReadChars(4));
-            int headerSize = 8;
+            int headerSize = Mp4AtomTypes.AtomHeaderSize;
             long totalSize;
 
-            if (size32 == 1)
+            if (size32 == Mp4AtomTypes.ExtendedSizeSentinel)
             {
                 // Extended size: next 8 bytes = BE64
                 byte[] extBytes = reader.ReadBytes(8);
@@ -678,9 +678,9 @@ public class SRSFile
                     totalSize = (totalSize << 8) | extBytes[i];
                 }
 
-                headerSize = 16;
+                headerSize = Mp4AtomTypes.AtomExtendedHeaderSize;
             }
-            else if (size32 == 0)
+            else if (size32 == Mp4AtomTypes.ToEndSentinel)
             {
                 // Atom extends to end of file
                 totalSize = end - frameOffset;

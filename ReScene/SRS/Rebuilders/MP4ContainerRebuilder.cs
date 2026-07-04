@@ -39,7 +39,7 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
     {
         srsFs.Position = start;
 
-        while (srsFs.Position + 8 <= end)
+        while (srsFs.Position + Mp4AtomTypes.AtomHeaderSize <= end)
         {
             ct.ThrowIfCancellationRequested();
             long atomStart = srsFs.Position;
@@ -52,17 +52,17 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
             srsFs.ReadExactly(typeBytes, 0, 4);
             string type = Encoding.ASCII.GetString(typeBytes);
 
-            int headerSize = 8;
+            int headerSize = Mp4AtomTypes.AtomHeaderSize;
             long totalSize;
 
-            if (size32 == 1)
+            if (size32 == Mp4AtomTypes.ExtendedSizeSentinel)
             {
                 byte[] extBytes = new byte[8];
                 srsFs.ReadExactly(extBytes, 0, 8);
                 totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(extBytes);
-                headerSize = 16;
+                headerSize = Mp4AtomTypes.AtomExtendedHeaderSize;
             }
-            else if (size32 == 0)
+            else if (size32 == Mp4AtomTypes.ToEndSentinel)
             {
                 totalSize = end - atomStart;
             }
