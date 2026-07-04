@@ -89,7 +89,7 @@ internal class MP4ContainerHandler : IContainerHandler
                 WriteSrsfMov(outFs, samplePath, sampleSize, sampleCRC32, options);
                 foreach (TrackInfo track in tracks)
                 {
-                    WriteSrstMov(outFs, track, sampleSize >= 0x80000000);
+                    WriteSrstMov(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
                 }
 
                 // Write mdat header only (skip stream data)

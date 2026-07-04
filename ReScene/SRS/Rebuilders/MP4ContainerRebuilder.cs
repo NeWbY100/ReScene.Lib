@@ -80,7 +80,7 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
             long atomEnd = Math.Min(atomStart + totalSize, end);
 
             // Skip SRSF/SRST atoms
-            if (type is "SRSF" or "SRST")
+            if (type is SrsFourCC.SrsFile or SrsFourCC.SrsTrack)
             {
                 srsFs.Position = atomEnd;
                 continue;

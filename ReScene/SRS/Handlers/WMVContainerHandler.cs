@@ -178,7 +178,7 @@ internal class WMVContainerHandler : IContainerHandler
                 WriteSrsfASF(outFs, samplePath, sampleSize, sampleCRC32, options);
                 foreach (TrackInfo track in tracks)
                 {
-                    WriteSrstASF(outFs, track, sampleSize >= 0x80000000);
+                    WriteSrstASF(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
                 }
             }
             else

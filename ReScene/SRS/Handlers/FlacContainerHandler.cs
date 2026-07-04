@@ -146,7 +146,7 @@ internal class FlacContainerHandler : IContainerHandler
         WriteSrsfFlac(outFs, samplePath, sampleSize, sampleCRC32, options);
         foreach (TrackInfo track in tracks)
         {
-            WriteSrstFlac(outFs, track, sampleSize >= 0x80000000);
+            WriteSrstFlac(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
         }
 
         // Copy metadata blocks, skip frame data

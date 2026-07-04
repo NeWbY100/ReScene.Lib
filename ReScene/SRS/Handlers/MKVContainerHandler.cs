@@ -479,7 +479,7 @@ internal class MKVContainerHandler : IContainerHandler
         byte[] srsfPayload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
         byte[] srsfElement = EBMLWriter.BuildEBMLElement(EBMLIds.ResampleFile, srsfPayload); // RESAMPLE_FILE
 
-        bool bigFile = sampleSize >= 0x80000000;
+        bool bigFile = sampleSize >= SrsConstants.BigFileSizeThreshold;
         var trackElements = new List<byte[]>();
         foreach (TrackInfo track in tracks)
         {

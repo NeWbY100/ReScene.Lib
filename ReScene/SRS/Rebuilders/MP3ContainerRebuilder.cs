@@ -46,7 +46,7 @@ internal class MP3ContainerRebuilder : IContainerRebuilder
         srsFs.Position = headerEnd;
 
         // Read remaining blocks
-        while (srsFs.Position + 8 <= srsFs.Length)
+        while (srsFs.Position + SrsBlockLayout.HeaderSize <= srsFs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long blockStart = srsFs.Position;
@@ -56,7 +56,7 @@ internal class MP3ContainerRebuilder : IContainerRebuilder
 
             string tag = Encoding.ASCII.GetString(peek, 0, 4);
 
-            if (tag is "SRSF" or "SRST" or "SRSP")
+            if (tag is SrsFourCC.SrsFile or SrsFourCC.SrsTrack or SrsFourCC.SrsPadding)
             {
                 // Write audio data from media file before skipping SRS blocks
                 if (!mainDataWritten && tracks.TryGetValue(1, out SRSTrackDataBlock? track) &&

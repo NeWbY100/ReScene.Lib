@@ -203,7 +203,7 @@ internal class AVIContainerHandler : IContainerHandler
                     WriteSrsfRiff(outFs, samplePath, sampleSize, sampleCRC32, options);
                     foreach (TrackInfo track in tracks)
                     {
-                        WriteSrstRiff(outFs, track, sampleSize >= 0x80000000);
+                        WriteSrstRiff(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
                     }
 
                     moviInjected = true;
@@ -263,7 +263,7 @@ internal class AVIContainerHandler : IContainerHandler
         SRSCreationOptions options)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.Write(Encoding.ASCII.GetBytes("SRSF"));
+        outFs.Write(Encoding.ASCII.GetBytes(SrsFourCC.SrsFile));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);
         outFs.Write(sizeBytes);
@@ -277,7 +277,7 @@ internal class AVIContainerHandler : IContainerHandler
     private static void WriteSrstRiff(Stream outFs, TrackInfo track, bool bigFile)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.Write(Encoding.ASCII.GetBytes("SRST"));
+        outFs.Write(Encoding.ASCII.GetBytes(SrsFourCC.SrsTrack));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);
         outFs.Write(sizeBytes);
