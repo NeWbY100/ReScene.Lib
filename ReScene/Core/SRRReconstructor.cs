@@ -1,5 +1,7 @@
 using System.Text;
 using ReScene.Core.Cryptography;
+using ReScene.RAR;
+using ReScene.SRR;
 
 namespace ReScene.Core;
 
@@ -16,25 +18,6 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     public event EventHandler<BruteForceProgressEventArgs>? Progress;
 
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
-
-    // RAR block type constants
-    private const byte RARMarkerType = 0x72;
-    private const byte ArchiveHeaderType = 0x73;
-    private const byte FileHeaderType = 0x74;
-    private const byte ServiceBlockType = 0x7A;
-    private const byte EndArchiveType = 0x7B;
-
-    // RAR flag constants
-    private const ushort FlagLongBlock = 0x8000;
-    private const ushort FlagSplitBefore = 0x0001;
-    private const ushort FlagSplitAfter = 0x0002;
-
-    // SRR block type constants
-    private const byte SRRHeaderType = 0x69;
-    private const byte SRRStoredFileType = 0x6A;
-    private const byte SRROsoHashType = 0x6B;
-    private const byte SRRRarPaddingType = 0x6C;
-    private const byte SRRRarFileType = 0x71;
 
     /// <summary>
     /// Reconstructs RAR files from an SRR file by replaying original headers and splicing in source file data.
@@ -96,12 +79,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                 // Determine ADD_SIZE for blocks with LONG_BLOCK flag or stored file blocks
                 uint addSize = 0;
-                bool hasLongBlock = (flags & FlagLongBlock) != 0;
+                bool hasLongBlock = (flags & (ushort)RARFileFlags.LongBlock) != 0;
 
                 if (IsSRRBlockType(blockType))
                 {
                     // SRR blocks
-                    if (hasLongBlock || blockType == SRRStoredFileType)
+                    if (hasLongBlock || blockType == (byte)SRRBlockType.StoredFile)
                     {
                         if (srrStream.Position + 4 > srrStream.Length)
                         {
@@ -111,7 +94,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                         addSize = reader.ReadUInt32();
                     }
 
-                    if (blockType == SRRRarFileType)
+                    if (blockType == (byte)SRRBlockType.RARFile)
                     {
                         // Close previous volume and verify
                         if (outputStream != null && currentOutputPath != null && currentRarFileName != null)
@@ -146,7 +129,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                         _logger.Information(this, $"Reconstructing: {currentRarFileName}", LogTarget.System);
                     }
-                    else if (blockType == SRRRarPaddingType)
+                    else if (blockType == (byte)SRRBlockType.RARPadding)
                     {
                         // Read the padding block's RAR filename
                         long paddingHeaderEnd = blockStartPos + headerSize;
@@ -185,28 +168,28 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                     // Calculate ADD_SIZE from the header bytes (if LONG_BLOCK flag set)
                     uint rarAddSize = 0;
-                    if (headerSize >= 11 && (flags & FlagLongBlock) != 0)
+                    if (headerSize >= 11 && (flags & (ushort)RARFileFlags.LongBlock) != 0)
                     {
                         rarAddSize = BitConverter.ToUInt32(fullHeader, 7);
                     }
 
                     switch (blockType)
                     {
-                        case RARMarkerType:
+                        case (byte)RAR4BlockType.Marker:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             break;
 
-                        case ArchiveHeaderType:
+                        case (byte)RAR4BlockType.ArchiveHeader:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             break;
 
-                        case FileHeaderType:
+                        case (byte)RAR4BlockType.FileHeader:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
 
                             long packedSize = rarAddSize;
 
-                            // Check for LARGE flag (LHD_LARGE = 0x0100) for 64-bit sizes
-                            if ((flags & 0x0100) != 0 && headerSize >= 36)
+                            // Check for LARGE flag for 64-bit sizes
+                            if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= Rar4HeaderLayout.HighPackSizeOffset + Rar4HeaderLayout.AddSizeFieldLength)
                             {
                                 uint highPackSize = BitConverter.ToUInt32(fullHeader, 32);
                                 packedSize |= (long)highPackSize << 32;
@@ -218,7 +201,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             {
                                 ushort nameSize = BitConverter.ToUInt16(fullHeader, 26);
                                 int nameOffset = 32;
-                                if ((flags & 0x0100) != 0 && headerSize >= 40 + nameSize)
+                                if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= Rar4HeaderLayout.FixedFieldsEnd + 8 + nameSize)
                                 {
                                     nameOffset = 40;
                                 }
@@ -240,15 +223,15 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                                 }
                             }
 
-                            bool isSplitBefore = (flags & FlagSplitBefore) != 0;
-                            bool isSplitAfter = (flags & FlagSplitAfter) != 0;
+                            bool isSplitBefore = (flags & (ushort)RARFileFlags.SplitBefore) != 0;
+                            bool isSplitAfter = (flags & (ushort)RARFileFlags.SplitAfter) != 0;
 
                             // RAR4 directory entries set all LHD_WINDOWMASK bits (0x00E0) and carry no
                             // packed data. FindSourceFile would throw FileNotFoundException for the
                             // directory name (File.Exists is false for a directory), aborting the whole
                             // reconstruction — so never open a source stream for them (the header bytes
                             // are still written above; packedSize is 0, so there is nothing to copy).
-                            bool isDirectory = (flags & 0x00E0) == 0x00E0;
+                            bool isDirectory = ((RARFileFlags)flags).HasFlag(RARFileFlags.Directory);
 
                             if (!isSplitBefore && archivedFileName != null && !isDirectory)
                             {
@@ -281,7 +264,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                             break;
 
-                        case ServiceBlockType:
+                        case (byte)RAR4BlockType.Service:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             if (rarAddSize > 0)
                             {
@@ -291,7 +274,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                             break;
 
-                        case EndArchiveType:
+                        case (byte)RAR4BlockType.EndArchive:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             if (rarAddSize > 0)
                             {
@@ -362,7 +345,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         return allMatched;
     }
 
-    private static bool IsSRRBlockType(byte type) => type is SRRHeaderType or SRRStoredFileType or SRROsoHashType or SRRRarPaddingType or SRRRarFileType;
+    private static bool IsSRRBlockType(byte type)
+        => type == (byte)SRRBlockType.Header
+        || type == (byte)SRRBlockType.StoredFile
+        || type == (byte)SRRBlockType.OSOHash
+        || type == (byte)SRRBlockType.RARPadding
+        || type == (byte)SRRBlockType.RARFile;
 
     internal static string FindSourceFile(string inputDirectory, string archivedFileName)
     {
