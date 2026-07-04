@@ -849,13 +849,13 @@ public partial class Manager : IDisposable
 
         // Auto-add -ma4 for RAR 5.50-6.x to force RAR4 format (unless -ma5 was explicitly requested)
         // RAR 7.x doesn't accept -ma4/-ma5 flags
-        if (version >= 550 && version < 700 && !finalArguments.Contains("-ma4") && !finalArguments.Contains("-ma5"))
+        if (version >= 550 && version < RarVersionThresholds.Rar7FormatMinimum && !finalArguments.Contains("-ma4") && !finalArguments.Contains("-ma5"))
         {
             finalArguments.Insert(0, "-ma4");
         }
 
         // Add -vn for old volume naming if enabled (available since RAR 3.00, removed in RAR 7.x)
-        if (options.RAROptions.UseOldVolumeNaming && version >= 300 && version < 700 && !finalArguments.Contains("-vn"))
+        if (options.RAROptions.UseOldVolumeNaming && version >= 300 && version < RarVersionThresholds.Rar7FormatMinimum && !finalArguments.Contains("-vn"))
         {
             finalArguments.Add("-vn");
         }

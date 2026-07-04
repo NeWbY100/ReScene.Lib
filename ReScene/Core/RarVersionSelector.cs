@@ -103,9 +103,9 @@ internal static partial class RarVersionSelector
 
         return version switch
         {
-            < 500 => RARArchiveVersion.RAR4,
-            < 700 => RARArchiveVersion.RAR5,
-            >= 700 => RARArchiveVersion.RAR7
+            < RarVersionThresholds.Rar5FormatMinimum => RARArchiveVersion.RAR4,
+            < RarVersionThresholds.Rar7FormatMinimum => RARArchiveVersion.RAR5,
+            >= RarVersionThresholds.Rar7FormatMinimum => RARArchiveVersion.RAR7
         };
     }
 

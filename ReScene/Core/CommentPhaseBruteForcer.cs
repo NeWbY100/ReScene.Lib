@@ -131,7 +131,7 @@ internal sealed class CommentPhaseBruteForcer(
             List<string> args = ["a", "-r", cmtMethodArg, cmtDictArg, $"-z{commentFilePath}"];
 
             // Add -ma4 for RAR 5.50-6.x to create RAR4 format (RAR 7.x doesn't accept -ma4)
-            if (version is >= 550 and < 700)
+            if (version is >= 550 and < RarVersionThresholds.Rar7FormatMinimum)
             {
                 args.Add("-ma4");
             }

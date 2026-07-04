@@ -158,9 +158,6 @@ public sealed class MKVFileData
 
     private const int BinaryPreviewBytes = 16;
 
-    private const ulong EbmlIdCluster = 0x1F43B675;
-    private const ulong EbmlIdTimestamp = 0xE7;
-    private const ulong EbmlIdTrackEntry = 0xAE;
 
     /// <summary>
     /// Gets or sets the source file path.
@@ -263,7 +260,7 @@ public sealed class MKVFileData
 
             elementCount++;
 
-            if (id == EbmlIdTrackEntry)
+            if (id == EBMLIds.TrackEntry)
             {
                 trackCount++;
             }
@@ -272,7 +269,7 @@ public sealed class MKVFileData
 
             if (type == EBMLValueType.Master)
             {
-                if (id == EbmlIdCluster)
+                if (id == EBMLIds.Cluster)
                 {
                     // Do not recurse into cluster bodies; surface the first Timestamp child as a hint.
                     element.Value = ReadClusterTimestampHint(stream, dataPos, dataEnd);
@@ -355,7 +352,7 @@ public sealed class MKVFileData
                     return null;
                 }
 
-                if (childId == EbmlIdTimestamp)
+                if (childId == EBMLIds.Timestamp)
                 {
                     string? ts = FormatLeafValue(stream, EBMLValueType.UnsignedInt, childDataPos, childDataSize);
                     return ts is null ? null : $"Cluster @ Timestamp {ts}";

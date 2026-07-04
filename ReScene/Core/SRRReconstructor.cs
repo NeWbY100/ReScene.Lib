@@ -191,7 +191,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             // Check for LARGE flag for 64-bit sizes
                             if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= Rar4HeaderLayout.HighPackSizeOffset + Rar4HeaderLayout.AddSizeFieldLength)
                             {
-                                uint highPackSize = BitConverter.ToUInt32(fullHeader, 32);
+                                uint highPackSize = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.HighPackSizeOffset);
                                 packedSize |= (long)highPackSize << 32;
                             }
 
@@ -203,7 +203,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                                 int nameOffset = 32;
                                 if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= Rar4HeaderLayout.FixedFieldsEnd + 8 + nameSize)
                                 {
-                                    nameOffset = 40;
+                                    nameOffset = Rar4HeaderLayout.FixedFieldsEnd + 8;
                                 }
                                 else if (headerSize < nameOffset + nameSize)
                                 {
