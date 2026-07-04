@@ -63,6 +63,11 @@ internal static class EBMLIds
     // §Cat5 — ContentCompAlgo value for header-stripping (algorithm 3)
     public const int ContentCompAlgoHeaderStripping = 3;
 
+    // EBML element ID byte-width bounds (MakeEBMLId tier selection).
+    public const ulong OneByteBound = 0x100;
+    public const ulong TwoByteBound = 0x10000;
+    public const ulong ThreeByteBound = 0x1000000;
+
     /// <summary>
     /// Container element IDs that are stepped into (they hold child elements, not leaf data).
     /// </summary>
@@ -90,31 +95,31 @@ internal static class EBMLWriter
     /// </summary>
     public static byte[] MakeEBMLUInt(long value)
     {
-        if (value < 0x7F)
+        if (value < EBMLVInt.OneByteSizeLimit)
         {
-            return [(byte)(0x80 | value)];
+            return [(byte)(EBMLVInt.Marker1 | value)];
         }
 
-        if (value < 0x3FFF)
+        if (value < EBMLVInt.TwoByteSizeLimit)
         {
-            return [(byte)(0x40 | (value >> 8)), (byte)(value & 0xFF)];
+            return [(byte)(EBMLVInt.Marker2 | (value >> 8)), (byte)(value & 0xFF)];
         }
 
-        if (value < 0x1FFFFF)
+        if (value < EBMLVInt.ThreeByteSizeLimit)
         {
-            return [(byte)(0x20 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+            return [(byte)(EBMLVInt.Marker3 | (value >> 16)), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
         }
 
-        if (value < 0x0FFFFFFF)
+        if (value < EBMLVInt.FourByteSizeLimit)
         {
-            return [(byte)(0x10 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
+            return [(byte)(EBMLVInt.Marker4 | (value >> 24)), (byte)((value >> 16) & 0xFF), (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)];
         }
 
         // 5+ bytes
         var result = new List<byte>();
-        int width = 5;
-        long max = 0x07FFFFFFFF;
-        while (value > max && width < 8)
+        int width = EBMLVInt.FiveByteMinWidth;
+        long max = EBMLVInt.FiveByteSizeMax;
+        while (value > max && width < EBMLVInt.MaxByteWidth)
         {
             width++;
             max = (max << 8) | 0xFF;
@@ -135,17 +140,17 @@ internal static class EBMLWriter
     /// </summary>
     public static byte[] MakeEBMLId(ulong id)
     {
-        if (id < 0x100)
+        if (id < EBMLIds.OneByteBound)
         {
             return [(byte)id];
         }
 
-        if (id < 0x10000)
+        if (id < EBMLIds.TwoByteBound)
         {
             return [(byte)(id >> 8), (byte)(id & 0xFF)];
         }
 
-        if (id < 0x1000000)
+        if (id < EBMLIds.ThreeByteBound)
         {
             return [(byte)(id >> 16), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
         }

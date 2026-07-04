@@ -322,7 +322,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                     }
 
                     lacingHeaderSize++;
-                } while (b == 255);
+                } while (b == EBMLLacing.XiphContinuation);
             }
         }
         else if (laceType == 3) // EBML lacing
