@@ -576,10 +576,10 @@ public static class RARDetailedParser
         (byte)RAR4BlockType.ArchiveHeader => "Archive Header",
         (byte)RAR4BlockType.FileHeader => "File Header",
         (byte)RAR4BlockType.Comment => "Comment (old)",
-        (byte)RAR4BlockType.AuthInfo => "Extra Info (old)",
+        (byte)RAR4BlockType.AuthInfo => "Authenticity Verification (old)",
         (byte)RAR4BlockType.OldService => "Subblock (old)",
         (byte)RAR4BlockType.Protect => "Recovery Record (old)",
-        (byte)RAR4BlockType.Sign => "Auth Info (old)",
+        (byte)RAR4BlockType.Sign => "Digital Signature (old)",
         (byte)RAR4BlockType.Service => "Service Block",
         (byte)RAR4BlockType.EndArchive => "End of Archive",
         _ => $"Unknown (0x{type:X2})"
