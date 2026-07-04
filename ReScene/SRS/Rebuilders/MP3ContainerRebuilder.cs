@@ -70,6 +70,15 @@ internal class MP3ContainerRebuilder : IContainerRebuilder
                 // Skip the SRS block
                 reader.ReadBytes(4); // tag
                 uint totalSize = reader.ReadUInt32();
+
+                // A block must be at least its 8-byte header. A zero totalSize moves the position
+                // back to blockStart and spins this loop forever; any value below the header is
+                // malformed. Bail out cleanly, mirroring the same guard in SRSFile.ParseMP3.
+                if (totalSize < SrsBlockLayout.HeaderSize)
+                {
+                    break;
+                }
+
                 srsFs.Position = blockStart + totalSize;
             }
             else

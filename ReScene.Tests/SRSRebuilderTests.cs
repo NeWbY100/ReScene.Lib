@@ -942,6 +942,39 @@ public class SRSRebuilderTests : TempDirTestBase
     }
 
     [Fact]
+    public void Rebuild_MP3ZeroSizeSrsBlock_TerminatesWithoutHanging()
+    {
+        // A malformed SRS block declaring totalSize 0 must not spin the rebuild loop forever:
+        // advancing the position by totalSize would leave it unchanged. The parser (ParseMP3)
+        // already guards totalSize < HeaderSize; the rebuilder must too (finding: MP3 rebuild
+        // infinite loop). Repro: a single "SRSP" block with a zero size field.
+        string srsPath = Path.Combine(TempDir, "zerosize.srs");
+        File.WriteAllBytes(srsPath, [(byte)'S', (byte)'R', (byte)'S', (byte)'P', 0, 0, 0, 0]);
+
+        string mediaPath = Path.Combine(TempDir, "zerosize_media.mp3");
+        File.WriteAllBytes(mediaPath, new byte[64]);
+        string outputPath = Path.Combine(TempDir, "zerosize_out.mp3");
+
+        var rebuilder = new MP3ContainerRebuilder();
+        using var cts = new CancellationTokenSource();
+
+        Task task = Task.Run(() => rebuilder.Rebuild(
+            srsPath, new Dictionary<uint, SRSTrackDataBlock>(), mediaPath,
+            new Dictionary<uint, long>(), outputPath, null, null, cts.Token));
+
+        bool completed = task.Wait(TimeSpan.FromSeconds(3));
+        if (!completed)
+        {
+            // Bug regressed: actively cancel and observe the spinning task (the loop honors ct each
+            // iteration) so it releases its file handles instead of pinning a core until process exit.
+            cts.Cancel();
+            try { task.Wait(TimeSpan.FromSeconds(5)); } catch (AggregateException) { /* observe OCE */ }
+        }
+
+        Assert.True(completed, "MP3 rebuild hung on a zero-size SRS block (infinite loop).");
+    }
+
+    [Fact]
     public async Task Rebuild_MP3Sample_OutputFileMatchesOriginal()
     {
         string samplePath = BuildSyntheticMP3();
