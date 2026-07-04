@@ -478,4 +478,40 @@ public class SRRWriterRealDataTests : TempDirTestBase
     }
 
     #endregion
+
+    #region CMT Write Detection Characterization Tests
+
+    /// <summary>
+    /// Pins <c>IsRar4CmtServiceBlock</c>'s gate on the create path: when a RAR4 volume contains
+    /// a CMT (comment) service block, <c>CreateAsync</c> must copy the comment bytes verbatim
+    /// into the SRR (not skip them as it does for RR/AV/other service blocks).
+    /// Reuses the parse-path CMT fixture: <c>store_utf8_comment.rar</c> carries a CMT service
+    /// block with a compressed comment that decodes to "Test comment.".
+    /// </summary>
+    [Fact]
+    public async Task CreateAsync_Rar4WithCmtServiceBlock_PreservesCommentDataInSrr()
+    {
+        string rarPath = Path.Combine(_testDataDir, "store_utf8_comment", "store_utf8_comment.rar");
+        if (!File.Exists(rarPath))
+        {
+            Assert.Fail($"Test file not found: {rarPath}");
+        }
+
+        string srrPath = Path.Combine(TempDir, "cmt_create.srr");
+
+        var writer = new SRRWriter();
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { AppName = null });
+
+        Assert.True(result.Success, result.ErrorMessage);
+
+        // SRRFile.Load parses embedded RAR headers and extracts CMT data.
+        // If IsRar4CmtServiceBlock regresses (wrong offset, wrong name constant), comment bytes
+        // are skipped → ArchiveComment is null and this assertion fails.
+        var srr = SRRFile.Load(srrPath);
+        Assert.Equal("Test comment.", srr.ArchiveComment);
+        Assert.NotNull(srr.CmtCompressedData); // raw compressed bytes must be present in the SRR
+    }
+
+    #endregion
 }

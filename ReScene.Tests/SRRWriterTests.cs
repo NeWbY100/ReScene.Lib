@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 using ReScene.RAR;
 using ReScene.SRR;
@@ -747,6 +748,103 @@ public class SRRWriterTests : TempDirTestBase
         var srr = SRRFile.Load(srrPath);
         // OSO hash blocks are not yet implemented, so none should be present
         Assert.Empty(srr.OSOHashBlocks);
+    }
+
+    #endregion
+
+    #region OSO Hash Write Path Characterization Tests
+
+    /// <summary>
+    /// Pins <c>WriteOSOHashBlock</c>'s 7+8+8+2 framing: when
+    /// <see cref="SRRCreationOptions.ComputeOSOHashes"/> is enabled and the RAR contains a
+    /// stored file of at least 64 KiB, the resulting SRR must contain exactly one OSO block
+    /// whose file-size field, 8-byte hash, and filename all match the independent oracle.
+    /// </summary>
+    [Fact]
+    public async Task CreateAsync_ComputeOSOHashes_WithLargeStoredFile_EmitsOsoBlockWithExactFraming()
+    {
+        const int ChunkSize = 64 * 1024; // 65536 bytes — OSO minimum file size
+        const string ArchivedFileName = "clip.bin";
+
+        // Deterministic content so the oracle and the SUT agree on the expected hash bytes.
+        byte[] content = BuildOsoContentPattern(ChunkSize, seed: 0x1234);
+        string rarPath = CreateLargeStoredRar4("clip.rar", ArchivedFileName, content);
+        string srrPath = Path.Combine(TempDir, "oso_framing.srr");
+
+        var writer = new SRRWriter();
+        SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath],
+            options: new SRRCreationOptions { ComputeOSOHashes = true });
+
+        Assert.True(result.Success, result.ErrorMessage);
+
+        var srr = SRRFile.Load(srrPath);
+        SRROsoHashBlock oso = Assert.Single(srr.OSOHashBlocks);
+
+        // Pin the three payload fields written by WriteOSOHashBlock:
+        // file size (8 bytes), hash (8 bytes), and the file name.
+        Assert.Equal(ArchivedFileName, oso.FileName);
+        Assert.Equal((ulong)ChunkSize, oso.FileSize);
+        Assert.Equal(8, oso.OSOHash.Length);
+        Assert.Equal(OsoHashOracle(content, ChunkSize), oso.OSOHash.ToArray());
+    }
+
+    /// <summary>
+    /// Independent OSO hash oracle — deliberately does NOT call <c>OSOHashCalculator</c>.
+    /// Recomputes per OSO spec: fileSize + LE-qword sum of first and last 64 KiB windows.
+    /// </summary>
+    private static byte[] OsoHashOracle(byte[] content, int chunkSize)
+    {
+        ulong hash = (ulong)content.Length;
+        ReadOnlySpan<byte> head = content.AsSpan(0, chunkSize);
+        ReadOnlySpan<byte> tail = content.AsSpan(content.Length - chunkSize, chunkSize);
+        for (int i = 0; i < chunkSize; i += 8)
+        {
+            hash += BinaryPrimitives.ReadUInt64LittleEndian(head.Slice(i, 8));
+            hash += BinaryPrimitives.ReadUInt64LittleEndian(tail.Slice(i, 8));
+        }
+
+        byte[] result = new byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(result, hash);
+        return result;
+    }
+
+    /// <summary>
+    /// Deterministic LCG byte pattern. Mirrors <c>OSOHashCalculatorTests.BuildPattern</c>
+    /// exactly so the same fixture content produces the same expected hash value.
+    /// </summary>
+    private static byte[] BuildOsoContentPattern(int length, uint seed)
+    {
+        byte[] buffer = new byte[length];
+        uint state = seed == 0 ? 1u : seed;
+        for (int i = 0; i < length; i++)
+        {
+            state = (state * 1664525u) + 1013904223u;
+            buffer[i] = (byte)(state >> 24);
+        }
+
+        return buffer;
+    }
+
+    /// <summary>
+    /// Writes a minimal RAR4 archive with one stored (method 0x30) file entry whose packed
+    /// data is <paramref name="content"/>. <c>OSOHashCalculator</c> only hashes stored entries
+    /// of at least 64 KiB, so the caller must supply at least 65 536 bytes.
+    /// </summary>
+    private string CreateLargeStoredRar4(string rarFileName, string archivedFileName, byte[] content)
+    {
+        string path = Path.Combine(TempDir, rarFileName);
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var bw = new BinaryWriter(fs);
+
+        bw.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 }); // RAR4 marker
+        WriteRar4ArchiveHeader(bw, RARArchiveFlags.None);
+        WriteRar4FileHeader(bw, archivedFileName, (uint)content.Length, (uint)content.Length,
+            hostOS: 2, fileCRC: 0, unpVer: 29, method: 0x30 /* Store */,
+            flags: RARFileFlags.LongBlock);
+        bw.Write(content);
+        WriteRar4EndArchive(bw);
+
+        return path;
     }
 
     #endregion
