@@ -581,7 +581,7 @@ internal class RARHeaderReader
 
         for (int i = 0; i < Rar4HeaderLayout.ExtTimeFieldCount; i++)
         {
-            int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * Rar4HeaderLayout.ExtTimeNibbleBits)) & Rar4HeaderLayout.ExtTimeNibbleMask;
+            int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * 4)) & Rar4HeaderLayout.ExtTimeNibbleMask;
 
             // Determine precision for this time type
             // rmode & ExtTimePresentBit = time present flag
@@ -809,21 +809,21 @@ internal class RARHeaderReader
                 ushort extFlags = _reader.ReadUInt16();
 
                 // mtime is at position 0 (bits 12-15)
-                int mtimeRmode = (extFlags >> Rar4HeaderLayout.MtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                int mtimeRmode = (extFlags >> 12) & Rar4HeaderLayout.ExtTimeNibbleMask;
                 if ((mtimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
                 {
                     mtimePrecision = PrecisionFromExtraBytes(mtimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
                 }
 
                 // ctime is at position 1 (bits 8-11)
-                int ctimeRmode = (extFlags >> Rar4HeaderLayout.CtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                int ctimeRmode = (extFlags >> 8) & Rar4HeaderLayout.ExtTimeNibbleMask;
                 if ((ctimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
                 {
                     ctimePrecision = PrecisionFromExtraBytes(ctimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
                 }
 
                 // atime is at position 2 (bits 4-7)
-                int atimeRmode = (extFlags >> Rar4HeaderLayout.AtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                int atimeRmode = (extFlags >> 4) & Rar4HeaderLayout.ExtTimeNibbleMask;
                 if ((atimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
                 {
                     atimePrecision = PrecisionFromExtraBytes(atimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);

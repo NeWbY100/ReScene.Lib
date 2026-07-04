@@ -905,7 +905,7 @@ public static class RARDetailedParser
             string[] precisionLabels = { "DOS (1s)", "+1 byte (~6.5ms)", "+2 bytes (~25.6\u00B5s)", "+3 bytes (100ns)" };
             for (int t = 0; t < Rar4HeaderLayout.ExtTimeFieldCount; t++)
             {
-                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * Rar4HeaderLayout.ExtTimeNibbleBits)) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * 4)) & Rar4HeaderLayout.ExtTimeNibbleMask;
                 bool present = (rmode & Rar4HeaderLayout.ExtTimePresentBit) != 0;
                 bool roundUp = (rmode & Rar4HeaderLayout.ExtTimeRoundUpBit) != 0;
                 int extraBytes = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
@@ -914,10 +914,10 @@ public static class RARDetailedParser
                     ? $"Present, {precisionLabels[extraBytes]}{(roundUp ? ", +1s rounding" : "")}"
                     : "Not present";
 
-                int bitLow = (Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * Rar4HeaderLayout.ExtTimeNibbleBits;
+                int bitLow = (Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * 4;
                 extFlagsField.Children.Add(new RARHeaderField
                 {
-                    Name = $"{timeLabels[t]} [bits {bitLow + Rar4HeaderLayout.ExtTimeNibbleBits - 1}-{bitLow}]",
+                    Name = $"{timeLabels[t]} [bits {bitLow + 4 - 1}-{bitLow}]",
                     Value = $"0x{rmode:X} ({desc})"
                 });
             }
@@ -927,7 +927,7 @@ public static class RARDetailedParser
             // Parse each time field (mtime, ctime, atime, arctime)
             for (int i = 0; i < Rar4HeaderLayout.ExtTimeFieldCount && cursor.Pos < headerEnd; i++)
             {
-                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * Rar4HeaderLayout.ExtTimeNibbleBits)) & Rar4HeaderLayout.ExtTimeNibbleMask;
+                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * 4)) & Rar4HeaderLayout.ExtTimeNibbleMask;
                 if ((rmode & Rar4HeaderLayout.ExtTimePresentBit) == 0)
                 {
                     continue;

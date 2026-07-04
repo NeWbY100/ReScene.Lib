@@ -266,11 +266,11 @@ internal static class RARPatcher
     private static uint EncodeDosDate(DateTime dt)
     {
         int year = Math.Clamp(dt.Year, Rar4HeaderLayout.DosEpochYear, Rar4HeaderLayout.DosMaxYear);
-        uint date = (((uint)(year - Rar4HeaderLayout.DosEpochYear) & Rar4HeaderLayout.DosYearMask) << Rar4HeaderLayout.DosYearShift)
-                  | (((uint)dt.Month & Rar4HeaderLayout.DosMonthMask) << Rar4HeaderLayout.DosMonthShift)
+        uint date = (((uint)(year - Rar4HeaderLayout.DosEpochYear) & Rar4HeaderLayout.DosYearMask) << 9)
+                  | (((uint)dt.Month & Rar4HeaderLayout.DosMonthMask) << 5)
                   | ((uint)dt.Day & Rar4HeaderLayout.DosDayMask);
-        uint time = (((uint)dt.Hour & Rar4HeaderLayout.DosHourMask) << Rar4HeaderLayout.DosHourShift)
-                  | (((uint)dt.Minute & Rar4HeaderLayout.DosMinuteMask) << Rar4HeaderLayout.DosMinuteShift)
+        uint time = (((uint)dt.Hour & Rar4HeaderLayout.DosHourMask) << 11)
+                  | (((uint)dt.Minute & Rar4HeaderLayout.DosMinuteMask) << 5)
                   | (((uint)dt.Second & Rar4HeaderLayout.DosSecondEvenMask) >> 1);
         return (date << 16) | time;
     }
@@ -340,7 +340,7 @@ internal static class RARPatcher
         }
 
         ushort extFlags = BitConverter.ToUInt16(fullHeader, extTimeOffset);
-        int mtimeNibble = (extFlags >> Rar4HeaderLayout.MtimeNibbleShift) & Rar4HeaderLayout.ExtTimeNibbleMask;
+        int mtimeNibble = (extFlags >> 12) & Rar4HeaderLayout.ExtTimeNibbleMask;
         bool mtimePresent = (mtimeNibble & Rar4HeaderLayout.ExtTimePresentBit) != 0;
         int mtimeByteCount = mtimeNibble & Rar4HeaderLayout.ExtTimePrecisionMask;
 
@@ -355,7 +355,7 @@ internal static class RARPatcher
         int newMtimeNibble = (mtimeNibble & ~Rar4HeaderLayout.ExtTimeRoundUpBit) | (needsRounding ? Rar4HeaderLayout.ExtTimeRoundUpBit : 0);
         if (newMtimeNibble != mtimeNibble)
         {
-            ushort newExtFlags = (ushort)((extFlags & Rar4HeaderLayout.MtimeNibbleMask) | (newMtimeNibble << Rar4HeaderLayout.MtimeNibbleShift));
+            ushort newExtFlags = (ushort)((extFlags & Rar4HeaderLayout.MtimeNibbleMask) | (newMtimeNibble << 12));
             byte[] flagBytes = BitConverter.GetBytes(newExtFlags);
             Array.Copy(flagBytes, 0, fullHeader, extTimeOffset, 2);
             modified = true;
