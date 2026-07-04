@@ -1,13 +1,12 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using System.Text;
 
 namespace ReScene.SRS;
 
 internal class WMVContainerHandler : IContainerHandler
 {
-    private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
+    // WMV/ASF represents all packet data as a single virtual track.
+    private const int VirtualTrackNumber = 1;
 
     public SRSContainerType ContainerType => SRSContainerType.WMV;
 
@@ -22,27 +21,27 @@ internal class WMVContainerHandler : IContainerHandler
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        while (fs.Position + 24 <= fs.Length)
+        while (fs.Position + AsfGuids.ObjectHeaderSize <= fs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long objStart = fs.Position;
 
-            byte[] header = new byte[24];
-            if (fs.Read(header, 0, 24) < 24)
+            byte[] header = new byte[AsfGuids.ObjectHeaderSize];
+            if (fs.Read(header, 0, AsfGuids.ObjectHeaderSize) < AsfGuids.ObjectHeaderSize)
             {
                 break;
             }
 
-            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(16));
-            if (objSize < 24)
+            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(AsfGuids.GuidSize));
+            if (objSize < AsfGuids.ObjectHeaderSize)
             {
                 break;
             }
 
-            totalLength += 24;
+            totalLength += AsfGuids.ObjectHeaderSize;
             crc.Append(header);
 
-            long dataSize = (long)objSize - 24;
+            long dataSize = (long)objSize - AsfGuids.ObjectHeaderSize;
             long objEnd = objStart + (long)objSize;
             if (objEnd > fs.Length)
             {
@@ -50,16 +49,16 @@ internal class WMVContainerHandler : IContainerHandler
             }
 
             // Check if this is the Data Object (GUID: 3626B2758E66CF11A6D900AA0062CE6C)
-            bool isDataObject = header[0] == 0x36 && header[1] == 0x26 && header[2] == 0xB2 && header[3] == 0x75;
+            bool isDataObject = header.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
 
-            if (isDataObject && dataSize >= 26)
+            if (isDataObject && dataSize >= AsfGuids.DataObjectHeaderLength)
             {
                 // Data object has: file ID (16 bytes) + total packets (8 bytes) + reserved (2 bytes)
-                byte[] dataHeader = StreamUtilities.ReadAtMost(fs, 26);
-                totalLength += 26;
+                byte[] dataHeader = StreamUtilities.ReadAtMost(fs, AsfGuids.DataObjectHeaderLength);
+                totalLength += AsfGuids.DataObjectHeaderLength;
                 crc.Append(dataHeader);
 
-                ulong totalPackets = BinaryPrimitives.ReadUInt64LittleEndian(dataHeader.AsSpan(16));
+                ulong totalPackets = BinaryPrimitives.ReadUInt64LittleEndian(dataHeader.AsSpan(AsfGuids.DataObjectFileIdSize));
                 long packetDataSize = objEnd - fs.Position;
 
                 if (totalPackets > 0 && packetDataSize > 0)
@@ -72,7 +71,7 @@ internal class WMVContainerHandler : IContainerHandler
                         crc.Append(packetData);
 
                         // For signature purposes, accumulate all packet data as one track.
-                        int streamNum = 1;
+                        int streamNum = VirtualTrackNumber;
 
                         if (!trackMap.TryGetValue(streamNum, out TrackInfo? track))
                         {
@@ -133,16 +132,16 @@ internal class WMVContainerHandler : IContainerHandler
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        while (inFs.Position + 24 <= inFs.Length)
+        while (inFs.Position + AsfGuids.ObjectHeaderSize <= inFs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long objStart = inFs.Position;
 
-            byte[] header = new byte[24];
-            inFs.ReadExactly(header, 0, 24);
+            byte[] header = new byte[AsfGuids.ObjectHeaderSize];
+            inFs.ReadExactly(header, 0, AsfGuids.ObjectHeaderSize);
 
-            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(16));
-            if (objSize < 24)
+            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(AsfGuids.GuidSize));
+            if (objSize < AsfGuids.ObjectHeaderSize)
             {
                 break;
             }
@@ -154,7 +153,7 @@ internal class WMVContainerHandler : IContainerHandler
             }
 
             // Check if Data Object
-            bool isDataObject = header[0] == 0x36 && header[1] == 0x26 && header[2] == 0xB2 && header[3] == 0x75;
+            bool isDataObject = header.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
 
             outFs.Write(header);
 
@@ -162,10 +161,10 @@ internal class WMVContainerHandler : IContainerHandler
             {
                 // Parse data packets, write only packet headers (strip payload data)
                 long dataRemaining = objEnd - inFs.Position;
-                if (dataRemaining >= 26)
+                if (dataRemaining >= AsfGuids.DataObjectHeaderLength)
                 {
-                    byte[] dataHeader = new byte[26];
-                    inFs.ReadExactly(dataHeader, 0, 26);
+                    byte[] dataHeader = new byte[AsfGuids.DataObjectHeaderLength];
+                    inFs.ReadExactly(dataHeader, 0, AsfGuids.DataObjectHeaderLength);
                     outFs.Write(dataHeader);
 
                     // Data packets are stripped: the SRS keeps the ASF header objects + SRSF/SRST.
@@ -201,9 +200,9 @@ internal class WMVContainerHandler : IContainerHandler
         SRSCreationOptions options)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.Write(_guidSRSFile);
+        outFs.Write(AsfSrsGuids.GuidSRSFile);
         Span<byte> sizeBytes = stackalloc byte[8];
-        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
+        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + AsfGuids.ObjectHeaderSize));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }
@@ -211,9 +210,9 @@ internal class WMVContainerHandler : IContainerHandler
     private static void WriteSrstASF(Stream outFs, TrackInfo track, bool bigFile)
     {
         byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.Write(_guidSRSTrack);
+        outFs.Write(AsfSrsGuids.GuidSRSTrack);
         Span<byte> sizeBytes = stackalloc byte[8];
-        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + 16 + 8));
+        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + AsfGuids.ObjectHeaderSize));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }

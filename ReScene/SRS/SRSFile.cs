@@ -141,7 +141,7 @@ public class SRSFile
         }
 
         // WMV/ASF
-        if (magic[0] == 0x30 && magic[1] == 0x26 && magic[2] == 0xB2 && magic[3] == 0x75)
+        if (magic.AsSpan().StartsWith(AsfGuids.HeaderObjectPrefix))
         {
             return SRSContainerType.WMV;
         }
@@ -748,24 +748,16 @@ public class SRSFile
 
     // ==================== WMV/ASF Parser ====================
 
-    private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
-    private static readonly byte[] _guidSRSPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
-
-    // Length of the ASF Data Object header retained in the SRS:
-    // file ID (16) + total packet count (8) + reserved (2).
-    private const int AsfDataObjectHeaderLength = 26;
-
     private static void ParseASF(BinaryReader reader, FileStream fs, SRSFile srs)
     {
-        while (fs.Position + 24 <= fs.Length)
+        while (fs.Position + AsfGuids.ObjectHeaderSize <= fs.Length)
         {
             long frameOffset = fs.Position;
-            byte[] guid = reader.ReadBytes(16);
+            byte[] guid = reader.ReadBytes(AsfGuids.GuidSize);
             ulong totalSize = reader.ReadUInt64();
-            int headerSize = 24;
+            int headerSize = AsfGuids.ObjectHeaderSize;
 
-            if (totalSize < 24)
+            if (totalSize < AsfGuids.ObjectHeaderSize)
             {
                 break;
             }
@@ -776,15 +768,14 @@ public class SRSFile
             // ASF Data Object GUID starts with 36 26 B2 75. Its declared size still
             // reflects the original (un-stripped) object, but the SRS physically keeps
             // only the 26-byte data header followed by injected SRSF/SRST objects.
-            bool isDataObject = guid.Length >= 4
-                && guid[0] == 0x36 && guid[1] == 0x26 && guid[2] == 0xB2 && guid[3] == 0x75;
+            bool isDataObject = guid.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
 
-            if (GuidEquals(guid, _guidSRSFile))
+            if (GuidEquals(guid, AsfSrsGuids.GuidSRSFile))
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize);
                 fs.Position = frameOffset + (long)totalSize;
             }
-            else if (GuidEquals(guid, _guidSRSTrack))
+            else if (GuidEquals(guid, AsfSrsGuids.GuidSRSTrack))
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
                 fs.Position = frameOffset + (long)totalSize;
@@ -803,11 +794,11 @@ public class SRSFile
 
                 // Advance past only the retained 26-byte data header so the injected
                 // SRSF/SRST objects that replaced the packet payload are parsed next.
-                fs.Position = payloadStart + AsfDataObjectHeaderLength;
+                fs.Position = payloadStart + AsfGuids.DataObjectHeaderLength;
             }
             else
             {
-                string label = GuidEquals(guid, _guidSRSPadding) ? "SRS Padding" : FormatGuid(guid);
+                string label = GuidEquals(guid, AsfSrsGuids.GuidSRSPadding) ? "SRS Padding" : FormatGuid(guid);
 
                 srs._containerChunks.Add(new SRSContainerChunk
                 {
@@ -844,7 +835,7 @@ public class SRSFile
 
     private static string FormatGuid(byte[] guid)
     {
-        if (guid.Length != 16)
+        if (guid.Length != AsfGuids.GuidSize)
         {
             return BitConverter.ToString(guid);
         }

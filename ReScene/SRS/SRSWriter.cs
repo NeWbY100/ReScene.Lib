@@ -292,7 +292,7 @@ public class SRSWriter
         }
 
         // WMV/ASF
-        if (magic[0] == 0x30 && magic[1] == 0x26 && magic[2] == 0xB2 && magic[3] == 0x75)
+        if (magic.StartsWith(AsfGuids.HeaderObjectPrefix))
         {
             return SRSContainerType.WMV;
         }

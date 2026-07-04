@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Text;
 
 namespace ReScene.SRS;
 
@@ -10,14 +9,6 @@ namespace ReScene.SRS;
 /// </summary>
 internal class WMVContainerRebuilder : IContainerRebuilder
 {
-    private static readonly byte[] _guidSRSFile = Encoding.ASCII.GetBytes("SRSFSRSFSRSFSRSF");
-    private static readonly byte[] _guidSRSTrack = Encoding.ASCII.GetBytes("SRSTSRSTSRSTSRST");
-    private static readonly byte[] _guidSRSPadding = Encoding.ASCII.GetBytes("PADDINGBYTESDATA");
-
-    // Length of the ASF Data Object header retained in the SRS:
-    // file ID (16) + total packet count (8) + reserved (2).
-    private const int DataObjectHeaderLength = 26;
-
     public SRSContainerType ContainerType => SRSContainerType.WMV;
 
     public void Rebuild(
@@ -38,15 +29,15 @@ internal class WMVContainerRebuilder : IContainerRebuilder
 
         byte[] sizeBuffer = new byte[8];
 
-        while (srsFs.Position + 24 <= srsFs.Length)
+        while (srsFs.Position + AsfGuids.ObjectHeaderSize <= srsFs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long objStart = srsFs.Position;
 
-            byte[] guid = reader.ReadBytes(16);
+            byte[] guid = reader.ReadBytes(AsfGuids.GuidSize);
             ulong totalSize = reader.ReadUInt64();
 
-            if (totalSize < 24)
+            if (totalSize < AsfGuids.ObjectHeaderSize)
             {
                 break;
             }
@@ -54,9 +45,9 @@ internal class WMVContainerRebuilder : IContainerRebuilder
             long objEnd = objStart + (long)totalSize;
 
             // Skip injected SRS objects.
-            if (GuidEquals(guid, _guidSRSFile) ||
-                GuidEquals(guid, _guidSRSTrack) ||
-                GuidEquals(guid, _guidSRSPadding))
+            if (GuidEquals(guid, AsfSrsGuids.GuidSRSFile) ||
+                GuidEquals(guid, AsfSrsGuids.GuidSRSTrack) ||
+                GuidEquals(guid, AsfSrsGuids.GuidSRSPadding))
             {
                 srsFs.Position = objEnd;
                 continue;
@@ -74,12 +65,11 @@ internal class WMVContainerRebuilder : IContainerRebuilder
             // the packets from the media file. The object's declared size reflects the
             // original, so we must NOT seek to objEnd here — the SRS only contains the
             // header followed by the injected SRS objects.
-            bool isDataObject = guid.Length >= 4
-                && guid[0] == 0x36 && guid[1] == 0x26 && guid[2] == 0xB2 && guid[3] == 0x75;
+            bool isDataObject = guid.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
 
             if (isDataObject)
             {
-                long dataHeaderLen = Math.Min(DataObjectHeaderLength, objEnd - srsFs.Position);
+                long dataHeaderLen = Math.Min(AsfGuids.DataObjectHeaderLength, objEnd - srsFs.Position);
                 if (dataHeaderLen > 0)
                 {
                     StreamUtilities.CopyBytes(srsFs, outFs, dataHeaderLen);
@@ -100,7 +90,7 @@ internal class WMVContainerRebuilder : IContainerRebuilder
             }
 
             // Non-data object: copy the body verbatim from the SRS.
-            long bodySize = (long)totalSize - 24;
+            long bodySize = (long)totalSize - AsfGuids.ObjectHeaderSize;
             if (bodySize > 0)
             {
                 StreamUtilities.CopyBytes(srsFs, outFs, bodySize);
