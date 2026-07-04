@@ -199,18 +199,13 @@ internal class MKVContainerHandler : IContainerHandler
                 // Calculate remaining data after base block header
                 int dataAfterBaseHeader = (int)((long)dataSize - blockHeaderBase);
 
-                // Parse lacing to determine frame sizes and lacing header size
+                // Measure the lacing header with the shared, unbounded reader (the same one the
+                // rebuilder uses) so creation and rebuild always agree on where frame data begins —
+                // a >256-byte lacing header must not be truncated (finding #7).
                 int lacingHeaderSize = 0;
                 if (laceType != EBMLLaceType.None && dataAfterBaseHeader > 0)
                 {
-                    // Read the lacing header data to parse it
-                    byte[] lacingData = StreamUtilities.ReadAtMost(fs, Math.Min(dataAfterBaseHeader, 256)); // lacing headers are small
-                    (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
-                        lacingData, laceType, dataAfterBaseHeader);
-                    lacingHeaderSize = bytesConsumed;
-
-                    // Seek back to re-read lacing bytes as part of the full block header
-                    fs.Position = dataStart + blockHeaderBase;
+                    lacingHeaderSize = EBMLLacing.ReadLacingHeaderSize(fs, dataStart, blockHeaderBase, flagsByte);
                 }
 
                 // The full block header includes the lacing header
@@ -434,14 +429,11 @@ internal class MKVContainerHandler : IContainerHandler
                         int lacingHeaderSize = 0;
                         if (laceType != EBMLLaceType.None)
                         {
-                            // Read lacing header to determine its size
                             int dataAfterBase = (int)((long)dataSize - blockHeaderBase);
                             if (dataAfterBase > 0)
                             {
-                                byte[] lacingPeek = StreamUtilities.ReadAtMost(inFs, Math.Min(dataAfterBase, 256));
-                                (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
-                                    lacingPeek, laceType, dataAfterBase);
-                                lacingHeaderSize = bytesConsumed;
+                                // Shared, unbounded reader (matches the rebuilder) — no 256-byte cap (#7).
+                                lacingHeaderSize = EBMLLacing.ReadLacingHeaderSize(inFs, blockParseStart, blockHeaderBase, flagsByte);
                             }
                         }
 

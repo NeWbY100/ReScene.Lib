@@ -211,7 +211,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                             break;
                         }
 
-                        int lacingHeaderSize = ReadLacingHeaderSize(fs, blockStart, blockHeaderBase, flagsByte);
+                        int lacingHeaderSize = EBMLLacing.ReadLacingHeaderSize(fs, blockStart, blockHeaderBase, flagsByte);
 
                         long frameDataOffset = blockStart + blockHeaderBase + lacingHeaderSize;
                         int frameDataLen = (int)((long)dataSize - blockHeaderBase - lacingHeaderSize);
@@ -292,64 +292,6 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             s.MatchedLen = freshTake;
             s.MatchOffset = frameOffset;
         }
-    }
-
-    /// <summary>
-    /// Reads the lacing header (if any) after the base block header and returns
-    /// the number of bytes the lacing header occupies. Leaves the stream position
-    /// indeterminate.
-    /// </summary>
-    private static int ReadLacingHeaderSize(Stream fs, long blockStart, int blockHeaderBase, int flagsByte)
-    {
-        var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
-        if (laceType == EBMLLaceType.None)
-        {
-            return 0;
-        }
-
-        fs.Position = blockStart + blockHeaderBase;
-        int laceCount = fs.ReadByte();
-        if (laceCount < 0)
-        {
-            return 0;
-        }
-
-        int lacingHeaderSize = 1;
-
-        if (laceType == EBMLLaceType.Xiph)
-        {
-            for (int i = 0; i < laceCount; i++)
-            {
-                int b;
-                do
-                {
-                    b = fs.ReadByte();
-                    if (b < 0)
-                    {
-                        return lacingHeaderSize;
-                    }
-
-                    lacingHeaderSize++;
-                } while (b == EBMLLacing.XiphContinuation);
-            }
-        }
-        else if (laceType == EBMLLaceType.EBML)
-        {
-            if (EBMLReader.TryReadSize(fs, out _, out int firstSizeLen))
-            {
-                lacingHeaderSize += firstSizeLen;
-                for (int i = 1; i < laceCount; i++)
-                {
-                    if (EBMLReader.TryReadSize(fs, out _, out int deltaLen))
-                    {
-                        lacingHeaderSize += deltaLen;
-                    }
-                }
-            }
-        }
-        // Fixed-size lacing (EBMLLaceType.Fixed) has only the lace count byte — no extra size data
-
-        return lacingHeaderSize;
     }
 
     #endregion
@@ -540,7 +482,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                         break;
                     }
 
-                    int lacingHeaderSize = ReadLacingHeaderSize(fs, blockStart, blockHeaderBase, flagsByte);
+                    int lacingHeaderSize = EBMLLacing.ReadLacingHeaderSize(fs, blockStart, blockHeaderBase, flagsByte);
 
                     long frameDataOffset = blockStart + blockHeaderBase + lacingHeaderSize;
                     int frameDataLen = (int)((long)dataSize - blockHeaderBase - lacingHeaderSize);
@@ -804,22 +746,16 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                             }
                             else
                             {
-                                // Parse lacing from SRS to determine header size
-                                srsFs.Position = probePos;
+                                // Measure the stored lacing header with the shared, unbounded reader so
+                                // it matches exactly what creation wrote — a >256-byte lacing header
+                                // must not be truncated here or the copied header would be short (#7).
                                 int dataAfterBase = (int)((long)dataSize - blockHeaderBase);
-                                int peekLen = Math.Min(dataAfterBase, 256);
-                                if (peekLen > 0)
+                                if (dataAfterBase > 0)
                                 {
-                                    byte[] lacingPeek = new byte[peekLen];
-                                    int read = StreamUtilities.ReadFully(srsFs, lacingPeek, 0, peekLen);
-                                    if (read > 0)
-                                    {
-                                        var lacingType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
-                                        (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
-                                            lacingPeek.AsSpan(0, read), lacingType, dataAfterBase);
-                                        srsBlockHeaderSize = blockHeaderBase + bytesConsumed;
-                                        srsHasLacing = bytesConsumed > 0;
-                                    }
+                                    int lacingHeaderSize = EBMLLacing.ReadLacingHeaderSize(
+                                        srsFs, blockStart, blockHeaderBase, flagsByte);
+                                    srsBlockHeaderSize = blockHeaderBase + lacingHeaderSize;
+                                    srsHasLacing = lacingHeaderSize > 0;
                                 }
                             }
                         }

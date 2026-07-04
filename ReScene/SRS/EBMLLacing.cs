@@ -158,6 +158,66 @@ internal static class EBMLLacing
 
         return (frameSizes, bytesConsumed);
     }
+
+    /// <summary>
+    /// Reads the lacing header (if any) that follows the base block header and returns the number of
+    /// bytes it occupies. Reads directly from the stream with no fixed cap, so lacing headers larger
+    /// than any peek buffer are measured correctly. Leaves the stream position indeterminate. This is
+    /// the single source of truth shared by SRS creation and rebuild so the two always agree on where
+    /// the frame data (and thus the track signature) begins.
+    /// </summary>
+    public static int ReadLacingHeaderSize(Stream fs, long blockStart, int blockHeaderBase, int flagsByte)
+    {
+        var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
+        if (laceType == EBMLLaceType.None)
+        {
+            return 0;
+        }
+
+        fs.Position = blockStart + blockHeaderBase;
+        int laceCount = fs.ReadByte();
+        if (laceCount < 0)
+        {
+            return 0;
+        }
+
+        int lacingHeaderSize = 1;
+
+        if (laceType == EBMLLaceType.Xiph)
+        {
+            for (int i = 0; i < laceCount; i++)
+            {
+                int b;
+                do
+                {
+                    b = fs.ReadByte();
+                    if (b < 0)
+                    {
+                        return lacingHeaderSize;
+                    }
+
+                    lacingHeaderSize++;
+                } while (b == XiphContinuation);
+            }
+        }
+        else if (laceType == EBMLLaceType.EBML)
+        {
+            if (EBMLReader.TryReadSize(fs, out _, out int firstSizeLen))
+            {
+                lacingHeaderSize += firstSizeLen;
+                for (int i = 1; i < laceCount; i++)
+                {
+                    if (EBMLReader.TryReadSize(fs, out _, out int deltaLen))
+                    {
+                        lacingHeaderSize += deltaLen;
+                    }
+                }
+            }
+        }
+        // Fixed-size lacing (EBMLLaceType.Fixed) has only the lace count byte — no extra size data
+
+        return lacingHeaderSize;
+    }
 }
 
 /// <summary>

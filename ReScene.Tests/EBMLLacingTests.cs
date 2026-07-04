@@ -597,4 +597,76 @@ public class EBMLLacingTests
     }
 
     #endregion
+
+    #region ReadLacingHeaderSize (finding #7)
+
+    [Fact]
+    public void ReadLacingHeaderSize_XiphHeaderLargerThan256Bytes_MeasuresFullHeader()
+    {
+        // Regression (finding #7): SRS creation and rebuild both peeked at most 256 bytes of the
+        // lacing header, truncating anything larger and mis-placing the frame-data / signature offset.
+        // Build a Xiph header for 2 frames (lace-count byte = 1, so one stored size field) whose size
+        // field needs 300 continuation bytes: 300 * 0xFF + one 0x0A terminator. Header = 1+300+1 = 302.
+        const int continuationBytes = 300;
+        byte[] block = new byte[1 + continuationBytes + 1 + 16]; // + trailing frame data
+        block[0] = 0x01;                     // lace-count byte -> 2 frames, 1 stored size field
+        for (int i = 0; i < continuationBytes; i++)
+        {
+            block[1 + i] = 0xFF;             // Xiph continuation bytes
+        }
+
+        block[1 + continuationBytes] = 0x0A; // terminating (non-0xFF) size byte
+        using var ms = new MemoryStream(block);
+
+        int size = EBMLLacing.ReadLacingHeaderSize(ms, blockStart: 0, blockHeaderBase: 0, flagsByte: (int)EBMLLaceType.Xiph);
+
+        Assert.Equal(1 + continuationBytes + 1, size); // 302 — full header, not capped at 256
+
+        // The old capped path under-counts: GetFrameLengths over a 256-byte peek stops early.
+        (int[] _, int cappedConsumed) = EBMLLacing.GetFrameLengths(block.AsSpan(0, 256), EBMLLaceType.Xiph, block.Length);
+        Assert.True(cappedConsumed < size, "the 256-byte-capped parse must under-count a >256B header");
+    }
+
+    [Theory]
+    [InlineData(0x02)] // Xiph
+    [InlineData(0x06)] // EBML
+    [InlineData(0x04)] // Fixed
+    public void ReadLacingHeaderSize_SmallHeader_MatchesGetFrameLengthsBytesConsumed(int flagsByte)
+    {
+        // The shared stream reader must agree byte-for-byte with GetFrameLengths' bytesConsumed on
+        // ordinary (sub-256B) headers, so swapping the creation/rebuild sites onto it is behaviour-
+        // preserving for every existing sample. Xiph: lace-count 2 (3 frames), sizes 10 then 0x1FF.
+        // EBML: lace-count 2, first size VINT 0x8A (=10), delta VINT 0x81 (=1). Fixed: lace-count 3.
+        var laceType = (EBMLLaceType)flagsByte;
+        byte[] block = flagsByte switch
+        {
+            0x02 => [0x02, 0x0A, 0xFF, 0x00, 0, 0, 0, 0], // Xiph
+            0x06 => [0x02, 0x8A, 0x81, 0, 0, 0, 0, 0],    // EBML
+            _ => [0x03, 0, 0, 0, 0, 0, 0, 0],             // Fixed: only the lace-count byte counts
+        };
+        using var ms = new MemoryStream(block);
+
+        int streamSize = EBMLLacing.ReadLacingHeaderSize(ms, 0, 0, flagsByte);
+        (int[] _, int spanConsumed) = EBMLLacing.GetFrameLengths(block, laceType, block.Length);
+
+        Assert.Equal(spanConsumed, streamSize);
+    }
+
+    [Fact]
+    public void ReadLacingHeaderSize_EbmlMultiByteFirstSize_MatchesGetFrameLengths()
+    {
+        // Guards the EBML VINT byte-length equivalence between the two parsers: a 2-byte first-size
+        // VINT (0x40 0xC8 = 200) must be measured identically by EBMLReader.TryReadSize (new path)
+        // and EBMLVInt.ReadUnsigned (old path). lace-count byte = 1 -> 2 frames, one stored size field.
+        byte[] block = [0x01, 0x40, 0xC8, 0, 0, 0, 0, 0];
+        using var ms = new MemoryStream(block);
+
+        int streamSize = EBMLLacing.ReadLacingHeaderSize(ms, 0, 0, 0x06); // EBML
+        (int[] _, int spanConsumed) = EBMLLacing.GetFrameLengths(block, EBMLLaceType.EBML, block.Length);
+
+        Assert.Equal(spanConsumed, streamSize);
+        Assert.Equal(3, streamSize); // 1 lace-count byte + 2-byte first-size VINT
+    }
+
+    #endregion
 }
