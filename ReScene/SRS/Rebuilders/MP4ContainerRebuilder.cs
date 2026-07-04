@@ -22,6 +22,18 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
         CancellationToken ct)
     {
         using var srsFs = new FileStream(srsFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        // Multi-mdat (fragmented) MP4 cannot be represented by the single contiguous-track model
+        // (see docs/known-limitations.md #13). Creation refuses such samples up front, but an SRS
+        // authored elsewhere (e.g. pyrescene) can still reach here — the SRS strips mdat payloads,
+        // so count with mdatPayloadStripped: true. Refuse cleanly rather than emit a byte-scrambled,
+        // CRC-failing file.
+        if (MP4Atoms.CountMdatAtoms(srsFs, mdatPayloadStripped: true) > 1)
+        {
+            throw new NotSupportedException(
+                "Multi-mdat (fragmented) MP4 samples are not supported for rebuilding.");
+        }
+
         using var mediaFs = new FileStream(mediaFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 80 * 1024);
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);

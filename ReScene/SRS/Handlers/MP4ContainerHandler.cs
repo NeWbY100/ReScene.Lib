@@ -20,6 +20,17 @@ internal class MP4ContainerHandler : IContainerHandler
         int currentTrackId = 0;
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        // Reject multi-mdat (fragmented) MP4 up front. The single contiguous-track model cannot
+        // reconstruct data split across non-adjacent mdats (see docs/known-limitations.md #13), so
+        // creating an SRS from such a sample would only ever yield a file that fails to rebuild. The
+        // sample still has its mdat payloads, so count with mdatPayloadStripped: false.
+        if (MP4Atoms.CountMdatAtoms(fs, mdatPayloadStripped: false) > 1)
+        {
+            throw new NotSupportedException(
+                "Multi-mdat (fragmented) MP4 samples are not supported.");
+        }
+
         ProfileMP4Atoms(fs, 0, fs.Length, trackMap, ref metaLength, ref mdatSize, ref currentTrackId, crc,
             reportScanProgress, ct);
 
