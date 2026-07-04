@@ -47,6 +47,14 @@ internal static class FlacConstants
     /// <summary>Highest defined standard FLAC metadata block type (PICTURE = 6).</summary>
     public const int MaxStandardType = 6;
 
-    /// <summary>Maximum number of injected SRS metadata blocks (SRSF + SRST + fingerprint).</summary>
+    /// <summary>
+    /// Upper bound for the SRS-block skip guard during rebuild. Mirrors pyrescene's
+    /// <c>srs_flac_blocks &lt;= 3</c> check in <c>flac_rebuild_sample</c>: a bounded counter that stops
+    /// the injected SRSF/SRST/fingerprint blocks near the stream start from being copied into the
+    /// rebuilt FLAC. The comparison is inclusive, so it tolerates one block beyond the three canonical
+    /// SRS blocks — kept exactly as pyrescene defines it for byte-for-byte parity. In practice this
+    /// edge is unreachable: the SRS sentinel types 0x73-0x75 cannot collide with a real FLAC metadata
+    /// block (valid types are 0-6, plus 127 reserved).
+    /// </summary>
     public const int MaxSrsBlockCount = 3;
 }
