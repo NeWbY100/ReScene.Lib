@@ -165,24 +165,6 @@ internal static class EBMLLacing
 /// </summary>
 internal static class EBMLVInt
 {
-    // VINT tier limits: upper bound (exclusive) of each fixed-width encoding tier.
-    // Used by MakeEBMLUInt to select the shortest representation.
-    public const long OneByteSizeLimit = 0x7F;
-    public const long TwoByteSizeLimit = 0x3FFF;
-    public const long ThreeByteSizeLimit = 0x1FFFFF;
-    public const long FourByteSizeLimit = 0x0FFFFFFF;
-    public const long FiveByteSizeMax = 0x07FFFFFFFF; // maximum value for a 5-byte VINT
-
-    // VINT length-descriptor OR-masks (one bit per width, OR'd into the first byte during encoding).
-    public const int Marker1 = 0x80; // 1-byte VINT: bit 7 set
-    public const int Marker2 = 0x40; // 2-byte VINT: bit 6 set
-    public const int Marker3 = 0x20; // 3-byte VINT: bit 5 set
-    public const int Marker4 = 0x10; // 4-byte VINT: bit 4 set
-
-    // Byte-width constants.
-    public const int FiveByteMinWidth = 5; // starting width for the 5+ byte loop
-    public const int MaxByteWidth = 8; // maximum EBML VINT byte width
-
     /// <summary>
     /// Reads an unsigned EBML VINT from the given data.
     /// The marker bit is masked out to produce the actual value.

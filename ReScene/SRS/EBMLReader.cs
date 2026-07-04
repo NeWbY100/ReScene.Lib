@@ -20,13 +20,13 @@ internal static class EBMLReader
 
         int mask = 0x80;
         length = 1;
-        while (length <= EBMLVInt.MaxByteWidth && (first & mask) == 0)
+        while (length <= 8 && (first & mask) == 0)
         {
             mask >>= 1;
             length++;
         }
 
-        if (length > EBMLVInt.MaxByteWidth)
+        if (length > 8)
         {
             return false;
         }
@@ -63,13 +63,13 @@ internal static class EBMLReader
 
         int mask = 0x80;
         length = 1;
-        while (length <= EBMLVInt.MaxByteWidth && (first & mask) == 0)
+        while (length <= 8 && (first & mask) == 0)
         {
             mask >>= 1;
             length++;
         }
 
-        if (length > EBMLVInt.MaxByteWidth)
+        if (length > 8)
         {
             return false;
         }
