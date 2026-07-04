@@ -184,8 +184,8 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             long dataStart = fs.Position;
             bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
 
-            // SimpleBlock (0xA3) or Block (0xA1): try to advance the match for this block's track
-            if (elemId is 0xA3 or 0xA1)
+            // SimpleBlock or Block: try to advance the match for this block's track
+            if (elemId is EBMLIds.SimpleBlock or EBMLIds.Block)
             {
                 long blockStart = fs.Position;
                 if (EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
@@ -395,7 +395,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             // Clusters never contain attachments, but they hold the bulk of an
             // MKV's bytes. Skipping past them turns this walk from O(file size)
             // into O(metadata size).
-            if (elemId == 0x1F43B675 && !unknownSize)
+            if (elemId == EBMLIds.Cluster && !unknownSize)
             {
                 fs.Position = dataStart + (long)dataSize;
                 continue;
@@ -407,8 +407,8 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 continue;
             }
 
-            // AttachedFileName (0x466E): read and remember
-            if (elemId == 0x466E && (long)dataSize > 0 && (long)dataSize < 1048576)
+            // AttachedFileName: read and remember
+            if (elemId == EBMLIds.FileName && (long)dataSize > 0 && (long)dataSize < 1048576)
             {
                 byte[] nameBytes = new byte[(long)dataSize];
                 fs.ReadExactly(nameBytes, 0, nameBytes.Length);
@@ -416,8 +416,8 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 continue;
             }
 
-            // AttachedFileData (0x465C): read data and pair with current name
-            if (elemId == 0x465C && (long)dataSize > 0)
+            // AttachedFileData: read data and pair with current name
+            if (elemId == EBMLIds.FileData && (long)dataSize > 0)
             {
                 byte[] data = new byte[(long)dataSize];
                 int totalRead = StreamUtilities.ReadFully(fs, data, 0, data.Length);
@@ -516,8 +516,8 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             long dataStart = fs.Position;
             bool unknownSize = IsEBMLSizeUnknown(dataSize, sizeLen);
 
-            // SimpleBlock (0xA3) or Block (0xA1): extract frame data
-            if (elemId is 0xA3 or 0xA1)
+            // SimpleBlock or Block: extract frame data
+            if (elemId is EBMLIds.SimpleBlock or EBMLIds.Block)
             {
                 long blockStart = fs.Position;
                 if (EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
@@ -722,7 +722,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
             int headerSize = idLen + sizeLen;
 
             // Skip ReSample container and SRS child elements
-            if (elemId is 0x1F697576 or 0x6A75 or 0x6B75)
+            if (elemId is EBMLIds.ReSampleContainer or EBMLIds.ResampleFile or EBMLIds.ResampleTrack)
             {
                 if (!unknownSize)
                 {
@@ -744,8 +744,8 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 continue;
             }
 
-            // AttachedFileData (0x465C): data is stripped from SRS, source from media
-            if (elemId == 0x465C)
+            // AttachedFileData: data is stripped from SRS, source from media
+            if (elemId == EBMLIds.FileData)
             {
                 if (attachments.Count > 0)
                 {
@@ -756,14 +756,14 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 continue;
             }
 
-            // SimpleBlock (0xA3) or Block (0xA1)
+            // SimpleBlock or Block
             // The element size preserves the ORIGINAL size (base header + lacing + frame data).
             // The SRS may store only the base block header (pyrescene format) or
             // the base header + lacing bytes (our writer format). We detect which
             // by probing the byte after blockHeaderBase: if it's a known MKV element
             // ID start, the SRS has no lacing and the next element follows immediately.
             // The pre-collected MemoryStreams contain lacing + frame data from the media.
-            if (elemId is 0xA3 or 0xA1)
+            if (elemId is EBMLIds.SimpleBlock or EBMLIds.Block)
             {
                 blockCount++;
                 long blockStart = srsFs.Position;
@@ -883,41 +883,41 @@ internal class MKVContainerRebuilder : IContainerRebuilder
     /// if the bytes parse as a known element ID, the SRS has no lacing (pyrescene format).
     /// </summary>
     private static bool IsKnownMKVElementId(ulong id) => id is
-        0x1A45DFA3 or // EBML
-        0x18538067 or // Segment
-        0x1F43B675 or // Cluster
-        0x1654AE6B or // Tracks
-        0x114D9B74 or // SeekHead
-        0x1549A966 or // Info
-        0x1C53BB6B or // Cues
-        0x1941A469 or // Attachments
-        0x1043A770 or // Chapters
-        0x1254C367 or // Tags
-        0x1F697576 or // ReSample container
-        0x6A75 or     // SRSF
-        0x6B75 or     // SRST
-        0xAE or       // TrackEntry
-        0xA3 or       // SimpleBlock
-        0xA1 or       // Block
-        0xA0 or       // BlockGroup
-        0xE7 or       // Timestamp
-        0xAB or       // PrevSize
-        0xA7 or       // Position
-        0xBF or       // CRC-32
-        0xEC or       // Void
-        0x61A7 or     // AttachedFile
-        0x466E or     // FileName
-        0x4660 or     // FileMimeType
-        0x465C or     // FileData
-        0xD7 or       // TrackNumber
-        0x73C5 or     // TrackUID
-        0x83 or       // TrackType
-        0x86 or       // CodecID
-        0x6D80 or     // ContentEncodings
-        0x6240 or     // ContentEncoding
-        0x5034 or     // ContentCompression
-        0x9B or       // BlockDuration
-        0xFB;         // ReferenceBlock
+        EBMLIds.EBML or
+        EBMLIds.Segment or
+        EBMLIds.Cluster or
+        EBMLIds.Tracks or
+        EBMLIds.SeekHead or
+        EBMLIds.Info or
+        EBMLIds.Cues or
+        EBMLIds.Attachments or
+        EBMLIds.Chapters or
+        EBMLIds.Tags or
+        EBMLIds.ReSampleContainer or
+        EBMLIds.ResampleFile or
+        EBMLIds.ResampleTrack or
+        EBMLIds.TrackEntry or
+        EBMLIds.SimpleBlock or
+        EBMLIds.Block or
+        EBMLIds.BlockGroup or
+        EBMLIds.Timestamp or
+        EBMLIds.PrevSize or
+        EBMLIds.Position or
+        EBMLIds.CRC32Element or
+        EBMLIds.Void or
+        EBMLIds.AttachedFile or
+        EBMLIds.FileName or
+        EBMLIds.FileMimeType or
+        EBMLIds.FileData or
+        EBMLIds.TrackNumber or
+        EBMLIds.TrackUID or
+        EBMLIds.TrackType or
+        EBMLIds.CodecID or
+        EBMLIds.ContentEncodings or
+        EBMLIds.ContentEncoding or
+        EBMLIds.ContentCompression or
+        EBMLIds.BlockDuration or
+        EBMLIds.ReferenceBlock;
 
     #endregion
 }

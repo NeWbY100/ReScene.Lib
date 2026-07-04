@@ -7,13 +7,6 @@ namespace ReScene.SRS;
 /// </summary>
 internal static class EBMLHeaderStripping
 {
-    // EBML element IDs for header stripping detection within a TrackEntry
-    private const ulong IdContentEncodings = 0x6D80;
-    private const ulong IdContentEncoding = 0x6240;
-    private const ulong IdContentCompression = 0x5034;
-    private const ulong IdContentCompAlgo = 0x4254;
-    private const ulong IdContentCompSettings = 0x4255;
-
     /// <summary>
     /// Detects if track entry data uses header stripping compression (ContentCompAlgo = 3).
     /// Returns the stripped header bytes if found, null otherwise.
@@ -30,7 +23,7 @@ internal static class EBMLHeaderStripping
         int pos = 0;
         while (TryNextChild(trackEntryData, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            if (elemId == IdContentEncodings)
+            if (elemId == EBMLIds.ContentEncodings)
             {
                 // Found ContentEncodings - search inside it
                 return SearchContentEncodings(child);
@@ -66,7 +59,7 @@ internal static class EBMLHeaderStripping
         int pos = 0;
         while (TryNextChild(data, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            if (elemId == IdContentEncoding)
+            if (elemId == EBMLIds.ContentEncoding)
             {
                 byte[]? result = SearchContentEncoding(child);
                 if (result != null)
@@ -85,7 +78,7 @@ internal static class EBMLHeaderStripping
         int pos = 0;
         while (TryNextChild(data, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            if (elemId == IdContentCompression)
+            if (elemId == EBMLIds.ContentCompression)
             {
                 byte[]? result = SearchContentCompression(child);
                 if (result != null)
@@ -107,13 +100,13 @@ internal static class EBMLHeaderStripping
         int pos = 0;
         while (TryNextChild(data, ref pos, out ulong elemId, out ReadOnlySpan<byte> child))
         {
-            if (elemId == IdContentCompAlgo)
+            if (elemId == EBMLIds.ContentCompAlgo)
             {
                 // Read the algorithm value
                 long algo = ReadEBMLUIntValue(child);
-                isHeaderStripping = algo == 3;
+                isHeaderStripping = algo == EBMLIds.ContentCompAlgoHeaderStripping;
             }
-            else if (elemId == IdContentCompSettings)
+            else if (elemId == EBMLIds.ContentCompSettings)
             {
                 settings = child.ToArray();
             }

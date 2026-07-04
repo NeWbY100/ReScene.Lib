@@ -17,21 +17,16 @@ internal class MKVContainerHandler : IContainerHandler
 
     #region EBML Constants
 
-    private static readonly ulong _eBMLIdBlock = 0xA3;             // SimpleBlock
-    private static readonly ulong _eBMLIdBlockGroupBlock = 0xA1;  // Block inside BlockGroup
-    private static readonly ulong _eBMLIdTrackNumber = 0xD7;       // TrackNumber in TrackEntry
-    private static readonly ulong _eBMLIdContentCompAlgo = 0x4254; // ContentCompAlgo
-    private static readonly ulong _eBMLIdContentCompSettings = 0x4255; // ContentCompSettings
-
     /// <summary>
     /// EBML element IDs that we should step into during SRS writing (they are containers).
+    /// This is a distinct 4-element set from <see cref="EBMLIds.IsContainer"/>.
     /// </summary>
     private static readonly HashSet<ulong> _mKVSrsContainers =
     [
-        0x1F43B675, // Cluster
-        0xA0,       // BlockGroup
-        0x1941A469, // Attachments
-        0x61A7,     // AttachedFile
+        EBMLIds.Cluster,
+        EBMLIds.BlockGroup,
+        EBMLIds.Attachments,
+        EBMLIds.AttachedFile,
     ];
 
     #endregion
@@ -152,8 +147,8 @@ internal class MKVContainerHandler : IContainerHandler
 
             if (EBMLIds.IsContainer(elemId))
             {
-                // When entering ContentCompression (0x5034), mark that compression is present
-                if (elemId == 0x5034 && trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? compTrack))
+                // When entering ContentCompression, mark that compression is present
+                if (elemId == EBMLIds.ContentCompression && trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? compTrack))
                 {
                     // Mark that a compression element exists (exact algorithm comes from child)
                     compTrack.CompressionAlgorithm ??= -1; // placeholder until we read ContentCompAlgo
@@ -161,9 +156,9 @@ internal class MKVContainerHandler : IContainerHandler
 
                 // Step into container element
                 ProfileEBMLElements(fs, dataStart, elemEnd, trackMap, ref otherLength, crc,
-                    isSegmentLevel: elemId == 0x18538067 || isSegmentLevel, ct, state, onPosition);
+                    isSegmentLevel: elemId == EBMLIds.Segment || isSegmentLevel, ct, state, onPosition);
             }
-            else if (elemId == _eBMLIdBlock || elemId == _eBMLIdBlockGroupBlock)
+            else if (elemId == EBMLIds.SimpleBlock || elemId == EBMLIds.Block)
             {
                 // Parse block: track number (EBML VINT) + timecode (2 bytes) + flags (1 byte)
                 if (!EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
@@ -257,7 +252,7 @@ internal class MKVContainerHandler : IContainerHandler
                     }
                 }
             }
-            else if (elemId == _eBMLIdTrackNumber)
+            else if (elemId == EBMLIds.TrackNumber)
             {
                 // Read TrackNumber element to track current context
                 long remaining = elemEnd - fs.Position;
@@ -282,7 +277,7 @@ internal class MKVContainerHandler : IContainerHandler
                     }
                 }
             }
-            else if (elemId == _eBMLIdContentCompAlgo)
+            else if (elemId == EBMLIds.ContentCompAlgo)
             {
                 // Read compression algorithm
                 long remaining = elemEnd - fs.Position;
@@ -303,10 +298,10 @@ internal class MKVContainerHandler : IContainerHandler
                         track.CompressionAlgorithm = algorithm;
                     }
 
-                    state.HeaderStrippingDetected = algorithm == 3;
+                    state.HeaderStrippingDetected = algorithm == EBMLIds.ContentCompAlgoHeaderStripping;
                 }
             }
-            else if (elemId == _eBMLIdContentCompSettings)
+            else if (elemId == EBMLIds.ContentCompSettings)
             {
                 // Read compression settings (stripped header bytes)
                 long remaining = elemEnd - fs.Position;
@@ -377,7 +372,7 @@ internal class MKVContainerHandler : IContainerHandler
             byte[] rawHeader = new byte[headerSize];
             inFs.ReadExactly(rawHeader, 0, headerSize);
 
-            if (elemId == 0x18538067) // Segment
+            if (elemId == EBMLIds.Segment)
             {
                 outFs.Write(rawHeader);
 
@@ -397,12 +392,12 @@ internal class MKVContainerHandler : IContainerHandler
                 WriteMKVSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCRC32, options, resampleInjected, ct);
             }
-            else if (elemId == 0x465C) // AttachedFileData - skip data
+            else if (elemId == EBMLIds.FileData) // AttachedFileData - skip data
             {
                 outFs.Write(rawHeader);
                 // Skip attachment data
             }
-            else if (elemId == _eBMLIdBlock || elemId == _eBMLIdBlockGroupBlock)
+            else if (elemId == EBMLIds.SimpleBlock || elemId == EBMLIds.Block)
             {
                 // Write header + block header (including lacing header), skip frame data
                 outFs.Write(rawHeader);
