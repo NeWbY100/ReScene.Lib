@@ -870,7 +870,7 @@ public class SRSFile
             long payloadStart = fs.Position;
 
             // ReSample container ID: 0x1F697576
-            if (elementId == 0x1F697576)
+            if (elementId == EBMLIds.ReSampleContainer)
             {
                 // Parse children of ReSample element
                 srs._containerChunks.Add(new SRSContainerChunk
@@ -887,7 +887,7 @@ public class SRSFile
                 ParseEBMLReSampleChildren(reader, fs, srs, payloadStart, childEnd);
                 fs.Position = childEnd;
             }
-            else if (elementId == 0x18538067) // Segment
+            else if (elementId == EBMLIds.Segment) // Segment
             {
                 srs._containerChunks.Add(new SRSContainerChunk
                 {
@@ -948,7 +948,7 @@ public class SRSFile
             long actualPayload = actualTotal - headerSize;
             long payloadStart = fs.Position;
 
-            if (elementId == 0x1F697576) // ReSample
+            if (elementId == EBMLIds.ReSampleContainer) // ReSample
             {
                 srs._containerChunks.Add(new SRSContainerChunk
                 {
@@ -1003,11 +1003,11 @@ public class SRSFile
             long payloadStart = fs.Position;
             long totalSize = headerSize + (long)dataSize;
 
-            if (elementId == 0x6A75) // RESAMPLE_FILE
+            if (elementId == EBMLIds.ResampleFile) // RESAMPLE_FILE
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize);
             }
-            else if (elementId == 0x6B75) // RESAMPLE_TRACK
+            else if (elementId == EBMLIds.ResampleTrack) // RESAMPLE_TRACK
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
             }
