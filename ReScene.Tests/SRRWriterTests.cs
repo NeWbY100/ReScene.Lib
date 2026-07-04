@@ -733,10 +733,11 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_ComputeOSOHashesTrue_NoOSOBlocksYet()
+    public async Task CreateAsync_ComputeOSOHashesTrue_SubThresholdFile_EmitsNoOSOBlock()
     {
-        // OSO hash computation is a placeholder in SRRWriter (requires file data access).
-        // With ComputeOSOHashes=true, creation should still succeed (no OSO blocks emitted yet).
+        // OSO hashing IS implemented (see CreateAsync_ComputeOSOHashes... over a >=64 KiB fixture).
+        // A minimal RAR file is below OSOHashCalculator.MinFileSize (64 KiB), so no OSO block is
+        // emitted even with ComputeOSOHashes=true — creation still succeeds.
         string rarPath = CreateMinimalRar4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
@@ -746,7 +747,7 @@ public class SRRWriterTests : TempDirTestBase
 
         Assert.True(result.Success, result.ErrorMessage);
         var srr = SRRFile.Load(srrPath);
-        // OSO hash blocks are not yet implemented, so none should be present
+        // Sub-threshold input → no OSO hash block.
         Assert.Empty(srr.OSOHashBlocks);
     }
 
