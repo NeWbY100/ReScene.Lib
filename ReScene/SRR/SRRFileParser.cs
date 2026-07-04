@@ -9,6 +9,7 @@ namespace ReScene.SRR;
 /// </summary>
 internal static class SRRFileParser
 {
+    private const int RarVersion50 = 50;
     internal static bool IsSRRBlockType(byte type) => type is (byte)SRRBlockType.Header or (byte)SRRBlockType.StoredFile or (byte)SRRBlockType.OSOHash or (byte)SRRBlockType.RARPadding or (byte)SRRBlockType.RARFile;
 
     internal static SRRHeaderBlock ParseHeaderBlock(BinaryReader reader, FileStream fs,
@@ -282,7 +283,7 @@ internal static class SRRFileParser
         volumeTotalSize += RARUtils.Rar5Marker.Length;
 
         var rarReader = new RAR5HeaderReader(fs);
-        srr.RARVersion = 50; // RAR 5.0
+        srr.RARVersion = RarVersion50; // RAR 5.0
 
         while (fs.Position < fs.Length)
         {
@@ -376,14 +377,14 @@ internal static class SRRFileParser
         // Detect custom RAR packer sentinel values in unpacked_size
         if (!srr.HasCustomPackerHeaders && !header.IsDirectory)
         {
-            if (header.UnpackedSize == 0xFFFFFFFFFFFFFFFF)
+            if (header.UnpackedSize == SrrPackerSentinels.PackerSentinelAllOnes)
             {
                 // Both low and high 32-bit fields are all ones (LARGE flag set).
                 // Known groups: RELOADED, HI2U, 0x0007, 0x0815
                 srr.HasCustomPackerHeaders = true;
                 srr.CustomPackerDetected = CustomPackerType.AllOnesWithLargeFlag;
             }
-            else if (header.UnpackedSize == 0xFFFFFFFF && !header.HasLargeSize)
+            else if (header.UnpackedSize == SrrPackerSentinels.PackerSentinelMaxUint32 && !header.HasLargeSize)
             {
                 // Raw 32-bit UNP_SIZE maxed out without LARGE flag.
                 // Known group: QCF
@@ -560,7 +561,7 @@ internal static class SRRFileParser
             // RAR5 compression method: 0=store, 1-5=compression levels
             srr.CompressionMethod = info.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
             srr.DictionarySize = info.DictionarySizeKB;
-            srr.RARVersion = 50;
+            srr.RARVersion = RarVersion50;
         }
 
         SrrArchiveSet? set = srr.CurrentArchiveSet;
@@ -568,7 +569,7 @@ internal static class SRRFileParser
         {
             set.CompressionMethod ??= info.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
             set.DictionarySize ??= info.DictionarySizeKB;
-            set.RARVersion ??= 50;
+            set.RARVersion ??= RarVersion50;
             // Note: RAR5 file headers do not expose HostOS, FileAttributes, or HasLargeFiles
             // in the same per-file fields as RAR4, so DetectedHostOS, DetectedFileAttributes,
             // HasLargeFiles, DetectedHighPackSize, and DetectedHighUnpSize are not set per-set
