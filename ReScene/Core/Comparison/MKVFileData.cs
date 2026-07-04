@@ -158,7 +158,6 @@ public sealed class MKVFileData
 
     private const int BinaryPreviewBytes = 16;
 
-
     /// <summary>
     /// Gets or sets the source file path.
     /// </summary>

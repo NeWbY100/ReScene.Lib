@@ -131,8 +131,8 @@ internal static partial class RarVersionSelector
     {
         bool hasTimestampOptions = filteredArguments.Any(a => a.StartsWith("-ts", StringComparison.Ordinal));
         bool isRAR4Format = archiveVersion == RARArchiveVersion.RAR4
-            || (version >= 550 && version < 700 && !filteredArguments.Contains("-ma5"));
-        return version >= 600 && version < 700 && isRAR4Format && hasTimestampOptions;
+            || (version >= 550 && version < RarVersionThresholds.Rar7FormatMinimum && !filteredArguments.Contains("-ma5"));
+        return version >= 600 && version < RarVersionThresholds.Rar7FormatMinimum && isRAR4Format && hasTimestampOptions;
     }
 
     /// <summary>
