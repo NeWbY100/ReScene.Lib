@@ -7,14 +7,6 @@ namespace ReScene.SRR;
 /// </summary>
 public static class SRRVerifier
 {
-    private const int BaseHeaderSize = 7;
-    private const int AddSizeFieldLength = 4;
-    private const ushort HeaderSentinel = 0x6969;
-    private const ushort StoredFileSentinel = 0x6A6A;
-    private const ushort OSOSentinel = 0x6B6B;
-    private const ushort RARPaddingSentinel = 0x6C6C;
-    private const ushort RARFileSentinel = 0x7171;
-
     /// <summary>
     /// Verifies the structural integrity of the SRR file at the given path.
     /// </summary>
@@ -48,7 +40,7 @@ public static class SRRVerifier
         {
             long blockStart = fs.Position;
 
-            if (blockStart + BaseHeaderSize > fileSize)
+            if (blockStart + SrrBlockLayout.BaseHeaderSize > fileSize)
             {
                 issues.Add(new SRRVerifyIssue
                 {
@@ -64,12 +56,12 @@ public static class SRRVerifier
             ushort flags = reader.ReadUInt16();
             ushort headerSize = reader.ReadUInt16();
 
-            if (headerSize < BaseHeaderSize)
+            if (headerSize < SrrBlockLayout.BaseHeaderSize)
             {
                 issues.Add(new SRRVerifyIssue
                 {
                     Severity = SRRVerifyIssueSeverity.Error,
-                    Message = $"Block at 0x{blockStart:X} reports header size {headerSize}; must be >= {BaseHeaderSize}.",
+                    Message = $"Block at 0x{blockStart:X} reports header size {headerSize}; must be >= {SrrBlockLayout.BaseHeaderSize}.",
                     Offset = blockStart,
                     BlockType = typeRaw
                 });
@@ -105,7 +97,7 @@ public static class SRRVerifier
             if (hasAddSize)
             {
                 // Strict guard (verifier reports truncation as an error; SRREditor reads-or-skips silently).
-                if (fs.Position + AddSizeFieldLength > fileSize)
+                if (fs.Position + SrrBlockLayout.AddSizeFieldLength > fileSize)
                 {
                     issues.Add(new SRRVerifyIssue
                     {
@@ -168,11 +160,11 @@ public static class SRRVerifier
     private static bool CRCSentinelMatches(ushort crc, byte typeRaw)
         => typeRaw switch
         {
-            (byte)SRRBlockType.Header => crc == HeaderSentinel,
-            (byte)SRRBlockType.StoredFile => crc == StoredFileSentinel,
-            (byte)SRRBlockType.OSOHash => crc == OSOSentinel,
-            (byte)SRRBlockType.RARPadding => crc == RARPaddingSentinel,
-            (byte)SRRBlockType.RARFile => crc == RARFileSentinel,
+            (byte)SRRBlockType.Header => crc == SrrBlockLayout.HeaderSentinel,
+            (byte)SRRBlockType.StoredFile => crc == SrrBlockLayout.StoredFileSentinel,
+            (byte)SRRBlockType.OSOHash => crc == SrrBlockLayout.OSOSentinel,
+            (byte)SRRBlockType.RARPadding => crc == SrrBlockLayout.RARPaddingSentinel,
+            (byte)SRRBlockType.RARFile => crc == SrrBlockLayout.RARFileSentinel,
             _ => true
         };
 }

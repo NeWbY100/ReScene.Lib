@@ -411,9 +411,9 @@ public class SRRWriter
 
     private static void WriteSRRHeader(BinaryWriter writer, string? appName)
     {
-        ushort flags = appName != null ? (ushort)0x0001 : (ushort)0x0000;
+        ushort flags = appName != null ? (ushort)SRRHeaderFlags.AppNamePresent : (ushort)SRRHeaderFlags.None;
 
-        int headerSize = 7; // base header
+        int headerSize = SrrBlockLayout.BaseHeaderSize; // base header
         byte[]? appNameBytes = null;
         if (appName != null)
         {
@@ -421,8 +421,8 @@ public class SRRWriter
             headerSize += 2 + appNameBytes.Length;
         }
 
-        writer.Write((ushort)0x6969);          // CRC (SRR header sentinel)
-        writer.Write((byte)0x69);              // SRR Header type
+        writer.Write(SrrBlockLayout.HeaderSentinel);       // CRC (SRR header sentinel)
+        writer.Write((byte)SRRBlockType.Header);           // SRR Header type
         writer.Write(flags);
         writer.Write((ushort)headerSize);
 
@@ -436,11 +436,11 @@ public class SRRWriter
     private static void WriteRarFileBlock(BinaryWriter writer, string rarFileName)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(rarFileName);
-        ushort headerSize = (ushort)(7 + 2 + nameBytes.Length); // base + nameLen + name
+        ushort headerSize = (ushort)(SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.NameLengthFieldLength + nameBytes.Length); // base + nameLen + name
 
-        writer.Write((ushort)0x7171);           // CRC (SRR RAR file sentinel)
-        writer.Write((byte)0x71);               // RARFile type
-        writer.Write((ushort)0x0000);           // flags
+        writer.Write(SrrBlockLayout.RARFileSentinel);      // CRC (SRR RAR file sentinel)
+        writer.Write((byte)SRRBlockType.RARFile);          // RARFile type
+        writer.Write((ushort)SRRBlockFlags.None);          // flags
         writer.Write(headerSize);
         writer.Write((ushort)nameBytes.Length);
         writer.Write(nameBytes);
@@ -450,11 +450,11 @@ public class SRRWriter
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
         // pyrescene field order: fileSize, hash, nameLen, name
-        ushort headerSize = (ushort)(7 + 8 + 8 + 2 + nameBytes.Length);
+        ushort headerSize = (ushort)(SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.OsoFileSizeLength + SrrBlockLayout.OsoHashLength + SrrBlockLayout.NameLengthFieldLength + nameBytes.Length);
 
-        writer.Write((ushort)0x6B6B);           // CRC (SRR OSO hash sentinel)
-        writer.Write((byte)0x6B);               // OSOHash type
-        writer.Write((ushort)0x0000);           // flags
+        writer.Write(SrrBlockLayout.OSOSentinel);          // CRC (SRR OSO hash sentinel)
+        writer.Write((byte)SRRBlockType.OSOHash);          // OSOHash type
+        writer.Write((ushort)SRRBlockFlags.None);          // flags
         writer.Write(headerSize);
         writer.Write(fileSize);                 // file size (8 bytes)
         writer.Write(osoHash);                  // OSO hash (8 bytes)

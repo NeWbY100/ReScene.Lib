@@ -495,7 +495,7 @@ public class SRRFile
 
         while (fs.Position < fs.Length)
         {
-            if (fs.Position + 7 > fs.Length)
+            if (fs.Position + SrrBlockLayout.BaseHeaderSize > fs.Length)
             {
                 break;
             }
@@ -519,7 +519,7 @@ public class SRRFile
             uint addSize = 0;
             if ((flags & (ushort)SRRBlockFlags.LongBlock) != 0 || type == SRRBlockType.StoredFile)
             {
-                if (fs.Position + 4 > fs.Length)
+                if (fs.Position + SrrBlockLayout.AddSizeFieldLength > fs.Length)
                 {
                     break;
                 }
@@ -527,7 +527,7 @@ public class SRRFile
                 addSize = reader.ReadUInt32();
             }
 
-            if (headerSize < 7)
+            if (headerSize < SrrBlockLayout.BaseHeaderSize)
             {
                 break;
             }

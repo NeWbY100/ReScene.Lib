@@ -9,7 +9,7 @@ namespace ReScene.SRR;
 /// </summary>
 internal static class SRRFileParser
 {
-    internal static bool IsSRRBlockType(byte type) => type is 0x69 or 0x6A or 0x6B or 0x6C or 0x71;
+    internal static bool IsSRRBlockType(byte type) => type is (byte)SRRBlockType.Header or (byte)SRRBlockType.StoredFile or (byte)SRRBlockType.OSOHash or (byte)SRRBlockType.RARPadding or (byte)SRRBlockType.RARFile;
 
     internal static SRRHeaderBlock ParseHeaderBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize)
@@ -47,13 +47,13 @@ internal static class SRRFileParser
         long headerEnd = startPos + headerSize;
 
         // OSO hash block format (pyrescene order): 8 bytes file size + 8 bytes hash + 2 bytes name length + name
-        if (fs.Position + 18 > headerEnd)
+        if (fs.Position + SrrBlockLayout.OsoFixedPayloadSize > headerEnd)
         {
             return null;
         }
 
         ulong fileSize = reader.ReadUInt64();
-        byte[] osoHash = reader.ReadBytes(8);
+        byte[] osoHash = reader.ReadBytes(SrrBlockLayout.OsoHashLength);
 
         if (fs.Position + 2 > headerEnd)
         {
@@ -122,7 +122,7 @@ internal static class SRRFileParser
     internal static SRRStoredFileBlock? ParseStoredFileBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
-        const int minStoredHeaderSize = 7 + 4 + 2;
+        int minStoredHeaderSize = SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.AddSizeFieldLength + SrrBlockLayout.NameLengthFieldLength;
         if (headerSize < minStoredHeaderSize)
         {
             return null;
@@ -293,7 +293,7 @@ internal static class SRRFileParser
                 break;
             }
             // SRR blocks have types in 0x69-0x71 range, RAR5 blocks are 0-5
-            if (peekType.Value is >= 0x69 and <= 0x71)
+            if (peekType.Value is >= (byte)SRRBlockType.Header and <= (byte)SRRBlockType.RARFile)
             {
                 break;
             }

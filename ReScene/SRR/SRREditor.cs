@@ -8,10 +8,6 @@ namespace ReScene.SRR;
 /// </summary>
 public static class SRREditor
 {
-    private const int BaseHeaderSize = 7;
-    private const int AddSizeFieldLength = 4;
-    private const int NameLengthFieldLength = 2;
-
     /// <summary>
     /// Adds one or more stored files to an existing SRR file.
     /// New stored files are inserted after existing stored file blocks (before OSO/RAR blocks).
@@ -224,7 +220,7 @@ public static class SRREditor
 
                     if (string.Equals(name, oldName, StringComparison.OrdinalIgnoreCase))
                     {
-                        long nameLenPos = block.BlockStart + BaseHeaderSize + AddSizeFieldLength;
+                        long nameLenPos = block.BlockStart + SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.AddSizeFieldLength;
                         input.Position = nameLenPos;
                         ushort oldNameLen = reader.ReadUInt16();
                         input.Position += oldNameLen;
@@ -233,8 +229,8 @@ public static class SRREditor
                         long payloadLen = payloadEnd - payloadStart;
                         byte[] payload = reader.ReadBytes((int)payloadLen);
 
-                        ushort newHeaderSize = (ushort)(BaseHeaderSize + AddSizeFieldLength + NameLengthFieldLength + newNameBytes.Length);
-                        writer.Write((ushort)0x6A6A);
+                        ushort newHeaderSize = (ushort)(SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.AddSizeFieldLength + SrrBlockLayout.NameLengthFieldLength + newNameBytes.Length);
+                        writer.Write(SrrBlockLayout.StoredFileSentinel);
                         writer.Write((byte)SRRBlockType.StoredFile);
                         writer.Write(block.Flags);
                         writer.Write(newHeaderSize);
@@ -451,7 +447,7 @@ public static class SRREditor
         header = default;
 
         long blockStart = input.Position;
-        if (blockStart + BaseHeaderSize > input.Length)
+        if (blockStart + SrrBlockLayout.BaseHeaderSize > input.Length)
         {
             return false;
         }
@@ -461,7 +457,7 @@ public static class SRREditor
         ushort flags = reader.ReadUInt16();
         ushort headerSize = reader.ReadUInt16();
 
-        if (headerSize < BaseHeaderSize)
+        if (headerSize < SrrBlockLayout.BaseHeaderSize)
         {
             return false;
         }
@@ -482,7 +478,7 @@ public static class SRREditor
         bool hasAddSize = (flags & (ushort)SRRBlockFlags.LongBlock) != 0
                           || typeRaw == (byte)SRRBlockType.StoredFile;
 
-        if (hasAddSize && input.Position + AddSizeFieldLength <= input.Length)
+        if (hasAddSize && input.Position + SrrBlockLayout.AddSizeFieldLength <= input.Length)
         {
             addSize = reader.ReadUInt32();
         }
@@ -500,8 +496,8 @@ public static class SRREditor
     private static string? ReadStoredFileName(BinaryReader reader, FileStream input, long blockStart)
     {
         // Name length is at offset: base(7) + addSize(4)
-        long nameLenPos = blockStart + BaseHeaderSize + AddSizeFieldLength;
-        if (nameLenPos + NameLengthFieldLength > input.Length)
+        long nameLenPos = blockStart + SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.AddSizeFieldLength;
+        if (nameLenPos + SrrBlockLayout.NameLengthFieldLength > input.Length)
         {
             return null;
         }
