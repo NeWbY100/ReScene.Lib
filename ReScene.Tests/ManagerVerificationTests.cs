@@ -5,6 +5,19 @@ namespace ReScene.Tests;
 public class ManagerVerificationTests
 {
     [Fact]
+    public void Hashes_MatchIsCaseInsensitive()
+    {
+        // Regression: computed hashes are lowercase hex, but .sfv/.sha1 files may carry uppercase
+        // hex. The Hashes set must compare case-insensitively (like its sibling ExpectedVolumeCrcs),
+        // otherwise every byte-correct rebuild verified against an uppercase expected hash is
+        // reported as a non-match.
+        var opts = new BruteForceOptions("w", "r", "o");
+        opts.Hashes.Add("ABCDEF0123456789");
+
+        Assert.Contains("abcdef0123456789", opts.Hashes);
+    }
+
+    [Fact]
     public void BuildExpectedInOrder_MapsVolumeNamesToCrcsByBaseFilename()
     {
         var opts = new BruteForceOptions("w", "r", "o")

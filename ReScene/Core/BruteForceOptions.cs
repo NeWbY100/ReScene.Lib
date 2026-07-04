@@ -35,7 +35,7 @@ public class BruteForceOptions(string rarInstallationsDirectoryPath, string rele
     /// <summary>
     /// Gets the hashes which contain the expected hash of the RAR file(s).
     /// </summary>
-    public HashSet<string> Hashes { get; } = [];
+    public HashSet<string> Hashes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Expected per-volume CRC32 values keyed by volume base filename (e.g. "aln-re4a.r00"), used to

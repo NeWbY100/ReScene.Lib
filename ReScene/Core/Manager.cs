@@ -378,7 +378,12 @@ public partial class Manager : IDisposable
             _logger.Warning(this, $"=== Brute-force FAILED - no match found after {elapsed.TotalSeconds:F1}s ===", LogTarget.System);
         }
 
-        status = new(OperationStatus.Running, OperationStatus.Completed, _cts.IsCancellationRequested ? OperationCompletionStatus.Cancelled : OperationCompletionStatus.Success);
+        OperationCompletionStatus completion = _cts.IsCancellationRequested
+            ? OperationCompletionStatus.Cancelled
+            : found
+                ? OperationCompletionStatus.Success
+                : OperationCompletionStatus.Error;
+        status = new(OperationStatus.Running, OperationStatus.Completed, completion);
         FireBruteForceStatusChanged(status);
         return new BruteForceRunResult(found, winningCombo);
     }
