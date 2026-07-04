@@ -18,6 +18,8 @@ internal static class Rar4HeaderLayout
     // File-header fixed fields (after the base header).
     public const int HostOs = 15;
     public const int FileTime = 20;
+    public const int UnpVer = 24;   // UNP_VER byte
+    public const int Method = 25;   // METHOD byte (0x30=Store, 0x31-0x35=compressed)
     public const int NameSize = 26;
     public const int Attr = 28;
 
