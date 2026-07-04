@@ -13,6 +13,19 @@ internal class MKVContainerHandler : IContainerHandler
     /// </summary>
     private const int MaxSignatureBlocks = 40;
 
+    /// <summary>
+    /// Number of trailing bytes in each <see cref="SignatureSize"/>-byte step that must be
+    /// all-ASCII for the signature to keep growing. Mirrors pyrescene's <c>minimum_signature_size</c>
+    /// window heuristic.
+    /// </summary>
+    private const int SignatureAsciiWindowSize = 64;
+
+    /// <summary>
+    /// First byte value that is NOT ASCII. Bytes &lt; <see cref="AsciiBoundary"/> are codec
+    /// parameter-set data; bytes &gt;= <see cref="AsciiBoundary"/> indicate real binary frame data.
+    /// </summary>
+    private const int AsciiBoundary = 0x80;
+
     public SRSContainerType ContainerType => SRSContainerType.MKV;
 
     #region EBML Constants
@@ -151,7 +164,7 @@ internal class MKVContainerHandler : IContainerHandler
                 if (elemId == EBMLIds.ContentCompression && trackMap.TryGetValue(state.CurrentTrackNumber, out TrackInfo? compTrack))
                 {
                     // Mark that a compression element exists (exact algorithm comes from child)
-                    compTrack.CompressionAlgorithm ??= -1; // placeholder until we read ContentCompAlgo
+                    compTrack.CompressionAlgorithm ??= TrackInfo.CompressionAlgoUnknown; // placeholder until we read ContentCompAlgo
                 }
 
                 // Step into container element
@@ -167,7 +180,7 @@ internal class MKVContainerHandler : IContainerHandler
                     continue;
                 }
 
-                int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode + flags
+                int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
                 if (dataStart + blockHeaderBase > elemEnd)
                 {
                     fs.Position = elemEnd;
@@ -181,7 +194,7 @@ internal class MKVContainerHandler : IContainerHandler
 
                 // Extract lace type from flags byte (bits 1-2)
                 byte flagsByte = blockHeader[blockHeaderBase - 1];
-                var laceType = (EBMLLaceType)(flagsByte & 0x06);
+                var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
 
                 // Calculate remaining data after base block header
                 int dataAfterBaseHeader = (int)((long)dataSize - blockHeaderBase);
@@ -406,7 +419,7 @@ internal class MKVContainerHandler : IContainerHandler
                 long blockParseStart = inFs.Position;
                 if (EBMLReader.TryReadSize(inFs, out _, out int vintLen))
                 {
-                    int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
+                    int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
                     long available = elemEnd - blockParseStart;
                     if (blockHeaderBase <= available)
                     {
@@ -416,7 +429,7 @@ internal class MKVContainerHandler : IContainerHandler
                         inFs.ReadExactly(baseHeader, 0, blockHeaderBase);
 
                         byte flagsByte = baseHeader[blockHeaderBase - 1];
-                        var laceType = (EBMLLaceType)(flagsByte & 0x06);
+                        var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
 
                         int lacingHeaderSize = 0;
                         if (laceType != EBMLLaceType.None)
@@ -509,7 +522,7 @@ internal class MKVContainerHandler : IContainerHandler
         for (loop = 1; loop <= MaxSignatureBlocks; loop++)
         {
             int offs = SignatureSize * loop - alreadyInSig;
-            if (!IsAsciiRange(content, offs - 64, offs))
+            if (!IsAsciiRange(content, offs - SignatureAsciiWindowSize, offs))
             {
                 break;
             }
@@ -548,7 +561,7 @@ internal class MKVContainerHandler : IContainerHandler
 
         for (int i = start; i < end; i++)
         {
-            if (content[i] >= 0x80)
+            if (content[i] >= AsciiBoundary)
             {
                 return false;
             }

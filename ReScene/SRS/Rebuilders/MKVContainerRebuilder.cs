@@ -16,6 +16,14 @@ namespace ReScene.SRS;
 /// </summary>
 internal class MKVContainerRebuilder : IContainerRebuilder
 {
+    /// <summary>
+    /// When scanning for frame data in the media file, skip past container elements
+    /// that end this many bytes before the earliest known track offset. This avoids
+    /// an O(file size) scan for files where the first matching track starts deep into
+    /// a large cluster.
+    /// </summary>
+    private const int PreTrackSkipMargin = 4096;
+
     public SRSContainerType ContainerType => SRSContainerType.MKV;
 
     public void Rebuild(
@@ -194,7 +202,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
                     if (unmatched.Contains(tn))
                     {
-                        int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
+                        int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
 
                         fs.Position = blockStart + vintLen + 2;
                         int flagsByte = fs.ReadByte();
@@ -293,8 +301,8 @@ internal class MKVContainerRebuilder : IContainerRebuilder
     /// </summary>
     private static int ReadLacingHeaderSize(Stream fs, long blockStart, int blockHeaderBase, int flagsByte)
     {
-        int laceType = (flagsByte >> 1) & 0x03;
-        if (laceType == 0)
+        var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
+        if (laceType == EBMLLaceType.None)
         {
             return 0;
         }
@@ -308,7 +316,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
         int lacingHeaderSize = 1;
 
-        if (laceType == 1) // Xiph lacing
+        if (laceType == EBMLLaceType.Xiph)
         {
             for (int i = 0; i < laceCount; i++)
             {
@@ -325,7 +333,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 } while (b == EBMLLacing.XiphContinuation);
             }
         }
-        else if (laceType == 3) // EBML lacing
+        else if (laceType == EBMLLaceType.EBML)
         {
             if (EBMLReader.TryReadSize(fs, out _, out int firstSizeLen))
             {
@@ -339,7 +347,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 }
             }
         }
-        // Fixed-size lacing (type 2) has only the lace count byte — no extra size data
+        // Fixed-size lacing (EBMLLaceType.Fixed) has only the lace count byte — no extra size data
 
         return lacingHeaderSize;
     }
@@ -522,7 +530,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 long blockStart = fs.Position;
                 if (EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
                 {
-                    int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
+                    int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
 
                     // Parse lacing to find where frame data starts
                     fs.Position = blockStart + vintLen + 2;
@@ -592,7 +600,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 if (!unknownSize)
                 {
                     long elemEnd = dataStart + (long)dataSize;
-                    if (elemEnd <= minOffset - 4096)
+                    if (elemEnd <= minOffset - PreTrackSkipMargin)
                     {
                         fs.Position = elemEnd;
                         continue;
@@ -769,18 +777,18 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 long blockStart = srsFs.Position;
                 if (EBMLReader.TryReadSize(srsFs, out ulong trackNum, out int vintLen))
                 {
-                    int blockHeaderBase = vintLen + 2 + 1; // VINT + timecode(2) + flags(1)
+                    int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
 
                     // Read flags byte to check lacing type
                     srsFs.Position = blockStart + vintLen + 2;
                     int flagsByte = srsFs.ReadByte();
-                    int laceType = flagsByte >= 0 ? (flagsByte >> 1) & 0x03 : 0;
+                    EBMLLaceType laceType = flagsByte >= 0 ? (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask) : EBMLLaceType.None;
 
                     // Determine how many bytes of block header the SRS stores
                     int srsBlockHeaderSize = blockHeaderBase;
                     bool srsHasLacing = false;
 
-                    if (laceType != 0)
+                    if (laceType != EBMLLaceType.None)
                     {
                         // Probe: check if the byte after blockHeaderBase is a known
                         // MKV element ID. If so, the SRS has no lacing bytes (pyrescene).
@@ -806,7 +814,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                                     int read = StreamUtilities.ReadFully(srsFs, lacingPeek, 0, peekLen);
                                     if (read > 0)
                                     {
-                                        var lacingType = (EBMLLaceType)(flagsByte & 0x06);
+                                        var lacingType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
                                         (int[] _, int bytesConsumed) = EBMLLacing.GetFrameLengths(
                                             lacingPeek.AsSpan(0, read), lacingType, dataAfterBase);
                                         srsBlockHeaderSize = blockHeaderBase + bytesConsumed;

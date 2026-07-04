@@ -11,6 +11,14 @@ internal class TrackInfo
     /// </summary>
     public const int SignatureSize = 256;
 
+    /// <summary>
+    /// Placeholder value for <see cref="CompressionAlgorithm"/> when a
+    /// ContentCompression element is present but ContentCompAlgo has not yet
+    /// been read. Distinct from null (no compression element) and from any
+    /// real algorithm value (e.g. 3 = header stripping).
+    /// </summary>
+    public const int CompressionAlgoUnknown = -1;
+
     public int TrackNumber
     {
         get; set;
