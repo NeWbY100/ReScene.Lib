@@ -505,13 +505,13 @@ public class SRRWriter
         CancellationToken ct)
     {
         // Read and copy RAR4 marker block (7 bytes)
-        if (fs.Length < 7)
+        if (fs.Length < RARUtils.Rar4Marker.Length)
         {
             result.Warnings.Add($"{volumeName}: File too small to contain RAR marker.");
             return;
         }
 
-        byte[] marker = reader.ReadBytes(7);
+        byte[] marker = reader.ReadBytes(RARUtils.Rar4Marker.Length);
         if (!marker.AsSpan().SequenceEqual(Rar4Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR4 marker.");
@@ -526,7 +526,7 @@ public class SRRWriter
         {
             ct.ThrowIfCancellationRequested();
 
-            if (fs.Position + 7 > fs.Length)
+            if (fs.Position + Rar4HeaderLayout.BaseHeaderSize > fs.Length)
             {
                 break;
             }
@@ -539,7 +539,7 @@ public class SRRWriter
             ushort flags = reader.ReadUInt16();
             ushort headerSize = reader.ReadUInt16();
 
-            if (headerSize < 7 || blockStart + headerSize > fs.Length)
+            if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > fs.Length)
             {
                 break;
             }
@@ -557,7 +557,7 @@ public class SRRWriter
                 // ADD_SIZE is at offset 7 in the header, already part of headerSize bytes
                 // But we need to read it to know how much data to skip
                 // Seek to offset 7 in the header to read ADD_SIZE
-                fs.Position = blockStart + 7;
+                fs.Position = blockStart + Rar4HeaderLayout.AddSize;
                 addSize = reader.ReadUInt32();
             }
 
@@ -571,9 +571,9 @@ public class SRRWriter
             // >= 4 GiB packed entry, dropping every subsequent header (silently) or copying garbage.
             long fileDataSize = addSize;
             if ((blockType == RAR4BlockType.FileHeader || blockType == RAR4BlockType.Service) &&
-                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= 36)
+                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= Rar4HeaderLayout.HighPackSizeOffset + Rar4HeaderLayout.AddSizeFieldLength)
             {
-                uint highPackSize = BitConverter.ToUInt32(headerBytes, 32);
+                uint highPackSize = BitConverter.ToUInt32(headerBytes, Rar4HeaderLayout.HighPackSizeOffset);
                 fileDataSize = addSize | ((long)highPackSize << 32);
             }
 
@@ -641,21 +641,21 @@ public class SRRWriter
     private static void WarnIfRar4Compressed(
         byte[] headerBytes, ushort headerSize, string volumeName, SRRCreationResult result)
     {
-        if (headerSize < 26)
+        if (headerSize < Rar4HeaderLayout.Method + 1)
         {
             return;
         }
 
-        byte method = headerBytes[25]; // METHOD field at offset 25
-        if (method == 0x30) // 0x30 = Store
+        byte method = headerBytes[Rar4HeaderLayout.Method]; // METHOD field at offset 25
+        if (method == Rar4HeaderLayout.AsciiDigitZero) // 0x30 = Store
         {
             return;
         }
 
         // Parse filename for the warning message
-        int nameSize = BitConverter.ToUInt16(headerBytes, 26);
-        string fName = nameSize > 0 && 32 + nameSize <= headerBytes.Length
-            ? Encoding.ASCII.GetString(headerBytes, 32, nameSize)
+        int nameSize = BitConverter.ToUInt16(headerBytes, Rar4HeaderLayout.NameSize);
+        string fName = nameSize > 0 && Rar4HeaderLayout.FixedFieldsEnd + nameSize <= headerBytes.Length
+            ? Encoding.ASCII.GetString(headerBytes, Rar4HeaderLayout.FixedFieldsEnd, nameSize)
             : "unknown";
         result.Warnings.Add($"{volumeName}: Compressed file detected ({fName}).");
     }
@@ -666,19 +666,21 @@ public class SRRWriter
     /// </summary>
     private static bool IsRar4CmtServiceBlock(byte[] headerBytes, ushort headerSize)
     {
+        const int CmtSubTypeLength = 3;
+
         // Determine sub-type from header: name is at offset 32, name_size at offset 26
-        if (headerSize < 35) // not enough to read 3-byte name
+        if (headerSize < Rar4HeaderLayout.FixedFieldsEnd + CmtSubTypeLength) // not enough to read 3-byte name
         {
             return false;
         }
 
-        int nameSize = BitConverter.ToUInt16(headerBytes, 26);
-        if (nameSize != 3 || 32 + 3 > headerBytes.Length)
+        int nameSize = BitConverter.ToUInt16(headerBytes, Rar4HeaderLayout.NameSize);
+        if (nameSize != CmtSubTypeLength || Rar4HeaderLayout.FixedFieldsEnd + CmtSubTypeLength > headerBytes.Length)
         {
             return false;
         }
 
-        string subType = Encoding.ASCII.GetString(headerBytes, 32, 3);
+        string subType = Encoding.ASCII.GetString(headerBytes, Rar4HeaderLayout.FixedFieldsEnd, CmtSubTypeLength);
         return string.Equals(subType, "CMT", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -691,13 +693,13 @@ public class SRRWriter
         CancellationToken ct)
     {
         // Read and copy RAR5 marker (8 bytes)
-        if (fs.Length < 8)
+        if (fs.Length < RARUtils.Rar5Marker.Length)
         {
             result.Warnings.Add($"{volumeName}: File too small to contain RAR5 marker.");
             return;
         }
 
-        byte[] marker = reader.ReadBytes(8);
+        byte[] marker = reader.ReadBytes(RARUtils.Rar5Marker.Length);
         if (!marker.AsSpan().SequenceEqual(Rar5Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR5 marker.");

@@ -278,8 +278,8 @@ internal static class SRRFileParser
         long volumeTotalSize = 0;
 
         // Skip RAR5 marker (8 bytes)
-        fs.Seek(8, SeekOrigin.Current);
-        volumeTotalSize += 8;
+        fs.Seek(RARUtils.Rar5Marker.Length, SeekOrigin.Current);
+        volumeTotalSize += RARUtils.Rar5Marker.Length;
 
         var rarReader = new RAR5HeaderReader(fs);
         srr.RARVersion = 50; // RAR 5.0
@@ -558,7 +558,7 @@ internal static class SRRFileParser
         if (srr.CompressionMethod == null)
         {
             // RAR5 compression method: 0=store, 1-5=compression levels
-            srr.CompressionMethod = info.CompressionMethod == 0 ? 0x30 : 0x30 + info.CompressionMethod;
+            srr.CompressionMethod = info.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
             srr.DictionarySize = info.DictionarySizeKB;
             srr.RARVersion = 50;
         }
@@ -566,7 +566,7 @@ internal static class SRRFileParser
         SrrArchiveSet? set = srr.CurrentArchiveSet;
         if (set != null)
         {
-            set.CompressionMethod ??= info.CompressionMethod == 0 ? 0x30 : 0x30 + info.CompressionMethod;
+            set.CompressionMethod ??= info.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
             set.DictionarySize ??= info.DictionarySizeKB;
             set.RARVersion ??= 50;
             // Note: RAR5 file headers do not expose HostOS, FileAttributes, or HasLargeFiles
@@ -647,7 +647,7 @@ internal static class SRRFileParser
     internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressRar5Comment(RAR5ServiceBlockInfo serviceInfo, byte[] compressedData)
     {
         // Map RAR5 method to the RAR4-encoded method byte (RAR5 method 0=store, 1-5=compression).
-        byte method = (byte)(serviceInfo.CompressionMethod == 0 ? 0x30 : 0x30 + serviceInfo.CompressionMethod);
+        byte method = (byte)(serviceInfo.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + serviceInfo.CompressionMethod);
         return TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, method, isRar5: true);
     }
 
