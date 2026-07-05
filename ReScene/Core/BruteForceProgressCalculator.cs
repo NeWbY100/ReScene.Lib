@@ -16,7 +16,7 @@ internal static class BruteForceProgressCalculator
     /// <param name="options">
     /// The brute-force options (attribute toggles and command-line argument sets).
     /// </param>
-    /// <param name="allValidRarDirectories">
+    /// <param name="allValidRARDirectories">
     /// The full set of valid RAR directories already discovered by the Manager (rar.exe present and
     /// in a configured version range). This MUST be the unfiltered list — passing the Phase-1
     /// filtered list would make the scaling below double-count.
@@ -29,7 +29,7 @@ internal static class BruteForceProgressCalculator
     /// </param>
     public static int CalculateBruteForceProgressSize(
         BruteForceOptions options,
-        IReadOnlyList<(string Path, int Version)> allValidRarDirectories,
+        IReadOnlyList<(string Path, int Version)> allValidRARDirectories,
         int filteredVersionCount = 0,
         int totalVersionCount = 0)
     {
@@ -45,7 +45,7 @@ internal static class BruteForceProgressCalculator
         {
             for (int b = 0; b < (options.RAROptions.SetFileNotContentIndexedAttribute == TriState.Checked ? 2 : 1); b++)
             {
-                Parallel.ForEach(allValidRarDirectories, (rarVersionDirectory, s, i) =>
+                Parallel.ForEach(allValidRARDirectories, (rarVersionDirectory, s, i) =>
                 {
                     int version = rarVersionDirectory.Version;
 
@@ -56,11 +56,11 @@ internal static class BruteForceProgressCalculator
 
                     Parallel.ForEach(options.RAROptions.CommandLineArguments, (commandLineArguments, s2, j) =>
                     {
-                        RARArchiveVersion archiveVersion = RarVersionSelector.ParseRARArchiveVersion(commandLineArguments, version);
-                        List<string> filteredArguments = RarVersionSelector.FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
+                        RARArchiveVersion archiveVersion = RARVersionSelector.ParseRARArchiveVersion(commandLineArguments, version);
+                        List<string> filteredArguments = RARVersionSelector.FilterArgumentsForVersion(commandLineArguments, version, archiveVersion);
 
                         // Apply same RAR 6.x timestamp skip as the main loop
-                        if (RarVersionSelector.ShouldSkipRar6TimestampCombination(version, archiveVersion, filteredArguments))
+                        if (RARVersionSelector.ShouldSkipRAR6TimestampCombination(version, archiveVersion, filteredArguments))
                         {
                             return;
                         }

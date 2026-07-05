@@ -27,7 +27,7 @@ internal class RARStream : Stream
     /// <summary>
     /// Opens a packed file from a RAR archive set for streaming.
     /// </summary>
-    /// <param name="firstRarPath">
+    /// <param name="firstRARPath">
     /// Path to the first RAR volume.
     /// </param>
     /// <param name="packedFileName">
@@ -38,18 +38,18 @@ internal class RARStream : Stream
     /// The specified file is not the first volume, the archive contains no files,
     /// or the requested file was not found in the archive.
     /// </exception>
-    public RARStream(string firstRarPath, string? packedFileName = null)
+    public RARStream(string firstRARPath, string? packedFileName = null)
     {
-        if (!File.Exists(firstRarPath))
+        if (!File.Exists(firstRARPath))
         {
-            throw new FileNotFoundException("RAR archive not found.", firstRarPath);
+            throw new FileNotFoundException("RAR archive not found.", firstRARPath);
         }
 
         // Validate this is the first volume
-        ValidateFirstVolume(firstRarPath);
+        ValidateFirstVolume(firstRARPath);
 
         // Scan all volumes and build the logical map
-        string? currentPath = firstRarPath;
+        string? currentPath = firstRARPath;
         bool? isOldNaming = null;
 
         while (currentPath != null && File.Exists(currentPath))
@@ -257,10 +257,10 @@ internal class RARStream : Stream
     private static void ValidateFirstVolume(string path)
     {
         using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        bool isRar5 = RAR5HeaderReader.IsRAR5(fs);
-        fs.Position = isRar5 ? RARUtils.Rar5Marker.Length : RARUtils.Rar4Marker.Length; // skip marker
+        bool isRAR5 = RAR5HeaderReader.IsRAR5(fs);
+        fs.Position = isRAR5 ? RARUtils.RAR5Marker.Length : RARUtils.RAR4Marker.Length; // skip marker
 
-        if (isRar5)
+        if (isRAR5)
         {
             var reader = new RAR5HeaderReader(fs);
             while (fs.Position < fs.Length)
@@ -325,20 +325,20 @@ internal class RARStream : Stream
     private bool ProcessVolume(string volumePath, ref string? packedFileName, bool? previousNamingStyle)
     {
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        bool isRar5 = RAR5HeaderReader.IsRAR5(fs);
-        fs.Position = isRar5 ? RARUtils.Rar5Marker.Length : RARUtils.Rar4Marker.Length; // skip marker
+        bool isRAR5 = RAR5HeaderReader.IsRAR5(fs);
+        fs.Position = isRAR5 ? RARUtils.RAR5Marker.Length : RARUtils.RAR4Marker.Length; // skip marker
 
-        if (isRar5)
+        if (isRAR5)
         {
-            ProcessRar5Volume(fs, volumePath, ref packedFileName);
+            ProcessRAR5Volume(fs, volumePath, ref packedFileName);
             // RAR5 always uses new-style naming
             return false;
         }
 
-        return ProcessRar4Volume(fs, volumePath, ref packedFileName, previousNamingStyle);
+        return ProcessRAR4Volume(fs, volumePath, ref packedFileName, previousNamingStyle);
     }
 
-    private void ProcessRar5Volume(FileStream fs, string volumePath, ref string? packedFileName)
+    private void ProcessRAR5Volume(FileStream fs, string volumePath, ref string? packedFileName)
     {
         var reader = new RAR5HeaderReader(fs);
 
@@ -379,7 +379,7 @@ internal class RARStream : Stream
         }
     }
 
-    private bool ProcessRar4Volume(FileStream fs, string volumePath,
+    private bool ProcessRAR4Volume(FileStream fs, string volumePath,
         ref string? packedFileName, bool? previousNamingStyle)
     {
         bool isOldNaming = previousNamingStyle ?? false;

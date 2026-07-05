@@ -264,7 +264,7 @@ class ReScene.Core.RAROptions
     property HashSet<String> ArchiveFilePaths { get; set; }
     property IReadOnlyList<RARCommandLineArgument[]> CommandLineArguments { get; set; }
     property IReadOnlyList<String> AllowedVersionFolders { get; set; }
-    property IReadOnlyList<String> OriginalRarFileNames { get; set; }
+    property IReadOnlyList<String> OriginalRARFileNames { get; set; }
     property IReadOnlyList<VersionRange> RARVersions { get; set; }
     property Nullable<Boolean> DetectedLargeFlag { get; set; }
     property Nullable<Byte> CmtCompressionMethod { get; set; }
@@ -500,12 +500,32 @@ enum ReScene.SRR.CustomPackerType
     field CustomPackerType None
     field Int32 value__
 class static ReScene.SRR.RARVolumeIdentifier
-    method Boolean IsRarVolume(String)
+    method Boolean IsRARVolume(String)
     method String GetArchiveSetKey(String)
 class ReScene.SRR.RARVolumeNameComparer
     ctor ()
     method Int32 Compare(String, String)
     property RARVolumeNameComparer Instance { get; }
+class sealed ReScene.SRR.SRRArchiveSet
+    ctor ()
+    property Dictionary<String, DateTime> ArchivedFileAccessTimes { get; }
+    property Dictionary<String, DateTime> ArchivedFileCreationTimes { get; }
+    property Dictionary<String, DateTime> ArchivedFileTimestamps { get; }
+    property Dictionary<String, String> ArchivedFileCrcs { get; }
+    property HashSet<String> ArchivedFiles { get; }
+    property IList<String> VolumeNames { get; }
+    property Nullable<Boolean> HasLargeFiles { get; set; }
+    property Nullable<Boolean> HasRecoveryRecord { get; set; }
+    property Nullable<Boolean> IsSolid { get; set; }
+    property Nullable<Byte> DetectedHostOS { get; set; }
+    property Nullable<Int32> CompressionMethod { get; set; }
+    property Nullable<Int32> DictionarySize { get; set; }
+    property Nullable<Int32> RARVersion { get; set; }
+    property Nullable<UInt32> DetectedFileAttributes { get; set; }
+    property Nullable<UInt32> DetectedHighPackSize { get; set; }
+    property Nullable<UInt32> DetectedHighUnpSize { get; set; }
+    property String Directory { get; set; }
+    property String Key { get; set; }
 class ReScene.SRR.SRRBlock
     ctor ()
     property Int64 BlockPosition { get; set; }
@@ -571,11 +591,11 @@ class ReScene.SRR.SRRFile
     property HashSet<String> ArchivedDirectories { get; }
     property HashSet<String> ArchivedFiles { get; }
     property IReadOnlyList<Int64> RARVolumeSizes { get; }
+    property IReadOnlyList<SRRArchiveSet> ArchiveSets { get; }
     property IReadOnlyList<SRROsoHashBlock> OSOHashBlocks { get; }
-    property IReadOnlyList<SRRRarFileBlock> RARFiles { get; }
-    property IReadOnlyList<SRRRarPaddingBlock> RARPaddingBlocks { get; }
+    property IReadOnlyList<SRRRARFileBlock> RARFiles { get; }
+    property IReadOnlyList<SRRRARPaddingBlock> RARPaddingBlocks { get; }
     property IReadOnlyList<SRRStoredFileBlock> StoredFiles { get; }
-    property IReadOnlyList<SrrArchiveSet> ArchiveSets { get; }
     property Int32 HeaderCRCMismatches { get; }
     property Nullable<Boolean> HasEncryptedHeaders { get; }
     property Nullable<Boolean> HasExtendedTime { get; }
@@ -620,10 +640,10 @@ class ReScene.SRR.SRROsoHashBlock
     property ReadOnlyMemory<Byte> OSOHash { get; set; }
     property String FileName { get; set; }
     property UInt64 FileSize { get; set; }
-class ReScene.SRR.SRRRarFileBlock
+class ReScene.SRR.SRRRARFileBlock
     ctor ()
     property String FileName { get; set; }
-class ReScene.SRR.SRRRarPaddingBlock
+class ReScene.SRR.SRRRARPaddingBlock
     ctor ()
     property String RARFileName { get; set; }
     property UInt32 PaddingSize { get; set; }
@@ -656,26 +676,6 @@ class ReScene.SRR.SRRWriter
     event EventHandler<SRRCreationProgressEventArgs> Progress
     method Task<SRRCreationResult> CreateAsync(String, IReadOnlyList<String>, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
     method Task<SRRCreationResult> CreateFromSFVAsync(String, String, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
-class sealed ReScene.SRR.SrrArchiveSet
-    ctor ()
-    property Dictionary<String, DateTime> ArchivedFileAccessTimes { get; }
-    property Dictionary<String, DateTime> ArchivedFileCreationTimes { get; }
-    property Dictionary<String, DateTime> ArchivedFileTimestamps { get; }
-    property Dictionary<String, String> ArchivedFileCrcs { get; }
-    property HashSet<String> ArchivedFiles { get; }
-    property IList<String> VolumeNames { get; }
-    property Nullable<Boolean> HasLargeFiles { get; set; }
-    property Nullable<Boolean> HasRecoveryRecord { get; set; }
-    property Nullable<Boolean> IsSolid { get; set; }
-    property Nullable<Byte> DetectedHostOS { get; set; }
-    property Nullable<Int32> CompressionMethod { get; set; }
-    property Nullable<Int32> DictionarySize { get; set; }
-    property Nullable<Int32> RARVersion { get; set; }
-    property Nullable<UInt32> DetectedFileAttributes { get; set; }
-    property Nullable<UInt32> DetectedHighPackSize { get; set; }
-    property Nullable<UInt32> DetectedHighUnpSize { get; set; }
-    property String Directory { get; set; }
-    property String Key { get; set; }
 class sealed ReScene.SRR.StoredFileEntry
     ctor (String, String)
     method Boolean Equals(Object)

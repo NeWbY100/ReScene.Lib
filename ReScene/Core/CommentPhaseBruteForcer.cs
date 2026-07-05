@@ -32,7 +32,7 @@ internal sealed class CommentPhaseBruteForcer(
     /// </summary>
     public async Task<List<(string Path, int Version)>> BruteForceCommentPhaseAsync(
         BruteForceOptions options,
-        List<(string Path, int Version)> allRarDirectories)
+        List<(string Path, int Version)> allRARDirectories)
     {
         var matchedVersions = new List<(string Path, int Version)>();
         byte[]? expectedCmtData = options.RAROptions.CmtCompressedData?.ToArray();
@@ -40,7 +40,7 @@ internal sealed class CommentPhaseBruteForcer(
         if (expectedCmtData == null || expectedCmtData.Length == 0)
         {
             _logger.Information(_logSource, "Phase 1 skipped: No CMT compressed data available", LogTarget.Phase1);
-            return allRarDirectories; // Return all versions if no CMT data
+            return allRARDirectories; // Return all versions if no CMT data
         }
 
         _logger.Information(_logSource, $"=== PHASE 1: Comment Block Brute-Force ===", LogTarget.Phase1);
@@ -75,7 +75,7 @@ internal sealed class CommentPhaseBruteForcer(
         string outputDir = Path.Combine(phase1Dir, "output");
         Directory.CreateDirectory(outputDir);
 
-        int totalTests = allRarDirectories.Count;
+        int totalTests = allRARDirectories.Count;
         int currentTest = 0;
         int matchCount = 0;
         int errorCount = 0;
@@ -109,7 +109,7 @@ internal sealed class CommentPhaseBruteForcer(
         _logger.Information(_logSource, $"CMT compression method: {cmtMethodArg}", LogTarget.Phase1);
         _logger.Information(_logSource, $"CMT dictionary size: {cmtDictArg}", LogTarget.Phase1);
 
-        foreach ((string? rarVersionDir, int version) in allRarDirectories)
+        foreach ((string? rarVersionDir, int version) in allRARDirectories)
         {
             if (_cancellationToken.IsCancellationRequested)
             {
@@ -131,7 +131,7 @@ internal sealed class CommentPhaseBruteForcer(
             List<string> args = ["a", "-r", cmtMethodArg, cmtDictArg, $"-z{commentFilePath}"];
 
             // Add -ma4 for RAR 5.50-6.x to create RAR4 format (RAR 7.x doesn't accept -ma4)
-            if (version is >= 550 and < RarVersionThresholds.Rar7FormatMinimum)
+            if (version is >= 550 and < RARVersionThresholds.RAR7FormatMinimum)
             {
                 args.Add("-ma4");
             }
@@ -144,30 +144,30 @@ internal sealed class CommentPhaseBruteForcer(
                 args.Add("-tsa-");
             }
 
-            string testRarPath = Path.Combine(outputDir, $"test_{versionName}_{cmtMethodArg}_{cmtDictArg}.rar"
+            string testRARPath = Path.Combine(outputDir, $"test_{versionName}_{cmtMethodArg}_{cmtDictArg}.rar"
                 .Replace("-", "", StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal));
 
             try
             {
                 // Create the test RAR
-                var process = new RARProcess(rarExePath, dummyInputDir, testRarPath, args, _logger)
+                var process = new RARProcess(rarExePath, dummyInputDir, testRARPath, args, _logger)
                 {
                     LogTarget = LogTarget.Phase1
                 };
                 await process.RunAsync(_cancellationToken).ConfigureAwait(false);
 
-                if (!File.Exists(testRarPath))
+                if (!File.Exists(testRARPath))
                 {
                     continue;
                 }
 
                 // Extract CMT data from generated RAR
-                byte[]? generatedCmtData = ExtractCmtCompressedData(testRarPath);
+                byte[]? generatedCmtData = ExtractCmtCompressedData(testRARPath);
 
                 // Clean up test file
                 try
                 {
-                    File.Delete(testRarPath);
+                    File.Delete(testRARPath);
                 }
                 catch { }
 
@@ -226,7 +226,7 @@ internal sealed class CommentPhaseBruteForcer(
                 _logger.Warning(_logSource, "Phase 1 found no matches - falling back to all versions for Phase 2", LogTarget.Phase1);
             }
 
-            return allRarDirectories;
+            return allRARDirectories;
         }
 
         return matchedVersions;

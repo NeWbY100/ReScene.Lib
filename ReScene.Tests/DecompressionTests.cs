@@ -78,7 +78,7 @@ public class DecompressionTests
     }
 
     [Fact]
-    public void Decompress_Rar29_PpmFlaggedStream_FailsCleanReturnsNull()
+    public void Decompress_RAR29_PpmFlaggedStream_FailsCleanReturnsNull()
     {
         // STOPGAP (audit #7/#23): PPMd decoding is unsupported — the ModelPPM port is an
         // incomplete stub that desyncs from WinRAR's encoder. A stream that selects PPM mode
@@ -93,7 +93,7 @@ public class DecompressionTests
     }
 
     [Fact]
-    public void Decompress_Rar50_MultiBlockStream_FailsCleanReturnsNull()
+    public void Decompress_RAR50_MultiBlockStream_FailsCleanReturnsNull()
     {
         // STOPGAP (audit #24): Unpack50 decodes only the first block and never re-reads a
         // block header/tables at block boundaries, so a multi-block RAR5 stream would desync

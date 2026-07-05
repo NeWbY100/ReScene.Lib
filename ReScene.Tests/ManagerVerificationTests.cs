@@ -22,7 +22,7 @@ public class ManagerVerificationTests
     {
         var opts = new BruteForceOptions("w", "r", "o")
         {
-            RAROptions = new RAROptions { OriginalRarFileNames = ["DVD1\\aln-re4a.rar", "DVD1\\aln-re4a.r00"] }
+            RAROptions = new RAROptions { OriginalRARFileNames = ["DVD1\\aln-re4a.rar", "DVD1\\aln-re4a.r00"] }
         };
         opts.ExpectedVolumeCrcs["aln-re4a.rar"] = "f1a3ec0d";
         opts.ExpectedVolumeCrcs["aln-re4a.r00"] = "88b361c9";
@@ -39,7 +39,7 @@ public class ManagerVerificationTests
     {
         var opts = new BruteForceOptions("w", "r", "o")
         {
-            RAROptions = new RAROptions { OriginalRarFileNames = ["x.rar", "x.r00"] }
+            RAROptions = new RAROptions { OriginalRARFileNames = ["x.rar", "x.r00"] }
         };
         opts.ExpectedVolumeCrcs["x.rar"] = "aabbccdd"; // x.r00 missing
 
@@ -52,7 +52,7 @@ public class ManagerVerificationTests
     {
         var opts = new BruteForceOptions("w", "r", "o")
         {
-            RAROptions = new RAROptions { OriginalRarFileNames = ["x.rar", "x.r00"] }
+            RAROptions = new RAROptions { OriginalRARFileNames = ["x.rar", "x.r00"] }
         };
 
         var expected = Manager.BuildExpectedInOrder(opts);
@@ -64,7 +64,7 @@ public class ManagerVerificationTests
     {
         var opts = new BruteForceOptions("w", "r", "o")
         {
-            RAROptions = new RAROptions { OriginalRarFileNames = ["Sub\\ALN-RE4A.RAR"] }
+            RAROptions = new RAROptions { OriginalRARFileNames = ["Sub\\ALN-RE4A.RAR"] }
         };
         opts.ExpectedVolumeCrcs["aln-re4a.rar"] = "f1a3ec0d";
 

@@ -216,7 +216,7 @@ public class RAROptions
 
     /// <summary>
     /// Gets or sets whether to rename matched output files to the original RAR filenames in
-    /// <see cref="OriginalRarFileNames"/>.
+    /// <see cref="OriginalRARFileNames"/>.
     /// </summary>
     public bool RenameToOriginalNames
     {
@@ -227,7 +227,7 @@ public class RAROptions
     /// Gets the original RAR volume filenames, in volume order. Typically sourced from
     /// the SRR file, or from the verification SFV when no SRR is available.
     /// </summary>
-    public IReadOnlyList<string> OriginalRarFileNames { get; init; } = [];
+    public IReadOnlyList<string> OriginalRARFileNames { get; init; } = [];
 
     /// <summary>
     /// Gets or sets whether the LARGE flag was detected in SRR file headers.

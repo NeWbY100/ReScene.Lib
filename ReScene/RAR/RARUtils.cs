@@ -9,7 +9,7 @@ namespace ReScene.RAR;
 /// </summary>
 internal static class RARUtils
 {
-    private static readonly Encoding _rarNameEncoding = GetRarNameEncoding();
+    private static readonly Encoding _rarNameEncoding = GetRARNameEncoding();
 
     /// <summary>
     /// Dictionary sizes in KB indexed by the 3-bit flag value.
@@ -21,12 +21,12 @@ internal static class RARUtils
     /// <summary>
     /// RAR 4.x marker bytes (7 bytes): <c>52 61 72 21 1A 07 00</c>.
     /// </summary>
-    public static ReadOnlySpan<byte> Rar4Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    public static ReadOnlySpan<byte> RAR4Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
 
     /// <summary>
     /// RAR 5.0 marker bytes (8 bytes): <c>52 61 72 21 1A 07 01 00</c>.
     /// </summary>
-    public static ReadOnlySpan<byte> Rar5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
+    public static ReadOnlySpan<byte> RAR5Marker => [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
 
     #endregion
 
@@ -94,13 +94,13 @@ internal static class RARUtils
         uint datePart = (dosDate >> 16) & 0xFFFF;
         uint timePart = dosDate & 0xFFFF;
 
-        int day = (int)(datePart & Rar4HeaderLayout.DosDayMask);
-        int month = (int)((datePart >> 5) & Rar4HeaderLayout.DosMonthMask);
-        int year = (int)((datePart >> 9) & Rar4HeaderLayout.DosYearMask) + Rar4HeaderLayout.DosEpochYear;
+        int day = (int)(datePart & RAR4HeaderLayout.DosDayMask);
+        int month = (int)((datePart >> 5) & RAR4HeaderLayout.DosMonthMask);
+        int year = (int)((datePart >> 9) & RAR4HeaderLayout.DosYearMask) + RAR4HeaderLayout.DosEpochYear;
 
-        int second = (int)((timePart & Rar4HeaderLayout.DosSecondMask) * 2);
-        int minute = (int)((timePart >> 5) & Rar4HeaderLayout.DosMinuteMask);
-        int hour = (int)((timePart >> 11) & Rar4HeaderLayout.DosHourMask);
+        int second = (int)((timePart & RAR4HeaderLayout.DosSecondMask) * 2);
+        int minute = (int)((timePart >> 5) & RAR4HeaderLayout.DosMinuteMask);
+        int hour = (int)((timePart >> 11) & RAR4HeaderLayout.DosHourMask);
 
         try
         {
@@ -144,7 +144,7 @@ internal static class RARUtils
                 byte[] encData = nameBytes[(nullIndex + 1)..];
                 if (encData.Length > 0)
                 {
-                    return DecodeRarUnicode(stdName, encData);
+                    return DecodeRARUnicode(stdName, encData);
                 }
 
                 if (stdName.Length > 0)
@@ -169,7 +169,7 @@ internal static class RARUtils
     /// <summary>
     /// Decodes RAR's custom Unicode encoding for filenames.
     /// </summary>
-    private static string DecodeRarUnicode(byte[] stdName, byte[] encData)
+    private static string DecodeRARUnicode(byte[] stdName, byte[] encData)
     {
         if (encData.Length == 0)
         {
@@ -261,7 +261,7 @@ internal static class RARUtils
         pos++;
     }
 
-    private static Encoding GetRarNameEncoding()
+    private static Encoding GetRARNameEncoding()
     {
         try
         {
@@ -321,7 +321,7 @@ internal static class RARUtils
     /// </returns>
     private const long DefaultMaxScanSize = 1024 * 1024; // 1 MB
 
-    public static long FindRarMarkerOffset(Stream stream, long maxScanSize = DefaultMaxScanSize)
+    public static long FindRARMarkerOffset(Stream stream, long maxScanSize = DefaultMaxScanSize)
     {
         long savedPos = stream.Position;
         stream.Position = 0;
@@ -332,20 +332,20 @@ internal static class RARUtils
         stream.Position = savedPos;
 
         // Scan for RAR5 marker first (8 bytes, superset of RAR4's first 7)
-        for (int i = 0; i <= bytesRead - Rar5Marker.Length; i++)
+        for (int i = 0; i <= bytesRead - RAR5Marker.Length; i++)
         {
-            if (buffer[i] == Rar4Marker[0] && buffer[i + 1] == Rar4Marker[1] &&
-                buffer[i + 2] == Rar4Marker[2] && buffer[i + 3] == Rar4Marker[3] &&
-                buffer[i + 4] == Rar4Marker[4] && buffer[i + 5] == Rar4Marker[5])
+            if (buffer[i] == RAR4Marker[0] && buffer[i + 1] == RAR4Marker[1] &&
+                buffer[i + 2] == RAR4Marker[2] && buffer[i + 3] == RAR4Marker[3] &&
+                buffer[i + 4] == RAR4Marker[4] && buffer[i + 5] == RAR4Marker[5])
             {
                 // Check RAR5 (byte 6 = 0x01, byte 7 = 0x00)
-                if (buffer[i + 6] == Rar5Marker[6] && buffer[i + 7] == Rar5Marker[7])
+                if (buffer[i + 6] == RAR5Marker[6] && buffer[i + 7] == RAR5Marker[7])
                 {
                     return i;
                 }
 
                 // Check RAR4 (byte 6 = 0x00)
-                if (buffer[i + 6] == Rar4Marker[6])
+                if (buffer[i + 6] == RAR4Marker[6])
                 {
                     return i;
                 }
@@ -353,13 +353,13 @@ internal static class RARUtils
         }
 
         // Check the last position that could be RAR4 but not RAR5
-        if (bytesRead >= Rar4Marker.Length && bytesRead - Rar4Marker.Length > bytesRead - Rar5Marker.Length)
+        if (bytesRead >= RAR4Marker.Length && bytesRead - RAR4Marker.Length > bytesRead - RAR5Marker.Length)
         {
-            int i = bytesRead - Rar4Marker.Length;
-            if (buffer[i] == Rar4Marker[0] && buffer[i + 1] == Rar4Marker[1] &&
-                buffer[i + 2] == Rar4Marker[2] && buffer[i + 3] == Rar4Marker[3] &&
-                buffer[i + 4] == Rar4Marker[4] && buffer[i + 5] == Rar4Marker[5] &&
-                buffer[i + 6] == Rar4Marker[6])
+            int i = bytesRead - RAR4Marker.Length;
+            if (buffer[i] == RAR4Marker[0] && buffer[i + 1] == RAR4Marker[1] &&
+                buffer[i + 2] == RAR4Marker[2] && buffer[i + 3] == RAR4Marker[3] &&
+                buffer[i + 4] == RAR4Marker[4] && buffer[i + 5] == RAR4Marker[5] &&
+                buffer[i + 6] == RAR4Marker[6])
             {
                 return i;
             }
@@ -372,7 +372,7 @@ internal static class RARUtils
     /// Checks whether the stream is positioned at a RAR5 marker signature.
     /// The stream position is preserved after the check.
     /// </summary>
-    public static bool IsRar5Marker(Stream stream) => RAR5HeaderReader.IsRAR5(stream, stream.Position);
+    public static bool IsRAR5Marker(Stream stream) => RAR5HeaderReader.IsRAR5(stream, stream.Position);
 
     #endregion
 }

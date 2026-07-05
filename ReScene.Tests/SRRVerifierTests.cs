@@ -24,7 +24,7 @@ public class SRRVerifierTests : TempDirTestBase
     // applied SRR ADD_SIZE framing to the embedded RAR4 file header (LONG_BLOCK + phantom packed
     // size), so it always false-errored "extends past end of file" on every real archived SRR.
     [Fact]
-    public void Verify_RealSRRWithEmbeddedRar_ReturnsValid()
+    public void Verify_RealSRRWithEmbeddedRAR_ReturnsValid()
     {
         string path = Path.Combine(AppContext.BaseDirectory, "TestData", "store_little", "store_little.srr");
 

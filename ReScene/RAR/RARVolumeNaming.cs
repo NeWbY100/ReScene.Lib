@@ -57,10 +57,10 @@ internal static partial class RARVolumeNaming
         }
 
         // Old-style: base.rar + base.rXX
-        string mainRar = Path.Combine(directory, $"{baseName}.rar");
-        if (File.Exists(mainRar))
+        string mainRAR = Path.Combine(directory, $"{baseName}.rar");
+        if (File.Exists(mainRAR))
         {
-            files.Add(mainRar);
+            files.Add(mainRAR);
         }
 
         // .r?? matches .r00-.r99 but also .rar - exclude .rar to avoid duplicates

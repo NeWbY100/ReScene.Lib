@@ -4,7 +4,7 @@ namespace ReScene.SRR;
 /// SRR RAR padding block (0x6C).
 /// Contains padding information for RAR reconstruction.
 /// </summary>
-public class SRRRarPaddingBlock : SRRBlock
+public class SRRRARPaddingBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the RAR filename this padding applies to.

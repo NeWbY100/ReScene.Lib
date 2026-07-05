@@ -44,7 +44,7 @@ public class FileComparerCoreTests
     /// Builds an SRRFile with a single archived file (plus optional CRC) and the archive-level
     /// properties under test, so each test can vary exactly one input.
     /// </summary>
-    private static SRRFile SrrWithArchivedFile(
+    private static SRRFile SRRWithArchivedFile(
         string fileName,
         string? crc = null,
         int? rarVersion = null,
@@ -75,8 +75,8 @@ public class FileComparerCoreTests
     {
         // Two structurally identical SRR snapshots must produce an empty result, or the UI can never
         // declare two SRRs equal.
-        SRRFile left = SrrWithArchivedFile("disc.r00", crc: "ABCDEF12", rarVersion: 29, isSolid: false);
-        SRRFile right = SrrWithArchivedFile("disc.r00", crc: "ABCDEF12", rarVersion: 29, isSolid: false);
+        SRRFile left = SRRWithArchivedFile("disc.r00", crc: "ABCDEF12", rarVersion: 29, isSolid: false);
+        SRRFile right = SRRWithArchivedFile("disc.r00", crc: "ABCDEF12", rarVersion: 29, isSolid: false);
         var result = new CompareResult();
 
         FileComparer.CompareSRRFiles(left, right, result);
@@ -92,8 +92,8 @@ public class FileComparerCoreTests
     {
         // The same archived entry on both sides but with a changed CRC is the canonical "this volume
         // was rebuilt differently" case: one Modified FileDifference carrying a CRC PropertyDifference.
-        SRRFile left = SrrWithArchivedFile("disc.r00", crc: "AAAAAAAA");
-        SRRFile right = SrrWithArchivedFile("disc.r00", crc: "BBBBBBBB");
+        SRRFile left = SRRWithArchivedFile("disc.r00", crc: "AAAAAAAA");
+        SRRFile right = SRRWithArchivedFile("disc.r00", crc: "BBBBBBBB");
         var result = new CompareResult();
 
         FileComparer.CompareSRRFiles(left, right, result);
@@ -112,7 +112,7 @@ public class FileComparerCoreTests
     public void CompareSRRFiles_FilePresentOnlyOnLeft_ReportsRemoved()
     {
         // An archived file in the left SRR but absent from the right is Removed (left is the original).
-        SRRFile left = SrrWithArchivedFile("only-left.rar", crc: "11111111");
+        SRRFile left = SRRWithArchivedFile("only-left.rar", crc: "11111111");
         SRRFile right = new()
         {
             ArchivedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
@@ -136,7 +136,7 @@ public class FileComparerCoreTests
         {
             ArchivedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase),
         };
-        SRRFile right = SrrWithArchivedFile("only-right.rar", crc: "22222222");
+        SRRFile right = SRRWithArchivedFile("only-right.rar", crc: "22222222");
         var result = new CompareResult();
 
         FileComparer.CompareSRRFiles(left, right, result);
@@ -151,9 +151,9 @@ public class FileComparerCoreTests
     {
         // Archive-level properties (RAR version, compression method, solid flag) feed the archive
         // differences list with human-formatted Left/Right values.
-        SRRFile left = SrrWithArchivedFile("a.rar", crc: "DEADBEEF",
+        SRRFile left = SRRWithArchivedFile("a.rar", crc: "DEADBEEF",
             rarVersion: 29, compressionMethod: 0x33, isSolid: false);
-        SRRFile right = SrrWithArchivedFile("a.rar", crc: "DEADBEEF",
+        SRRFile right = SRRWithArchivedFile("a.rar", crc: "DEADBEEF",
             rarVersion: 50, compressionMethod: 0x35, isSolid: true);
         var result = new CompareResult();
 
@@ -453,10 +453,10 @@ public class FileComparerCoreTests
     {
         // An SRR on one side and a RAR on the other don't share a comparison branch, so the fallback
         // surfaces the differing file-type names rather than attempting a cross-type compare.
-        var leftSrr = new SRRFileData { SRRFile = SrrWithArchivedFile("a.rar") };
-        var rightRar = new RARFileData { IsRAR5 = true };
+        var leftSRR = new SRRFileData { SRRFile = SRRWithArchivedFile("a.rar") };
+        var rightRAR = new RARFileData { IsRAR5 = true };
 
-        CompareResult result = FileComparer.Compare(leftSrr, rightRar);
+        CompareResult result = FileComparer.Compare(leftSRR, rightRAR);
 
         PropertyDifference diff = Assert.Single(result.ArchiveDifferences);
         Assert.Equal("File Type", diff.PropertyName);
@@ -465,12 +465,12 @@ public class FileComparerCoreTests
     }
 
     [Fact]
-    public void Compare_TwoSrrFileData_DispatchesToSrrComparison()
+    public void Compare_TwoSRRFileData_DispatchesToSRRComparison()
     {
         // A matched SRRFileData pair must route through CompareSRRFiles (not the fallback), so a CRC
         // change shows up as a per-file Modified difference rather than a File Type difference.
-        var left = new SRRFileData { SRRFile = SrrWithArchivedFile("disc.r00", crc: "0000FFFF") };
-        var right = new SRRFileData { SRRFile = SrrWithArchivedFile("disc.r00", crc: "FFFF0000") };
+        var left = new SRRFileData { SRRFile = SRRWithArchivedFile("disc.r00", crc: "0000FFFF") };
+        var right = new SRRFileData { SRRFile = SRRWithArchivedFile("disc.r00", crc: "FFFF0000") };
 
         CompareResult result = FileComparer.Compare(left, right);
 

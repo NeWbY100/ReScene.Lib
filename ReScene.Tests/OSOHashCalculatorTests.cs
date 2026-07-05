@@ -8,7 +8,7 @@ namespace ReScene.Tests;
 /// Tests for <see cref="OSOHashCalculator"/>. The public surface (<c>ComputeHashes</c>) takes
 /// real RAR volume paths and only hashes stored, non-split entries that are at least 64 KiB.
 /// <see cref="OSOHashCalculator.ComputeHash"/> is private, so every case is driven end-to-end
-/// through a minimal but real RAR4 archive written to disk by <see cref="WriteStoredRar4"/>.
+/// through a minimal but real RAR4 archive written to disk by <see cref="WriteStoredRAR4"/>.
 ///
 /// The independent oracle <see cref="ExpectedOsoHash"/> recomputes the expected value the way the
 /// algorithm specifies (fileSize + 64-bit LE sum of the qwords in the first AND last 64 KiB),
@@ -26,7 +26,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         // A file of exactly 64 KiB: the "first 64 KiB" and "last 64 KiB" windows are the same
         // bytes, so every qword is summed twice — the documented "fileSize + 2 * sum" behavior.
         byte[] content = BuildPattern(HashChunkSize, seed: 0x1234);
-        string rar = WriteStoredRar4("clip.bin", content);
+        string rar = WriteStoredRAR4("clip.bin", content);
 
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
@@ -43,7 +43,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         // 70000 bytes (> 64 KiB): the head and tail windows now cover different bytes, so the
         // result depends on both ends. The oracle reads the same head/tail slices the SUT does.
         byte[] content = BuildPattern(70_000, seed: 0x9E37);
-        string rar = WriteStoredRar4("movie.sample.mkv", content);
+        string rar = WriteStoredRAR4("movie.sample.mkv", content);
 
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
@@ -65,7 +65,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         // 65535 bytes is one byte short of the 64 KiB minimum, so the algorithm cannot read two
         // full 64 KiB windows and the entry is skipped — no hash produced.
         byte[] content = BuildPattern(HashChunkSize - 1, seed: 0x55);
-        string rar = WriteStoredRar4("tooshort.bin", content);
+        string rar = WriteStoredRAR4("tooshort.bin", content);
 
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
@@ -79,7 +79,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         // A compressed (method != 0) entry is skipped before any read: OSO hashes are only valid
         // against original bytes, which only flow through unchanged for stored entries.
         byte[] content = BuildPattern(HashChunkSize, seed: 0xABCD);
-        string rar = WriteRar4("packed.bin", content, compressionMethod: 0x33, splitBefore: false);
+        string rar = WriteRAR4("packed.bin", content, compressionMethod: 0x33, splitBefore: false);
 
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
@@ -98,7 +98,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         // and turn this test red.
         byte[] whole = BuildPattern(HashChunkSize, seed: 0x1111);
         byte[] continued = BuildPattern(HashChunkSize, seed: 0xBEEF);
-        string rar = WriteTwoFileStoredRar4(
+        string rar = WriteTwoFileStoredRAR4(
             ("whole.bin", whole, SplitBefore: false),
             ("continued.bin", continued, SplitBefore: true));
 
@@ -193,8 +193,8 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
     /// <summary>
     /// Writes a single-file stored (method 0) RAR4 archive and returns its path.
     /// </summary>
-    private string WriteStoredRar4(string fileName, byte[] content) =>
-        WriteRar4(fileName, content, compressionMethod: 0x30, splitBefore: false);
+    private string WriteStoredRAR4(string fileName, byte[] content) =>
+        WriteRAR4(fileName, content, compressionMethod: 0x30, splitBefore: false);
 
     /// <summary>
     /// Writes a minimal single-file RAR4 archive to <see cref="TempDirTestBase.TempDir"/>:
@@ -203,13 +203,13 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
     /// is the raw method byte (0x30 = store, 0x33 = normal); <paramref name="splitBefore"/> sets the
     /// SPLIT_BEFORE flag so the entry looks continued from a previous volume.
     /// </summary>
-    private string WriteRar4(string fileName, byte[] content, byte compressionMethod, bool splitBefore)
+    private string WriteRAR4(string fileName, byte[] content, byte compressionMethod, bool splitBefore)
     {
         string path = Path.Combine(TempDir, fileName + ".rar");
 
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
 
-        // RAR4 marker: "Rar!\x1A\x07\x00".
+        // RAR4 marker: "RAR!\x1A\x07\x00".
         fs.Write([0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00]);
 
         fs.Write(BuildArchiveHeader());
@@ -224,7 +224,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
     /// immediately followed by its packed data). Used to isolate the per-entry IsSplitBefore guard:
     /// the first file is a normal stored entry so RARStream construction succeeds.
     /// </summary>
-    private string WriteTwoFileStoredRar4(
+    private string WriteTwoFileStoredRAR4(
         (string Name, byte[] Content, bool SplitBefore) first,
         (string Name, byte[] Content, bool SplitBefore) second)
     {

@@ -53,7 +53,7 @@ public static class RARDetailedParser
             }
 
             // SFX mode: scan for the RAR marker within the executable
-            long offset = RARUtils.FindRarMarkerOffset(stream);
+            long offset = RARUtils.FindRARMarkerOffset(stream);
             if (offset < 0)
             {
                 return blocks;
@@ -109,7 +109,7 @@ public static class RARDetailedParser
         return blocks;
     }
 
-    private static ReadOnlySpan<byte> Rar4Signature => RARUtils.Rar4Marker;
+    private static ReadOnlySpan<byte> RAR4Signature => RARUtils.RAR4Marker;
 
     /// <summary>
     /// Formats a value as a zero-padded hex string based on the field's byte length.
@@ -143,17 +143,17 @@ public static class RARDetailedParser
         }
 
         // Check RAR4 signature (7 bytes)
-        bool isRar4 = true;
+        bool isRAR4 = true;
         for (int i = 0; i < 7; i++)
         {
-            if (buf[i] != Rar4Signature[i])
+            if (buf[i] != RAR4Signature[i])
             {
-                isRar4 = false;
+                isRAR4 = false;
                 break;
             }
         }
 
-        if (isRar4)
+        if (isRAR4)
         {
             return true;
         }
@@ -166,7 +166,7 @@ public static class RARDetailedParser
 
         for (int i = 0; i < 8; i++)
         {
-            if (buf[i] != RARUtils.Rar5Marker[i])
+            if (buf[i] != RARUtils.RAR5Marker[i])
             {
                 return false;
             }
@@ -211,7 +211,7 @@ public static class RARDetailedParser
         // Parse remaining blocks
         int maxBlocks = 100000; // Safety limit
         int blockCount = 0;
-        while (stream.Position + Rar4HeaderLayout.BaseHeaderSize <= stream.Length && blockCount < maxBlocks)
+        while (stream.Position + RAR4HeaderLayout.BaseHeaderSize <= stream.Length && blockCount < maxBlocks)
         {
             long blockStart = stream.Position;
 
@@ -252,8 +252,8 @@ public static class RARDetailedParser
             catch
             {
                 // Skip to try finding more blocks - move forward by minimum header size
-                stream.Position = blockStart + Rar4HeaderLayout.BaseHeaderSize;
-                if (stream.Position > stream.Length - Rar4HeaderLayout.BaseHeaderSize)
+                stream.Position = blockStart + RAR4HeaderLayout.BaseHeaderSize;
+                if (stream.Position > stream.Length - RAR4HeaderLayout.BaseHeaderSize)
                 {
                     break;
                 }
@@ -268,14 +268,14 @@ public static class RARDetailedParser
             return false;
         }
 
-        return sig.AsSpan(0, 7).SequenceEqual(RARUtils.Rar4Marker);
+        return sig.AsSpan(0, 7).SequenceEqual(RARUtils.RAR4Marker);
     }
 
     private static RARDetailedBlock? ParseRAR4Block(BinaryReader reader, Stream stream)
     {
         long blockStart = stream.Position;
 
-        if (blockStart + Rar4HeaderLayout.BaseHeaderSize > stream.Length)
+        if (blockStart + RAR4HeaderLayout.BaseHeaderSize > stream.Length)
         {
             return null;
         }
@@ -320,9 +320,9 @@ public static class RARDetailedParser
         headSizeField.Value = $"{headSize} bytes";
         block.Fields.Add(headSizeField);
 
-        if (headSize < Rar4HeaderLayout.BaseHeaderSize)
+        if (headSize < RAR4HeaderLayout.BaseHeaderSize)
         {
-            block.TotalSize = Rar4HeaderLayout.BaseHeaderSize;
+            block.TotalSize = RAR4HeaderLayout.BaseHeaderSize;
             return block;
         }
 
@@ -779,18 +779,18 @@ public static class RARDetailedParser
             // Decode flag bits for each timestamp
             string[] timeLabels = { "mtime", "ctime", "atime", "arctime" };
             string[] precisionLabels = { "DOS (1s)", "+1 byte (~6.5ms)", "+2 bytes (~25.6\u00B5s)", "+3 bytes (100ns)" };
-            for (int t = 0; t < Rar4HeaderLayout.ExtTimeFieldCount; t++)
+            for (int t = 0; t < RAR4HeaderLayout.ExtTimeFieldCount; t++)
             {
-                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * 4)) & Rar4HeaderLayout.ExtTimeNibbleMask;
-                bool present = (rmode & Rar4HeaderLayout.ExtTimePresentBit) != 0;
-                bool roundUp = (rmode & Rar4HeaderLayout.ExtTimeRoundUpBit) != 0;
-                int extraBytes = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
+                int rmode = (extFlags >> ((RAR4HeaderLayout.ExtTimeFieldCount - 1 - t) * 4)) & RAR4HeaderLayout.ExtTimeNibbleMask;
+                bool present = (rmode & RAR4HeaderLayout.ExtTimePresentBit) != 0;
+                bool roundUp = (rmode & RAR4HeaderLayout.ExtTimeRoundUpBit) != 0;
+                int extraBytes = rmode & RAR4HeaderLayout.ExtTimePrecisionMask;
 
                 string desc = present
                     ? $"Present, {precisionLabels[extraBytes]}{(roundUp ? ", +1s rounding" : "")}"
                     : "Not present";
 
-                int bitLow = (Rar4HeaderLayout.ExtTimeFieldCount - 1 - t) * 4;
+                int bitLow = (RAR4HeaderLayout.ExtTimeFieldCount - 1 - t) * 4;
                 extFlagsField.Children.Add(new RARHeaderField
                 {
                     Name = $"{timeLabels[t]} [bits {bitLow + 4 - 1}-{bitLow}]",
@@ -801,10 +801,10 @@ public static class RARDetailedParser
             block.Fields.Add(extFlagsField);
 
             // Parse each time field (mtime, ctime, atime, arctime)
-            for (int i = 0; i < Rar4HeaderLayout.ExtTimeFieldCount && cursor.Pos < headerEnd; i++)
+            for (int i = 0; i < RAR4HeaderLayout.ExtTimeFieldCount && cursor.Pos < headerEnd; i++)
             {
-                int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * 4)) & Rar4HeaderLayout.ExtTimeNibbleMask;
-                if ((rmode & Rar4HeaderLayout.ExtTimePresentBit) == 0)
+                int rmode = (extFlags >> ((RAR4HeaderLayout.ExtTimeFieldCount - 1 - i) * 4)) & RAR4HeaderLayout.ExtTimeNibbleMask;
+                if ((rmode & RAR4HeaderLayout.ExtTimePresentBit) == 0)
                 {
                     continue;
                 }
@@ -825,7 +825,7 @@ public static class RARDetailedParser
                     block.Fields.Add(dosField);
                 }
 
-                int count = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
+                int count = rmode & RAR4HeaderLayout.ExtTimePrecisionMask;
                 if (count > 0 && cursor.Pos + count <= headerEnd)
                 {
                     byte[] remainder = reader.ReadBytes(count);
@@ -1152,10 +1152,10 @@ public static class RARDetailedParser
             {
                 ulong compInfo = cursor.EmitVInt("Compression Info", out RARHeaderField compInfoField);
 
-                int version = (int)(compInfo & Rar5Format.CompInfoVersionMask);
-                bool solid = (compInfo & Rar5Format.CompInfoSolidBit) != 0;
-                int method = (int)((compInfo >> Rar5Format.CompInfoMethodShift) & Rar5Format.CompInfoMethodMask);
-                int dictSizeLog = (int)((compInfo >> Rar5Format.CompInfoDictShift) & Rar5Format.CompInfoDictMask);
+                int version = (int)(compInfo & RAR5Format.CompInfoVersionMask);
+                bool solid = (compInfo & RAR5Format.CompInfoSolidBit) != 0;
+                int method = (int)((compInfo >> RAR5Format.CompInfoMethodShift) & RAR5Format.CompInfoMethodMask);
+                int dictSizeLog = (int)((compInfo >> RAR5Format.CompInfoDictShift) & RAR5Format.CompInfoDictMask);
 
                 compInfoField.Value = FormatHex(compInfo, compInfoField.Length);
 
@@ -1178,7 +1178,7 @@ public static class RARDetailedParser
                     _ => $"Unknown ({method})"
                 };
                 compInfoField.Children.Add(new RARHeaderField { Name = "METHOD", Value = $"{method} ({methodName})" });
-                compInfoField.Children.Add(new RARHeaderField { Name = "DICT_SIZE", Value = FormatDictSize((long)Rar5Format.CompInfoDictBaseKB << dictSizeLog) });
+                compInfoField.Children.Add(new RARHeaderField { Name = "DICT_SIZE", Value = FormatDictSize((long)RAR5Format.CompInfoDictBaseKB << dictSizeLog) });
 
                 block.Fields.Add(compInfoField);
             }
@@ -2035,14 +2035,14 @@ public static class RARDetailedParser
         while (stream.Position < stream.Length)
         {
             byte b = reader.ReadByte();
-            result |= ((ulong)(b & Rar5Format.VIntDataMask)) << shift;
-            if ((b & Rar5Format.VIntContinuationBit) == 0)
+            result |= ((ulong)(b & RAR5Format.VIntDataMask)) << shift;
+            if ((b & RAR5Format.VIntContinuationBit) == 0)
             {
                 break;
             }
 
-            shift += Rar5Format.VIntShiftStep;
-            if (shift > Rar5Format.VIntMaxShift)
+            shift += RAR5Format.VIntShiftStep;
+            if (shift > RAR5Format.VIntMaxShift)
             {
                 break;
             }

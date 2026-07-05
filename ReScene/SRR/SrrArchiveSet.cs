@@ -6,7 +6,7 @@ namespace ReScene.SRR;
 /// from this set's own first headers. Distinct from the flat <see cref="SRRFile"/> properties,
 /// which remain the union across all sets.
 /// </summary>
-public sealed class SrrArchiveSet
+public sealed class SRRArchiveSet
 {
     /// <summary>The set key (directory + volume base name), e.g. "DVD1/aln-re4a".</summary>
     public required string Key { get; init; }

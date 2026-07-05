@@ -31,7 +31,7 @@ namespace ReScene.RAR;
 /// <param name="UnpackedSize">
 /// Logical (unpacked) size as reported by the file header.
 /// </param>
-/// <param name="IsRar5">
+/// <param name="IsRAR5">
 /// True for entries discovered in a RAR5-format archive.
 /// </param>
 /// <param name="ExpectedCrc">
@@ -49,5 +49,5 @@ internal sealed record RAREntry(
     byte UnpackVersion,
     long PackedSize,
     long UnpackedSize,
-    bool IsRar5,
+    bool IsRAR5,
     uint? ExpectedCrc = null);

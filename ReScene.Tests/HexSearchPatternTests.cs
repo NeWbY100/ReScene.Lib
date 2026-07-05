@@ -107,12 +107,12 @@ public class HexSearchPatternTests
     }
 
     [Fact]
-    public void TryParse_Ascii_RarBang_ParsesCorrectUtf8Bytes()
+    public void TryParse_Ascii_RARBang_ParsesCorrectUtf8Bytes()
     {
-        var result = HexSearchPattern.TryParse("Rar!", asHex: false);
+        var result = HexSearchPattern.TryParse("RAR!", asHex: false);
         Assert.NotNull(result);
 
-        byte[] expected = Encoding.UTF8.GetBytes("Rar!");
+        byte[] expected = Encoding.UTF8.GetBytes("RAR!");
         Assert.Equal(expected, result!.Bytes.ToArray());
         Assert.False(result.IsHex);
     }
@@ -120,9 +120,9 @@ public class HexSearchPatternTests
     [Fact]
     public void TryParse_Ascii_DisplayTextIsPreserved()
     {
-        var result = HexSearchPattern.TryParse("Rar!", asHex: false);
+        var result = HexSearchPattern.TryParse("RAR!", asHex: false);
         Assert.NotNull(result);
-        Assert.Equal("Rar!", result!.DisplayText);
+        Assert.Equal("RAR!", result!.DisplayText);
     }
 
     [Fact]

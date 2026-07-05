@@ -15,12 +15,12 @@ public class RARArchiveTests
     /// <summary>
     /// Helper method to extract comment from a RAR file using RAR.
     /// </summary>
-    private static string? ExtractCommentFromRar(string rarFilePath)
+    private static string? ExtractCommentFromRAR(string rarFilePath)
     {
         using var fs = new FileStream(rarFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var br = new BinaryReader(fs);
 
-        // Skip RAR 4.x marker: "Rar!\x1a\x07\x00" (7 bytes)
+        // Skip RAR 4.x marker: "RAR!\x1a\x07\x00" (7 bytes)
         byte[] marker = br.ReadBytes(7);
         if (marker.Length != 7)
         {
@@ -258,7 +258,7 @@ public class RARArchiveTests
         }
 
         // Act
-        string? comment = ExtractCommentFromRar(rarPath);
+        string? comment = ExtractCommentFromRAR(rarPath);
 
         // Assert
         Assert.NotNull(comment);
@@ -277,7 +277,7 @@ public class RARArchiveTests
         }
 
         // Act
-        string? comment = ExtractCommentFromRar(rarPath);
+        string? comment = ExtractCommentFromRAR(rarPath);
 
         // Assert
         Assert.NotNull(comment);
@@ -355,7 +355,7 @@ public class RARArchiveTests
         }
 
         // Act
-        string? comment = ExtractCommentFromRar(rarPath);
+        string? comment = ExtractCommentFromRAR(rarPath);
 
         // Assert
         Assert.NotNull(comment);
@@ -423,7 +423,7 @@ public class RARArchiveTests
     /// <summary>
     /// Helper method to extract comment from a RAR 5.0 file using RAR.
     /// </summary>
-    private static string? ExtractCommentFromRar5(string rarFilePath)
+    private static string? ExtractCommentFromRAR5(string rarFilePath)
     {
         using var fs = new FileStream(rarFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
@@ -494,7 +494,7 @@ public class RARArchiveTests
         }
 
         // Act
-        string? comment = ExtractCommentFromRar5(rarPath);
+        string? comment = ExtractCommentFromRAR5(rarPath);
 
         // Assert
         Assert.NotNull(comment);
@@ -513,7 +513,7 @@ public class RARArchiveTests
         }
 
         // Act
-        string? comment = ExtractCommentFromRar5(rarPath);
+        string? comment = ExtractCommentFromRAR5(rarPath);
 
         // Assert
         Assert.NotNull(comment);
@@ -533,7 +533,7 @@ public class RARArchiveTests
         }
 
         // Act
-        string? comment = ExtractCommentFromRar(rarPath);
+        string? comment = ExtractCommentFromRAR(rarPath);
 
         // Assert
         Assert.NotNull(comment);
@@ -657,7 +657,7 @@ public class RARArchiveTests
 
     #region Large Entry Skipping (HIGH_PACK_SIZE)
 
-    private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static readonly byte[] RAR4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
 
     private static byte[] BuildArchiveHeaderBytes()
     {
@@ -738,7 +738,7 @@ public class RARArchiveTests
             string path = Path.Combine(dir, "large.rar");
             using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
             {
-                fs.Write(Rar4Marker);
+                fs.Write(RAR4Marker);
                 fs.Write(BuildArchiveHeaderBytes());
                 fs.Write(BuildLargeFileHeaderBytes("big.bin", packSizeLow: 0, packSizeHigh: 1));
                 fs.Write(BuildFileHeaderBytes("after.txt", packedSize: 0));

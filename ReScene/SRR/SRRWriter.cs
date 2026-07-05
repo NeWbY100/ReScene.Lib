@@ -8,8 +8,8 @@ namespace ReScene.SRR;
 /// </summary>
 public class SRRWriter
 {
-    private static ReadOnlySpan<byte> Rar4Marker => RARUtils.Rar4Marker;
-    private static ReadOnlySpan<byte> Rar5Marker => RARUtils.Rar5Marker;
+    private static ReadOnlySpan<byte> RAR4Marker => RARUtils.RAR4Marker;
+    private static ReadOnlySpan<byte> RAR5Marker => RARUtils.RAR5Marker;
 
     /// <summary>
     /// Raised to report progress during SRR creation.
@@ -104,7 +104,7 @@ public class SRRWriter
 
                     byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct).ConfigureAwait(false);
                     Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
-                    SrrBlockWriter.WriteStoredFileBlock(writer, storedName, fileData);
+                    SRRBlockWriter.WriteStoredFileBlock(writer, storedName, fileData);
                     result.StoredFileCount++;
                 }
             }
@@ -120,7 +120,7 @@ public class SRRWriter
 
                 ReportProgress(i + 1, totalVolumes, $"Processing {volumeName}...");
 
-                ProcessRarVolume(writer, volumePath, volumeName, options, result, ct);
+                ProcessRARVolume(writer, volumePath, volumeName, options, result, ct);
                 result.VolumeCount++;
             }
 
@@ -160,7 +160,7 @@ public class SRRWriter
                 if (dizResult.Data is not null)
                 {
                     Log($"Adding languages.diz ({dizResult.Data.Length:N0} bytes)");
-                    SrrBlockWriter.WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
+                    SRRBlockWriter.WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
                     result.StoredFileCount++;
                 }
                 else if (dizResult.IdxFileNames.Count == 0)
@@ -249,7 +249,7 @@ public class SRRWriter
             }
 
             string fileName = trimmed[..lastSpace].Trim();
-            if (RARVolumeIdentifier.IsRarVolume(fileName))
+            if (RARVolumeIdentifier.IsRARVolume(fileName))
             {
                 string fullPath = Path.Combine(sfvDir, fileName);
                 if (File.Exists(fullPath))
@@ -282,7 +282,7 @@ public class SRRWriter
     {
         ushort flags = appName != null ? (ushort)SRRHeaderFlags.AppNamePresent : (ushort)SRRHeaderFlags.None;
 
-        int headerSize = SrrBlockLayout.BaseHeaderSize; // base header
+        int headerSize = SRRBlockLayout.BaseHeaderSize; // base header
         byte[]? appNameBytes = null;
         if (appName != null)
         {
@@ -290,7 +290,7 @@ public class SRRWriter
             headerSize += 2 + appNameBytes.Length;
         }
 
-        writer.Write(SrrBlockLayout.HeaderSentinel);       // CRC (SRR header sentinel)
+        writer.Write(SRRBlockLayout.HeaderSentinel);       // CRC (SRR header sentinel)
         writer.Write((byte)SRRBlockType.Header);           // SRR Header type
         writer.Write(flags);
         writer.Write((ushort)headerSize);
@@ -302,12 +302,12 @@ public class SRRWriter
         }
     }
 
-    private static void WriteRarFileBlock(BinaryWriter writer, string rarFileName)
+    private static void WriteRARFileBlock(BinaryWriter writer, string rarFileName)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(rarFileName);
-        ushort headerSize = (ushort)(SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.NameLengthFieldLength + nameBytes.Length); // base + nameLen + name
+        ushort headerSize = (ushort)(SRRBlockLayout.BaseHeaderSize + SRRBlockLayout.NameLengthFieldLength + nameBytes.Length); // base + nameLen + name
 
-        writer.Write(SrrBlockLayout.RARFileSentinel);      // CRC (SRR RAR file sentinel)
+        writer.Write(SRRBlockLayout.RARFileSentinel);      // CRC (SRR RAR file sentinel)
         writer.Write((byte)SRRBlockType.RARFile);          // RARFile type
         writer.Write((ushort)SRRBlockFlags.None);          // flags
         writer.Write(headerSize);
@@ -319,9 +319,9 @@ public class SRRWriter
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
         // pyrescene field order: fileSize, hash, nameLen, name
-        ushort headerSize = (ushort)(SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.OsoFileSizeLength + SrrBlockLayout.OsoHashLength + SrrBlockLayout.NameLengthFieldLength + nameBytes.Length);
+        ushort headerSize = (ushort)(SRRBlockLayout.BaseHeaderSize + SRRBlockLayout.OsoFileSizeLength + SRRBlockLayout.OsoHashLength + SRRBlockLayout.NameLengthFieldLength + nameBytes.Length);
 
-        writer.Write(SrrBlockLayout.OSOSentinel);          // CRC (SRR OSO hash sentinel)
+        writer.Write(SRRBlockLayout.OSOSentinel);          // CRC (SRR OSO hash sentinel)
         writer.Write((byte)SRRBlockType.OSOHash);          // OSOHash type
         writer.Write((ushort)SRRBlockFlags.None);          // flags
         writer.Write(headerSize);
@@ -335,7 +335,7 @@ public class SRRWriter
 
     #region RAR Volume Processing
 
-    private static void ProcessRarVolume(
+    private static void ProcessRARVolume(
         BinaryWriter writer,
         string volumePath,
         string volumeName,
@@ -344,27 +344,27 @@ public class SRRWriter
         CancellationToken ct)
     {
         // Write the SRR RAR file reference block
-        WriteRarFileBlock(writer, volumeName);
+        WriteRARFileBlock(writer, volumeName);
 
         // Open the RAR volume and extract headers
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(fs, Encoding.UTF8, leaveOpen: true);
 
         // Detect RAR version by checking marker
-        bool isRar5 = RARUtils.IsRar5Marker(fs);
+        bool isRAR5 = RARUtils.IsRAR5Marker(fs);
 
-        if (isRar5)
+        if (isRAR5)
         {
-            ProcessRar5Volume(writer, fs, reader, volumeName, result, ct);
+            ProcessRAR5Volume(writer, fs, reader, volumeName, result, ct);
         }
         else
         {
-            ProcessRar4Volume(writer, fs, reader, volumeName, options, result, ct);
+            ProcessRAR4Volume(writer, fs, reader, volumeName, options, result, ct);
         }
     }
 
 
-    private static void ProcessRar4Volume(
+    private static void ProcessRAR4Volume(
         BinaryWriter srrWriter,
         FileStream fs,
         BinaryReader reader,
@@ -374,14 +374,14 @@ public class SRRWriter
         CancellationToken ct)
     {
         // Read and copy RAR4 marker block (7 bytes)
-        if (fs.Length < RARUtils.Rar4Marker.Length)
+        if (fs.Length < RARUtils.RAR4Marker.Length)
         {
             result.Warnings.Add($"{volumeName}: File too small to contain RAR marker.");
             return;
         }
 
-        byte[] marker = reader.ReadBytes(RARUtils.Rar4Marker.Length);
-        if (!marker.AsSpan().SequenceEqual(Rar4Marker))
+        byte[] marker = reader.ReadBytes(RARUtils.RAR4Marker.Length);
+        if (!marker.AsSpan().SequenceEqual(RAR4Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR4 marker.");
             return;
@@ -395,7 +395,7 @@ public class SRRWriter
         {
             ct.ThrowIfCancellationRequested();
 
-            if (fs.Position + Rar4HeaderLayout.BaseHeaderSize > fs.Length)
+            if (fs.Position + RAR4HeaderLayout.BaseHeaderSize > fs.Length)
             {
                 break;
             }
@@ -408,7 +408,7 @@ public class SRRWriter
             ushort flags = reader.ReadUInt16();
             ushort headerSize = reader.ReadUInt16();
 
-            if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > fs.Length)
+            if (headerSize < RAR4HeaderLayout.BaseHeaderSize || blockStart + headerSize > fs.Length)
             {
                 break;
             }
@@ -426,7 +426,7 @@ public class SRRWriter
                 // ADD_SIZE is at offset 7 in the header, already part of headerSize bytes
                 // But we need to read it to know how much data to skip
                 // Seek to offset 7 in the header to read ADD_SIZE
-                fs.Position = blockStart + Rar4HeaderLayout.AddSize;
+                fs.Position = blockStart + RAR4HeaderLayout.AddSize;
                 addSize = reader.ReadUInt32();
             }
 
@@ -440,9 +440,9 @@ public class SRRWriter
             // >= 4 GiB packed entry, dropping every subsequent header (silently) or copying garbage.
             long fileDataSize = addSize;
             if ((blockType == RAR4BlockType.FileHeader || blockType == RAR4BlockType.Service) &&
-                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= Rar4HeaderLayout.HighPackSizeOffset + Rar4HeaderLayout.AddSizeFieldLength)
+                (flags & (ushort)RARFileFlags.Large) != 0 && headerSize >= RAR4HeaderLayout.HighPackSizeOffset + RAR4HeaderLayout.AddSizeFieldLength)
             {
-                uint highPackSize = BitConverter.ToUInt32(headerBytes, Rar4HeaderLayout.HighPackSizeOffset);
+                uint highPackSize = BitConverter.ToUInt32(headerBytes, RAR4HeaderLayout.HighPackSizeOffset);
                 fileDataSize = addSize | ((long)highPackSize << 32);
             }
 
@@ -457,7 +457,7 @@ public class SRRWriter
                     // Check compression if needed
                     if (!options.AllowCompressed)
                     {
-                        WarnIfRar4Compressed(headerBytes, headerSize, volumeName, result);
+                        WarnIfRAR4Compressed(headerBytes, headerSize, volumeName, result);
                     }
 
                     srrWriter.Write(headerBytes);
@@ -469,7 +469,7 @@ public class SRRWriter
                     srrWriter.Write(headerBytes);
                     if (fileDataSize > 0)
                     {
-                        if (IsRar4CmtServiceBlock(headerBytes, headerSize))
+                        if (IsRAR4CmtServiceBlock(headerBytes, headerSize))
                         {
                             // Copy CMT data verbatim (comments are never LARGE, so addSize suffices)
                             StreamUtilities.CopyBytes(fs, srrWriter.BaseStream, addSize);
@@ -507,24 +507,24 @@ public class SRRWriter
     /// <summary>
     /// Adds a warning when a RAR4 file-header block uses a compression method other than Store.
     /// </summary>
-    private static void WarnIfRar4Compressed(
+    private static void WarnIfRAR4Compressed(
         byte[] headerBytes, ushort headerSize, string volumeName, SRRCreationResult result)
     {
-        if (headerSize < Rar4HeaderLayout.Method + 1)
+        if (headerSize < RAR4HeaderLayout.Method + 1)
         {
             return;
         }
 
-        byte method = headerBytes[Rar4HeaderLayout.Method]; // METHOD field at offset 25
-        if (method == Rar4HeaderLayout.AsciiDigitZero) // 0x30 = Store
+        byte method = headerBytes[RAR4HeaderLayout.Method]; // METHOD field at offset 25
+        if (method == RAR4HeaderLayout.AsciiDigitZero) // 0x30 = Store
         {
             return;
         }
 
         // Parse filename for the warning message
-        int nameSize = BitConverter.ToUInt16(headerBytes, Rar4HeaderLayout.NameSize);
-        string fName = nameSize > 0 && Rar4HeaderLayout.FixedFieldsEnd + nameSize <= headerBytes.Length
-            ? Encoding.ASCII.GetString(headerBytes, Rar4HeaderLayout.FixedFieldsEnd, nameSize)
+        int nameSize = BitConverter.ToUInt16(headerBytes, RAR4HeaderLayout.NameSize);
+        string fName = nameSize > 0 && RAR4HeaderLayout.FixedFieldsEnd + nameSize <= headerBytes.Length
+            ? Encoding.ASCII.GetString(headerBytes, RAR4HeaderLayout.FixedFieldsEnd, nameSize)
             : "unknown";
         result.Warnings.Add($"{volumeName}: Compressed file detected ({fName}).");
     }
@@ -533,27 +533,27 @@ public class SRRWriter
     /// Determines whether a RAR4 service-block header is a CMT (comment) block, whose data
     /// must be preserved verbatim in the SRR.
     /// </summary>
-    private static bool IsRar4CmtServiceBlock(byte[] headerBytes, ushort headerSize)
+    private static bool IsRAR4CmtServiceBlock(byte[] headerBytes, ushort headerSize)
     {
         const int CmtSubTypeLength = 3;
 
         // Determine sub-type from header: name is at offset 32, name_size at offset 26
-        if (headerSize < Rar4HeaderLayout.FixedFieldsEnd + CmtSubTypeLength) // not enough to read 3-byte name
+        if (headerSize < RAR4HeaderLayout.FixedFieldsEnd + CmtSubTypeLength) // not enough to read 3-byte name
         {
             return false;
         }
 
-        int nameSize = BitConverter.ToUInt16(headerBytes, Rar4HeaderLayout.NameSize);
-        if (nameSize != CmtSubTypeLength || Rar4HeaderLayout.FixedFieldsEnd + CmtSubTypeLength > headerBytes.Length)
+        int nameSize = BitConverter.ToUInt16(headerBytes, RAR4HeaderLayout.NameSize);
+        if (nameSize != CmtSubTypeLength || RAR4HeaderLayout.FixedFieldsEnd + CmtSubTypeLength > headerBytes.Length)
         {
             return false;
         }
 
-        string subType = Encoding.ASCII.GetString(headerBytes, Rar4HeaderLayout.FixedFieldsEnd, CmtSubTypeLength);
+        string subType = Encoding.ASCII.GetString(headerBytes, RAR4HeaderLayout.FixedFieldsEnd, CmtSubTypeLength);
         return string.Equals(subType, "CMT", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void ProcessRar5Volume(
+    private static void ProcessRAR5Volume(
         BinaryWriter srrWriter,
         FileStream fs,
         BinaryReader reader,
@@ -562,14 +562,14 @@ public class SRRWriter
         CancellationToken ct)
     {
         // Read and copy RAR5 marker (8 bytes)
-        if (fs.Length < RARUtils.Rar5Marker.Length)
+        if (fs.Length < RARUtils.RAR5Marker.Length)
         {
             result.Warnings.Add($"{volumeName}: File too small to contain RAR5 marker.");
             return;
         }
 
-        byte[] marker = reader.ReadBytes(RARUtils.Rar5Marker.Length);
-        if (!marker.AsSpan().SequenceEqual(Rar5Marker))
+        byte[] marker = reader.ReadBytes(RARUtils.RAR5Marker.Length);
+        if (!marker.AsSpan().SequenceEqual(RAR5Marker))
         {
             result.Warnings.Add($"{volumeName}: Invalid RAR5 marker.");
             return;

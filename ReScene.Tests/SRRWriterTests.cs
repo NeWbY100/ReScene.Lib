@@ -15,7 +15,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_WritesCorrectSRRHeader()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -30,7 +30,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_WritesAppName()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -46,7 +46,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_NoAppName_OmitsAppName()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -62,7 +62,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_DefaultAppName_IsReSceneNET()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -79,7 +79,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_WithStoredFiles_EmbedsFiles()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string sfvPath = CreateTextFile("release.sfv", "test.rar DEADBEEF\r\n");
         string nfoPath = CreateTextFile("release.nfo", "Release info\r\n");
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -105,7 +105,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_StoredFileContent_IsPreserved()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string content = "test.rar DEADBEEF\r\n";
         string sfvPath = CreateTextFile("release.sfv", content);
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -129,14 +129,14 @@ public class SRRWriterTests : TempDirTestBase
     #region RAR4 Header Extraction Tests
 
     [Fact]
-    public async Task CreateAsync_WithRealRar4File_ExtractsHeaders()
+    public async Task CreateAsync_WithRealRAR4File_ExtractsHeaders()
     {
         // Use a real RAR test file if available
         string rarPath = Path.Combine(_testDataDir, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
         {
             // Fall back to synthetic RAR
-            rarPath = CreateMinimalRar4File("test.rar");
+            rarPath = CreateMinimalRAR4File("test.rar");
         }
 
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -153,9 +153,9 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_Rar4_PreservesArchivedFileNames()
+    public async Task CreateAsync_RAR4_PreservesArchivedFileNames()
     {
-        string rarPath = CreateMinimalRar4File("test.rar", "testfile.txt");
+        string rarPath = CreateMinimalRAR4File("test.rar", "testfile.txt");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -166,9 +166,9 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_Rar4_PreservesRarFileName()
+    public async Task CreateAsync_RAR4_PreservesRARFileName()
     {
-        string rarPath = CreateMinimalRar4File("release.rar");
+        string rarPath = CreateMinimalRAR4File("release.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -186,9 +186,9 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_MultipleVolumes_ProcessesAll()
     {
-        string rar1 = CreateMinimalRar4File("release.rar", "file.dat",
+        string rar1 = CreateMinimalRAR4File("release.rar", "file.dat",
             archiveFlags: RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume | RARArchiveFlags.NewNumbering);
-        string rar2 = CreateMinimalRar4File("release.r00", "file.dat",
+        string rar2 = CreateMinimalRAR4File("release.r00", "file.dat",
             archiveFlags: RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering,
             fileFlags: RARFileFlags.LongBlock | RARFileFlags.ExtTime | RARFileFlags.SplitBefore | RARFileFlags.SplitAfter);
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -222,7 +222,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_MissingRarFile_Fails()
+    public async Task CreateAsync_MissingRARFile_Fails()
     {
         string srrPath = Path.Combine(TempDir, "output.srr");
 
@@ -236,7 +236,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_MissingStoredFile_Fails()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         List<StoredFileEntry> storedFiles = [new("test.sfv", "/nonexistent/test.sfv")];
@@ -251,7 +251,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_Cancellation_StopsAndCleansUp()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         using var cts = new CancellationTokenSource();
@@ -272,7 +272,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_ReportsProgress()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var progressMessages = new List<string>();
@@ -290,10 +290,10 @@ public class SRRWriterTests : TempDirTestBase
     #region SFV Parsing Tests
 
     [Fact]
-    public async Task CreateFromSFVAsync_FindsRarVolumes()
+    public async Task CreateFromSFVAsync_FindsRARVolumes()
     {
         // Create RAR files and an SFV referencing them
-        string rar1 = CreateMinimalRar4File("release.rar");
+        string rar1 = CreateMinimalRAR4File("release.rar");
         string sfvContent = $"release.rar DEADBEEF\r\n";
         string sfvPath = CreateTextFile("release.sfv", sfvContent);
         string srrPath = Path.Combine(TempDir, "output.srr");
@@ -325,7 +325,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateFromSFVAsync_NoRarInSFV_Fails()
+    public async Task CreateFromSFVAsync_NoRARInSFV_Fails()
     {
         string sfvContent = "; Only comments\n; No files\n";
         string sfvPath = CreateTextFile("empty.sfv", sfvContent);
@@ -343,7 +343,7 @@ public class SRRWriterTests : TempDirTestBase
     #region Volume Name Sorting Tests
 
     [Fact]
-    public void CompareRarVolumeNames_OldStyle_SortsCorrectly()
+    public void CompareRARVolumeNames_OldStyle_SortsCorrectly()
     {
         var files = new List<string>
         {
@@ -359,7 +359,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public void CompareRarVolumeNames_NewStyle_SortsCorrectly()
+    public void CompareRARVolumeNames_NewStyle_SortsCorrectly()
     {
         var files = new List<string>
         {
@@ -378,10 +378,10 @@ public class SRRWriterTests : TempDirTestBase
     #region Round-Trip Tests
 
     [Fact]
-    public async Task RoundTrip_Rar4_HeadersPreserved()
+    public async Task RoundTrip_RAR4_HeadersPreserved()
     {
         // Create a RAR4 file with specific metadata, create SRR, read back, verify
-        string rarPath = CreateMinimalRar4File("test.rar", "sample.txt",
+        string rarPath = CreateMinimalRAR4File("test.rar", "sample.txt",
             hostOS: 2, method: 0x33, fileCRC: 0xAABBCCDD, unpVer: 29);
         string srrPath = Path.Combine(TempDir, "roundtrip.srr");
 
@@ -403,7 +403,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task RoundTrip_WithStoredFiles_AllPreserved()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string sfvContent = "test.rar DEADBEEF\r\n";
         string nfoContent = "Release NFO\r\n";
         string sfvPath = CreateTextFile("release.sfv", sfvContent);
@@ -437,7 +437,7 @@ public class SRRWriterTests : TempDirTestBase
     public async Task RoundTrip_SRRFileSize_IsReasonable()
     {
         // SRR should be much smaller than the original RAR (headers only, no file data)
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "size_check.srr");
 
         var writer = new SRRWriter();
@@ -450,7 +450,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task RoundTrip_WithRealRarFiles_Succeeds()
+    public async Task RoundTrip_WithRealRARFiles_Succeeds()
     {
         // Test with actual RAR test files from the test data directory
         string[] testFiles = ["test_wrar40_m3.rar", "test_wrar40_m0.rar", "test_wrar35_m3.rar"];
@@ -485,7 +485,7 @@ public class SRRWriterTests : TempDirTestBase
     /// <summary>
     /// Creates a minimal synthetic RAR4 file with marker, archive header, file header with data, and end block.
     /// </summary>
-    private string CreateMinimalRar4File(
+    private string CreateMinimalRAR4File(
         string fileName,
         string archivedFileName = "testfile.txt",
         byte hostOS = 2,
@@ -503,21 +503,21 @@ public class SRRWriterTests : TempDirTestBase
         writer.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 });
 
         // Archive header (13 bytes)
-        WriteRar4ArchiveHeader(writer, archiveFlags);
+        WriteRAR4ArchiveHeader(writer, archiveFlags);
 
         // File header with fake data
         byte[] fakeData = "This is fake packed data for testing."u8.ToArray();
-        WriteRar4FileHeader(writer, archivedFileName, (uint)fakeData.Length, (uint)fakeData.Length,
+        WriteRAR4FileHeader(writer, archivedFileName, (uint)fakeData.Length, (uint)fakeData.Length,
             hostOS, fileCRC, unpVer, method, fileFlags);
         writer.Write(fakeData); // packed data
 
         // End of archive
-        WriteRar4EndArchive(writer);
+        WriteRAR4EndArchive(writer);
 
         return path;
     }
 
-    private static void WriteRar4ArchiveHeader(BinaryWriter writer, RARArchiveFlags flags)
+    private static void WriteRAR4ArchiveHeader(BinaryWriter writer, RARArchiveFlags flags)
     {
         ushort headerSize = 13;
         byte[] header = new byte[headerSize];
@@ -532,7 +532,7 @@ public class SRRWriterTests : TempDirTestBase
         writer.Write(header);
     }
 
-    private static void WriteRar4FileHeader(BinaryWriter writer, string fileName,
+    private static void WriteRAR4FileHeader(BinaryWriter writer, string fileName,
         uint packedSize, uint unpackedSize, byte hostOS, uint fileCRC, byte unpVer, byte method,
         RARFileFlags flags)
     {
@@ -570,7 +570,7 @@ public class SRRWriterTests : TempDirTestBase
         writer.Write(header);
     }
 
-    private static void WriteRar4EndArchive(BinaryWriter writer)
+    private static void WriteRAR4EndArchive(BinaryWriter writer)
     {
         ushort headerSize = 7;
         byte[] header = new byte[headerSize];
@@ -597,10 +597,10 @@ public class SRRWriterTests : TempDirTestBase
     #region AllowCompressed Option Tests
 
     [Fact]
-    public async Task CreateAsync_AllowCompressedFalse_StoreMethodRar_Succeeds()
+    public async Task CreateAsync_AllowCompressedFalse_StoreMethodRAR_Succeeds()
     {
         // method 0x30 = Store, should succeed even with AllowCompressed=false
-        string rarPath = CreateMinimalRar4File("store.rar", "file.txt", method: 0x30);
+        string rarPath = CreateMinimalRAR4File("store.rar", "file.txt", method: 0x30);
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -612,10 +612,10 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_AllowCompressedFalse_CompressedRar_AddsWarning()
+    public async Task CreateAsync_AllowCompressedFalse_CompressedRAR_AddsWarning()
     {
         // method 0x33 = Normal compression, AllowCompressed=false should add warning
-        string rarPath = CreateMinimalRar4File("compressed.rar", "file.txt", method: 0x33);
+        string rarPath = CreateMinimalRAR4File("compressed.rar", "file.txt", method: 0x33);
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -630,10 +630,10 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_AllowCompressedTrue_CompressedRar_NoWarning()
+    public async Task CreateAsync_AllowCompressedTrue_CompressedRAR_NoWarning()
     {
         // With AllowCompressed=true (default), compressed files should produce no warnings
-        string rarPath = CreateMinimalRar4File("compressed.rar", "file.txt", method: 0x33);
+        string rarPath = CreateMinimalRAR4File("compressed.rar", "file.txt", method: 0x33);
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -645,7 +645,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_AllowCompressedFalse_WithRealCompressedRar_AddsWarning()
+    public async Task CreateAsync_AllowCompressedFalse_WithRealCompressedRAR_AddsWarning()
     {
         string rarPath = Path.Combine(_testDataDir, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
@@ -665,7 +665,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_AllowCompressedFalse_WithRealStoreRar_NoWarning()
+    public async Task CreateAsync_AllowCompressedFalse_WithRealStoreRAR_NoWarning()
     {
         string rarPath = Path.Combine(_testDataDir, "test_wrar40_m0.rar");
         if (!File.Exists(rarPath))
@@ -690,7 +690,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_StorePathsTrue_PreservesDirectoryInStoredFileName()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string sfvPath = CreateTextFile("release.sfv", "test.rar DEADBEEF\r\n");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
@@ -720,7 +720,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_ComputeOSOHashesFalse_NoOSOBlocks()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -738,7 +738,7 @@ public class SRRWriterTests : TempDirTestBase
         // OSO hashing IS implemented (see CreateAsync_ComputeOSOHashes... over a >=64 KiB fixture).
         // A minimal RAR file is below OSOHashCalculator.MinFileSize (64 KiB), so no OSO block is
         // emitted even with ComputeOSOHashes=true — creation still succeeds.
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -769,7 +769,7 @@ public class SRRWriterTests : TempDirTestBase
 
         // Deterministic content so the oracle and the SUT agree on the expected hash bytes.
         byte[] content = BuildOsoContentPattern(ChunkSize, seed: 0x1234);
-        string rarPath = CreateLargeStoredRar4("clip.rar", ArchivedFileName, content);
+        string rarPath = CreateLargeStoredRAR4("clip.rar", ArchivedFileName, content);
         string srrPath = Path.Combine(TempDir, "oso_framing.srr");
 
         var writer = new SRRWriter();
@@ -831,19 +831,19 @@ public class SRRWriterTests : TempDirTestBase
     /// data is <paramref name="content"/>. <c>OSOHashCalculator</c> only hashes stored entries
     /// of at least 64 KiB, so the caller must supply at least 65 536 bytes.
     /// </summary>
-    private string CreateLargeStoredRar4(string rarFileName, string archivedFileName, byte[] content)
+    private string CreateLargeStoredRAR4(string rarFileName, string archivedFileName, byte[] content)
     {
         string path = Path.Combine(TempDir, rarFileName);
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
         using var bw = new BinaryWriter(fs);
 
         bw.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 }); // RAR4 marker
-        WriteRar4ArchiveHeader(bw, RARArchiveFlags.None);
-        WriteRar4FileHeader(bw, archivedFileName, (uint)content.Length, (uint)content.Length,
+        WriteRAR4ArchiveHeader(bw, RARArchiveFlags.None);
+        WriteRAR4FileHeader(bw, archivedFileName, (uint)content.Length, (uint)content.Length,
             hostOS: 2, fileCRC: 0, unpVer: 29, method: 0x30 /* Store */,
             flags: RARFileFlags.LongBlock);
         bw.Write(content);
-        WriteRar4EndArchive(bw);
+        WriteRAR4EndArchive(bw);
 
         return path;
     }
@@ -853,7 +853,7 @@ public class SRRWriterTests : TempDirTestBase
     #region RAR5 Volume Tests
 
     [Fact]
-    public async Task CreateAsync_WithRar5File_ExtractsHeaders()
+    public async Task CreateAsync_WithRAR5File_ExtractsHeaders()
     {
         string rarPath = Path.Combine(_testDataDir, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
@@ -877,7 +877,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_WithRar5M5File_ExtractsHeaders()
+    public async Task CreateAsync_WithRAR5M5File_ExtractsHeaders()
     {
         string rarPath = Path.Combine(_testDataDir, "test_rar5_m5.rar");
         if (!File.Exists(rarPath))
@@ -900,7 +900,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_WithRar5File_SetsRarVersion50()
+    public async Task CreateAsync_WithRAR5File_SetsRARVersion50()
     {
         string rarPath = Path.Combine(_testDataDir, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
@@ -924,7 +924,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_EmptyAppName_WritesHeaderWithAppNameFlag()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -942,7 +942,7 @@ public class SRRWriterTests : TempDirTestBase
     [Fact]
     public async Task CreateAsync_NullAppName_OmitsAppNameFromHeader()
     {
-        string rarPath = CreateMinimalRar4File("test.rar");
+        string rarPath = CreateMinimalRAR4File("test.rar");
         string srrPath = Path.Combine(TempDir, "output.srr");
 
         var writer = new SRRWriter();
@@ -959,7 +959,7 @@ public class SRRWriterTests : TempDirTestBase
 
     #region Large Entry Handling (HIGH_PACK_SIZE)
 
-    private static void WriteRar4LargeFileHeader(BinaryWriter writer, string fileName,
+    private static void WriteRAR4LargeFileHeader(BinaryWriter writer, string fileName,
         uint packedSizeLow, uint packedSizeHigh)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
@@ -990,7 +990,7 @@ public class SRRWriterTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_Rar4LargeEntry_SkipsFull64BitSize_DoesNotMisparseTrailingHeaders()
+    public async Task CreateAsync_RAR4LargeEntry_SkipsFull64BitSize_DoesNotMisparseTrailingHeaders()
     {
         // A LARGE (>= 4 GiB) packed entry: HIGH_PACK_SIZE=1, ADD_SIZE=0 => 4 GiB of packed data.
         // The writer must skip the full 64-bit size before parsing the next header. Reading only
@@ -1001,11 +1001,11 @@ public class SRRWriterTests : TempDirTestBase
         using (var writer = new BinaryWriter(fs))
         {
             writer.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00 });
-            WriteRar4ArchiveHeader(writer, RARArchiveFlags.None);
-            WriteRar4LargeFileHeader(writer, "big.bin", packedSizeLow: 0, packedSizeHigh: 1);
+            WriteRAR4ArchiveHeader(writer, RARArchiveFlags.None);
+            WriteRAR4LargeFileHeader(writer, "big.bin", packedSizeLow: 0, packedSizeHigh: 1);
             // "second.bin" sits 4 GiB downstream in a real archive; here it is not preceded by data.
-            WriteRar4FileHeader(writer, "second.bin", 0, 0, 2, 0xCAFEBABE, 29, 0x30, RARFileFlags.LongBlock);
-            WriteRar4EndArchive(writer);
+            WriteRAR4FileHeader(writer, "second.bin", 0, 0, 2, 0xCAFEBABE, 29, 0x30, RARFileFlags.LongBlock);
+            WriteRAR4EndArchive(writer);
         }
 
         string srrPath = Path.Combine(TempDir, "large.srr");

@@ -33,7 +33,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_StoreLittle_HasOneRarFile()
+    public void Load_StoreLittle_HasOneRARFile()
     {
         var srr = SRRFile.Load(TestFile("store_little", "store_little.srr"));
 
@@ -91,7 +91,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_StoreLittle_RarVersionIs20()
+    public void Load_StoreLittle_RARVersionIs20()
     {
         var srr = SRRFile.Load(TestFile("store_little", "store_little.srr"));
 
@@ -156,7 +156,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     #region store_empty
 
     [Fact]
-    public void Load_StoreEmpty_HasOneRarFile()
+    public void Load_StoreEmpty_HasOneRARFile()
     {
         var srr = SRRFile.Load(TestFile("store_empty", "store_empty.srr"));
 
@@ -196,7 +196,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     #region store_rr_solid_auth_unicode_new
 
     [Fact]
-    public void Load_StoreRrSolidAuth_HasOneRarFile()
+    public void Load_StoreRrSolidAuth_HasOneRARFile()
     {
         var srr = SRRFile.Load(TestFile("store_rr_solid_auth_unicode_new", "store_rr_solid_auth.part1.srr"));
 
@@ -252,7 +252,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     #region store_split_folder_old_srrsfv_windows
 
     [Fact]
-    public void Load_StoreSplitFolder_HasThreeRarFiles()
+    public void Load_StoreSplitFolder_HasThreeRARFiles()
     {
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr"));
 
@@ -331,7 +331,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_WinRar280_HeaderOnly()
+    public void Load_WinRAR280_HeaderOnly()
     {
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "winrar2.80.srr"));
 
@@ -364,7 +364,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_StoreUtf8Comment_HasOneRarFile()
+    public void Load_StoreUtf8Comment_HasOneRARFile()
     {
         var srr = SRRFile.Load(TestFile("store_utf8_comment", "store_utf8_comment.srr"));
 
@@ -415,7 +415,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     [InlineData("Burial.Ground.The.Nights.of.Terror.1981.DVDRip.XviD-spawny.srr", 37)]
     [InlineData("Hofmanns.Potion.2002.DVDRip.XviD-belos.srr", 49)]
     [InlineData("Zombi.Holocaust.1980.DVDRip.XviD-spawny.srr", 37)]
-    public void Load_NoFilesStored_HasExpectedRarFileCount(string fileName, int expectedCount)
+    public void Load_NoFilesStored_HasExpectedRARFileCount(string fileName, int expectedCount)
     {
         var srr = SRRFile.Load(TestFile("no_files_stored", fileName));
 
@@ -492,7 +492,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_IncompleteSRR_ParsesAvailableRarFiles()
+    public void Load_IncompleteSRR_ParsesAvailableRARFiles()
     {
         var srr = SRRFile.Load(TestFile("incomplete_srr",
             "Shark.Week.2012.Shark.Fight.HDTV.x264-KILLERS.srr"));
@@ -557,7 +557,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_HashCapitals_BothHaveSameRarFileCount()
+    public void Load_HashCapitals_BothHaveSameRARFileCount()
     {
         var srrLower = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr"));
@@ -606,7 +606,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_HashCapitals_Capitals_HasMixedCaseRarFileNames()
+    public void Load_HashCapitals_Capitals_HasMixedCaseRARFileNames()
     {
         var srr = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_capitals.srr"));
@@ -619,7 +619,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_HashCapitals_AllLower_HasAllLowercaseRarFileNames()
+    public void Load_HashCapitals_AllLower_HasAllLowercaseRARFileNames()
     {
         var srr = SRRFile.Load(TestFile("hash_capitals",
             "Parlamentet.S06E02.SWEDiSH-SQC_alllower.srr"));
@@ -667,7 +667,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_CleanupScript_007ViewToAKill_Has98RarFiles()
+    public void Load_CleanupScript_007ViewToAKill_Has98RARFiles()
     {
         var srr = SRRFile.Load(TestFile("cleanup_script",
             "007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr"));
@@ -696,7 +696,7 @@ public class SRRFileRealDataTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_CleanupScript_007QuantumOfSolace_HasSubdirectoryRarFile()
+    public void Load_CleanupScript_007QuantumOfSolace_HasSubdirectoryRARFile()
     {
         var srr = SRRFile.Load(TestFile("cleanup_script",
             "007.Quantum.Of.Solace.DVDRip.XViD-PUKKA.cleanup_script.srr"));

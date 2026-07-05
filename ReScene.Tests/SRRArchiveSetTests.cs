@@ -2,7 +2,7 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SrrArchiveSetTests
+public class SRRArchiveSetTests
 {
     [Theory]
     [InlineData("DVD1\\aln-re4a.rar", "DVD1/aln-re4a")]
@@ -21,8 +21,8 @@ public class SrrArchiveSetTests
         var srr = SRRFile.Load("TestData/cleanup_script/007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr");
 
         Assert.Equal(2, srr.ArchiveSets.Count);
-        SrrArchiveSet cd1 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd1", StringComparison.OrdinalIgnoreCase));
-        SrrArchiveSet cd2 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd2", StringComparison.OrdinalIgnoreCase));
+        SRRArchiveSet cd1 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd1", StringComparison.OrdinalIgnoreCase));
+        SRRArchiveSet cd2 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd2", StringComparison.OrdinalIgnoreCase));
 
         // Each set's volumes all share its base name; the two sets are disjoint.
         Assert.NotEmpty(cd1.VolumeNames);
@@ -38,7 +38,7 @@ public class SrrArchiveSetTests
         var srr = SRRFile.Load("TestData/store_little/store_little.srr");
 
         Assert.Single(srr.ArchiveSets);
-        SrrArchiveSet only = srr.ArchiveSets[0];
+        SRRArchiveSet only = srr.ArchiveSets[0];
         Assert.Equal(srr.ArchivedFiles.OrderBy(x => x), only.ArchivedFiles.OrderBy(x => x));
         Assert.Equal(
             srr.ArchivedFileCrcs.OrderBy(kv => kv.Key),
@@ -56,7 +56,7 @@ public class SrrArchiveSetTests
         var srr = SRRFile.Load("TestData/cleanup_script/007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr");
 
         Assert.NotEmpty(srr.ArchiveSets);
-        foreach (SrrArchiveSet set in srr.ArchiveSets)
+        foreach (SRRArchiveSet set in srr.ArchiveSets)
         {
             foreach (string file in set.ArchivedFiles)
             {
@@ -79,7 +79,7 @@ public class SrrArchiveSetTests
         // whose RARFile blocks carry a directory prefix, or verify root volumes yield "".
         var srr = SRRFile.Load("TestData/cleanup_script/007.A.View.To.A.Kill.1985.UE.iNTERNAL.DVDRip.XviD-iNCiTE.fine_2cd.srr");
 
-        foreach (SrrArchiveSet set in srr.ArchiveSets)
+        foreach (SRRArchiveSet set in srr.ArchiveSets)
         {
             // Directory must never contain backslashes.
             Assert.DoesNotContain('\\', set.Directory);

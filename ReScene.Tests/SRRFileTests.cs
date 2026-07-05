@@ -153,11 +153,11 @@ public class SRRFileTests : TempDirTestBase
     #region RAR File Reference and Embedded Header Tests
 
     [Fact]
-    public void Load_RarFileBlock_ParsesRarFileName()
+    public void Load_RARFileBlock_ParsesRARFileName()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("testfile.txt")
@@ -172,11 +172,11 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_EmbeddedRarHeaders_ExtractsFileEntries()
+    public void Load_EmbeddedRARHeaders_ExtractsFileEntries()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("sample.txt", packedSize: 500, unpackedSize: 1024)
@@ -190,11 +190,11 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_EmbeddedRarHeaders_ExtractsCompressionMethod()
+    public void Load_EmbeddedRARHeaders_ExtractsCompressionMethod()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", method: 0x35) // Best compression
@@ -210,11 +210,11 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_EmbeddedRarHeaders_DetectsHostOS()
+    public void Load_EmbeddedRARHeaders_DetectsHostOS()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", hostOS: 3) // Unix
@@ -239,7 +239,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", hostOS: hostOS)
@@ -254,11 +254,11 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_EmbeddedRarHeaders_DetectsFileAttributes()
+    public void Load_EmbeddedRARHeaders_DetectsFileAttributes()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", fileAttributes: 0x000081B4) // Unix mode
@@ -272,11 +272,11 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_EmbeddedRarHeaders_DetectsUnpackVersion()
+    public void Load_EmbeddedRARHeaders_DetectsUnpackVersion()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", unpVer: 29)
@@ -294,7 +294,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume)
                        .AddFileHeader("file.dat")
@@ -314,7 +314,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Solid)
                        .AddFileHeader("file.dat")
@@ -332,7 +332,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Protected)
                        .AddFileHeader("file.dat")
@@ -356,7 +356,7 @@ public class SRRFileTests : TempDirTestBase
 
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -376,7 +376,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", hostOS: 2) // File: Windows
@@ -397,7 +397,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -419,7 +419,7 @@ public class SRRFileTests : TempDirTestBase
         uint dosTime = 0x5A8E3100; // Some non-zero DOS time
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -440,7 +440,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -459,7 +459,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -500,11 +500,11 @@ public class SRRFileTests : TempDirTestBase
     #region RAR Padding Tests
 
     [Fact]
-    public void Load_RarPaddingBlock_ParsesCorrectly()
+    public void Load_RARPaddingBlock_ParsesCorrectly()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarPadding("release.r00", 512)
+            .AddRARPadding("release.r00", 512)
             .BuildToFile(TempDir, "padding.srr");
 
         var srr = SRRFile.Load(path);
@@ -519,17 +519,17 @@ public class SRRFileTests : TempDirTestBase
     #region Volume Size Detection Tests
 
     [Fact]
-    public void Load_MultipleRarVolumes_CalculatesVolumeSize()
+    public void Load_MultipleRARVolumes_CalculatesVolumeSize()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
                        .AddFileHeader("file.dat", packedSize: 5000)
                        .AddEndArchive();
             })
-            .AddRarFileWithHeaders("release.r00", headers =>
+            .AddRARFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 5000, extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore | RARFileFlags.SplitAfter)
@@ -553,7 +553,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("subdir\\", isDirectory: true, packedSize: 0, unpackedSize: 0)
@@ -579,7 +579,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file1.txt", fileCRC: 0xAABBCCDD)
@@ -624,7 +624,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("FILE.TXT", fileCRC: 0x12345678)
@@ -676,7 +676,7 @@ public class SRRFileTests : TempDirTestBase
             .AddSRRHeader("TestApp 1.0")
             .AddStoredFile("release.sfv", sfvData)
             .AddOSOHash("video.avi", 734003200, osoHash)
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.FirstVolume)
                        .AddFileHeader("video.avi", hostOS: 2, unpVer: 29, method: 0x33, fileCRC: 0xDEADBEEF)
@@ -723,7 +723,7 @@ public class SRRFileTests : TempDirTestBase
         // but the raw compressed data and method should still be captured
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -808,24 +808,24 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_MultipleRarVolumes_PreservesOrdering()
+    public void Load_MultipleRARVolumes_PreservesOrdering()
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
                        .AddFileHeader("file.dat", packedSize: 5000)
                        .AddEndArchive();
             })
-            .AddRarFileWithHeaders("release.r00", headers =>
+            .AddRARFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 5000,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
-            .AddRarFileWithHeaders("release.r01", headers =>
+            .AddRARFileWithHeaders("release.r01", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 5000,
@@ -849,7 +849,7 @@ public class SRRFileTests : TempDirTestBase
         // Build an SRR with a valid RAR file reference, then corrupt the embedded header CRC
         byte[] srrData = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -899,7 +899,7 @@ public class SRRFileTests : TempDirTestBase
         // Zeroed: CMT block with fileTimeDOS = 0
         string pathZeroed = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -914,7 +914,7 @@ public class SRRFileTests : TempDirTestBase
         // Preserved: CMT block with non-zero fileTimeDOS
         string pathPreserved = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat")
@@ -936,7 +936,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", h =>
+            .AddRARFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
                 h.AddFileHeader("video.avi", packedSize: 1024, unpackedSize: 1024);
@@ -956,7 +956,7 @@ public class SRRFileTests : TempDirTestBase
         // Sentinel 1: unpacked_size = 0xFFFFFFFFFFFFFFFF (RELOADED/HI2U/0x0007/0x0815 style)
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", h =>
+            .AddRARFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
                 h.AddFileHeaderWithLargeSize("video.avi",
@@ -978,7 +978,7 @@ public class SRRFileTests : TempDirTestBase
         // Sentinel 2: unpacked_size = 0xFFFFFFFF without LARGE flag (QCF style)
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", h =>
+            .AddRARFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
                 h.AddFileHeader("video.avi",
@@ -1002,7 +1002,7 @@ public class SRRFileTests : TempDirTestBase
         // This is a valid ~4GB file, NOT a custom packer sentinel
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", h =>
+            .AddRARFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
                 h.AddFileHeaderWithLargeSize("video.avi",
@@ -1025,7 +1025,7 @@ public class SRRFileTests : TempDirTestBase
         // Detection should trigger even if only the second file header has the sentinel
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", h =>
+            .AddRARFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
                 h.AddFileHeader("readme.nfo", packedSize: 100, unpackedSize: 100);
@@ -1048,7 +1048,7 @@ public class SRRFileTests : TempDirTestBase
         // Directory entries should not trigger detection (directories often have size=0 or garbage)
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", h =>
+            .AddRARFileWithHeaders("release.rar", h =>
             {
                 h.AddArchiveHeader(RARArchiveFlags.Volume);
                 h.AddFileHeader("subdir",
@@ -1072,9 +1072,9 @@ public class SRRFileTests : TempDirTestBase
     #region RAR5 Embedded Header Tests
 
     [Fact]
-    public void Load_Rar5Headers_DetectsRarVersion50()
+    public void Load_RAR5Headers_DetectsRARVersion50()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "sample.txt",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.rar", "sample.txt",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(TempDir, "rar5_version.srr");
@@ -1086,9 +1086,9 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_Rar5Headers_ExtractsArchivedFileName()
+    public void Load_RAR5Headers_ExtractsArchivedFileName()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "video.avi",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.rar", "video.avi",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(TempDir, "rar5_filename.srr");
@@ -1100,9 +1100,9 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_Rar5Headers_ExtractsFileCRC()
+    public void Load_RAR5Headers_ExtractsFileCRC()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.rar", "file.dat",
             fileFlags: (ulong)RAR5FileFlags.TimePresent | (ulong)RAR5FileFlags.CRC32Present,
             fileCRC: 0xAABBCCDD);
 
@@ -1116,9 +1116,9 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_Rar5Headers_ParsesRarFileBlockName()
+    public void Load_RAR5Headers_ParsesRARFileBlockName()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.part01.rar", "data.bin",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.part01.rar", "data.bin",
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
         string path = Path.Combine(TempDir, "rar5_rarfile.srr");
@@ -1131,9 +1131,9 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_Rar5VolumeFlagSet_DetectsVolumeArchive()
+    public void Load_RAR5VolumeFlagSet_DetectsVolumeArchive()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.rar", "file.dat",
             archiveFlags: 0x0001,
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
@@ -1146,9 +1146,9 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_Rar5SolidFlagSet_DetectsSolidArchive()
+    public void Load_RAR5SolidFlagSet_DetectsSolidArchive()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.rar", "file.dat",
             archiveFlags: 0x0004,
             fileFlags: (ulong)RAR5FileFlags.CRC32Present);
 
@@ -1161,9 +1161,9 @@ public class SRRFileTests : TempDirTestBase
     }
 
     [Fact]
-    public void Load_Rar5SplitFlags_DetectsCorrectly()
+    public void Load_RAR5SplitFlags_DetectsCorrectly()
     {
-        byte[] srrData = BuildSRRWithRar5FileHeader("release.rar", "file.dat",
+        byte[] srrData = BuildSRRWithRAR5FileHeader("release.rar", "file.dat",
             fileFlags: (ulong)RAR5FileFlags.CRC32Present,
             headerFlags: (ulong)RAR5HeaderFlags.SplitAfter);
 
@@ -1184,7 +1184,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.txt", fileTimeDOS: 0x5A8E3100)
@@ -1220,7 +1220,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file1.txt", fileTimeDOS: 0x5A8E3100)
@@ -1246,7 +1246,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("subdir\\", isDirectory: true, packedSize: 0, unpackedSize: 0, fileTimeDOS: 0x5A8E3100)
@@ -1287,7 +1287,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeaderWithLargeSize("bigfile.dat",
@@ -1308,7 +1308,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeaderWithLargeSize("bigfile.dat",
@@ -1329,7 +1329,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeaderWithLargeSize("bigfile.dat",
@@ -1349,7 +1349,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("small.txt", packedSize: 100, unpackedSize: 200)
@@ -1373,14 +1373,14 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
                        .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x11111111,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
-            .AddRarFileWithHeaders("release.r00", headers =>
+            .AddRARFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x22222222,
@@ -1400,7 +1400,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.r00", headers =>
+            .AddRARFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0xAABBCCDD,
@@ -1419,21 +1419,21 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
                        .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x11111111,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
-            .AddRarFileWithHeaders("release.r00", headers =>
+            .AddRARFileWithHeaders("release.r00", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 5000, fileCRC: 0x22222222,
                            extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore | RARFileFlags.SplitAfter)
                        .AddEndArchive();
             })
-            .AddRarFileWithHeaders("release.r01", headers =>
+            .AddRARFileWithHeaders("release.r01", headers =>
             {
                 headers.AddArchiveHeader(RARArchiveFlags.Volume)
                        .AddFileHeader("file.dat", packedSize: 3000, fileCRC: 0x33333333,
@@ -1453,7 +1453,7 @@ public class SRRFileTests : TempDirTestBase
     {
         string path = new SRRTestDataBuilder()
             .AddSRRHeader()
-            .AddRarFileWithHeaders("release.rar", headers =>
+            .AddRARFileWithHeaders("release.rar", headers =>
             {
                 headers.AddArchiveHeader()
                        .AddFileHeader("file.dat", fileCRC: 0xDEADBEEF)
@@ -1473,7 +1473,7 @@ public class SRRFileTests : TempDirTestBase
     /// <summary>
     /// Builds an SRR file containing a RAR5 file block with basic file header.
     /// </summary>
-    private static byte[] BuildSRRWithRar5FileHeader(
+    private static byte[] BuildSRRWithRAR5FileHeader(
         string rarFileName, string archivedFileName,
         ulong archiveFlags = 0, ulong fileFlags = 0,
         uint fileCRC = 0xDEADBEEF, ulong headerFlags = 0)
@@ -1501,7 +1501,7 @@ public class SRRFileTests : TempDirTestBase
         w.Write(new byte[] { 0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00 });
 
         // RAR5 Main archive header
-        WriteRar5Block(w, RAR5BlockType.Main, 0, mainMs =>
+        WriteRAR5Block(w, RAR5BlockType.Main, 0, mainMs =>
         {
             WriteVInt(mainMs, archiveFlags);
         });
@@ -1509,7 +1509,7 @@ public class SRRFileTests : TempDirTestBase
         // RAR5 File header
         byte[] fileNameBytes = Encoding.UTF8.GetBytes(archivedFileName);
 
-        WriteRar5Block(w, RAR5BlockType.File, headerFlags, fileMs =>
+        WriteRAR5Block(w, RAR5BlockType.File, headerFlags, fileMs =>
         {
             WriteVInt(fileMs, fileFlags);
             WriteVInt(fileMs, 1024);  // unpacked size
@@ -1534,7 +1534,7 @@ public class SRRFileTests : TempDirTestBase
         });
 
         // RAR5 End archive header
-        WriteRar5Block(w, RAR5BlockType.EndArchive, 0, endMs =>
+        WriteRAR5Block(w, RAR5BlockType.EndArchive, 0, endMs =>
         {
             WriteVInt(endMs, 0);
         });
@@ -1546,7 +1546,7 @@ public class SRRFileTests : TempDirTestBase
     /// <summary>
     /// Writes a RAR5 block with proper CRC32 header.
     /// </summary>
-    private static void WriteRar5Block(BinaryWriter mainWriter, RAR5BlockType blockType, ulong headerFlags, Action<MemoryStream> writeContent)
+    private static void WriteRAR5Block(BinaryWriter mainWriter, RAR5BlockType blockType, ulong headerFlags, Action<MemoryStream> writeContent)
     {
         using var contentMs = new MemoryStream();
         WriteVInt(contentMs, (ulong)blockType);

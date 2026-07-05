@@ -6,7 +6,7 @@ namespace ReScene.Tests;
 
 public class RARStreamTests
 {
-    private static readonly byte[] Rar4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
+    private static readonly byte[] RAR4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
     private static readonly string TestDataPath = Path.Combine(AppContext.BaseDirectory, "TestData");
 
     /// <summary>
@@ -133,14 +133,14 @@ public class RARStreamTests
     /// Builds a complete synthetic RAR4 archive file (marker + archive header + file header + data + end).
     /// Returns the path to the temporary file.
     /// </summary>
-    private static string BuildSyntheticRar4(string dir, string archiveName, string fileName,
+    private static string BuildSyntheticRAR4(string dir, string archiveName, string fileName,
         byte[] fileData, RARArchiveFlags archiveFlags = RARArchiveFlags.None,
         RARFileFlags extraFileFlags = RARFileFlags.ExtTime)
     {
         string path = Path.Combine(dir, archiveName);
 
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
-        fs.Write(Rar4Marker);
+        fs.Write(RAR4Marker);
         fs.Write(BuildArchiveHeader(archiveFlags));
         fs.Write(BuildFileHeader(fileName, (uint)fileData.Length, (uint)fileData.Length,
             method: 0x30, extraFlags: extraFileFlags));
@@ -153,7 +153,7 @@ public class RARStreamTests
     /// <summary>
     /// Builds a synthetic RAR4 volume that represents a continuation (SplitBefore set).
     /// </summary>
-    private static string BuildSyntheticRar4Volume(string dir, string archiveName, string fileName,
+    private static string BuildSyntheticRAR4Volume(string dir, string archiveName, string fileName,
         byte[] fileData, RARArchiveFlags archiveFlags, bool splitBefore, bool splitAfter)
     {
         string path = Path.Combine(dir, archiveName);
@@ -170,7 +170,7 @@ public class RARStreamTests
         }
 
         using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
-        fs.Write(Rar4Marker);
+        fs.Write(RAR4Marker);
         fs.Write(BuildArchiveHeader(archiveFlags));
         fs.Write(BuildFileHeader(fileName, (uint)fileData.Length, (uint)fileData.Length,
             method: 0x30, extraFlags: extraFlags));
@@ -198,7 +198,7 @@ public class RARStreamTests
         try
         {
             byte[] data = "Hello, World!"u8.ToArray();
-            string path = BuildSyntheticRar4(dir, "test.rar", "hello.txt", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "hello.txt", data);
 
             using var stream = new RARStream(path);
 
@@ -218,7 +218,7 @@ public class RARStreamTests
         try
         {
             byte[] data = "content"u8.ToArray();
-            string path = BuildSyntheticRar4(dir, "test.rar", "auto.dat", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "auto.dat", data);
 
             using var stream = new RARStream(path, null);
 
@@ -237,7 +237,7 @@ public class RARStreamTests
         try
         {
             byte[] data = "target file data"u8.ToArray();
-            string path = BuildSyntheticRar4(dir, "test.rar", "target.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "target.bin", data);
 
             using var stream = new RARStream(path, "target.bin");
 
@@ -257,7 +257,7 @@ public class RARStreamTests
         try
         {
             byte[] data = "some data"u8.ToArray();
-            string path = BuildSyntheticRar4(dir, "test.rar", "actual.txt", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "actual.txt", data);
 
             Assert.Throws<ArgumentException>(() => new RARStream(path, "nonexistent.txt"));
         }
@@ -278,7 +278,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.True(stream.CanRead);
         }
@@ -295,7 +295,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.True(stream.CanSeek);
         }
@@ -312,7 +312,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.False(stream.CanWrite);
         }
@@ -330,7 +330,7 @@ public class RARStreamTests
         {
             byte[] data = new byte[256];
             Random.Shared.NextBytes(data);
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.Equal(256, stream.Length);
         }
@@ -347,7 +347,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.Equal(0, stream.Position);
         }
@@ -364,7 +364,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.Throws<NotSupportedException>(() => stream.Write([0x00], 0, 1));
         }
@@ -381,7 +381,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             Assert.Throws<NotSupportedException>(() => stream.SetLength(100));
         }
@@ -402,7 +402,7 @@ public class RARStreamTests
         try
         {
             byte[] expected = Encoding.ASCII.GetBytes("The quick brown fox jumps over the lazy dog.");
-            string path = BuildSyntheticRar4(dir, "test.rar", "fox.txt", expected);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "fox.txt", expected);
 
             using var stream = new RARStream(path);
             byte[] buffer = new byte[expected.Length];
@@ -424,7 +424,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buffer = new byte[4];
@@ -446,7 +446,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             // Read all data first
@@ -472,7 +472,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0xAA, 0xBB, 0xCC];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buffer = new byte[100];
@@ -496,7 +496,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x11, 0x22, 0x33];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buffer = new byte[10];
@@ -521,7 +521,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buffer = new byte[10];
@@ -546,7 +546,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             long result = stream.Seek(3, SeekOrigin.Begin);
@@ -571,7 +571,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             stream.Position = 2;
@@ -596,7 +596,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x00, 0x11, 0x22, 0x33, 0x44];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             long result = stream.Seek(-2, SeekOrigin.End);
@@ -620,7 +620,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             Assert.Throws<ArgumentOutOfRangeException>(() => stream.Seek(-1, SeekOrigin.Begin));
@@ -638,7 +638,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             long result = stream.Seek(100, SeekOrigin.Begin);
@@ -666,7 +666,7 @@ public class RARStreamTests
             {
                 data[i] = (byte)i;
             }
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
 
@@ -707,7 +707,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             Assert.Throws<ArgumentOutOfRangeException>(() => stream.Position = -1);
@@ -725,7 +725,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03, 0x04, 0x05];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buf = new byte[3];
@@ -750,7 +750,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             var stream = new RARStream(path);
             byte[] buf = new byte[3];
@@ -774,7 +774,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             var stream = new RARStream(path);
             stream.Dispose();
@@ -793,7 +793,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             var stream = new RARStream(path);
             stream.Dispose();
@@ -814,7 +814,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             var stream = new RARStream(path);
             stream.Dispose();
@@ -834,7 +834,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             var stream = new RARStream(path);
             stream.Dispose();
@@ -854,7 +854,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             var stream = new RARStream(path);
             stream.Dispose();
@@ -884,12 +884,12 @@ public class RARStreamTests
 
             RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
 
-            BuildSyntheticRar4Volume(dir, "test.part1.rar", "data.bin", part1Data,
+            BuildSyntheticRAR4Volume(dir, "test.part1.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
-            BuildSyntheticRar4Volume(dir, "test.part2.rar", "data.bin", part2Data,
+            BuildSyntheticRAR4Volume(dir, "test.part2.rar", "data.bin", part2Data,
                 RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering,
                 splitBefore: true, splitAfter: true);
-            BuildSyntheticRar4Volume(dir, "test.part3.rar", "data.bin", part3Data,
+            BuildSyntheticRAR4Volume(dir, "test.part3.rar", "data.bin", part3Data,
                 RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering,
                 splitBefore: true, splitAfter: false);
 
@@ -923,9 +923,9 @@ public class RARStreamTests
 
             RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
 
-            BuildSyntheticRar4Volume(dir, "test.part1.rar", "data.bin", part1Data,
+            BuildSyntheticRAR4Volume(dir, "test.part1.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
-            BuildSyntheticRar4Volume(dir, "test.part2.rar", "data.bin", part2Data,
+            BuildSyntheticRAR4Volume(dir, "test.part2.rar", "data.bin", part2Data,
                 RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering,
                 splitBefore: true, splitAfter: false);
 
@@ -961,9 +961,9 @@ public class RARStreamTests
 
             RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering | RARArchiveFlags.FirstVolume;
 
-            BuildSyntheticRar4Volume(dir, "test.part1.rar", "data.bin", part1Data,
+            BuildSyntheticRAR4Volume(dir, "test.part1.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
-            BuildSyntheticRar4Volume(dir, "test.part2.rar", "data.bin", part2Data,
+            BuildSyntheticRAR4Volume(dir, "test.part2.rar", "data.bin", part2Data,
                 RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering,
                 splitBefore: true, splitAfter: false);
 
@@ -1002,11 +1002,11 @@ public class RARStreamTests
             // No NewNumbering flag = old style
             RARArchiveFlags archFlags = RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume;
 
-            BuildSyntheticRar4Volume(dir, "test.rar", "data.bin", part1Data,
+            BuildSyntheticRAR4Volume(dir, "test.rar", "data.bin", part1Data,
                 archFlags, splitBefore: false, splitAfter: true);
-            BuildSyntheticRar4Volume(dir, "test.r00", "data.bin", part2Data,
+            BuildSyntheticRAR4Volume(dir, "test.r00", "data.bin", part2Data,
                 RARArchiveFlags.Volume, splitBefore: true, splitAfter: true);
-            BuildSyntheticRar4Volume(dir, "test.r01", "data.bin", part3Data,
+            BuildSyntheticRAR4Volume(dir, "test.r01", "data.bin", part3Data,
                 RARArchiveFlags.Volume, splitBefore: true, splitAfter: false);
 
             string firstVolume = Path.Combine(dir, "test.rar");
@@ -1031,7 +1031,7 @@ public class RARStreamTests
     #region Real File Tests
 
     [Fact]
-    public void Read_RealRar4StoredFile_ReadsCorrectContent()
+    public void Read_RealRAR4StoredFile_ReadsCorrectContent()
     {
         // test_wrar40_m0.rar contains testfile.txt stored (no compression)
         string path = Path.Combine(TestDataPath, "test_wrar40_m0.rar");
@@ -1055,7 +1055,7 @@ public class RARStreamTests
     }
 
     [Fact]
-    public void Read_RealRar4StoredFile_SeekAndRead()
+    public void Read_RealRAR4StoredFile_SeekAndRead()
     {
         string path = Path.Combine(TestDataPath, "test_wrar40_m0.rar");
         if (!File.Exists(path))
@@ -1077,7 +1077,7 @@ public class RARStreamTests
     }
 
     [Fact]
-    public void Read_RealRar5CompressedFile_ReadsPackedData()
+    public void Read_RealRAR5CompressedFile_ReadsPackedData()
     {
         // RAR5 archives can be opened; for compressed files we get raw compressed data
         string path = Path.Combine(TestDataPath, "test_rar5_m3.rar");
@@ -1108,7 +1108,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01, 0x02, 0x03];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buffer = [];
@@ -1132,7 +1132,7 @@ public class RARStreamTests
             {
                 data[i] = (byte)(i * 10);
             }
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
 
             using var stream = new RARStream(path);
             byte[] buf = new byte[1];
@@ -1161,7 +1161,7 @@ public class RARStreamTests
         try
         {
             byte[] data = [0x01];
-            string path = BuildSyntheticRar4(dir, "test.rar", "f.bin", data);
+            string path = BuildSyntheticRAR4(dir, "test.rar", "f.bin", data);
             using var stream = new RARStream(path);
             stream.Flush(); // Should be a no-op
         }
@@ -1176,7 +1176,7 @@ public class RARStreamTests
     #region Real Multi-Volume Tests (WinRAR 2.80 Old-Style)
 
     [Fact]
-    public void Read_WinRar280_UnicodeDosNfo_MatchesReferenceFile()
+    public void Read_WinRAR280_UnicodeDosNfo_MatchesReferenceFile()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
@@ -1196,7 +1196,7 @@ public class RARStreamTests
     }
 
     [Fact]
-    public void Read_WinRar280_UnicodeDosNfo_SeekNearEndThenSeekToStart()
+    public void Read_WinRAR280_UnicodeDosNfo_SeekNearEndThenSeekToStart()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
@@ -1225,7 +1225,7 @@ public class RARStreamTests
     }
 
     [Fact]
-    public void Read_WinRar280_UnicodeDosNfo_SeekFromEnd()
+    public void Read_WinRAR280_UnicodeDosNfo_SeekFromEnd()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_dos.nfo");
@@ -1248,7 +1248,7 @@ public class RARStreamTests
     }
 
     [Fact]
-    public void Read_WinRar280_UnicodeMacNfo_SeekAndReadRemainder()
+    public void Read_WinRAR280_UnicodeMacNfo_SeekAndReadRemainder()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         string refPath = Path.Combine(TestDataPath, "txt", "unicode_mac.nfo");
@@ -1271,7 +1271,7 @@ public class RARStreamTests
     }
 
     [Fact]
-    public void Close_WinRar280_CanReadIsFalseAfterClose()
+    public void Close_WinRAR280_CanReadIsFalseAfterClose()
     {
         string rarPath = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "winrar2.80.rar");
         if (!File.Exists(rarPath))
@@ -1400,7 +1400,7 @@ public class RARStreamTests
             string path = Path.Combine(dir, "large.rar");
             using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
             {
-                fs.Write(Rar4Marker);
+                fs.Write(RAR4Marker);
                 fs.Write(BuildArchiveHeader());
                 fs.Write(BuildLargeFileHeader("big.bin", packSizeLow: 0, packSizeHigh: 1));
                 fs.Write(BuildFileHeader("second.bin", 0, 0, method: 0x30, extraFlags: RARFileFlags.None));

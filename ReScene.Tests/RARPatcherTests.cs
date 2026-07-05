@@ -313,7 +313,7 @@ public class RARPatcherTests : TempDirTestBase
     /// <param name="hasLargeFlag">If true, include LARGE flag and HIGH fields in the file header.</param>
     /// <param name="highPackSize">HIGH_PACK_SIZE value (only used if hasLargeFlag is true).</param>
     /// <param name="highUnpSize">HIGH_UNP_SIZE value (only used if hasLargeFlag is true).</param>
-    private static byte[] BuildMinimalRar4WithFileHeader(bool hasLargeFlag, uint highPackSize = 0, uint highUnpSize = 0)
+    private static byte[] BuildMinimalRAR4WithFileHeader(bool hasLargeFlag, uint highPackSize = 0, uint highUnpSize = 0)
     {
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
@@ -383,7 +383,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchLargeFlags_AddLarge_InsertsHighFields()
     {
-        byte[] rarData = BuildMinimalRar4WithFileHeader(hasLargeFlag: false);
+        byte[] rarData = BuildMinimalRAR4WithFileHeader(hasLargeFlag: false);
         int originalLength = rarData.Length;
 
         using var stream = new MemoryStream();
@@ -425,7 +425,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchLargeFlags_RemoveLarge_RemovesHighFields()
     {
-        byte[] rarData = BuildMinimalRar4WithFileHeader(hasLargeFlag: true, highPackSize: 0x11111111, highUnpSize: 0x22222222);
+        byte[] rarData = BuildMinimalRAR4WithFileHeader(hasLargeFlag: true, highPackSize: 0x11111111, highUnpSize: 0x22222222);
         int originalLength = rarData.Length;
 
         using var stream = new MemoryStream();
@@ -463,7 +463,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchLargeFlags_RoundTrip_AddThenRemoveRestoresOriginal()
     {
-        byte[] originalData = BuildMinimalRar4WithFileHeader(hasLargeFlag: false);
+        byte[] originalData = BuildMinimalRAR4WithFileHeader(hasLargeFlag: false);
 
         // Add LARGE
         using var stream = new MemoryStream();
@@ -510,7 +510,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchLargeFlags_AlreadyMatches_ReturnsNoModification()
     {
-        byte[] rarData = BuildMinimalRar4WithFileHeader(hasLargeFlag: true, highPackSize: 0, highUnpSize: 0);
+        byte[] rarData = BuildMinimalRAR4WithFileHeader(hasLargeFlag: true, highPackSize: 0, highUnpSize: 0);
 
         using var stream = new MemoryStream();
         stream.Write(rarData, 0, rarData.Length);
@@ -529,7 +529,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchLargeFlags_NullSetLargeFlag_ReturnsNoModification()
     {
-        byte[] rarData = BuildMinimalRar4WithFileHeader(hasLargeFlag: false);
+        byte[] rarData = BuildMinimalRAR4WithFileHeader(hasLargeFlag: false);
 
         using var stream = new MemoryStream();
         stream.Write(rarData, 0, rarData.Length);
@@ -631,7 +631,7 @@ public class RARPatcherTests : TempDirTestBase
     /// <param name="actualDataLength">Actual number of data bytes to write after the first header.
     /// Set equal to addSize | (highPackSize &lt;&lt; 32) for a valid file, or smaller for truncated tests.</param>
     /// <param name="secondHostOS">Host OS value for the second file header (used to verify navigation).</param>
-    private static byte[] BuildRar4WithLargeFileHeader(
+    private static byte[] BuildRAR4WithLargeFileHeader(
         uint addSize, uint highPackSize, long actualDataLength, byte secondHostOS = 3)
     {
         using var ms = new MemoryStream();
@@ -732,7 +732,7 @@ public class RARPatcherTests : TempDirTestBase
     /// Builds a minimal RAR4 file with a service block that has LARGE flag, followed by a file header.
     /// Used to test the else branch in PatchStream when PatchServiceBlocks=false.
     /// </summary>
-    private static byte[] BuildRar4WithLargeServiceBlock(
+    private static byte[] BuildRAR4WithLargeServiceBlock(
         uint addSize, uint highPackSize, long actualDataLength, byte fileHostOS = 3)
     {
         using var ms = new MemoryStream();
@@ -831,7 +831,7 @@ public class RARPatcherTests : TempDirTestBase
     public void PatchStream_LargeFileHeader_SkipsDataCorrectly_FindsSecondHeader()
     {
         // First file has LARGE flag with 256 bytes of data (ADD_SIZE=256, HIGH_PACK_SIZE=0)
-        byte[] rarData = BuildRar4WithLargeFileHeader(
+        byte[] rarData = BuildRAR4WithLargeFileHeader(
             addSize: 256, highPackSize: 0, actualDataLength: 256, secondHostOS: 3);
 
         using var stream = new MemoryStream(rarData, writable: true);
@@ -856,7 +856,7 @@ public class RARPatcherTests : TempDirTestBase
         // Total data = 100 + (1 << 32) but we can't allocate 4GB+, so we use a small test:
         // ADD_SIZE=50, HIGH_PACK_SIZE=0 means 50 bytes of data
         // The key is that GetBlockDataSize combines them: addSize | (highPack << 32)
-        byte[] rarData = BuildRar4WithLargeFileHeader(
+        byte[] rarData = BuildRAR4WithLargeFileHeader(
             addSize: 50, highPackSize: 0, actualDataLength: 50, secondHostOS: 3);
 
         using var stream = new MemoryStream(rarData, writable: true);
@@ -874,7 +874,7 @@ public class RARPatcherTests : TempDirTestBase
     public void AnalyzeFile_LargeFileHeader_FindsAllBlocks()
     {
         // Build a file with LARGE flag on the first header and 128 bytes of data
-        byte[] rarData = BuildRar4WithLargeFileHeader(
+        byte[] rarData = BuildRAR4WithLargeFileHeader(
             addSize: 128, highPackSize: 0, actualDataLength: 128, secondHostOS: 3);
 
         string testFile = Path.Combine(TempDir, "large_analyze.rar");
@@ -897,7 +897,7 @@ public class RARPatcherTests : TempDirTestBase
     {
         // Service block with LARGE flag, PatchServiceBlocks=false → enters the else branch
         // which must also handle LARGE flag to skip the data correctly
-        byte[] rarData = BuildRar4WithLargeServiceBlock(
+        byte[] rarData = BuildRAR4WithLargeServiceBlock(
             addSize: 200, highPackSize: 0, actualDataLength: 200, fileHostOS: 2);
 
         using var stream = new MemoryStream(rarData, writable: true);
@@ -1019,7 +1019,7 @@ public class RARPatcherTests : TempDirTestBase
     public void PatchStream_LargeFileHeader_HostOSPatchedCorrectly()
     {
         // Verify that patching Host OS works correctly on a file header with LARGE flag
-        byte[] rarData = BuildRar4WithLargeFileHeader(
+        byte[] rarData = BuildRAR4WithLargeFileHeader(
             addSize: 100, highPackSize: 0, actualDataLength: 100, secondHostOS: 2);
 
         using var stream = new MemoryStream(rarData, writable: true);
@@ -1059,7 +1059,7 @@ public class RARPatcherTests : TempDirTestBase
     {
         // Service block with LARGE flag, PatchServiceBlocks=true → enters the if branch
         // AnalyzeFile must use GetBlockDataSize to skip correctly
-        byte[] rarData = BuildRar4WithLargeServiceBlock(
+        byte[] rarData = BuildRAR4WithLargeServiceBlock(
             addSize: 150, highPackSize: 0, actualDataLength: 150, fileHostOS: 2);
 
         string testFile = Path.Combine(TempDir, "large_svc_analyze.rar");
@@ -1089,7 +1089,7 @@ public class RARPatcherTests : TempDirTestBase
     /// nibble is composed as (present:0x8 | rounding:0x4 if true | byteCount). When null, the
     /// LHD_EXTTIME flag is omitted.
     /// </summary>
-    private static byte[] BuildMinimalRar4(
+    private static byte[] BuildMinimalRAR4(
         string fileName,
         uint dosFileTime,
         byte[]? extMtimeBytes = null,
@@ -1210,7 +1210,7 @@ public class RARPatcherTests : TempDirTestBase
         // Build a RAR with mtime 2026-04-20 09:02:04.7090000s — a 1ms-grained value
         // similar to what WinRAR produced for the user.
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });    // 0x6C2F50 = 7,090,000
@@ -1249,7 +1249,7 @@ public class RARPatcherTests : TempDirTestBase
     public void PatchFile_FileModifiedTimes_RoundTripsThroughParser()
     {
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F });    // 0x0F4240 = 1,000,000
@@ -1295,7 +1295,7 @@ public class RARPatcherTests : TempDirTestBase
         // (after HIGH_PACK_SIZE/HIGH_UNP_SIZE), so the lookup never matched and the
         // mtime was silently left unpatched for any file > 2 GB.
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F },   // 0x0F4240 = 1,000,000
@@ -1336,7 +1336,7 @@ public class RARPatcherTests : TempDirTestBase
         // were corrupted. Choose a target remainder that is a multiple of 0x100 so the 2-byte
         // precision (which drops bits 0-7) round-trips exactly.
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x001234);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x00, 0x00 });   // 2-byte mtime precision
@@ -1375,7 +1375,7 @@ public class RARPatcherTests : TempDirTestBase
         // 1-byte mtime precision (WinRAR -tsm2). The reader keeps only bits 16-23 of the 24-bit
         // remainder (byte[0] << 16), so choose a target remainder that is a multiple of 0x10000.
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x010000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x00 });         // 1-byte mtime precision
@@ -1417,7 +1417,7 @@ public class RARPatcherTests : TempDirTestBase
         byte[] rawName = [.. System.Text.Encoding.ASCII.GetBytes(decodedName), 0x00];
 
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: decodedName,
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x40, 0x42, 0x0F },   // 0x0F4240 = 1,000,000 (3-byte)
@@ -1475,7 +1475,7 @@ public class RARPatcherTests : TempDirTestBase
     {
         // Initial mtime at an even second with rounding-flag OFF.
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C },
@@ -1519,7 +1519,7 @@ public class RARPatcherTests : TempDirTestBase
     {
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
         byte[] expectedExtBytes = new byte[] { 0x50, 0x2F, 0x6C };
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "other.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: expectedExtBytes);
@@ -1551,7 +1551,7 @@ public class RARPatcherTests : TempDirTestBase
     public void PatchFile_FileModifiedTimes_NoExtTimeFlag_PatchesOnlyDosTime()
     {
         var initial = new DateTime(2025, 06, 15, 12, 00, 00);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "noext.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: null);
@@ -1580,7 +1580,7 @@ public class RARPatcherTests : TempDirTestBase
     public void PatchFile_FileModifiedTimes_RecomputesValidCRC()
     {
         var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
-        byte[] rarData = BuildMinimalRar4(
+        byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
             extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });

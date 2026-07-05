@@ -122,7 +122,7 @@ public class RARVolumeNamingTests
     }
 
     [Fact]
-    public void EnumerateVolumes_OldStyle_ReturnsMainRarThenRxxOrdered()
+    public void EnumerateVolumes_OldStyle_ReturnsMainRARThenRxxOrdered()
     {
         string dir = Path.Combine(Path.GetTempPath(), "rvn_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);

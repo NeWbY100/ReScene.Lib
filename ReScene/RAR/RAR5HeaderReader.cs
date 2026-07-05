@@ -11,9 +11,9 @@ namespace ReScene.RAR;
 internal class RAR5HeaderReader(Stream stream)
 {
     /// <summary>
-    /// RAR 5.0 marker bytes. Thin alias over <see cref="RARUtils.Rar5Marker"/>.
+    /// RAR 5.0 marker bytes. Thin alias over <see cref="RARUtils.RAR5Marker"/>.
     /// </summary>
-    public static byte[] RAR5Marker => RARUtils.Rar5Marker.ToArray();
+    public static byte[] RAR5Marker => RARUtils.RAR5Marker.ToArray();
 
     private readonly Stream _stream = stream ?? throw new ArgumentNullException(nameof(stream));
     private readonly BinaryReader _reader = new(stream, Encoding.UTF8, leaveOpen: true);
@@ -56,7 +56,7 @@ internal class RAR5HeaderReader(Stream stream)
 
         for (int i = 0; i < 8; i++)
         {
-            if (marker[i] != RARUtils.Rar5Marker[i])
+            if (marker[i] != RARUtils.RAR5Marker[i])
             {
                 return false;
             }
@@ -115,15 +115,15 @@ internal class RAR5HeaderReader(Stream stream)
         while (true)
         {
             byte b = _reader.ReadByte();
-            result |= (ulong)(b & Rar5Format.VIntDataMask) << shift;
+            result |= (ulong)(b & RAR5Format.VIntDataMask) << shift;
 
-            if ((b & Rar5Format.VIntContinuationBit) == 0)
+            if ((b & RAR5Format.VIntContinuationBit) == 0)
             {
                 break;
             }
 
-            shift += Rar5Format.VIntShiftStep;
-            if (shift > Rar5Format.VIntMaxShift)
+            shift += RAR5Format.VIntShiftStep;
+            if (shift > RAR5Format.VIntMaxShift)
             {
                 throw new InvalidDataException("VInt too large");
             }
@@ -229,7 +229,7 @@ internal class RAR5HeaderReader(Stream stream)
     /// blocks, read in their on-disk order. Optional fields (governed by
     /// <see cref="RAR5FileFlags"/>) are read identically for both block kinds.
     /// </summary>
-    private readonly record struct Rar5FileFields(
+    private readonly record struct RAR5FileFields(
         ulong FileFlags,
         ulong UnpackedSize,
         ulong Attributes,
@@ -244,7 +244,7 @@ internal class RAR5HeaderReader(Stream stream)
     /// mtime, CRC, compression info, host OS, and name) in order. Callers map the raw
     /// values and perform their own compression-bit unpacking / type checks.
     /// </summary>
-    private Rar5FileFields ReadRar5FileFields(long headerEnd)
+    private RAR5FileFields ReadRAR5FileFields(long headerEnd)
     {
         ulong fileFlags = ReadVInt();
 
@@ -288,20 +288,20 @@ internal class RAR5HeaderReader(Stream stream)
             name = Encoding.UTF8.GetString(nameBytes);
         }
 
-        return new Rar5FileFields(fileFlags, unpackedSize, attributes, mtime, fileCRC, compressionInfo, hostOS, name);
+        return new RAR5FileFields(fileFlags, unpackedSize, attributes, mtime, fileCRC, compressionInfo, hostOS, name);
     }
 
     private RAR5ServiceBlockInfo? ParseServiceBlock(long headerEnd)
     {
-        Rar5FileFields fields = ReadRar5FileFields(headerEnd);
+        RAR5FileFields fields = ReadRAR5FileFields(headerEnd);
 
         var info = new RAR5ServiceBlockInfo
         {
             FileFlags = fields.FileFlags,
             UnpackedSize = fields.UnpackedSize,
-            CompressionVersion = (int)(fields.CompressionInfo & Rar5Format.CompInfoVersionMask),
-            CompressionMethod = (int)((fields.CompressionInfo >> Rar5Format.CompInfoMethodShift) & Rar5Format.CompInfoMethodMask),
-            DictSize = (int)((fields.CompressionInfo >> Rar5Format.CompInfoDictShift) & Rar5Format.CompInfoDictMask),
+            CompressionVersion = (int)(fields.CompressionInfo & RAR5Format.CompInfoVersionMask),
+            CompressionMethod = (int)((fields.CompressionInfo >> RAR5Format.CompInfoMethodShift) & RAR5Format.CompInfoMethodMask),
+            DictSize = (int)((fields.CompressionInfo >> RAR5Format.CompInfoDictShift) & RAR5Format.CompInfoDictMask),
             SubType = fields.Name
         };
         info.IsStored = info.CompressionMethod == 0;
@@ -334,7 +334,7 @@ internal class RAR5HeaderReader(Stream stream)
 
     private RAR5FileInfo ParseFileBlock(long headerEnd, bool isSplitBefore, bool isSplitAfter)
     {
-        Rar5FileFields fields = ReadRar5FileFields(headerEnd);
+        RAR5FileFields fields = ReadRAR5FileFields(headerEnd);
 
         return new RAR5FileInfo
         {

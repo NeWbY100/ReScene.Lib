@@ -26,7 +26,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         string srrFilePath,
         string inputDirectory,
         string outputDirectory,
-        IReadOnlyList<string> originalRarFileNames,
+        IReadOnlyList<string> originalRARFileNames,
         HashSet<string> hashes,
         HashType hashType,
         CancellationToken cancellationToken)
@@ -35,12 +35,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         _logger.Information(this, $"SRR: {srrFilePath}", LogTarget.System);
         _logger.Information(this, $"Input: {inputDirectory}", LogTarget.System);
         _logger.Information(this, $"Output: {outputDirectory}", LogTarget.System);
-        _logger.Information(this, $"Expected volumes: {originalRarFileNames.Count}", LogTarget.System);
+        _logger.Information(this, $"Expected volumes: {originalRARFileNames.Count}", LogTarget.System);
 
         Directory.CreateDirectory(outputDirectory);
 
         DateTime startTime = DateTime.Now;
-        int totalVolumes = originalRarFileNames.Count;
+        int totalVolumes = originalRARFileNames.Count;
         int completedVolumes = 0;
         bool allMatched = true;
 
@@ -50,7 +50,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
         FileStream? outputStream = null;
         string? currentOutputPath = null;
-        string? currentRarFileName = null;
+        string? currentRARFileName = null;
 
         try
         {
@@ -100,17 +100,17 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                     if (blockType == (byte)SRRBlockType.RARFile)
                     {
                         // Close previous volume and verify
-                        if (outputStream != null && currentOutputPath != null && currentRarFileName != null)
+                        if (outputStream != null && currentOutputPath != null && currentRARFileName != null)
                         {
                             outputStream.Dispose();
                             outputStream = null;
 
-                            await VerifyAndReportVolumeAsync(currentOutputPath, currentRarFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
+                            await VerifyAndReportVolumeAsync(currentOutputPath, currentRARFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
                             completedVolumes++;
-                            FireProgress(inputDirectory, currentRarFileName, totalVolumes, completedVolumes, startTime);
+                            FireProgress(inputDirectory, currentRARFileName, totalVolumes, completedVolumes, startTime);
                         }
 
-                        // Read the RAR filename from the SRRRarFile block
+                        // Read the RAR filename from the SRRRARFile block
                         if (srrStream.Position + 2 > srrStream.Length)
                         {
                             break;
@@ -123,25 +123,25 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                         }
 
                         byte[] nameBytes = reader.ReadBytes(nameLen);
-                        currentRarFileName = Encoding.UTF8.GetString(nameBytes);
+                        currentRARFileName = Encoding.UTF8.GetString(nameBytes);
 
                         // Guard against path traversal (Zip-Slip): a malicious SRR could name a
                         // volume "..\..\x" or an absolute path, which Path.Combine would resolve
                         // outside outputDirectory (arbitrary file write). Resolve the name through
                         // the containment check and reject anything that escapes the output dir.
-                        if (!FileOperations.TryResolveRelativePath(outputDirectory, currentRarFileName,
-                                out string safeRarRelativePath))
+                        if (!FileOperations.TryResolveRelativePath(outputDirectory, currentRARFileName,
+                                out string safeRARRelativePath))
                         {
                             throw new InvalidDataException(
-                                $"SRR contains an unsafe RAR file path that escapes the output directory: '{currentRarFileName}'");
+                                $"SRR contains an unsafe RAR file path that escapes the output directory: '{currentRARFileName}'");
                         }
 
                         // Open new output file
-                        currentOutputPath = Path.Combine(outputDirectory, safeRarRelativePath);
+                        currentOutputPath = Path.Combine(outputDirectory, safeRARRelativePath);
                         Directory.CreateDirectory(Path.GetDirectoryName(currentOutputPath)!);
                         outputStream = new FileStream(currentOutputPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
-                        _logger.Information(this, $"Reconstructing: {currentRarFileName}", LogTarget.System);
+                        _logger.Information(this, $"Reconstructing: {currentRARFileName}", LogTarget.System);
                     }
                     else if (blockType == (byte)SRRBlockType.RARPadding)
                     {
@@ -203,9 +203,9 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             long packedSize = rarAddSize;
 
                             // Check for LARGE flag for 64-bit sizes
-                            if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= Rar4HeaderLayout.HighPackSizeOffset + Rar4HeaderLayout.AddSizeFieldLength)
+                            if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= RAR4HeaderLayout.HighPackSizeOffset + RAR4HeaderLayout.AddSizeFieldLength)
                             {
-                                uint highPackSize = BitConverter.ToUInt32(fullHeader, Rar4HeaderLayout.HighPackSizeOffset);
+                                uint highPackSize = BitConverter.ToUInt32(fullHeader, RAR4HeaderLayout.HighPackSizeOffset);
                                 packedSize |= (long)highPackSize << 32;
                             }
 
@@ -215,9 +215,9 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             {
                                 ushort nameSize = BitConverter.ToUInt16(fullHeader, 26);
                                 int nameOffset = 32;
-                                if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= Rar4HeaderLayout.FixedFieldsEnd + 8 + nameSize)
+                                if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= RAR4HeaderLayout.FixedFieldsEnd + 8 + nameSize)
                                 {
-                                    nameOffset = Rar4HeaderLayout.FixedFieldsEnd + 8;
+                                    nameOffset = RAR4HeaderLayout.FixedFieldsEnd + 8;
                                 }
                                 else if (headerSize < nameOffset + nameSize)
                                 {
@@ -325,14 +325,14 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
             }
 
             // Close and verify the last volume
-            if (outputStream != null && currentOutputPath != null && currentRarFileName != null)
+            if (outputStream != null && currentOutputPath != null && currentRARFileName != null)
             {
                 outputStream.Dispose();
                 outputStream = null;
 
-                await VerifyAndReportVolumeAsync(currentOutputPath, currentRarFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
+                await VerifyAndReportVolumeAsync(currentOutputPath, currentRARFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
                 completedVolumes++;
-                FireProgress(inputDirectory, currentRarFileName, totalVolumes, completedVolumes, startTime);
+                FireProgress(inputDirectory, currentRARFileName, totalVolumes, completedVolumes, startTime);
             }
         }
         finally

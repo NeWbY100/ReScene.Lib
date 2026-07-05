@@ -35,7 +35,7 @@ internal class RARHeaderReader
     /// <summary>
     /// Checks if there are enough bytes remaining to read a base header.
     /// </summary>
-    public bool CanReadBaseHeader => _stream.Position + Rar4HeaderLayout.BaseHeaderSize <= _stream.Length;
+    public bool CanReadBaseHeader => _stream.Position + RAR4HeaderLayout.BaseHeaderSize <= _stream.Length;
 
     /// <summary>
     /// Peeks at the next block type without advancing the stream position.
@@ -81,7 +81,7 @@ internal class RARHeaderReader
         ushort flags = _reader.ReadUInt16();
         ushort headerSize = _reader.ReadUInt16();
 
-        if (headerSize < Rar4HeaderLayout.BaseHeaderSize || blockStart + headerSize > _stream.Length)
+        if (headerSize < RAR4HeaderLayout.BaseHeaderSize || blockStart + headerSize > _stream.Length)
         {
             return null;
         }
@@ -182,7 +182,7 @@ internal class RARHeaderReader
     {
         // UNP_SIZE(4) + HOST_OS(1) + CRC(4) + TIME(4) + VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4)
         const int fileFieldsSize = 4 + 1 + 4 + 4 + 1 + 1 + 2 + 4;
-        const int minFileHeaderSize = Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength + fileFieldsSize;
+        const int minFileHeaderSize = RAR4HeaderLayout.BaseHeaderSize + RAR4HeaderLayout.AddSizeFieldLength + fileFieldsSize;
 
         if (block.HeaderSize < minFileHeaderSize)
         {
@@ -208,7 +208,7 @@ internal class RARHeaderReader
 
         // Method is stored as ASCII '0'-'6', subtract AsciiDigitZero to get 0-6
         byte methodRaw = _reader.ReadByte();
-        byte method = (byte)(methodRaw >= Rar4HeaderLayout.AsciiDigitZero ? methodRaw - Rar4HeaderLayout.AsciiDigitZero : methodRaw);
+        byte method = (byte)(methodRaw >= RAR4HeaderLayout.AsciiDigitZero ? methodRaw - RAR4HeaderLayout.AsciiDigitZero : methodRaw);
 
         // Read filename
         string? fileName = TryReadFileName(headerEnd, flags, out bool isDirectory, out uint fileAttributes, out uint highPackSize, out uint highUnpSize);
@@ -344,15 +344,15 @@ internal class RARHeaderReader
             return;
         }
 
-        for (int i = 0; i < Rar4HeaderLayout.ExtTimeFieldCount; i++)
+        for (int i = 0; i < RAR4HeaderLayout.ExtTimeFieldCount; i++)
         {
-            int rmode = (extFlags >> ((Rar4HeaderLayout.ExtTimeFieldCount - 1 - i) * 4)) & Rar4HeaderLayout.ExtTimeNibbleMask;
+            int rmode = (extFlags >> ((RAR4HeaderLayout.ExtTimeFieldCount - 1 - i) * 4)) & RAR4HeaderLayout.ExtTimeNibbleMask;
 
             // Determine precision for this time type
             // rmode & ExtTimePresentBit = time present flag
             // rmode & ExtTimePrecisionMask = number of extra precision bytes (0-3)
             TimestampPrecision precision;
-            if ((rmode & Rar4HeaderLayout.ExtTimePresentBit) == 0)
+            if ((rmode & RAR4HeaderLayout.ExtTimePresentBit) == 0)
             {
                 // Time not present in extended time structure
                 // For mtime, keep existing precision (from DOS time)
@@ -362,7 +362,7 @@ internal class RARHeaderReader
             else
             {
                 // Time is present - precision based on extra byte count
-                precision = PrecisionFromExtraBytes(rmode & Rar4HeaderLayout.ExtTimePrecisionMask);
+                precision = PrecisionFromExtraBytes(rmode & RAR4HeaderLayout.ExtTimePrecisionMask);
             }
 
             // mtime uses base DOS time; ctime/atime have their own DOS time
@@ -373,12 +373,12 @@ internal class RARHeaderReader
             }
 
             DateTime? time = RARUtils.DosDateToDateTime(dosTime);
-            if ((rmode & Rar4HeaderLayout.ExtTimeRoundUpBit) != 0 && time.HasValue)
+            if ((rmode & RAR4HeaderLayout.ExtTimeRoundUpBit) != 0 && time.HasValue)
             {
                 time = time.Value.AddSeconds(1);
             }
 
-            int count = rmode & Rar4HeaderLayout.ExtTimePrecisionMask;
+            int count = rmode & RAR4HeaderLayout.ExtTimePrecisionMask;
             if (!TryReadRemainder(headerEnd, count, out int remainder))
             {
                 return;
@@ -500,7 +500,7 @@ internal class RARHeaderReader
         // + NAME (variable, minimum 1 byte)
 
         const int serviceFieldsSize = 21; // UNP_SIZE(4) + HOST_OS(1) + CRC(4) + TIME(4) + VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4)
-        const int minServiceHeaderSize = Rar4HeaderLayout.BaseHeaderSize + Rar4HeaderLayout.AddSizeFieldLength + serviceFieldsSize + 1; // base + ADD_SIZE + fields + min name
+        const int minServiceHeaderSize = RAR4HeaderLayout.BaseHeaderSize + RAR4HeaderLayout.AddSizeFieldLength + serviceFieldsSize + 1; // base + ADD_SIZE + fields + min name
 
         if (block.HeaderSize < minServiceHeaderSize)
         {
@@ -574,24 +574,24 @@ internal class RARHeaderReader
                 ushort extFlags = _reader.ReadUInt16();
 
                 // mtime is at position 0 (bits 12-15)
-                int mtimeRmode = (extFlags >> 12) & Rar4HeaderLayout.ExtTimeNibbleMask;
-                if ((mtimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
+                int mtimeRmode = (extFlags >> 12) & RAR4HeaderLayout.ExtTimeNibbleMask;
+                if ((mtimeRmode & RAR4HeaderLayout.ExtTimePresentBit) != 0)
                 {
-                    mtimePrecision = PrecisionFromExtraBytes(mtimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
+                    mtimePrecision = PrecisionFromExtraBytes(mtimeRmode & RAR4HeaderLayout.ExtTimePrecisionMask);
                 }
 
                 // ctime is at position 1 (bits 8-11)
-                int ctimeRmode = (extFlags >> 8) & Rar4HeaderLayout.ExtTimeNibbleMask;
-                if ((ctimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
+                int ctimeRmode = (extFlags >> 8) & RAR4HeaderLayout.ExtTimeNibbleMask;
+                if ((ctimeRmode & RAR4HeaderLayout.ExtTimePresentBit) != 0)
                 {
-                    ctimePrecision = PrecisionFromExtraBytes(ctimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
+                    ctimePrecision = PrecisionFromExtraBytes(ctimeRmode & RAR4HeaderLayout.ExtTimePrecisionMask);
                 }
 
                 // atime is at position 2 (bits 4-7)
-                int atimeRmode = (extFlags >> 4) & Rar4HeaderLayout.ExtTimeNibbleMask;
-                if ((atimeRmode & Rar4HeaderLayout.ExtTimePresentBit) != 0)
+                int atimeRmode = (extFlags >> 4) & RAR4HeaderLayout.ExtTimeNibbleMask;
+                if ((atimeRmode & RAR4HeaderLayout.ExtTimePresentBit) != 0)
                 {
-                    atimePrecision = PrecisionFromExtraBytes(atimeRmode & Rar4HeaderLayout.ExtTimePrecisionMask);
+                    atimePrecision = PrecisionFromExtraBytes(atimeRmode & RAR4HeaderLayout.ExtTimePrecisionMask);
                 }
             }
         }

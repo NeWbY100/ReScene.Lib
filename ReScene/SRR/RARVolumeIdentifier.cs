@@ -30,7 +30,7 @@ public static class RARVolumeIdentifier
     /// Determines whether a filename has a RAR volume extension.
     /// Supports .rar, .partN.rar, old-style (.r00, .s00), and numbered (.001, .002).
     /// </summary>
-    public static bool IsRarVolume(string fileName)
+    public static bool IsRARVolume(string fileName)
     {
         string ext = Path.GetExtension(fileName);
         if (string.IsNullOrEmpty(ext))

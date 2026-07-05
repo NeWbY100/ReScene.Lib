@@ -12,7 +12,7 @@ public class RARFileDataTests
     private static readonly string TestDataPath = Path.Combine(AppContext.BaseDirectory, "TestData");
 
     [Fact]
-    public void Load_RealMultiFileRar4_ReturnsAllFileHeaders()
+    public void Load_RealMultiFileRAR4_ReturnsAllFileHeaders()
     {
         // [audit #5] store_split_folder.rar is a single-volume RAR4 archive holding three stored files
         // (empty_file.txt, little_file.txt, users_manual4.00.txt). Before the fix the loader stopped
@@ -32,7 +32,7 @@ public class RARFileDataTests
     }
 
     [Fact]
-    public void Load_Rar4WithCommentThenFiles_ReturnsAllFileHeaders()
+    public void Load_RAR4WithCommentThenFiles_ReturnsAllFileHeaders()
     {
         // store_utf8_comment.rar places a CMT service block before three file headers; skipping both the
         // service data and each file's packed data is required to reach every file header.

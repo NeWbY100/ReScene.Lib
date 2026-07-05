@@ -4,7 +4,7 @@ namespace ReScene.RAR;
 /// RAR 4.x block/header field layout — the single source of truth for the byte offsets and sizes
 /// used when reading, walking, and patching RAR4 headers. Values mirror the on-disk format exactly.
 /// </summary>
-internal static class Rar4HeaderLayout
+internal static class RAR4HeaderLayout
 {
     // Base block header (all RAR4 blocks): CRC(2) TYPE(1) FLAGS(2) SIZE(2).
     public const int Crc = 0;

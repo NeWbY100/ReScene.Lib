@@ -25,30 +25,30 @@ public class SRRFile
     /// <summary>
     /// Gets the RAR padding blocks from the SRR file.
     /// </summary>
-    public IReadOnlyList<SRRRarPaddingBlock> RARPaddingBlocks => _rarPaddingBlocks;
+    public IReadOnlyList<SRRRARPaddingBlock> RARPaddingBlocks => _rarPaddingBlocks;
 
-    internal List<SRRRarPaddingBlock> _rarPaddingBlocks { get; } = [];
+    internal List<SRRRARPaddingBlock> _rarPaddingBlocks { get; } = [];
 
     /// <summary>
     /// Gets the RAR file reference blocks from the SRR file.
     /// </summary>
-    public IReadOnlyList<SRRRarFileBlock> RARFiles => _rarFiles;
+    public IReadOnlyList<SRRRARFileBlock> RARFiles => _rarFiles;
 
-    internal List<SRRRarFileBlock> _rarFiles { get; } = [];
+    internal List<SRRRARFileBlock> _rarFiles { get; } = [];
 
     /// <summary>
     /// Gets the archive sets (grouped multi-volume series) parsed from the SRR. A single-set SRR
     /// yields one entry whose data equals the flat union properties.
     /// </summary>
-    public IReadOnlyList<SrrArchiveSet> ArchiveSets => _archiveSets;
+    public IReadOnlyList<SRRArchiveSet> ArchiveSets => _archiveSets;
 
-    internal List<SrrArchiveSet> _archiveSets { get; } = [];
+    internal List<SRRArchiveSet> _archiveSets { get; } = [];
 
     // Keyed lookup used during parsing to attribute embedded-header entries to the current set.
-    internal Dictionary<string, SrrArchiveSet> _archiveSetsByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal Dictionary<string, SRRArchiveSet> _archiveSetsByKey { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The set whose embedded headers are currently being parsed (most recent RARFile block).</summary>
-    internal SrrArchiveSet? CurrentArchiveSet { get; set; }
+    internal SRRArchiveSet? CurrentArchiveSet { get; set; }
 
     /// <summary>
     /// Begins (or resumes) the archive set for a RARFile block and records the volume name. Called by
@@ -58,13 +58,13 @@ public class SRRFile
     internal void BeginArchiveSetForVolume(string volumeName)
     {
         string key = RARVolumeIdentifier.GetArchiveSetKey(volumeName);
-        if (!_archiveSetsByKey.TryGetValue(key, out SrrArchiveSet? set))
+        if (!_archiveSetsByKey.TryGetValue(key, out SRRArchiveSet? set))
         {
             string? dir = Path.GetDirectoryName(volumeName);
             string normalizedDir = string.IsNullOrEmpty(dir)
                 ? string.Empty
                 : dir.Replace('\\', '/').Trim('/');
-            set = new SrrArchiveSet
+            set = new SRRArchiveSet
             {
                 Key = key,
                 Directory = normalizedDir,
@@ -84,7 +84,7 @@ public class SRRFile
     /// </summary>
     internal void FinalizeArchiveSets()
     {
-        foreach (SrrArchiveSet set in _archiveSets)
+        foreach (SRRArchiveSet set in _archiveSets)
         {
             foreach (string file in set.ArchivedFiles)
             {
@@ -495,7 +495,7 @@ public class SRRFile
 
         while (fs.Position < fs.Length)
         {
-            if (fs.Position + SrrBlockLayout.BaseHeaderSize > fs.Length)
+            if (fs.Position + SRRBlockLayout.BaseHeaderSize > fs.Length)
             {
                 break;
             }
@@ -519,7 +519,7 @@ public class SRRFile
             uint addSize = 0;
             if ((flags & (ushort)SRRBlockFlags.LongBlock) != 0 || type == SRRBlockType.StoredFile)
             {
-                if (fs.Position + SrrBlockLayout.AddSizeFieldLength > fs.Length)
+                if (fs.Position + SRRBlockLayout.AddSizeFieldLength > fs.Length)
                 {
                     break;
                 }
@@ -527,7 +527,7 @@ public class SRRFile
                 addSize = reader.ReadUInt32();
             }
 
-            if (headerSize < SrrBlockLayout.BaseHeaderSize)
+            if (headerSize < SRRBlockLayout.BaseHeaderSize)
             {
                 break;
             }
@@ -567,7 +567,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.RARPadding:
-                    SRRRarPaddingBlock? paddingBlock = SRRFileParser.ParseRarPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                    SRRRARPaddingBlock? paddingBlock = SRRFileParser.ParseRARPaddingBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (paddingBlock != null)
                     {
                         srr._rarPaddingBlocks.Add(paddingBlock);
@@ -577,7 +577,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.RARFile:
-                    SRRRarFileBlock? rarBlock = SRRFileParser.ParseRarFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
+                    SRRRARFileBlock? rarBlock = SRRFileParser.ParseRARFileBlock(reader, fs, startPos, crc, type, flags, headerSize, addSize);
                     if (rarBlock == null)
                     {
                         goto exitLoop;
@@ -587,7 +587,7 @@ public class SRRFile
                     srr.BeginArchiveSetForVolume(rarBlock.FileName);
 
                     // Parse embedded RAR headers that follow
-                    long volumeTotalSize = SRRFileParser.ParseEmbeddedRarHeaders(reader, fs, srr);
+                    long volumeTotalSize = SRRFileParser.ParseEmbeddedRARHeaders(reader, fs, srr);
                     if (volumeTotalSize > 0)
                     {
                         srr._rarVolumeSizes.Add(volumeTotalSize);

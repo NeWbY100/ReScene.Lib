@@ -9,7 +9,7 @@ namespace ReScene.Tests;
 public class SRREditorAddRemoveTests : TempDirTestBase
 {
     // Raw little-endian CRC sentinel bytes that begin each block type's base header.
-    private static readonly byte[] RarFileSentinel = [0x71, 0x71];   // SRRBlockType.RARFile (0x7171)
+    private static readonly byte[] RARFileSentinel = [0x71, 0x71];   // SRRBlockType.RARFile (0x7171)
     private static readonly byte[] OsoHashSentinel = [0x6B, 0x6B];   // SRRBlockType.OSOHash (0x6B6B)
 
     /// <summary>Writes a payload file under TempDir and returns its full path.</summary>
@@ -48,12 +48,12 @@ public class SRREditorAddRemoveTests : TempDirTestBase
     // the existing stored file stays first, the new one is appended after it but
     // still ahead of the RARFile block (proves insertion position, not just presence).
     [Fact]
-    public void AddStoredFiles_InsertsAfterExistingStoredFile_AndBeforeRarBlock()
+    public void AddStoredFiles_InsertsAfterExistingStoredFile_AndBeforeRARBlock()
     {
         string srrPath = new SRRTestDataBuilder()
             .AddSRRHeader()
             .AddStoredFile("existing.nfo", [1, 2, 3])
-            .AddRarFileWithHeaders("rls.rar", rar => rar.AddArchiveHeader().AddFileHeader("movie.mkv"))
+            .AddRARFileWithHeaders("rls.rar", rar => rar.AddArchiveHeader().AddFileHeader("movie.mkv"))
             .BuildToFile(TempDir, "add_before_rar.srr");
 
         string newFile = WriteFile("added.nfo", [9, 9, 9, 9]);
@@ -68,7 +68,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         // The new stored block must physically precede the RARFile block in the byte stream.
         byte[] bytes = File.ReadAllBytes(srrPath);
         SRRStoredFileBlock added = srr.StoredFiles.Single(b => b.FileName == "added.nfo");
-        int rarOffset = IndexOf(bytes, RarFileSentinel);
+        int rarOffset = IndexOf(bytes, RARFileSentinel);
         Assert.True(rarOffset >= 0, "RARFile block sentinel not found");
         // The stored block's base header starts NameLength(2)+name(var)+AddSize(4)+base(7) before its data.
         long addedBlockStart = added.DataOffset - "added.nfo".Length - 2 - 4 - 7;
@@ -81,16 +81,16 @@ public class SRREditorAddRemoveTests : TempDirTestBase
     // loop, and CommitViaTempFile wrote a truncated file — silently destroying all reconstruction
     // metadata.
     [Fact]
-    public void AddStoredFiles_RealSRRWithEmbeddedRar_PreservesRarRegionByteExact()
+    public void AddStoredFiles_RealSRRWithEmbeddedRAR_PreservesRARRegionByteExact()
     {
         string src = Path.Combine(AppContext.BaseDirectory, "TestData", "store_little", "store_little.srr");
         string srrPath = Path.Combine(TempDir, "store_little.srr");
         File.Copy(src, srrPath);
 
         byte[] original = File.ReadAllBytes(srrPath);
-        int rarOffset = IndexOf(original, RarFileSentinel);
+        int rarOffset = IndexOf(original, RARFileSentinel);
         Assert.True(rarOffset > 0, "RARFile block sentinel not found in the real SRR");
-        byte[] originalRarTail = original[rarOffset..];
+        byte[] originalRARTail = original[rarOffset..];
 
         SRRFile before = SRRFile.Load(srrPath);
         int rarFilesBefore = before.RARFiles.Count;
@@ -101,9 +101,9 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         // The embedded RAR region (first 0x71 block to EOF) must be byte-identical after the edit.
         byte[] edited = File.ReadAllBytes(srrPath);
-        int rarOffsetAfter = IndexOf(edited, RarFileSentinel);
+        int rarOffsetAfter = IndexOf(edited, RARFileSentinel);
         Assert.True(rarOffsetAfter > 0);
-        Assert.Equal(originalRarTail, edited[rarOffsetAfter..]);
+        Assert.Equal(originalRARTail, edited[rarOffsetAfter..]);
 
         // The correct parser still sees the same RAR file(s) plus the newly added stored file.
         SRRFile after = SRRFile.Load(srrPath);

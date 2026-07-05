@@ -40,7 +40,7 @@ public static class SRRVerifier
         {
             long blockStart = fs.Position;
 
-            if (blockStart + SrrBlockLayout.BaseHeaderSize > fileSize)
+            if (blockStart + SRRBlockLayout.BaseHeaderSize > fileSize)
             {
                 issues.Add(new SRRVerifyIssue
                 {
@@ -56,12 +56,12 @@ public static class SRRVerifier
             ushort flags = reader.ReadUInt16();
             ushort headerSize = reader.ReadUInt16();
 
-            if (headerSize < SrrBlockLayout.BaseHeaderSize)
+            if (headerSize < SRRBlockLayout.BaseHeaderSize)
             {
                 issues.Add(new SRRVerifyIssue
                 {
                     Severity = SRRVerifyIssueSeverity.Error,
-                    Message = $"Block at 0x{blockStart:X} reports header size {headerSize}; must be >= {SrrBlockLayout.BaseHeaderSize}.",
+                    Message = $"Block at 0x{blockStart:X} reports header size {headerSize}; must be >= {SRRBlockLayout.BaseHeaderSize}.",
                     Offset = blockStart,
                     BlockType = typeRaw
                 });
@@ -97,7 +97,7 @@ public static class SRRVerifier
             if (hasAddSize)
             {
                 // Strict guard (verifier reports truncation as an error; SRREditor reads-or-skips silently).
-                if (fs.Position + SrrBlockLayout.AddSizeFieldLength > fileSize)
+                if (fs.Position + SRRBlockLayout.AddSizeFieldLength > fileSize)
                 {
                     issues.Add(new SRRVerifyIssue
                     {
@@ -160,11 +160,11 @@ public static class SRRVerifier
     private static bool CRCSentinelMatches(ushort crc, byte typeRaw)
         => typeRaw switch
         {
-            (byte)SRRBlockType.Header => crc == SrrBlockLayout.HeaderSentinel,
-            (byte)SRRBlockType.StoredFile => crc == SrrBlockLayout.StoredFileSentinel,
-            (byte)SRRBlockType.OSOHash => crc == SrrBlockLayout.OSOSentinel,
-            (byte)SRRBlockType.RARPadding => crc == SrrBlockLayout.RARPaddingSentinel,
-            (byte)SRRBlockType.RARFile => crc == SrrBlockLayout.RARFileSentinel,
+            (byte)SRRBlockType.Header => crc == SRRBlockLayout.HeaderSentinel,
+            (byte)SRRBlockType.StoredFile => crc == SRRBlockLayout.StoredFileSentinel,
+            (byte)SRRBlockType.OSOHash => crc == SRRBlockLayout.OSOSentinel,
+            (byte)SRRBlockType.RARPadding => crc == SRRBlockLayout.RARPaddingSentinel,
+            (byte)SRRBlockType.RARFile => crc == SRRBlockLayout.RARFileSentinel,
             _ => true
         };
 }

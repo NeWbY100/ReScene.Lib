@@ -9,7 +9,7 @@ namespace ReScene.Core;
 /// arguments to an archive format, filtering arguments by version/format applicability, and the
 /// RAR 6.x timestamp-skip rule. Extracted from <see cref="Manager"/>.
 /// </summary>
-internal static partial class RarVersionSelector
+internal static partial class RARVersionSelector
 {
     [GeneratedRegex("(?:win)?(?:rar|wr)(?:-x64|-x32)?-?(\\d+)(?:b\\d+)?", RegexOptions.IgnoreCase)]
     private static partial Regex Generated_rarVersionRegex();
@@ -103,9 +103,9 @@ internal static partial class RarVersionSelector
 
         return version switch
         {
-            < RarVersionThresholds.Rar5FormatMinimum => RARArchiveVersion.RAR4,
-            < RarVersionThresholds.Rar7FormatMinimum => RARArchiveVersion.RAR5,
-            >= RarVersionThresholds.Rar7FormatMinimum => RARArchiveVersion.RAR7
+            < RARVersionThresholds.RAR5FormatMinimum => RARArchiveVersion.RAR4,
+            < RARVersionThresholds.RAR7FormatMinimum => RARArchiveVersion.RAR5,
+            >= RARVersionThresholds.RAR7FormatMinimum => RARArchiveVersion.RAR7
         };
     }
 
@@ -126,12 +126,12 @@ internal static partial class RarVersionSelector
     /// so those combinations must be skipped to avoid wrong extended-time header flags. RAR 7.x is
     /// excluded because it only creates RAR7 archives and handles timestamps natively.
     /// </summary>
-    public static bool ShouldSkipRar6TimestampCombination(int version, RARArchiveVersion archiveVersion, IReadOnlyList<string> filteredArguments)
+    public static bool ShouldSkipRAR6TimestampCombination(int version, RARArchiveVersion archiveVersion, IReadOnlyList<string> filteredArguments)
     {
         bool hasTimestampOptions = filteredArguments.Any(a => a.StartsWith("-ts", StringComparison.Ordinal));
         bool isRAR4Format = archiveVersion == RARArchiveVersion.RAR4
-            || (version >= 550 && version < RarVersionThresholds.Rar7FormatMinimum && !filteredArguments.Contains("-ma5"));
-        return version >= 600 && version < RarVersionThresholds.Rar7FormatMinimum && isRAR4Format && hasTimestampOptions;
+            || (version >= 550 && version < RARVersionThresholds.RAR7FormatMinimum && !filteredArguments.Contains("-ma5"));
+        return version >= 600 && version < RARVersionThresholds.RAR7FormatMinimum && isRAR4Format && hasTimestampOptions;
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ internal static partial class RarVersionSelector
     /// whose parsed version falls within one of the configured version ranges, returning each
     /// directory paired with its parsed version.
     /// </summary>
-    public static List<(string Path, int Version)> GetValidRarDirectories(string[] directories, BruteForceOptions options, IReSceneLogger logger, object logSource)
+    public static List<(string Path, int Version)> GetValidRARDirectories(string[] directories, BruteForceOptions options, IReSceneLogger logger, object logSource)
     {
         var validDirectories = new List<(string Path, int Version)>();
 

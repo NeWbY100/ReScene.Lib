@@ -29,13 +29,13 @@ public class SRRReconstructorTests : TempDirTestBase
     /// Builds a one-volume SRR (archive header + file header for the archived name + end archive)
     /// and writes the matching source file, returning the SRR path.
     /// </summary>
-    private string BuildSingleVolumeSrr(string rarName, string archivedName, byte[] sourceData)
+    private string BuildSingleVolumeSRR(string rarName, string archivedName, byte[] sourceData)
     {
         File.WriteAllBytes(Path.Combine(_inputDir, archivedName), sourceData);
 
         var builder = new SRRTestDataBuilder()
             .AddSRRHeader("ReScene.Tests")
-            .AddRarFileWithHeaders(rarName, h => h
+            .AddRARFileWithHeaders(rarName, h => h
                 .AddArchiveHeader()
                 .AddFileHeader(archivedName, packedSize: (uint)sourceData.Length, unpackedSize: (uint)sourceData.Length)
                 .AddEndArchive());
@@ -47,19 +47,19 @@ public class SRRReconstructorTests : TempDirTestBase
     /// Independently assembles the exact bytes a correct reconstruction must produce: the same RAR
     /// headers the SRR carries, with the source payload spliced in immediately after the file
     /// header (archive header + file header + payload + end archive). Built with the SAME builder
-    /// calls/args as <see cref="BuildSingleVolumeSrr"/>, but not via the reconstructor — so it is a
+    /// calls/args as <see cref="BuildSingleVolumeSRR"/>, but not via the reconstructor — so it is a
     /// genuine oracle, not the reconstructor's own output fed back.
     /// </summary>
     private static byte[] ExpectedReconstructedBytes(string archivedName, byte[] sourceData)
     {
-        byte[] prefix = BuildRarBytes(h => h
+        byte[] prefix = BuildRARBytes(h => h
             .AddArchiveHeader()
             .AddFileHeader(archivedName, packedSize: (uint)sourceData.Length, unpackedSize: (uint)sourceData.Length));
-        byte[] suffix = BuildRarBytes(h => h.AddEndArchive());
+        byte[] suffix = BuildRARBytes(h => h.AddEndArchive());
         return [.. prefix, .. sourceData, .. suffix];
     }
 
-    private static byte[] BuildRarBytes(Action<RAR4HeaderBuilder> build)
+    private static byte[] BuildRARBytes(Action<RAR4HeaderBuilder> build)
     {
         using var ms = new MemoryStream();
         using (var writer = new BinaryWriter(ms, Encoding.UTF8, leaveOpen: true))
@@ -73,7 +73,7 @@ public class SRRReconstructorTests : TempDirTestBase
     [Fact]
     public async Task ReconstructAsync_NoHashes_ProducesExactExpectedBytes()
     {
-        string srr = BuildSingleVolumeSrr("test.rar", "movie.mkv", SourcePayload);
+        string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
         var reconstructor = new SRRReconstructor();
         bool result = await reconstructor.ReconstructAsync(
@@ -90,13 +90,13 @@ public class SRRReconstructorTests : TempDirTestBase
     [Fact]
     public async Task ReconstructAsync_HashMatches_ReturnsTrue()
     {
-        string srr = BuildSingleVolumeSrr("test.rar", "movie.mkv", SourcePayload);
+        string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
         // Compute the expected CRC from the independently-assembled oracle bytes — not from the
         // reconstructor's output — so a match genuinely validates the verify path.
-        string expectedRarPath = Path.Combine(TempDir, "oracle.rar");
-        File.WriteAllBytes(expectedRarPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
-        string expectedCrc = CRC32.Calculate(expectedRarPath);
+        string expectedRARPath = Path.Combine(TempDir, "oracle.rar");
+        File.WriteAllBytes(expectedRARPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
+        string expectedCrc = CRC32.Calculate(expectedRARPath);
 
         var reconstructor = new SRRReconstructor();
         bool result = await reconstructor.ReconstructAsync(
@@ -108,12 +108,12 @@ public class SRRReconstructorTests : TempDirTestBase
     [Fact]
     public async Task ReconstructAsync_HashMismatch_ReturnsFalse()
     {
-        string srr = BuildSingleVolumeSrr("test.rar", "movie.mkv", SourcePayload);
+        string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
         // A hash guaranteed different from the real one (derived from the oracle, not hard-coded).
-        string expectedRarPath = Path.Combine(TempDir, "oracle.rar");
-        File.WriteAllBytes(expectedRarPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
-        string realCrc = CRC32.Calculate(expectedRarPath);
+        string expectedRARPath = Path.Combine(TempDir, "oracle.rar");
+        File.WriteAllBytes(expectedRARPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
+        string realCrc = CRC32.Calculate(expectedRARPath);
         string wrongCrc = realCrc == "00000000" ? "ffffffff" : "00000000";
 
         var reconstructor = new SRRReconstructor();
@@ -125,7 +125,7 @@ public class SRRReconstructorTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task ReconstructAsync_NoRarFileBlocks_ReturnsFalse()
+    public async Task ReconstructAsync_NoRARFileBlocks_ReturnsFalse()
     {
         // Header + stored file only — no 0x71 RAR-file block, so no volume is produced.
         string srr = new SRRTestDataBuilder()
@@ -141,7 +141,7 @@ public class SRRReconstructorTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task ReconstructAsync_TraversalRarName_RejectsAndWritesNothingOutsideOutputDir()
+    public async Task ReconstructAsync_TraversalRARName_RejectsAndWritesNothingOutsideOutputDir()
     {
         // A malicious SRR naming its volume "..\evil.rar" must not write outside the output
         // directory (path traversal / Zip-Slip). The escape target resolves to TempDir (the parent
@@ -151,7 +151,7 @@ public class SRRReconstructorTests : TempDirTestBase
 
         string srr = new SRRTestDataBuilder()
             .AddSRRHeader("ReScene.Tests")
-            .AddRarFileWithHeaders(@"..\evil.rar", h => h
+            .AddRARFileWithHeaders(@"..\evil.rar", h => h
                 .AddArchiveHeader()
                 .AddFileHeader(archivedName, packedSize: (uint)SourcePayload.Length, unpackedSize: (uint)SourcePayload.Length)
                 .AddEndArchive())
@@ -171,7 +171,7 @@ public class SRRReconstructorTests : TempDirTestBase
     public async Task ReconstructAsync_AlreadyCancelled_Throws()
     {
         byte[] source = [.. Enumerable.Range(0, 64).Select(i => (byte)i)];
-        string srr = BuildSingleVolumeSrr("test.rar", "movie.mkv", source);
+        string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", source);
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();

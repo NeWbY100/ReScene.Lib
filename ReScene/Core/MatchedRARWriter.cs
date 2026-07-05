@@ -5,7 +5,7 @@ namespace ReScene.Core;
 /// various naming schemes) and moves a matched archive to its final output path. Extracted from
 /// <see cref="Manager"/> to group the output-file discovery and placement helpers.
 /// </summary>
-internal static class MatchedRarWriter
+internal static class MatchedRARWriter
 {
     /// <summary>
     /// Moves a matched RAR file to its final path. Returns <see langword="true"/> when the file
@@ -34,17 +34,17 @@ internal static class MatchedRarWriter
     /// non-volume case and the various volume naming schemes (partNN.rar, partN.rar, .rar/.r00).
     /// Returns <see langword="null"/> when no produced file is found.
     /// </summary>
-    public static string? FindCreatedRARFile(string expectedRarFilePath)
+    public static string? FindCreatedRARFile(string expectedRARFilePath)
     {
         // Check if the expected file exists (non-volume case)
-        if (File.Exists(expectedRarFilePath))
+        if (File.Exists(expectedRARFilePath))
         {
-            return expectedRarFilePath;
+            return expectedRARFilePath;
         }
 
         // Check for volume files
-        string directory = Path.GetDirectoryName(expectedRarFilePath) ?? string.Empty;
-        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(expectedRarFilePath);
+        string directory = Path.GetDirectoryName(expectedRARFilePath) ?? string.Empty;
+        string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(expectedRARFilePath);
 
         // Check for RAR5 volume format with zero-padded numbers: filename.part01.rar, filename.part02.rar, etc.
         string part01File = Path.Combine(directory, $"{fileNameWithoutExtension}.part01.rar");

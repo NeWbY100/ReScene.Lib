@@ -52,9 +52,9 @@ public static class FileComparer
         {
             CompareMKVFiles(leftMkv, rightMkv, result, leftSource, rightSource);
         }
-        else if (leftData is RARFileData leftRar && rightData is RARFileData rightRar)
+        else if (leftData is RARFileData leftRAR && rightData is RARFileData rightRAR)
         {
-            CompareRARFiles(leftRar, rightRar, result, leftBlocks, rightBlocks, leftSource, rightSource);
+            CompareRARFiles(leftRAR, rightRAR, result, leftBlocks, rightBlocks, leftSource, rightSource);
         }
         else
         {

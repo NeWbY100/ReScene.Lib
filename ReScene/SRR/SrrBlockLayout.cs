@@ -4,7 +4,7 @@ namespace ReScene.SRR;
 /// SRR block framing constants — the single source of truth for the byte sizes and CRC "sentinels"
 /// shared by the SRR writer, editor, and verifier. Values mirror the on-disk SRR format exactly.
 /// </summary>
-internal static class SrrBlockLayout
+internal static class SRRBlockLayout
 {
     // Base SRR block header: CRC(2) + Type(1) + Flags(2) + Size(2).
     public const int BaseHeaderSize = 7;

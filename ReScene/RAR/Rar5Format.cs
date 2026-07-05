@@ -3,7 +3,7 @@ namespace ReScene.RAR;
 /// <summary>
 /// Named constants for RAR 5.0 vint and CompInfo bit-field masks.
 /// </summary>
-internal static class Rar5Format
+internal static class RAR5Format
 {
     // Variable-length integer (vint) decode
     /// <summary>Low 7 bits of a vint byte carry data.</summary>

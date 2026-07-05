@@ -1314,7 +1314,7 @@ public class RARDetailedParserTests
     #region SFX Parsing Tests
 
     [Fact]
-    public void Parse_SfxArchive_FindsRarBlocks()
+    public void Parse_SfxArchive_FindsRARBlocks()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
@@ -1386,7 +1386,7 @@ public class RARDetailedParserTests
     }
 
     [Fact]
-    public void FindRarMarkerOffset_SfxFile_ReturnsNonZeroOffset()
+    public void FindRARMarkerOffset_SfxFile_ReturnsNonZeroOffset()
     {
         string sfxPath = Path.Combine(TestDataPath, "best_little", "best_little_sfxgui.exe");
         if (!File.Exists(sfxPath))
@@ -1395,13 +1395,13 @@ public class RARDetailedParserTests
         }
 
         using FileStream fs = File.OpenRead(sfxPath);
-        long offset = RARUtils.FindRarMarkerOffset(fs);
+        long offset = RARUtils.FindRARMarkerOffset(fs);
 
         Assert.True(offset > 0, $"Expected positive offset for SFX, got {offset}");
     }
 
     [Fact]
-    public void FindRarMarkerOffset_RegularRar_ReturnsZero()
+    public void FindRARMarkerOffset_RegularRAR_ReturnsZero()
     {
         string rarPath = Path.Combine(TestDataPath, "test_wrar40_m3.rar");
         if (!File.Exists(rarPath))
@@ -1410,13 +1410,13 @@ public class RARDetailedParserTests
         }
 
         using FileStream fs = File.OpenRead(rarPath);
-        long offset = RARUtils.FindRarMarkerOffset(fs);
+        long offset = RARUtils.FindRARMarkerOffset(fs);
 
         Assert.Equal(0, offset);
     }
 
     [Fact]
-    public void FindRarMarkerOffset_Rar5_ReturnsZero()
+    public void FindRARMarkerOffset_RAR5_ReturnsZero()
     {
         string rarPath = Path.Combine(TestDataPath, "test_rar5_m3.rar");
         if (!File.Exists(rarPath))
@@ -1425,7 +1425,7 @@ public class RARDetailedParserTests
         }
 
         using FileStream fs = File.OpenRead(rarPath);
-        long offset = RARUtils.FindRarMarkerOffset(fs);
+        long offset = RARUtils.FindRARMarkerOffset(fs);
 
         Assert.Equal(0, offset);
     }

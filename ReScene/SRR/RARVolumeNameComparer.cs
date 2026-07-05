@@ -50,13 +50,13 @@ public class RARVolumeNameComparer : IComparer<string>
             return -1;
         }
 
-        int dotRar = lower.IndexOf(".rar", partIdx + 5, StringComparison.Ordinal);
-        if (dotRar < 0)
+        int dotRAR = lower.IndexOf(".rar", partIdx + 5, StringComparison.Ordinal);
+        if (dotRAR < 0)
         {
             return -1;
         }
 
-        string numStr = lower[(partIdx + 5)..dotRar];
+        string numStr = lower[(partIdx + 5)..dotRAR];
         return int.TryParse(numStr, out int num) ? num : -1;
     }
 

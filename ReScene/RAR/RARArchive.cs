@@ -18,7 +18,7 @@ internal sealed class RARArchive : IDisposable
     /// <summary>
     /// True when the archive uses the RAR5 container format.
     /// </summary>
-    public bool IsRar5
+    public bool IsRAR5
     {
         get;
     }
@@ -53,12 +53,12 @@ internal sealed class RARArchive : IDisposable
     }
 
     private RARArchive(string firstVolumePath, IReadOnlyList<string> volumePaths,
-        IReadOnlyList<RAREntry> files, bool isRar5, bool isSolid)
+        IReadOnlyList<RAREntry> files, bool isRAR5, bool isSolid)
     {
         _firstVolumePath = firstVolumePath;
         VolumePaths = volumePaths;
         Files = files;
-        IsRar5 = isRar5;
+        IsRAR5 = isRAR5;
         IsSolid = isSolid;
     }
 
@@ -76,10 +76,10 @@ internal sealed class RARArchive : IDisposable
         var volumes = new List<string> { firstVolumePath };
         bool? isOldNaming = null;
 
-        bool firstIsRar5 = DetectRar5(firstVolumePath);
-        bool isRar5 = firstIsRar5;
+        bool firstIsRAR5 = DetectRAR5(firstVolumePath);
+        bool isRAR5 = firstIsRAR5;
 
-        if (firstIsRar5)
+        if (firstIsRAR5)
         {
             isOldNaming = false;
         }
@@ -102,7 +102,7 @@ internal sealed class RARArchive : IDisposable
             current = next;
         }
 
-        return OpenInternal(firstVolumePath, volumes, isRar5);
+        return OpenInternal(firstVolumePath, volumes, isRAR5);
     }
 
     /// <summary>
@@ -122,11 +122,11 @@ internal sealed class RARArchive : IDisposable
             throw new FileNotFoundException("RAR archive not found.", first);
         }
 
-        bool isRar5 = DetectRar5(first);
-        return OpenInternal(first, volumePaths, isRar5);
+        bool isRAR5 = DetectRAR5(first);
+        return OpenInternal(first, volumePaths, isRAR5);
     }
 
-    private static RARArchive OpenInternal(string firstVolumePath, IReadOnlyList<string> volumePaths, bool isRar5)
+    private static RARArchive OpenInternal(string firstVolumePath, IReadOnlyList<string> volumePaths, bool isRAR5)
     {
         var entries = new List<RAREntry>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -137,13 +137,13 @@ internal sealed class RARArchive : IDisposable
             try
             {
                 using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                if (isRar5)
+                if (isRAR5)
                 {
-                    WalkRar5(fs, entries, seen, ref isSolid);
+                    WalkRAR5(fs, entries, seen, ref isSolid);
                 }
                 else
                 {
-                    WalkRar4(fs, entries, seen, ref isSolid);
+                    WalkRAR4(fs, entries, seen, ref isSolid);
                 }
             }
             catch
@@ -152,7 +152,7 @@ internal sealed class RARArchive : IDisposable
             }
         }
 
-        return new RARArchive(firstVolumePath, volumePaths, entries, isRar5, isSolid);
+        return new RARArchive(firstVolumePath, volumePaths, entries, isRAR5, isSolid);
     }
 
     /// <summary>
@@ -215,10 +215,10 @@ internal sealed class RARArchive : IDisposable
                 return packed;
             }
 
-            RARVersion version = entry.IsRar5
+            RARVersion version = entry.IsRAR5
                 ? RARVersion.RAR50
                 : entry.UnpackVersion <= 20 ? RARVersion.RAR20 : RARVersion.RAR29;
-            var method = (RARMethod)(Rar4HeaderLayout.AsciiDigitZero + entry.CompressionMethod);
+            var method = (RARMethod)(RAR4HeaderLayout.AsciiDigitZero + entry.CompressionMethod);
 
             byte[]? unpacked = RARDecompressor.Decompress(packed, (int)entry.UnpackedSize, method, version);
             if (unpacked is null)
@@ -253,16 +253,16 @@ internal sealed class RARArchive : IDisposable
     /// <inheritdoc/>
     public void Dispose() => _disposed = true;
 
-    private static bool DetectRar5(string volumePath)
+    private static bool DetectRAR5(string volumePath)
     {
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        return RARUtils.IsRar5Marker(fs);
+        return RARUtils.IsRAR5Marker(fs);
     }
 
     private static bool ArchiveUsesNewNaming(string volumePath)
     {
         using var fs = new FileStream(volumePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        if (RARUtils.IsRar5Marker(fs))
+        if (RARUtils.IsRAR5Marker(fs))
         {
             return true;
         }
@@ -298,7 +298,7 @@ internal sealed class RARArchive : IDisposable
         return true;
     }
 
-    private static void WalkRar4(FileStream fs, List<RAREntry> entries, HashSet<string> seen, ref bool isSolid)
+    private static void WalkRAR4(FileStream fs, List<RAREntry> entries, HashSet<string> seen, ref bool isSolid)
     {
         fs.Position = 0;
         var reader = new RARHeaderReader(fs);
@@ -329,7 +329,7 @@ internal sealed class RARArchive : IDisposable
                     UnpackVersion: fh.UnpackVersion,
                     PackedSize: (long)fh.PackedSize,
                     UnpackedSize: (long)fh.UnpackedSize,
-                    IsRar5: false,
+                    IsRAR5: false,
                     ExpectedCrc: fh.FileCRC));
             }
 
@@ -347,9 +347,9 @@ internal sealed class RARArchive : IDisposable
         }
     }
 
-    private static void WalkRar5(FileStream fs, List<RAREntry> entries, HashSet<string> seen, ref bool isSolid)
+    private static void WalkRAR5(FileStream fs, List<RAREntry> entries, HashSet<string> seen, ref bool isSolid)
     {
-        fs.Position = RARUtils.Rar5Marker.Length;
+        fs.Position = RARUtils.RAR5Marker.Length;
         var reader = new RAR5HeaderReader(fs);
 
         while (reader.CanReadBaseHeader)
@@ -378,7 +378,7 @@ internal sealed class RARArchive : IDisposable
                     UnpackVersion: 50,
                     PackedSize: (long)block.DataSize,
                     UnpackedSize: (long)fi.UnpackedSize,
-                    IsRar5: true,
+                    IsRAR5: true,
                     ExpectedCrc: fi.FileCRC));
             }
 

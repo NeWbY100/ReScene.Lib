@@ -79,17 +79,17 @@ public class RAR5FileInfo
     /// <summary>
     /// Compression method (0-5).
     /// </summary>
-    public int CompressionMethod => (int)((CompressionInfo >> Rar5Format.CompInfoMethodShift) & Rar5Format.CompInfoMethodMask);
+    public int CompressionMethod => (int)((CompressionInfo >> RAR5Format.CompInfoMethodShift) & RAR5Format.CompInfoMethodMask);
 
     /// <summary>
     /// Dictionary size as power of 2 (bits 10-13 of CompInfo for RAR5).
     /// </summary>
-    public int DictSizePower => (int)((CompressionInfo >> Rar5Format.CompInfoDictShift) & Rar5Format.CompInfoDictMask);
+    public int DictSizePower => (int)((CompressionInfo >> RAR5Format.CompInfoDictShift) & RAR5Format.CompInfoDictMask);
 
     /// <summary>
     /// Dictionary size in KB (base 128KB shifted by DictSizePower).
     /// </summary>
-    public int DictionarySizeKB => Rar5Format.CompInfoDictBaseKB << DictSizePower;
+    public int DictionarySizeKB => RAR5Format.CompInfoDictBaseKB << DictSizePower;
 
     /// <summary>
     /// True if file continues from previous volume.

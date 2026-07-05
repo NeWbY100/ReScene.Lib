@@ -9,7 +9,7 @@ namespace ReScene.SRR;
 /// </summary>
 internal static class SRRFileParser
 {
-    private const int RarVersion50 = 50;
+    private const int RARVersion50 = 50;
     internal static bool IsSRRBlockType(byte type) => type is (byte)SRRBlockType.Header or (byte)SRRBlockType.StoredFile or (byte)SRRBlockType.OSOHash or (byte)SRRBlockType.RARPadding or (byte)SRRBlockType.RARFile;
 
     internal static SRRHeaderBlock ParseHeaderBlock(BinaryReader reader, FileStream fs,
@@ -48,13 +48,13 @@ internal static class SRRFileParser
         long headerEnd = startPos + headerSize;
 
         // OSO hash block format (pyrescene order): 8 bytes file size + 8 bytes hash + 2 bytes name length + name
-        if (fs.Position + SrrBlockLayout.OsoFixedPayloadSize > headerEnd)
+        if (fs.Position + SRRBlockLayout.OsoFixedPayloadSize > headerEnd)
         {
             return null;
         }
 
         ulong fileSize = reader.ReadUInt64();
-        byte[] osoHash = reader.ReadBytes(SrrBlockLayout.OsoHashLength);
+        byte[] osoHash = reader.ReadBytes(SRRBlockLayout.OsoHashLength);
 
         if (fs.Position + 2 > headerEnd)
         {
@@ -83,7 +83,7 @@ internal static class SRRFileParser
         };
     }
 
-    internal static SRRRarPaddingBlock? ParseRarPaddingBlock(BinaryReader reader, FileStream fs,
+    internal static SRRRARPaddingBlock? ParseRARPaddingBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         long headerEnd = startPos + headerSize;
@@ -107,7 +107,7 @@ internal static class SRRFileParser
             rarFileName = Encoding.UTF8.GetString(nameBytes);
         }
 
-        return new SRRRarPaddingBlock
+        return new SRRRARPaddingBlock
         {
             CRC = crc,
             BlockType = type,
@@ -123,7 +123,7 @@ internal static class SRRFileParser
     internal static SRRStoredFileBlock? ParseStoredFileBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
-        int minStoredHeaderSize = SrrBlockLayout.BaseHeaderSize + SrrBlockLayout.AddSizeFieldLength + SrrBlockLayout.NameLengthFieldLength;
+        int minStoredHeaderSize = SRRBlockLayout.BaseHeaderSize + SRRBlockLayout.AddSizeFieldLength + SRRBlockLayout.NameLengthFieldLength;
         if (headerSize < minStoredHeaderSize)
         {
             return null;
@@ -169,7 +169,7 @@ internal static class SRRFileParser
         };
     }
 
-    internal static SRRRarFileBlock? ParseRarFileBlock(BinaryReader reader, FileStream fs,
+    internal static SRRRARFileBlock? ParseRARFileBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize, uint addSize)
     {
         // Guard the name-length read: a RARFile block with headerSize 7 and no
@@ -189,7 +189,7 @@ internal static class SRRFileParser
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
 
-        return new SRRRarFileBlock
+        return new SRRRARFileBlock
         {
             CRC = crc,
             BlockType = type,
@@ -201,18 +201,18 @@ internal static class SRRFileParser
         };
     }
 
-    internal static long ParseEmbeddedRarHeaders(BinaryReader reader, FileStream fs, SRRFile srr)
+    internal static long ParseEmbeddedRARHeaders(BinaryReader reader, FileStream fs, SRRFile srr)
     {
         // Check if this is RAR5 format by looking for the marker
-        if (RARUtils.IsRar5Marker(fs))
+        if (RARUtils.IsRAR5Marker(fs))
         {
-            return ParseEmbeddedRar5Headers(fs, srr);
+            return ParseEmbeddedRAR5Headers(fs, srr);
         }
 
-        return ParseEmbeddedRar4Headers(reader, fs, srr);
+        return ParseEmbeddedRAR4Headers(reader, fs, srr);
     }
 
-    internal static long ParseEmbeddedRar4Headers(BinaryReader reader, FileStream fs, SRRFile srr)
+    internal static long ParseEmbeddedRAR4Headers(BinaryReader reader, FileStream fs, SRRFile srr)
     {
         long volumeTotalSize = 0;
         var rarReader = new RARHeaderReader(reader);
@@ -274,16 +274,16 @@ internal static class SRRFileParser
         return volumeTotalSize;
     }
 
-    internal static long ParseEmbeddedRar5Headers(FileStream fs, SRRFile srr)
+    internal static long ParseEmbeddedRAR5Headers(FileStream fs, SRRFile srr)
     {
         long volumeTotalSize = 0;
 
         // Skip RAR5 marker (8 bytes)
-        fs.Seek(RARUtils.Rar5Marker.Length, SeekOrigin.Current);
-        volumeTotalSize += RARUtils.Rar5Marker.Length;
+        fs.Seek(RARUtils.RAR5Marker.Length, SeekOrigin.Current);
+        volumeTotalSize += RARUtils.RAR5Marker.Length;
 
         var rarReader = new RAR5HeaderReader(fs);
-        srr.RARVersion = RarVersion50; // RAR 5.0
+        srr.RARVersion = RARVersion50; // RAR 5.0
 
         while (fs.Position < fs.Length)
         {
@@ -320,19 +320,19 @@ internal static class SRRFileParser
             // Process archive header
             if (block.ArchiveInfo != null)
             {
-                ProcessRar5ArchiveHeader(srr, block.ArchiveInfo);
+                ProcessRAR5ArchiveHeader(srr, block.ArchiveInfo);
             }
 
             // Process file header
             if (block.FileInfo != null)
             {
-                ProcessRar5FileHeader(srr, block.FileInfo);
+                ProcessRAR5FileHeader(srr, block.FileInfo);
             }
 
             // Process service block (CMT comment, RR recovery, etc.)
             if (block.ServiceBlockInfo != null)
             {
-                ProcessRar5ServiceBlock(srr, block, rarReader);
+                ProcessRAR5ServiceBlock(srr, block, rarReader);
             }
 
             // Skip to next block (headers only for file blocks in SRR)
@@ -364,7 +364,7 @@ internal static class SRRFileParser
         srr.HasFirstVolumeFlag ??= header.IsFirstVolume;
         srr.HasEncryptedHeaders ??= header.HasEncryptedHeaders;
 
-        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        SRRArchiveSet? set = srr.CurrentArchiveSet;
         if (set != null)
         {
             set.IsSolid ??= header.IsSolid;
@@ -377,14 +377,14 @@ internal static class SRRFileParser
         // Detect custom RAR packer sentinel values in unpacked_size
         if (!srr.HasCustomPackerHeaders && !header.IsDirectory)
         {
-            if (header.UnpackedSize == SrrPackerSentinels.PackerSentinelAllOnes)
+            if (header.UnpackedSize == SRRPackerSentinels.PackerSentinelAllOnes)
             {
                 // Both low and high 32-bit fields are all ones (LARGE flag set).
                 // Known groups: RELOADED, HI2U, 0x0007, 0x0815
                 srr.HasCustomPackerHeaders = true;
                 srr.CustomPackerDetected = CustomPackerType.AllOnesWithLargeFlag;
             }
-            else if (header.UnpackedSize == SrrPackerSentinels.PackerSentinelMaxUint32 && !header.HasLargeSize)
+            else if (header.UnpackedSize == SRRPackerSentinels.PackerSentinelMaxUint32 && !header.HasLargeSize)
             {
                 // Raw 32-bit UNP_SIZE maxed out without LARGE flag.
                 // Known group: QCF
@@ -420,7 +420,7 @@ internal static class SRRFileParser
         srr.FileCtimePrecision ??= header.CtimePrecision;
         srr.FileAtimePrecision ??= header.AtimePrecision;
 
-        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        SRRArchiveSet? set = srr.CurrentArchiveSet;
         if (set != null)
         {
             set.CompressionMethod ??= header.CompressionMethod;
@@ -504,15 +504,15 @@ internal static class SRRFileParser
 
     internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressComment(RARServiceBlockInfo serviceInfo, byte[] compressedData)
         // RAR4 service blocks store an already RAR4-encoded method byte.
-        => TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, serviceInfo.CompressionMethod, isRar5: false);
+        => TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, serviceInfo.CompressionMethod, isRAR5: false);
 
     /// <summary>
     /// Shared compressed-comment decode tail for RAR4 and RAR5. The caller supplies a
     /// pre-normalized RAR4-encoded <paramref name="method"/> byte and the
-    /// <paramref name="isRar5"/> flag used to select the native decompressor variant.
+    /// <paramref name="isRAR5"/> flag used to select the native decompressor variant.
     /// </summary>
     private static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryDecompressComment(
-        int uncompressedSize, byte[] compressedData, byte method, bool isRar5)
+        int uncompressedSize, byte[] compressedData, byte method, bool isRAR5)
     {
         try
         {
@@ -526,7 +526,7 @@ internal static class SRRFileParser
                 compressedData,
                 uncompressedSize,
                 method,
-                isRAR5: isRar5);
+                isRAR5: isRAR5);
 
             if (rawBytes == null)
             {
@@ -545,7 +545,7 @@ internal static class SRRFileParser
         }
     }
 
-    internal static void ProcessRar5ArchiveHeader(SRRFile srr, RAR5ArchiveInfo info)
+    internal static void ProcessRAR5ArchiveHeader(SRRFile srr, RAR5ArchiveInfo info)
     {
         srr.IsVolumeArchive ??= info.IsVolume;
         srr.IsSolidArchive ??= info.IsSolid;
@@ -553,23 +553,23 @@ internal static class SRRFileParser
         srr.HasNewVolumeNaming ??= info.HasVolumeNumber; // RAR5 uses volume number field
     }
 
-    internal static void ProcessRar5FileHeader(SRRFile srr, RAR5FileInfo info)
+    internal static void ProcessRAR5FileHeader(SRRFile srr, RAR5FileInfo info)
     {
         // Store first file's compression settings
         if (srr.CompressionMethod == null)
         {
             // RAR5 compression method: 0=store, 1-5=compression levels
-            srr.CompressionMethod = info.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
+            srr.CompressionMethod = info.CompressionMethod == 0 ? RAR4HeaderLayout.AsciiDigitZero : RAR4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
             srr.DictionarySize = info.DictionarySizeKB;
-            srr.RARVersion = RarVersion50;
+            srr.RARVersion = RARVersion50;
         }
 
-        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        SRRArchiveSet? set = srr.CurrentArchiveSet;
         if (set != null)
         {
-            set.CompressionMethod ??= info.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
+            set.CompressionMethod ??= info.CompressionMethod == 0 ? RAR4HeaderLayout.AsciiDigitZero : RAR4HeaderLayout.AsciiDigitZero + info.CompressionMethod;
             set.DictionarySize ??= info.DictionarySizeKB;
-            set.RARVersion ??= RarVersion50;
+            set.RARVersion ??= RARVersion50;
             // Note: RAR5 file headers do not expose HostOS, FileAttributes, or HasLargeFiles
             // in the same per-file fields as RAR4, so DetectedHostOS, DetectedFileAttributes,
             // HasLargeFiles, DetectedHighPackSize, and DetectedHighUnpSize are not set per-set
@@ -610,7 +610,7 @@ internal static class SRRFileParser
         }
     }
 
-    internal static void ProcessRar5ServiceBlock(SRRFile srr, RAR5BlockReadResult block, RAR5HeaderReader rarReader)
+    internal static void ProcessRAR5ServiceBlock(SRRFile srr, RAR5BlockReadResult block, RAR5HeaderReader rarReader)
     {
         RAR5ServiceBlockInfo? serviceInfo = block.ServiceBlockInfo;
         if (serviceInfo == null)
@@ -641,15 +641,15 @@ internal static class SRRFileParser
         else
         {
             // Compressed comment - use native RAR5 decompression
-            (srr.ArchiveComment, srr.ArchiveCommentBytes) = TryNativeDecompressRar5Comment(serviceInfo, commentData);
+            (srr.ArchiveComment, srr.ArchiveCommentBytes) = TryNativeDecompressRAR5Comment(serviceInfo, commentData);
         }
     }
 
-    internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressRar5Comment(RAR5ServiceBlockInfo serviceInfo, byte[] compressedData)
+    internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressRAR5Comment(RAR5ServiceBlockInfo serviceInfo, byte[] compressedData)
     {
         // Map RAR5 method to the RAR4-encoded method byte (RAR5 method 0=store, 1-5=compression).
-        byte method = (byte)(serviceInfo.CompressionMethod == 0 ? Rar4HeaderLayout.AsciiDigitZero : Rar4HeaderLayout.AsciiDigitZero + serviceInfo.CompressionMethod);
-        return TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, method, isRar5: true);
+        byte method = (byte)(serviceInfo.CompressionMethod == 0 ? RAR4HeaderLayout.AsciiDigitZero : RAR4HeaderLayout.AsciiDigitZero + serviceInfo.CompressionMethod);
+        return TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, method, isRAR5: true);
     }
 
     /// <summary>
@@ -705,7 +705,7 @@ internal static class SRRFileParser
             return;
         }
 
-        SrrArchiveSet? set = srr.CurrentArchiveSet;
+        SRRArchiveSet? set = srr.CurrentArchiveSet;
 
         if (isDirectory)
         {
