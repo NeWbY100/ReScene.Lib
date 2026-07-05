@@ -1,68 +1,6 @@
 namespace ReScene.RAR.Decompression;
 
 /// <summary>
-/// RAR compression methods.
-/// </summary>
-internal enum RARMethod
-{
-    /// <summary>
-    /// Store (no compression)
-    /// </summary>
-    Store = 0x30,
-
-    /// <summary>
-    /// Fastest compression
-    /// </summary>
-    Fastest = 0x31,
-
-    /// <summary>
-    /// Fast compression
-    /// </summary>
-    Fast = 0x32,
-
-    /// <summary>
-    /// Normal compression
-    /// </summary>
-    Normal = 0x33,
-
-    /// <summary>
-    /// Good compression
-    /// </summary>
-    Good = 0x34,
-
-    /// <summary>
-    /// Best compression
-    /// </summary>
-    Best = 0x35
-}
-
-/// <summary>
-/// RAR format versions.
-/// </summary>
-public enum RARVersion
-{
-    /// <summary>
-    /// RAR 1.5
-    /// </summary>
-    RAR15 = 15,
-
-    /// <summary>
-    /// RAR 2.0
-    /// </summary>
-    RAR20 = 20,
-
-    /// <summary>
-    /// RAR 2.9/3.x
-    /// </summary>
-    RAR29 = 29,
-
-    /// <summary>
-    /// RAR 5.x
-    /// </summary>
-    RAR50 = 50
-}
-
-/// <summary>
 /// Facade class for RAR decompression.
 /// Automatically selects the appropriate algorithm based on RAR version and compression method.
 /// Supports both LZSS and PPMd compression natively in C#.
