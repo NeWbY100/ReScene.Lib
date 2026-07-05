@@ -4,7 +4,7 @@ namespace ReScene.SRR;
 /// SRR OSO hash block (0x6B).
 /// Contains OSO hash information for OpenSubtitles matching.
 /// </summary>
-public class SRROsoHashBlock : SRRBlock
+public class SRROSOHashBlock : SRRBlock
 {
     /// <summary>
     /// Gets or sets the filename associated with this hash.

@@ -4,7 +4,7 @@ namespace ReScene.SRS;
 /// Constants for ASF/WMV container detection and object framing.
 /// An ASF object header is always a 16-byte GUID followed by an 8-byte LE64 size field (24 bytes total).
 /// </summary>
-internal static class AsfGuids
+internal static class ASFGuids
 {
     /// <summary>First 4 bytes of the ASF Header Object GUID (30 26 B2 75 ...).</summary>
     internal static ReadOnlySpan<byte> HeaderObjectPrefix => [0x30, 0x26, 0xB2, 0x75];

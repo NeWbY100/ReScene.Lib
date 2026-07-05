@@ -38,7 +38,7 @@ internal static class MP4Atoms
         fs.Position = 0;
         int count = 0;
 
-        while (fs.Position + Mp4AtomTypes.AtomHeaderSize <= end)
+        while (fs.Position + MP4AtomTypes.AtomHeaderSize <= end)
         {
             long atomStart = fs.Position;
 
@@ -50,12 +50,12 @@ internal static class MP4Atoms
             fs.ReadExactly(typeBytes, 0, 4);
             string type = Encoding.ASCII.GetString(typeBytes);
 
-            int headerSize = Mp4AtomTypes.AtomHeaderSize;
+            int headerSize = MP4AtomTypes.AtomHeaderSize;
             long totalSize;
 
-            if (size32 == Mp4AtomTypes.ExtendedSizeSentinel)
+            if (size32 == MP4AtomTypes.ExtendedSizeSentinel)
             {
-                if (atomStart + Mp4AtomTypes.AtomExtendedHeaderSize > end)
+                if (atomStart + MP4AtomTypes.AtomExtendedHeaderSize > end)
                 {
                     break;
                 }
@@ -63,9 +63,9 @@ internal static class MP4Atoms
                 byte[] extBytes = new byte[8];
                 fs.ReadExactly(extBytes, 0, 8);
                 totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(extBytes);
-                headerSize = Mp4AtomTypes.AtomExtendedHeaderSize;
+                headerSize = MP4AtomTypes.AtomExtendedHeaderSize;
             }
-            else if (size32 == Mp4AtomTypes.ToEndSentinel)
+            else if (size32 == MP4AtomTypes.ToEndSentinel)
             {
                 totalSize = end - atomStart;
             }

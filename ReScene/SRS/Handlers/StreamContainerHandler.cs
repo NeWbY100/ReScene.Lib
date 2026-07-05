@@ -70,16 +70,16 @@ internal class StreamContainerHandler : IContainerHandler
         // Write STREAM marker
         outFs.Write(Encoding.ASCII.GetBytes(StreamFourCC.Strm));
         Span<byte> markerSize = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32LittleEndian(markerSize, SrsBlockLayout.HeaderSize);
+        BinaryPrimitives.WriteUInt32LittleEndian(markerSize, SRSBlockLayout.HeaderSize);
         outFs.Write(markerSize);
 
         // Write SRSF block
-        SRSPayloadSerializer.WriteSrsfBlock(outFs, samplePath, sampleSize, sampleCRC32, options);
+        SRSPayloadSerializer.WriteSRSFBlock(outFs, samplePath, sampleSize, sampleCRC32, options);
 
         // Write SRST blocks
         foreach (TrackInfo track in tracks)
         {
-            SRSPayloadSerializer.WriteSrstBlock(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
+            SRSPayloadSerializer.WriteSRSTBlock(outFs, track, sampleSize >= SRSConstants.BigFileSizeThreshold);
         }
     }
 }

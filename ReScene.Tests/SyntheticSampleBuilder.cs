@@ -89,13 +89,13 @@ internal static class SyntheticSampleBuilder
     /// its sample/movie files share identical track-2 bytes; the writer/parser
     /// suites use the default 42.
     /// </param>
-    public static string BuildMkv(string path, int block2Seed = 42)
+    public static string BuildMKV(string path, int block2Seed = 42)
     {
         using var ms = new MemoryStream();
 
         // EBML Header element (ID: 0x1A45DFA3)
-        byte[] ebmlContent = BuildEbmlHeaderContent();
-        WriteEbmlElement(ms, 0x1A45DFA3, ebmlContent);
+        byte[] ebmlContent = BuildEBMLHeaderContent();
+        WriteEBMLElement(ms, 0x1A45DFA3, ebmlContent);
 
         // Segment (ID: 0x18538067) containing a Cluster with SimpleBlocks
         var segContent = new MemoryStream();
@@ -111,7 +111,7 @@ internal static class SyntheticSampleBuilder
         simpleBlockPayload[2] = 0; // Timecode LSB
         simpleBlockPayload[3] = 0x80; // Flags (keyframe)
         blockData.CopyTo(simpleBlockPayload, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload);
 
         // Second SimpleBlock for track 2
         byte[] blockData2 = CreateTestData(256, block2Seed);
@@ -121,11 +121,11 @@ internal static class SyntheticSampleBuilder
         simpleBlockPayload2[2] = 0;
         simpleBlockPayload2[3] = 0x80;
         blockData2.CopyTo(simpleBlockPayload2, 4);
-        WriteEbmlElement(clusterContent, 0xA3, simpleBlockPayload2);
+        WriteEBMLElement(clusterContent, 0xA3, simpleBlockPayload2);
 
-        WriteEbmlElement(segContent, 0x1F43B675, clusterContent.ToArray());
+        WriteEBMLElement(segContent, 0x1F43B675, clusterContent.ToArray());
 
-        WriteEbmlElement(ms, 0x18538067, segContent.ToArray());
+        WriteEBMLElement(ms, 0x18538067, segContent.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
@@ -134,7 +134,7 @@ internal static class SyntheticSampleBuilder
     /// <summary>
     /// Builds a minimal MP4 file: ftyp + moov + mdat (mdat = 1024 bytes seed 42).
     /// </summary>
-    public static string BuildMp4(string path)
+    public static string BuildMP4(string path)
     {
         using var ms = new MemoryStream();
         using var bw = new BinaryWriter(ms);
@@ -228,7 +228,7 @@ internal static class SyntheticSampleBuilder
     /// Builds a minimal MP3 file: ID3v2 header + audio sync frames
     /// (512 bytes seed 42, with the first two bytes forced to the MP3 sync word).
     /// </summary>
-    public static string BuildMp3(string path)
+    public static string BuildMP3(string path)
     {
         using var ms = new MemoryStream();
 
@@ -263,7 +263,7 @@ internal static class SyntheticSampleBuilder
     /// sync frames. Exercises the multiple-consecutive-ID3v2-tag path that the writer
     /// (MP3TagReader.FindAudioStart) supports and the rebuilder must round-trip (audit #31).
     /// </summary>
-    public static string BuildMp3WithTwoId3v2Tags(string path)
+    public static string BuildMP3WithTwoId3v2Tags(string path)
     {
         using var ms = new MemoryStream();
 
@@ -315,7 +315,7 @@ internal static class SyntheticSampleBuilder
     /// two 300-byte packets (seed 123). The packet region is exactly what the SRS
     /// writer strips and the rebuilder must restore from the media file.
     /// </summary>
-    public static string BuildWmv(string path)
+    public static string BuildWMV(string path)
     {
         // ASF Header Object GUID: 75B22630-668E-11CF-A6D9-00AA0062CE6C
         byte[] headerGuid =
@@ -333,7 +333,7 @@ internal static class SyntheticSampleBuilder
         using var ms = new MemoryStream();
 
         // Header Object (non-data) with a small verbatim body.
-        WriteAsfObject(ms, headerGuid, CreateTestData(32, seed: 7));
+        WriteASFObject(ms, headerGuid, CreateTestData(32, seed: 7));
 
         // Data Object body: file ID (16) + total packets (8, LE) + reserved (2) + packets.
         using var dataBody = new MemoryStream();
@@ -343,14 +343,14 @@ internal static class SyntheticSampleBuilder
         dataBody.Write(packetCount);
         dataBody.Write(new byte[2]); // reserved
         dataBody.Write(CreateTestData(600, seed: 123)); // 2 x 300-byte packets
-        WriteAsfObject(ms, dataGuid, dataBody.ToArray());
+        WriteASFObject(ms, dataGuid, dataBody.ToArray());
 
         File.WriteAllBytes(path, ms.ToArray());
         return path;
     }
 
     /// <summary>Writes an ASF object: 16-byte GUID + 8-byte little-endian size + body.</summary>
-    public static void WriteAsfObject(Stream stream, byte[] guid, byte[] body)
+    public static void WriteASFObject(Stream stream, byte[] guid, byte[] body)
     {
         stream.Write(guid);
         Span<byte> size = stackalloc byte[8];
@@ -371,18 +371,18 @@ internal static class SyntheticSampleBuilder
     }
 
     /// <summary>Writes an EBML element: ID (1-4 bytes) + VINT size + data.</summary>
-    public static void WriteEbmlElement(Stream stream, ulong id, byte[] data)
+    public static void WriteEBMLElement(Stream stream, ulong id, byte[] data)
     {
-        byte[] idBytes = EncodeEbmlId(id);
+        byte[] idBytes = EncodeEBMLId(id);
         stream.Write(idBytes);
 
-        byte[] sizeBytes = EncodeEbmlSize(data.Length);
+        byte[] sizeBytes = EncodeEBMLSize(data.Length);
         stream.Write(sizeBytes);
 
         stream.Write(data);
     }
 
-    public static byte[] EncodeEbmlId(ulong id)
+    public static byte[] EncodeEBMLId(ulong id)
     {
         if (id < 0x100)
         {
@@ -402,7 +402,7 @@ internal static class SyntheticSampleBuilder
         return [(byte)(id >> 24), (byte)((id >> 16) & 0xFF), (byte)((id >> 8) & 0xFF), (byte)(id & 0xFF)];
     }
 
-    public static byte[] EncodeEbmlSize(long value)
+    public static byte[] EncodeEBMLSize(long value)
     {
         if (value < 0x7F)
         {
@@ -437,19 +437,19 @@ internal static class SyntheticSampleBuilder
     /// Builds a minimal EBML header body: version=1, read version=1,
     /// max id length=4, max size length=8, doctype=matroska.
     /// </summary>
-    public static byte[] BuildEbmlHeaderContent()
+    public static byte[] BuildEBMLHeaderContent()
     {
         var ms = new MemoryStream();
         // EBMLVersion (0x4286) = 1
-        WriteEbmlElement(ms, 0x4286, [1]);
+        WriteEBMLElement(ms, 0x4286, [1]);
         // EBMLReadVersion (0x42F7) = 1
-        WriteEbmlElement(ms, 0x42F7, [1]);
+        WriteEBMLElement(ms, 0x42F7, [1]);
         // EBMLMaxIDLength (0x42F2) = 4
-        WriteEbmlElement(ms, 0x42F2, [4]);
+        WriteEBMLElement(ms, 0x42F2, [4]);
         // EBMLMaxSizeLength (0x42F3) = 8
-        WriteEbmlElement(ms, 0x42F3, [8]);
+        WriteEBMLElement(ms, 0x42F3, [8]);
         // DocType (0x4282) = "matroska"
-        WriteEbmlElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
+        WriteEBMLElement(ms, 0x4282, Encoding.ASCII.GetBytes("matroska"));
         return ms.ToArray();
     }
 }

@@ -762,13 +762,13 @@ public class SRRWriterTests : TempDirTestBase
     /// whose file-size field, 8-byte hash, and filename all match the independent oracle.
     /// </summary>
     [Fact]
-    public async Task CreateAsync_ComputeOSOHashes_WithLargeStoredFile_EmitsOsoBlockWithExactFraming()
+    public async Task CreateAsync_ComputeOSOHashes_WithLargeStoredFile_EmitsOSOBlockWithExactFraming()
     {
         const int ChunkSize = 64 * 1024; // 65536 bytes — OSO minimum file size
         const string ArchivedFileName = "clip.bin";
 
         // Deterministic content so the oracle and the SUT agree on the expected hash bytes.
-        byte[] content = BuildOsoContentPattern(ChunkSize, seed: 0x1234);
+        byte[] content = BuildOSOContentPattern(ChunkSize, seed: 0x1234);
         string rarPath = CreateLargeStoredRAR4("clip.rar", ArchivedFileName, content);
         string srrPath = Path.Combine(TempDir, "oso_framing.srr");
 
@@ -779,21 +779,21 @@ public class SRRWriterTests : TempDirTestBase
         Assert.True(result.Success, result.ErrorMessage);
 
         var srr = SRRFile.Load(srrPath);
-        SRROsoHashBlock oso = Assert.Single(srr.OSOHashBlocks);
+        SRROSOHashBlock oso = Assert.Single(srr.OSOHashBlocks);
 
         // Pin the three payload fields written by WriteOSOHashBlock:
         // file size (8 bytes), hash (8 bytes), and the file name.
         Assert.Equal(ArchivedFileName, oso.FileName);
         Assert.Equal((ulong)ChunkSize, oso.FileSize);
         Assert.Equal(8, oso.OSOHash.Length);
-        Assert.Equal(OsoHashOracle(content, ChunkSize), oso.OSOHash.ToArray());
+        Assert.Equal(OSOHashOracle(content, ChunkSize), oso.OSOHash.ToArray());
     }
 
     /// <summary>
     /// Independent OSO hash oracle — deliberately does NOT call <c>OSOHashCalculator</c>.
     /// Recomputes per OSO spec: fileSize + LE-qword sum of first and last 64 KiB windows.
     /// </summary>
-    private static byte[] OsoHashOracle(byte[] content, int chunkSize)
+    private static byte[] OSOHashOracle(byte[] content, int chunkSize)
     {
         ulong hash = (ulong)content.Length;
         ReadOnlySpan<byte> head = content.AsSpan(0, chunkSize);
@@ -813,7 +813,7 @@ public class SRRWriterTests : TempDirTestBase
     /// Deterministic LCG byte pattern. Mirrors <c>OSOHashCalculatorTests.BuildPattern</c>
     /// exactly so the same fixture content produces the same expected hash value.
     /// </summary>
-    private static byte[] BuildOsoContentPattern(int length, uint seed)
+    private static byte[] BuildOSOContentPattern(int length, uint seed)
     {
         byte[] buffer = new byte[length];
         uint state = seed == 0 ? 1u : seed;

@@ -117,7 +117,7 @@ public sealed class MKVFileData
                 return;
             }
 
-            (string name, EBMLValueType type) = EbmlElementRegistry.Lookup(id);
+            (string name, EBMLValueType type) = EBMLElementRegistry.Lookup(id);
 
             var element = new EBMLElement
             {

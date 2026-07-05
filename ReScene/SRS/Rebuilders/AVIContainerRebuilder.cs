@@ -159,7 +159,7 @@ internal class AVIContainerRebuilder : IContainerRebuilder
             string fourcc = Encoding.ASCII.GetString(header, 0, 4);
             uint chunkSize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(RiffFourCC.SizeOffset));
 
-            if (fourcc is SrsFourCC.SrsFile or SrsFourCC.SrsTrack)
+            if (fourcc is SRSFourCC.SRSFile or SRSFourCC.SRSTrack)
             {
                 // Skip SRS metadata blocks - don't copy them to output
                 srsFs.Position = chunkStart + RiffFourCC.ChunkHeaderSize + chunkSize;

@@ -116,7 +116,7 @@ public class SRSFile
         {
             string container4cc = Encoding.ASCII.GetString(magic, 0, 4);
             if ((container4cc == StreamFourCC.Strm || container4cc == StreamFourCC.M2ts)
-                && magic[4] == SrsBlockLayout.HeaderSize && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00)
+                && magic[4] == SRSBlockLayout.HeaderSize && magic[5] == 0x00 && magic[6] == 0x00 && magic[7] == 0x00)
             {
                 return SRSContainerType.Stream;
             }
@@ -129,7 +129,7 @@ public class SRSFile
         }
 
         // MP4: bytes[4:8] == "ftyp"
-        if (magic.Length >= 8 && Encoding.ASCII.GetString(magic, 4, 4) == Mp4AtomTypes.Ftyp)
+        if (magic.Length >= 8 && Encoding.ASCII.GetString(magic, 4, 4) == MP4AtomTypes.Ftyp)
         {
             return SRSContainerType.MP4;
         }
@@ -141,13 +141,13 @@ public class SRSFile
         }
 
         // WMV/ASF
-        if (magic.AsSpan().StartsWith(AsfGuids.HeaderObjectPrefix))
+        if (magic.AsSpan().StartsWith(ASFGuids.HeaderObjectPrefix))
         {
             return SRSContainerType.WMV;
         }
 
         // MP3: ID3 tag, SRSF block, or sync word
-        if (magic[0] == Mp3Constants.Id3v2Magic[0] && magic[1] == Mp3Constants.Id3v2Magic[1] && magic[2] == Mp3Constants.Id3v2Magic[2])
+        if (magic[0] == MP3Constants.Id3v2Magic[0] && magic[1] == MP3Constants.Id3v2Magic[1] && magic[2] == MP3Constants.Id3v2Magic[2])
         {
             // A FLAC wrapped in a leading ID3v2 tag (stored verbatim by the FLAC writer) also begins
             // with the ID3 magic. Look past the tag for the fLaC marker before assuming MP3, mirroring
@@ -172,7 +172,7 @@ public class SRSFile
             return SRSContainerType.MP3;
         }
 
-        if (magic[0] == Mp3Constants.SyncByte0 && (magic[1] & Mp3Constants.SyncMask1) == Mp3Constants.SyncMask1)
+        if (magic[0] == MP3Constants.SyncByte0 && (magic[1] & MP3Constants.SyncMask1) == MP3Constants.SyncMask1)
         {
             return SRSContainerType.MP3;
         }
@@ -254,7 +254,7 @@ public class SRSFile
 
         // Track number: 4 bytes if flag 0x8, else 2 bytes
         block.TrackNumberOffset = p;
-        if ((block.Flags & (ushort)SrstFlags.BigTrackNumber) != 0)
+        if ((block.Flags & (ushort)SRSTFlags.BigTrackNumber) != 0)
         {
             block.TrackNumberFieldSize = 4;
             block.TrackNumber = reader.ReadUInt32();
@@ -269,7 +269,7 @@ public class SRSFile
 
         // Data length: 8 bytes if flag 0x4, else 4 bytes
         block.DataLengthOffset = p;
-        if ((block.Flags & (ushort)SrstFlags.BigFile) != 0)
+        if ((block.Flags & (ushort)SRSTFlags.BigFile) != 0)
         {
             block.DataLengthFieldSize = 8;
             block.DataLength = reader.ReadUInt64();
@@ -303,25 +303,25 @@ public class SRSFile
 
     private static void ParseStream(BinaryReader reader, FileStream fs, SRSFile srs)
     {
-        while (fs.Position + SrsBlockLayout.HeaderSize <= fs.Length)
+        while (fs.Position + SRSBlockLayout.HeaderSize <= fs.Length)
         {
             long frameOffset = fs.Position;
             string tag = new(reader.ReadChars(4));
             uint totalSize = reader.ReadUInt32(); // includes 8-byte header
-            if (totalSize < SrsBlockLayout.HeaderSize)
+            if (totalSize < SRSBlockLayout.HeaderSize)
             {
                 break;
             }
 
             long payloadStart = fs.Position;
-            long payloadSize = totalSize - SrsBlockLayout.HeaderSize;
-            int headerSize = SrsBlockLayout.HeaderSize;
+            long payloadSize = totalSize - SRSBlockLayout.HeaderSize;
+            int headerSize = SRSBlockLayout.HeaderSize;
 
-            if (tag == SrsFourCC.SrsFile)
+            if (tag == SRSFourCC.SRSFile)
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize);
             }
-            else if (tag == SrsFourCC.SrsTrack)
+            else if (tag == SRSFourCC.SRSTrack)
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
             }
@@ -359,7 +359,7 @@ public class SRSFile
                     BlockPosition = headerEnd,
                     BlockSize = size,
                     Label = "ID3v2",
-                    ChunkId = Mp3Constants.Id3v2Magic,
+                    ChunkId = MP3Constants.Id3v2Magic,
                     HeaderSize = MP3TagReader.Id3v2HeaderSize,
                     PayloadSize = size - MP3TagReader.Id3v2HeaderSize
                 });
@@ -374,7 +374,7 @@ public class SRSFile
         fs.Position = headerEnd;
 
         // Read SRSF/SRST/SRSP blocks (same 8-byte header as STREAM)
-        while (fs.Position + SrsBlockLayout.HeaderSize <= fs.Length)
+        while (fs.Position + SRSBlockLayout.HeaderSize <= fs.Length)
         {
             long frameOffset = fs.Position;
 
@@ -383,23 +383,23 @@ public class SRSFile
             fs.Position = frameOffset;
 
             string tag = Encoding.ASCII.GetString(peek, 0, 4);
-            if (tag is SrsFourCC.SrsFile or SrsFourCC.SrsTrack or SrsFourCC.SrsPadding)
+            if (tag is SRSFourCC.SRSFile or SRSFourCC.SRSTrack or SRSFourCC.SRSPadding)
             {
                 reader.ReadBytes(4); // skip tag
                 uint totalSize = reader.ReadUInt32();
-                if (totalSize < SrsBlockLayout.HeaderSize)
+                if (totalSize < SRSBlockLayout.HeaderSize)
                 {
                     break;
                 }
 
                 long payloadStart = fs.Position;
-                int headerSize = SrsBlockLayout.HeaderSize;
+                int headerSize = SRSBlockLayout.HeaderSize;
 
-                if (tag == SrsFourCC.SrsFile)
+                if (tag == SRSFourCC.SRSFile)
                 {
                     srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize);
                 }
-                else if (tag == SrsFourCC.SrsTrack)
+                else if (tag == SRSFourCC.SRSTrack)
                 {
                     srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 }
@@ -412,7 +412,7 @@ public class SRSFile
                         Label = tag,
                         ChunkId = tag,
                         HeaderSize = headerSize,
-                        PayloadSize = totalSize - SrsBlockLayout.HeaderSize
+                        PayloadSize = totalSize - SRSBlockLayout.HeaderSize
                     });
                 }
 
@@ -438,8 +438,8 @@ public class SRSFile
                 BlockSize = id3v1Size,
                 Label = "ID3v1",
                 ChunkId = "TAG",
-                HeaderSize = Mp3Constants.Id3v1MagicSize,
-                PayloadSize = id3v1Size - Mp3Constants.Id3v1MagicSize
+                HeaderSize = MP3Constants.Id3v1MagicSize,
+                PayloadSize = id3v1Size - MP3Constants.Id3v1MagicSize
             });
             endOffset -= id3v1Size;
         }
@@ -454,8 +454,8 @@ public class SRSFile
                 BlockSize = lyrics3v2Size,
                 Label = "Lyrics3v2",
                 ChunkId = "LYRICS200",
-                HeaderSize = Mp3Constants.Lyrics3BeginMagicSize,
-                PayloadSize = lyrics3v2Size - Mp3Constants.Lyrics3BeginMagicSize
+                HeaderSize = MP3Constants.Lyrics3BeginMagicSize,
+                PayloadSize = lyrics3v2Size - MP3Constants.Lyrics3BeginMagicSize
             });
             endOffset -= lyrics3v2Size;
         }
@@ -471,8 +471,8 @@ public class SRSFile
                     BlockSize = lyrics3v1Size,
                     Label = "Lyrics3v1",
                     ChunkId = "LYRICS",
-                    HeaderSize = Mp3Constants.Lyrics3BeginMagicSize,
-                    PayloadSize = lyrics3v1Size - Mp3Constants.Lyrics3BeginMagicSize
+                    HeaderSize = MP3Constants.Lyrics3BeginMagicSize,
+                    PayloadSize = lyrics3v1Size - MP3Constants.Lyrics3BeginMagicSize
                 });
                 endOffset -= lyrics3v1Size;
             }
@@ -507,7 +507,7 @@ public class SRSFile
                 BlockPosition = 0,
                 BlockSize = id3Size,
                 Label = "ID3v2",
-                ChunkId = Mp3Constants.Id3v2Magic,
+                ChunkId = MP3Constants.Id3v2Magic,
                 HeaderSize = MP3TagReader.Id3v2HeaderSize,
                 PayloadSize = id3Size - MP3TagReader.Id3v2HeaderSize
             });
@@ -540,11 +540,11 @@ public class SRSFile
 
             long payloadStart = fs.Position;
 
-            if (type == (byte)FlacSrsBlockType.Srsf)
+            if (type == (byte)FlacSRSBlockType.SRSF)
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize);
             }
-            else if (type == (byte)FlacSrsBlockType.Srst)
+            else if (type == (byte)FlacSRSBlockType.SRST)
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
             }
@@ -580,12 +580,12 @@ public class SRSFile
     {
         fs.Position = start;
 
-        while (fs.Position + SrsBlockLayout.HeaderSize <= end)
+        while (fs.Position + SRSBlockLayout.HeaderSize <= end)
         {
             long frameOffset = fs.Position;
             string fourcc = new(reader.ReadChars(4));
             uint payloadSize = reader.ReadUInt32();
-            int headerSize = SrsBlockLayout.HeaderSize;
+            int headerSize = SRSBlockLayout.HeaderSize;
 
             if (fourcc is "RIFF" or "LIST")
             {
@@ -621,7 +621,7 @@ public class SRSFile
                     fs.Position++;
                 }
             }
-            else if (fourcc == SrsFourCC.SrsFile)
+            else if (fourcc == SRSFourCC.SRSFile)
             {
                 long payloadStart = fs.Position;
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize);
@@ -631,7 +631,7 @@ public class SRSFile
                     fs.Position++;
                 }
             }
-            else if (fourcc == SrsFourCC.SrsTrack)
+            else if (fourcc == SRSFourCC.SRSTrack)
             {
                 long payloadStart = fs.Position;
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, headerSize + payloadSize));
@@ -671,7 +671,7 @@ public class SRSFile
     {
         fs.Position = start;
 
-        while (fs.Position + Mp4AtomTypes.AtomHeaderSize <= end)
+        while (fs.Position + MP4AtomTypes.AtomHeaderSize <= end)
         {
             long frameOffset = fs.Position;
 
@@ -679,10 +679,10 @@ public class SRSFile
             byte[] sizeBytes = reader.ReadBytes(4);
             uint size32 = (uint)((sizeBytes[0] << 24) | (sizeBytes[1] << 16) | (sizeBytes[2] << 8) | sizeBytes[3]);
             string type = new(reader.ReadChars(4));
-            int headerSize = Mp4AtomTypes.AtomHeaderSize;
+            int headerSize = MP4AtomTypes.AtomHeaderSize;
             long totalSize;
 
-            if (size32 == Mp4AtomTypes.ExtendedSizeSentinel)
+            if (size32 == MP4AtomTypes.ExtendedSizeSentinel)
             {
                 // Extended size: next 8 bytes = BE64
                 byte[] extBytes = reader.ReadBytes(8);
@@ -692,9 +692,9 @@ public class SRSFile
                     totalSize = (totalSize << 8) | extBytes[i];
                 }
 
-                headerSize = Mp4AtomTypes.AtomExtendedHeaderSize;
+                headerSize = MP4AtomTypes.AtomExtendedHeaderSize;
             }
-            else if (size32 == Mp4AtomTypes.ToEndSentinel)
+            else if (size32 == MP4AtomTypes.ToEndSentinel)
             {
                 // Atom extends to end of file
                 totalSize = end - frameOffset;
@@ -712,12 +712,12 @@ public class SRSFile
             long payloadSize = totalSize - headerSize;
             long payloadStart = frameOffset + headerSize;
 
-            if (type == SrsFourCC.SrsFile)
+            if (type == SRSFourCC.SRSFile)
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize);
                 fs.Position = frameOffset + totalSize;
             }
-            else if (type == SrsFourCC.SrsTrack)
+            else if (type == SRSFourCC.SRSTrack)
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, totalSize));
                 fs.Position = frameOffset + totalSize;
@@ -765,14 +765,14 @@ public class SRSFile
 
     private static void ParseASF(BinaryReader reader, FileStream fs, SRSFile srs)
     {
-        while (fs.Position + AsfGuids.ObjectHeaderSize <= fs.Length)
+        while (fs.Position + ASFGuids.ObjectHeaderSize <= fs.Length)
         {
             long frameOffset = fs.Position;
-            byte[] guid = reader.ReadBytes(AsfGuids.GuidSize);
+            byte[] guid = reader.ReadBytes(ASFGuids.GuidSize);
             ulong totalSize = reader.ReadUInt64();
-            int headerSize = AsfGuids.ObjectHeaderSize;
+            int headerSize = ASFGuids.ObjectHeaderSize;
 
-            if (totalSize < AsfGuids.ObjectHeaderSize)
+            if (totalSize < ASFGuids.ObjectHeaderSize)
             {
                 break;
             }
@@ -783,14 +783,14 @@ public class SRSFile
             // ASF Data Object GUID starts with 36 26 B2 75. Its declared size still
             // reflects the original (un-stripped) object, but the SRS physically keeps
             // only the 26-byte data header followed by injected SRSF/SRST objects.
-            bool isDataObject = guid.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
+            bool isDataObject = guid.AsSpan().StartsWith(ASFGuids.DataObjectPrefix);
 
-            if (GuidEquals(guid, AsfSrsGuids.GuidSRSFile))
+            if (GuidEquals(guid, ASFSRSGuids.GuidSRSFile))
             {
                 srs.FileData = ParseFileDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize);
                 fs.Position = frameOffset + (long)totalSize;
             }
-            else if (GuidEquals(guid, AsfSrsGuids.GuidSRSTrack))
+            else if (GuidEquals(guid, ASFSRSGuids.GuidSRSTrack))
             {
                 srs._tracks.Add(ParseTrackDataPayload(reader, payloadStart, frameOffset, headerSize, (long)totalSize));
                 fs.Position = frameOffset + (long)totalSize;
@@ -809,11 +809,11 @@ public class SRSFile
 
                 // Advance past only the retained 26-byte data header so the injected
                 // SRSF/SRST objects that replaced the packet payload are parsed next.
-                fs.Position = payloadStart + AsfGuids.DataObjectHeaderLength;
+                fs.Position = payloadStart + ASFGuids.DataObjectHeaderLength;
             }
             else
             {
-                string label = GuidEquals(guid, AsfSrsGuids.GuidSRSPadding) ? "SRS Padding" : FormatGuid(guid);
+                string label = GuidEquals(guid, ASFSRSGuids.GuidSRSPadding) ? "SRS Padding" : FormatGuid(guid);
 
                 srs._containerChunks.Add(new SRSContainerChunk
                 {
@@ -850,7 +850,7 @@ public class SRSFile
 
     private static string FormatGuid(byte[] guid)
     {
-        if (guid.Length != AsfGuids.GuidSize)
+        if (guid.Length != ASFGuids.GuidSize)
         {
             return BitConverter.ToString(guid);
         }

@@ -10,7 +10,7 @@ namespace ReScene.Tests;
 /// <see cref="OSOHashCalculator.ComputeHash"/> is private, so every case is driven end-to-end
 /// through a minimal but real RAR4 archive written to disk by <see cref="WriteStoredRAR4"/>.
 ///
-/// The independent oracle <see cref="ExpectedOsoHash"/> recomputes the expected value the way the
+/// The independent oracle <see cref="ExpectedOSOHash"/> recomputes the expected value the way the
 /// algorithm specifies (fileSize + 64-bit LE sum of the qwords in the first AND last 64 KiB),
 /// deliberately NOT by calling the system under test.
 /// </summary>
@@ -34,7 +34,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         var entry = Assert.Single(results);
         Assert.Equal("clip.bin", entry.FileName);
         Assert.Equal((ulong)HashChunkSize, entry.FileSize);
-        Assert.Equal(ExpectedOsoHash(content), entry.Hash);
+        Assert.Equal(ExpectedOSOHash(content), entry.Hash);
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         var entry = Assert.Single(results);
         Assert.Equal("movie.sample.mkv", entry.FileName);
         Assert.Equal(70_000UL, entry.FileSize);
-        Assert.Equal(ExpectedOsoHash(content), entry.Hash);
+        Assert.Equal(ExpectedOSOHash(content), entry.Hash);
 
         // The hash is exactly 8 bytes (a little-endian ulong).
         Assert.Equal(8, entry.Hash.Length);
@@ -153,7 +153,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
     /// fileSize + the 64-bit little-endian sum of every 8-byte qword in the first 64 KiB and the
     /// last 64 KiB (ulong arithmetic wraps, matching the implementation).
     /// </summary>
-    private static byte[] ExpectedOsoHash(byte[] content)
+    private static byte[] ExpectedOSOHash(byte[] content)
     {
         ulong hash = (ulong)content.Length;
 

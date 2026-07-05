@@ -653,7 +653,7 @@ public class EBMLLacingTests
     }
 
     [Fact]
-    public void ReadLacingHeaderSize_EbmlMultiByteFirstSize_MatchesGetFrameLengths()
+    public void ReadLacingHeaderSize_EBMLMultiByteFirstSize_MatchesGetFrameLengths()
     {
         // Guards the EBML VINT byte-length equivalence between the two parsers: a 2-byte first-size
         // VINT (0x40 0xC8 = 200) must be measured identically by EBMLReader.TryReadSize (new path)

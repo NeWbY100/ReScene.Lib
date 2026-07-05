@@ -1,7 +1,7 @@
 namespace ReScene.SRS;
 
 /// <summary>Tag-format constants shared across MP3/ID3 parsing and container detection.</summary>
-internal static class Mp3Constants
+internal static class MP3Constants
 {
     /// <summary>ID3v2 tag marker "ID3".</summary>
     public const string Id3v2Magic = "ID3";

@@ -202,7 +202,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
 
                     if (unmatched.Contains(tn))
                     {
-                        int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
+                        int blockHeaderBase = vintLen + MKVBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
 
                         fs.Position = blockStart + vintLen + 2;
                         int flagsByte = fs.ReadByte();
@@ -472,7 +472,7 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 long blockStart = fs.Position;
                 if (EBMLReader.TryReadSize(fs, out ulong trackNum, out int vintLen))
                 {
-                    int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
+                    int blockHeaderBase = vintLen + MKVBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
 
                     // Parse lacing to find where frame data starts
                     fs.Position = blockStart + vintLen + 2;
@@ -719,12 +719,12 @@ internal class MKVContainerRebuilder : IContainerRebuilder
                 long blockStart = srsFs.Position;
                 if (EBMLReader.TryReadSize(srsFs, out ulong trackNum, out int vintLen))
                 {
-                    int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
+                    int blockHeaderBase = vintLen + MKVBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
 
                     // Read flags byte to check lacing type
                     srsFs.Position = blockStart + vintLen + 2;
                     int flagsByte = srsFs.ReadByte();
-                    EBMLLaceType laceType = flagsByte >= 0 ? (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask) : EBMLLaceType.None;
+                    EBMLLaceType laceType = flagsByte >= 0 ? (EBMLLaceType)(flagsByte & MKVBlockFlags.LacingMask) : EBMLLaceType.None;
 
                     // Determine how many bytes of block header the SRS stores
                     int srsBlockHeaderSize = blockHeaderBase;

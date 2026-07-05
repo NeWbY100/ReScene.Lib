@@ -200,10 +200,10 @@ internal class AVIContainerHandler : IContainerHandler
                 // Inject SRSF/SRST as first children of LIST movi
                 if (fourcc == "LIST" && listType == "movi" && !moviInjected)
                 {
-                    WriteSrsfRiff(outFs, samplePath, sampleSize, sampleCRC32, options);
+                    WriteSRSFRiff(outFs, samplePath, sampleSize, sampleCRC32, options);
                     foreach (TrackInfo track in tracks)
                     {
-                        WriteSrstRiff(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
+                        WriteSRSTRiff(outFs, track, sampleSize >= SRSConstants.BigFileSizeThreshold);
                     }
 
                     moviInjected = true;
@@ -259,11 +259,11 @@ internal class AVIContainerHandler : IContainerHandler
         }
     }
 
-    private static void WriteSrsfRiff(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
+    private static void WriteSRSFRiff(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.Write(Encoding.ASCII.GetBytes(SrsFourCC.SrsFile));
+        byte[] payload = SRSPayloadSerializer.SerializeSRSF(samplePath, sampleSize, sampleCRC32, options);
+        outFs.Write(Encoding.ASCII.GetBytes(SRSFourCC.SRSFile));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);
         outFs.Write(sizeBytes);
@@ -274,10 +274,10 @@ internal class AVIContainerHandler : IContainerHandler
         }
     }
 
-    private static void WriteSrstRiff(Stream outFs, TrackInfo track, bool bigFile)
+    private static void WriteSRSTRiff(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.Write(Encoding.ASCII.GetBytes(SrsFourCC.SrsTrack));
+        byte[] payload = SRSPayloadSerializer.SerializeSRST(track, bigFile);
+        outFs.Write(Encoding.ASCII.GetBytes(SRSFourCC.SRSTrack));
         Span<byte> sizeBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)payload.Length);
         outFs.Write(sizeBytes);

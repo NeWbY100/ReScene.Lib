@@ -42,19 +42,19 @@ internal static class SRRFileParser
         return block;
     }
 
-    internal static SRROsoHashBlock? ParseOSOHashBlock(BinaryReader reader, FileStream fs,
+    internal static SRROSOHashBlock? ParseOSOHashBlock(BinaryReader reader, FileStream fs,
         long startPos, ushort crc, SRRBlockType type, ushort flags, ushort headerSize)
     {
         long headerEnd = startPos + headerSize;
 
         // OSO hash block format (pyrescene order): 8 bytes file size + 8 bytes hash + 2 bytes name length + name
-        if (fs.Position + SRRBlockLayout.OsoFixedPayloadSize > headerEnd)
+        if (fs.Position + SRRBlockLayout.OSOFixedPayloadSize > headerEnd)
         {
             return null;
         }
 
         ulong fileSize = reader.ReadUInt64();
-        byte[] osoHash = reader.ReadBytes(SRRBlockLayout.OsoHashLength);
+        byte[] osoHash = reader.ReadBytes(SRRBlockLayout.OSOHashLength);
 
         if (fs.Position + 2 > headerEnd)
         {
@@ -70,7 +70,7 @@ internal static class SRRFileParser
         byte[] nameBytes = reader.ReadBytes(nameLen);
         string fileName = Encoding.UTF8.GetString(nameBytes);
 
-        return new SRROsoHashBlock
+        return new SRROSOHashBlock
         {
             CRC = crc,
             BlockType = type,

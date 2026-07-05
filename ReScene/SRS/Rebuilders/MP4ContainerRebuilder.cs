@@ -51,7 +51,7 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
     {
         srsFs.Position = start;
 
-        while (srsFs.Position + Mp4AtomTypes.AtomHeaderSize <= end)
+        while (srsFs.Position + MP4AtomTypes.AtomHeaderSize <= end)
         {
             ct.ThrowIfCancellationRequested();
             long atomStart = srsFs.Position;
@@ -64,17 +64,17 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
             srsFs.ReadExactly(typeBytes, 0, 4);
             string type = Encoding.ASCII.GetString(typeBytes);
 
-            int headerSize = Mp4AtomTypes.AtomHeaderSize;
+            int headerSize = MP4AtomTypes.AtomHeaderSize;
             long totalSize;
 
-            if (size32 == Mp4AtomTypes.ExtendedSizeSentinel)
+            if (size32 == MP4AtomTypes.ExtendedSizeSentinel)
             {
                 byte[] extBytes = new byte[8];
                 srsFs.ReadExactly(extBytes, 0, 8);
                 totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(extBytes);
-                headerSize = Mp4AtomTypes.AtomExtendedHeaderSize;
+                headerSize = MP4AtomTypes.AtomExtendedHeaderSize;
             }
-            else if (size32 == Mp4AtomTypes.ToEndSentinel)
+            else if (size32 == MP4AtomTypes.ToEndSentinel)
             {
                 totalSize = end - atomStart;
             }
@@ -92,7 +92,7 @@ internal class MP4ContainerRebuilder : IContainerRebuilder
             long atomEnd = Math.Min(atomStart + totalSize, end);
 
             // Skip SRSF/SRST atoms
-            if (type is SrsFourCC.SrsFile or SrsFourCC.SrsTrack)
+            if (type is SRSFourCC.SRSFile or SRSFourCC.SRSTrack)
             {
                 srsFs.Position = atomEnd;
                 continue;

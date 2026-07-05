@@ -380,16 +380,16 @@ public class SRSWriterTests : TempDirTestBase
         SyntheticSampleBuilder.BuildAvi(Path.Combine(TempDir, "test_sample.avi"));
 
     private string BuildSyntheticMKV() =>
-        SyntheticSampleBuilder.BuildMkv(Path.Combine(TempDir, "test_sample.mkv"));
+        SyntheticSampleBuilder.BuildMKV(Path.Combine(TempDir, "test_sample.mkv"));
 
     private string BuildSyntheticMP4() =>
-        SyntheticSampleBuilder.BuildMp4(Path.Combine(TempDir, "test_sample.mp4"));
+        SyntheticSampleBuilder.BuildMP4(Path.Combine(TempDir, "test_sample.mp4"));
 
     private string BuildSyntheticFlac() =>
         SyntheticSampleBuilder.BuildFlac(Path.Combine(TempDir, "test_sample.flac"));
 
     private string BuildSyntheticMP3() =>
-        SyntheticSampleBuilder.BuildMp3(Path.Combine(TempDir, "test_sample.mp3"));
+        SyntheticSampleBuilder.BuildMP3(Path.Combine(TempDir, "test_sample.mp3"));
 
     private string BuildSyntheticStream() =>
         SyntheticSampleBuilder.BuildStream(Path.Combine(TempDir, "test_sample.vob"));

@@ -9,7 +9,7 @@ namespace ReScene.Tests;
 /// </summary>
 public class FileComparerSRSTests
 {
-    private static SRSFile SrsWithTrack(ushort signatureSize, long blockSize, byte[] signature)
+    private static SRSFile SRSWithTrack(ushort signatureSize, long blockSize, byte[] signature)
     {
         var srs = new SRSFile();
         srs._tracks.Add(new SRSTrackDataBlock
@@ -28,8 +28,8 @@ public class FileComparerSRSTests
     [Fact]
     public void CompareSRSFiles_FlagsSignatureSizeAndBlockSize_WhenTheyDiffer()
     {
-        SRSFile left = SrsWithTrack(2560, 2582, new byte[2560]);
-        SRSFile right = SrsWithTrack(256, 278, new byte[256]);
+        SRSFile left = SRSWithTrack(2560, 2582, new byte[2560]);
+        SRSFile right = SRSWithTrack(256, 278, new byte[256]);
         var result = new CompareResult();
 
         FileComparer.CompareSRSFiles(left, right, result);
@@ -43,8 +43,8 @@ public class FileComparerSRSTests
     public void CompareSRSFiles_RecordsNoDifference_ForIdenticalTracks()
     {
         byte[] sig = new byte[256];
-        SRSFile left = SrsWithTrack(256, 278, sig);
-        SRSFile right = SrsWithTrack(256, 278, (byte[])sig.Clone());
+        SRSFile left = SRSWithTrack(256, 278, sig);
+        SRSFile right = SRSWithTrack(256, 278, (byte[])sig.Clone());
         var result = new CompareResult();
 
         FileComparer.CompareSRSFiles(left, right, result);

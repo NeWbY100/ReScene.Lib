@@ -54,8 +54,8 @@ internal class FlacContainerRebuilder : IContainerRebuilder
             int payloadSize = (sizeBytes[0] << 16) | (sizeBytes[1] << 8) | sizeBytes[2];
 
             // SRS FLAC blocks: 's' (SRSF), 't' (SRST), 'u' (fingerprint)
-            if (((FlacSrsBlockType)type) is FlacSrsBlockType.Srsf or FlacSrsBlockType.Srst or FlacSrsBlockType.Fingerprint
-                && srsBlockCount <= FlacConstants.MaxSrsBlockCount)
+            if (((FlacSRSBlockType)type) is FlacSRSBlockType.SRSF or FlacSRSBlockType.SRST or FlacSRSBlockType.Fingerprint
+                && srsBlockCount <= FlacConstants.MaxSRSBlockCount)
             {
                 srsBlockCount++;
                 srsFs.Position = blockStart + FlacConstants.BlockHeaderSize + payloadSize;

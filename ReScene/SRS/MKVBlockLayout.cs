@@ -3,7 +3,7 @@ namespace ReScene.SRS;
 /// <summary>
 /// Byte-layout constants for MKV SimpleBlock / Block elements.
 /// </summary>
-internal static class MkvBlockLayout
+internal static class MKVBlockLayout
 {
     /// <summary>
     /// Fixed overhead bytes between the track-number VINT and the start of frame data

@@ -592,7 +592,7 @@ class ReScene.SRR.SRRFile
     property HashSet<String> ArchivedFiles { get; }
     property IReadOnlyList<Int64> RARVolumeSizes { get; }
     property IReadOnlyList<SRRArchiveSet> ArchiveSets { get; }
-    property IReadOnlyList<SRROsoHashBlock> OSOHashBlocks { get; }
+    property IReadOnlyList<SRROSOHashBlock> OSOHashBlocks { get; }
     property IReadOnlyList<SRRRARFileBlock> RARFiles { get; }
     property IReadOnlyList<SRRRARPaddingBlock> RARPaddingBlocks { get; }
     property IReadOnlyList<SRRStoredFileBlock> StoredFiles { get; }
@@ -635,7 +635,7 @@ class ReScene.SRR.SRRHeaderBlock
     ctor ()
     property Boolean HasAppName { get; }
     property String AppName { get; set; }
-class ReScene.SRR.SRROsoHashBlock
+class ReScene.SRR.SRROSOHashBlock
     ctor ()
     property ReadOnlyMemory<Byte> OSOHash { get; set; }
     property String FileName { get; set; }

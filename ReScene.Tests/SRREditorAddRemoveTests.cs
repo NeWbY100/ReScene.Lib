@@ -10,7 +10,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 {
     // Raw little-endian CRC sentinel bytes that begin each block type's base header.
     private static readonly byte[] RARFileSentinel = [0x71, 0x71];   // SRRBlockType.RARFile (0x7171)
-    private static readonly byte[] OsoHashSentinel = [0x6B, 0x6B];   // SRRBlockType.OSOHash (0x6B6B)
+    private static readonly byte[] OSOHashSentinel = [0x6B, 0x6B];   // SRRBlockType.OSOHash (0x6B6B)
 
     /// <summary>Writes a payload file under TempDir and returns its full path.</summary>
     private string WriteFile(string name, byte[] data)
@@ -222,7 +222,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
             .BuildToFile(TempDir, "preserve_add.srr");
 
         byte[] before = File.ReadAllBytes(srrPath);
-        int osoStart = IndexOf(before, OsoHashSentinel);
+        int osoStart = IndexOf(before, OSOHashSentinel);
         Assert.True(osoStart >= 0, "OSO hash block not found in original");
         byte[] osoBlockOriginal = before[osoStart..]; // OSO is the last block, so this captures it fully
 
@@ -230,7 +230,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         SRREditor.AddStoredFiles(srrPath, [("inserted.nfo", newFile)]);
 
         byte[] after = File.ReadAllBytes(srrPath);
-        int osoStartAfter = IndexOf(after, OsoHashSentinel);
+        int osoStartAfter = IndexOf(after, OSOHashSentinel);
         Assert.True(osoStartAfter >= 0, "OSO hash block not found after add");
         byte[] osoBlockAfter = after[osoStartAfter..];
         Assert.Equal(osoBlockOriginal, osoBlockAfter);
@@ -250,14 +250,14 @@ public class SRREditorAddRemoveTests : TempDirTestBase
             .BuildToFile(TempDir, "preserve_remove.srr");
 
         byte[] before = File.ReadAllBytes(srrPath);
-        int osoStart = IndexOf(before, OsoHashSentinel);
+        int osoStart = IndexOf(before, OSOHashSentinel);
         Assert.True(osoStart >= 0, "OSO hash block not found in original");
         byte[] osoBlockOriginal = before[osoStart..]; // OSO is the last block
 
         SRREditor.RemoveStoredFiles(srrPath, ["drop.nfo"]);
 
         byte[] after = File.ReadAllBytes(srrPath);
-        int osoStartAfter = IndexOf(after, OsoHashSentinel);
+        int osoStartAfter = IndexOf(after, OSOHashSentinel);
         Assert.True(osoStartAfter >= 0, "OSO hash block not found after remove");
         byte[] osoBlockAfter = after[osoStartAfter..];
         Assert.Equal(osoBlockOriginal, osoBlockAfter);

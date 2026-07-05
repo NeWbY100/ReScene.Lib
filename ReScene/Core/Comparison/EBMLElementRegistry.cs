@@ -5,7 +5,7 @@ namespace ReScene.Core.Comparison;
 /// <summary>
 /// Maps known Matroska/EBML element IDs to a display name and interpreted value type.
 /// </summary>
-internal static class EbmlElementRegistry
+internal static class EBMLElementRegistry
 {
     private static readonly FrozenDictionary<ulong, (string Name, EBMLValueType Type)> _map = new Dictionary<ulong, (string Name, EBMLValueType Type)>
     {

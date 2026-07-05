@@ -177,13 +177,13 @@ public class SRSWriter
         }
 
         // MP4 (ftyp at offset 4)
-        if (read >= 8 && Encoding.ASCII.GetString(magic.Slice(4, 4)) == Mp4AtomTypes.Ftyp)
+        if (read >= 8 && Encoding.ASCII.GetString(magic.Slice(4, 4)) == MP4AtomTypes.Ftyp)
         {
             return SRSContainerType.MP4;
         }
 
         // WMV/ASF
-        if (magic.StartsWith(AsfGuids.HeaderObjectPrefix))
+        if (magic.StartsWith(ASFGuids.HeaderObjectPrefix))
         {
             return SRSContainerType.WMV;
         }
@@ -195,7 +195,7 @@ public class SRSWriter
         }
 
         // ID3 tag (MP3 or FLAC with ID3v2)
-        if (magic[0] == Mp3Constants.Id3v2Magic[0] && magic[1] == Mp3Constants.Id3v2Magic[1] && magic[2] == Mp3Constants.Id3v2Magic[2])
+        if (magic[0] == MP3Constants.Id3v2Magic[0] && magic[1] == MP3Constants.Id3v2Magic[1] && magic[2] == MP3Constants.Id3v2Magic[2])
         {
             // Check if FLAC follows the ID3 header
             if (read >= MP3TagReader.Id3v2HeaderSize)
@@ -228,7 +228,7 @@ public class SRSWriter
         }
 
         // MP3 sync word
-        if (magic[0] == Mp3Constants.SyncByte0 && (magic[1] & Mp3Constants.SyncMask1) == Mp3Constants.SyncMask1)
+        if (magic[0] == MP3Constants.SyncByte0 && (magic[1] & MP3Constants.SyncMask1) == MP3Constants.SyncMask1)
         {
             return SRSContainerType.MP3;
         }

@@ -205,7 +205,7 @@ public class SRSRebuilderTests : TempDirTestBase
     [Fact]
     public async Task Rebuild_WMVSample_RoundTrip_CRCMatches()
     {
-        string samplePath = BuildSyntheticWmv();
+        string samplePath = BuildSyntheticWMV();
         string mediaPath = samplePath;
 
         string srsPath = Path.Combine(TempDir, "test.srs");
@@ -228,7 +228,7 @@ public class SRSRebuilderTests : TempDirTestBase
         // Regression: WMVContainerRebuilder copied the Data Object body verbatim from
         // the SRS (where the writer had stripped the packet payload) and never read the
         // media file, so the rebuilt sample could never byte-match the original.
-        string samplePath = BuildSyntheticWmv();
+        string samplePath = BuildSyntheticWMV();
 
         string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
@@ -493,7 +493,7 @@ public class SRSRebuilderTests : TempDirTestBase
         // broke out of the SRS-block loop on the second "ID3" and dumped tag 2 + the raw
         // SRSF/SRST blocks as "footer" with NO audio. The writer copies ALL stacked leading
         // tags, so a two-tag sample must round-trip with the audio restored.
-        string samplePath = SyntheticSampleBuilder.BuildMp3WithTwoId3v2Tags(
+        string samplePath = SyntheticSampleBuilder.BuildMP3WithTwoId3v2Tags(
             Path.Combine(TempDir, "two_tags.mp3"));
 
         string srsPath = Path.Combine(TempDir, "two_tags.srs");
@@ -942,7 +942,7 @@ public class SRSRebuilderTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task Rebuild_MP3ZeroSizeSrsBlock_TerminatesWithoutHanging()
+    public async Task Rebuild_MP3ZeroSizeSRSBlock_TerminatesWithoutHanging()
     {
         // A malformed SRS block declaring totalSize 0 must not spin the rebuild loop forever:
         // advancing the position by totalSize would leave it unchanged. The parser (ParseMP3)
@@ -1130,7 +1130,7 @@ public class SRSRebuilderTests : TempDirTestBase
     // Track 2's second SimpleBlock uses seed 99 so the rebuilder's "movie"
     // variants can embed byte-identical sample clusters.
     private string BuildSyntheticMKV() =>
-        SyntheticSampleBuilder.BuildMkv(Path.Combine(TempDir, "test_sample.mkv"), block2Seed: 99);
+        SyntheticSampleBuilder.BuildMKV(Path.Combine(TempDir, "test_sample.mkv"), block2Seed: 99);
 
     private string BuildSyntheticMKVWithAttachments()
     {
@@ -1397,19 +1397,19 @@ public class SRSRebuilderTests : TempDirTestBase
     }
 
     private string BuildSyntheticMP4() =>
-        SyntheticSampleBuilder.BuildMp4(Path.Combine(TempDir, "test_sample.mp4"));
+        SyntheticSampleBuilder.BuildMP4(Path.Combine(TempDir, "test_sample.mp4"));
 
     private string BuildSyntheticFlac() =>
         SyntheticSampleBuilder.BuildFlac(Path.Combine(TempDir, "test_sample.flac"));
 
     private string BuildSyntheticMP3() =>
-        SyntheticSampleBuilder.BuildMp3(Path.Combine(TempDir, "test_sample.mp3"));
+        SyntheticSampleBuilder.BuildMP3(Path.Combine(TempDir, "test_sample.mp3"));
 
     private string BuildSyntheticStream() =>
         SyntheticSampleBuilder.BuildStream(Path.Combine(TempDir, "test_sample.vob"));
 
-    private string BuildSyntheticWmv() =>
-        SyntheticSampleBuilder.BuildWmv(Path.Combine(TempDir, "test_sample.wmv"));
+    private string BuildSyntheticWMV() =>
+        SyntheticSampleBuilder.BuildWMV(Path.Combine(TempDir, "test_sample.wmv"));
 
     /// <summary>
     /// Builds an MKV with a SimpleBlock using Xiph lacing (2 frames per block).
@@ -2012,16 +2012,16 @@ public class SRSRebuilderTests : TempDirTestBase
         SyntheticSampleBuilder.CreateTestData(size, seed);
 
     private static void WriteEBMLElement(Stream stream, ulong id, byte[] data) =>
-        SyntheticSampleBuilder.WriteEbmlElement(stream, id, data);
+        SyntheticSampleBuilder.WriteEBMLElement(stream, id, data);
 
     private static byte[] EncodeEBMLId(ulong id) =>
-        SyntheticSampleBuilder.EncodeEbmlId(id);
+        SyntheticSampleBuilder.EncodeEBMLId(id);
 
     private static byte[] EncodeEBMLSize(long value) =>
-        SyntheticSampleBuilder.EncodeEbmlSize(value);
+        SyntheticSampleBuilder.EncodeEBMLSize(value);
 
     private static byte[] BuildEBMLHeaderContent() =>
-        SyntheticSampleBuilder.BuildEbmlHeaderContent();
+        SyntheticSampleBuilder.BuildEBMLHeaderContent();
 
     /// <summary>
     /// Builds a SimpleBlock payload with Xiph lacing.

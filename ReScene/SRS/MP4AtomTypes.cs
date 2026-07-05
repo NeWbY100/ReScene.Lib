@@ -5,7 +5,7 @@ namespace ReScene.SRS;
 /// container handler, profiler, rebuilder, and SRS file parser.
 /// These model the box header described in ISO 14496-12 §4.2.
 /// </summary>
-internal static class Mp4AtomTypes
+internal static class MP4AtomTypes
 {
     /// <summary>4-byte big-endian size field + 4-byte ASCII type field.</summary>
     public const int AtomHeaderSize = 8;

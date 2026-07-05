@@ -143,10 +143,10 @@ internal class FlacContainerHandler : IContainerHandler
         outFs.Write(marker);
 
         // Inject SRSF/SRST right after fLaC marker
-        WriteSrsfFlac(outFs, samplePath, sampleSize, sampleCRC32, options);
+        WriteSRSFFlac(outFs, samplePath, sampleSize, sampleCRC32, options);
         foreach (TrackInfo track in tracks)
         {
-            WriteSrstFlac(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
+            WriteSRSTFlac(outFs, track, sampleSize >= SRSConstants.BigFileSizeThreshold);
         }
 
         // Copy metadata blocks, skip frame data
@@ -180,11 +180,11 @@ internal class FlacContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfFlac(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
+    private static void WriteSRSFFlac(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.WriteByte((byte)FlacSrsBlockType.Srsf);
+        byte[] payload = SRSPayloadSerializer.SerializeSRSF(samplePath, sampleSize, sampleCRC32, options);
+        outFs.WriteByte((byte)FlacSRSBlockType.SRSF);
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
         outFs.WriteByte((byte)(payload.Length >> 8));
@@ -192,10 +192,10 @@ internal class FlacContainerHandler : IContainerHandler
         outFs.Write(payload);
     }
 
-    private static void WriteSrstFlac(Stream outFs, TrackInfo track, bool bigFile)
+    private static void WriteSRSTFlac(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.WriteByte((byte)FlacSrsBlockType.Srst);
+        byte[] payload = SRSPayloadSerializer.SerializeSRST(track, bigFile);
+        outFs.WriteByte((byte)FlacSRSBlockType.SRST);
         // BE24 size
         outFs.WriteByte((byte)(payload.Length >> 16));
         outFs.WriteByte((byte)(payload.Length >> 8));

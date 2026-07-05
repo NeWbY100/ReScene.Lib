@@ -2,7 +2,7 @@ namespace ReScene.SRS;
 
 /// <summary>Flags field in an SRSF (SRS file data) block header.</summary>
 [Flags]
-internal enum SrsfFlags : ushort
+internal enum SRSFFlags : ushort
 {
     None = 0,
     /// <summary>MKV SimpleBlock elements have been fixed (flags byte cleared for non-keyframes).</summary>

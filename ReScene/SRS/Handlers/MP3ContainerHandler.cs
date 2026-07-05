@@ -87,10 +87,10 @@ internal class MP3ContainerHandler : IContainerHandler
         }
 
         // Write SRSF/SRST blocks (replaces audio data)
-        SRSPayloadSerializer.WriteSrsfBlock(outFs, samplePath, sampleSize, sampleCRC32, options);
+        SRSPayloadSerializer.WriteSRSFBlock(outFs, samplePath, sampleSize, sampleCRC32, options);
         foreach (TrackInfo track in tracks)
         {
-            SRSPayloadSerializer.WriteSrstBlock(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
+            SRSPayloadSerializer.WriteSRSTBlock(outFs, track, sampleSize >= SRSConstants.BigFileSizeThreshold);
         }
 
         // Copy all footer tags (APE, Lyrics3, ID3v1 etc.) verbatim

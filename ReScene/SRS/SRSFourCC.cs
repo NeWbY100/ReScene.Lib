@@ -5,14 +5,14 @@ namespace ReScene.SRS;
 /// These appear as ASCII tags in RIFF chunks, MP4 atoms, MP3/Stream framing, and string
 /// comparisons during parsing.
 /// </summary>
-internal static class SrsFourCC
+internal static class SRSFourCC
 {
     /// <summary>SRS file-data block tag ("SRSF").</summary>
-    public const string SrsFile = "SRSF";
+    public const string SRSFile = "SRSF";
 
     /// <summary>SRS track-data block tag ("SRST").</summary>
-    public const string SrsTrack = "SRST";
+    public const string SRSTrack = "SRST";
 
     /// <summary>SRS padding block tag ("SRSP").</summary>
-    public const string SrsPadding = "SRSP";
+    public const string SRSPadding = "SRSP";
 }

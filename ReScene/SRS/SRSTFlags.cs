@@ -2,7 +2,7 @@ namespace ReScene.SRS;
 
 /// <summary>Flags field in an SRST (SRS track data) block header.</summary>
 [Flags]
-internal enum SrstFlags : ushort
+internal enum SRSTFlags : ushort
 {
     None = 0,
     /// <summary>DataLength field is 8 bytes (64-bit) instead of 4 bytes (sample ≥ 2 GiB).</summary>

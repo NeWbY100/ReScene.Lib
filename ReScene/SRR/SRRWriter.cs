@@ -319,7 +319,7 @@ public class SRRWriter
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(fileName);
         // pyrescene field order: fileSize, hash, nameLen, name
-        ushort headerSize = (ushort)(SRRBlockLayout.BaseHeaderSize + SRRBlockLayout.OsoFileSizeLength + SRRBlockLayout.OsoHashLength + SRRBlockLayout.NameLengthFieldLength + nameBytes.Length);
+        ushort headerSize = (ushort)(SRRBlockLayout.BaseHeaderSize + SRRBlockLayout.OSOFileSizeLength + SRRBlockLayout.OSOHashLength + SRRBlockLayout.NameLengthFieldLength + nameBytes.Length);
 
         writer.Write(SRRBlockLayout.OSOSentinel);          // CRC (SRR OSO hash sentinel)
         writer.Write((byte)SRRBlockType.OSOHash);          // OSOHash type

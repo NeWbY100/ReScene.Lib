@@ -12,7 +12,7 @@ internal static class SRSPayloadSerializer
     /// Serializes the SRSF (file data) payload - format matches pyrescene exactly.
     /// Layout: flags(2) + appNameLen(2) + appName + fileNameLen(2) + fileName + sampleSize(8) + crc32(4)
     /// </summary>
-    public static byte[] SerializeSrsf(string samplePath, long sampleSize, uint sampleCRC32,
+    public static byte[] SerializeSRSF(string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
         byte[] appNameBytes = Encoding.UTF8.GetBytes(options.AppName);
@@ -23,7 +23,7 @@ internal static class SRSPayloadSerializer
         int pos = 0;
 
         // Flags: SIMPLE_BLOCK_FIX | ATTACHMENTS_REMOVED = 0x03
-        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(pos), (ushort)(SrsfFlags.SimpleBlockFix | SrsfFlags.AttachmentsRemoved));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(pos), (ushort)(SRSFFlags.SimpleBlockFix | SRSFFlags.AttachmentsRemoved));
         pos += 2;
 
         BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(pos), (ushort)appNameBytes.Length);
@@ -48,19 +48,19 @@ internal static class SRSPayloadSerializer
     /// Serializes the SRST (track data) payload - format matches pyrescene exactly.
     /// Layout: flags(2) + trackNum(2|4) + dataLength(4|8) + matchOffset(8) + sigLen(2) + sig
     /// </summary>
-    public static byte[] SerializeSrst(TrackInfo track, bool bigFile)
+    public static byte[] SerializeSRST(TrackInfo track, bool bigFile)
     {
         ushort flags = 0;
-        bool bigTrackNumber = track.TrackNumber >= SrstLayout.TrackNumberWidthThreshold;
+        bool bigTrackNumber = track.TrackNumber >= SRSTLayout.TrackNumberWidthThreshold;
 
         if (bigFile)
         {
-            flags |= (ushort)SrstFlags.BigFile;
+            flags |= (ushort)SRSTFlags.BigFile;
         }
 
         if (bigTrackNumber)
         {
-            flags |= (ushort)SrstFlags.BigTrackNumber;
+            flags |= (ushort)SRSTFlags.BigTrackNumber;
         }
 
         int trackNumSize = bigTrackNumber ? 4 : 2;
@@ -111,13 +111,13 @@ internal static class SRSPayloadSerializer
     /// MP3 and Stream containers, which share byte-identical framing. The size field
     /// counts the 4-byte tag + 4-byte size field + payload (i.e. payload length + 8).
     /// </summary>
-    public static void WriteSrsfBlock(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
+    public static void WriteSRSFBlock(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.Write(Encoding.ASCII.GetBytes(SrsFourCC.SrsFile));
+        byte[] payload = SerializeSRSF(samplePath, sampleSize, sampleCRC32, options);
+        outFs.Write(Encoding.ASCII.GetBytes(SRSFourCC.SRSFile));
         Span<byte> sizeBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(SrsBlockLayout.HeaderSize + payload.Length));
+        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(SRSBlockLayout.HeaderSize + payload.Length));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }
@@ -127,12 +127,12 @@ internal static class SRSPayloadSerializer
     /// MP3 and Stream containers, which share byte-identical framing. The size field
     /// counts the 4-byte tag + 4-byte size field + payload (i.e. payload length + 8).
     /// </summary>
-    public static void WriteSrstBlock(Stream outFs, TrackInfo track, bool bigFile)
+    public static void WriteSRSTBlock(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SerializeSrst(track, bigFile);
-        outFs.Write(Encoding.ASCII.GetBytes(SrsFourCC.SrsTrack));
+        byte[] payload = SerializeSRST(track, bigFile);
+        outFs.Write(Encoding.ASCII.GetBytes(SRSFourCC.SRSTrack));
         Span<byte> sizeBytes = stackalloc byte[4];
-        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(SrsBlockLayout.HeaderSize + payload.Length));
+        BinaryPrimitives.WriteUInt32LittleEndian(sizeBytes, (uint)(SRSBlockLayout.HeaderSize + payload.Length));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }

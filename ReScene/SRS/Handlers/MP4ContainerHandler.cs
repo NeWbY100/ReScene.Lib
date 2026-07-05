@@ -77,7 +77,7 @@ internal class MP4ContainerHandler : IContainerHandler
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        while (inFs.Position + Mp4AtomTypes.AtomHeaderSize <= inFs.Length)
+        while (inFs.Position + MP4AtomTypes.AtomHeaderSize <= inFs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long atomStart = inFs.Position;
@@ -97,10 +97,10 @@ internal class MP4ContainerHandler : IContainerHandler
             if (type == "mdat")
             {
                 // Inject SRSF/SRST before mdat
-                WriteSrsfMov(outFs, samplePath, sampleSize, sampleCRC32, options);
+                WriteSRSFMov(outFs, samplePath, sampleSize, sampleCRC32, options);
                 foreach (TrackInfo track in tracks)
                 {
-                    WriteSrstMov(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
+                    WriteSRSTMov(outFs, track, sampleSize >= SRSConstants.BigFileSizeThreshold);
                 }
 
                 // Write mdat header only (skip stream data)
@@ -141,13 +141,13 @@ internal class MP4ContainerHandler : IContainerHandler
     {
         type = string.Empty;
         totalSize = 0;
-        headerLength = Mp4AtomTypes.AtomHeaderSize;
+        headerLength = MP4AtomTypes.AtomHeaderSize;
         rawHeader = [];
 
         long atomStart = fs.Position;
 
-        byte[] header = new byte[Mp4AtomTypes.AtomHeaderSize];
-        if (fs.Read(header, 0, Mp4AtomTypes.AtomHeaderSize) < Mp4AtomTypes.AtomHeaderSize)
+        byte[] header = new byte[MP4AtomTypes.AtomHeaderSize];
+        if (fs.Read(header, 0, MP4AtomTypes.AtomHeaderSize) < MP4AtomTypes.AtomHeaderSize)
         {
             return false;
         }
@@ -155,7 +155,7 @@ internal class MP4ContainerHandler : IContainerHandler
         uint size32 = BinaryPrimitives.ReadUInt32BigEndian(header.AsSpan(0, 4));
         type = Encoding.ASCII.GetString(header, 4, 4);
 
-        if (size32 == Mp4AtomTypes.ExtendedSizeSentinel)
+        if (size32 == MP4AtomTypes.ExtendedSizeSentinel)
         {
             // Extended 64-bit size.
             byte[] ext = new byte[8];
@@ -165,12 +165,12 @@ internal class MP4ContainerHandler : IContainerHandler
             }
 
             totalSize = (long)BinaryPrimitives.ReadUInt64BigEndian(ext);
-            headerLength = Mp4AtomTypes.AtomExtendedHeaderSize;
-            rawHeader = new byte[Mp4AtomTypes.AtomExtendedHeaderSize];
+            headerLength = MP4AtomTypes.AtomExtendedHeaderSize;
+            rawHeader = new byte[MP4AtomTypes.AtomExtendedHeaderSize];
             header.CopyTo(rawHeader, 0);
-            ext.CopyTo(rawHeader, Mp4AtomTypes.AtomHeaderSize);
+            ext.CopyTo(rawHeader, MP4AtomTypes.AtomHeaderSize);
         }
-        else if (size32 == Mp4AtomTypes.ToEndSentinel)
+        else if (size32 == MP4AtomTypes.ToEndSentinel)
         {
             totalSize = end - atomStart;
             rawHeader = header;
@@ -199,7 +199,7 @@ internal class MP4ContainerHandler : IContainerHandler
         long totalLength = fs.Length;
         int lastPercent = -1;
 
-        while (fs.Position + Mp4AtomTypes.AtomHeaderSize <= end)
+        while (fs.Position + MP4AtomTypes.AtomHeaderSize <= end)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -271,7 +271,7 @@ internal class MP4ContainerHandler : IContainerHandler
                     bytesRead += actualRead;
                 }
             }
-            else if (type == "tkhd" && payloadSize >= Mp4AtomTypes.TkhdTrackIdOffsetV0)
+            else if (type == "tkhd" && payloadSize >= MP4AtomTypes.TkhdTrackIdOffsetV0)
             {
                 // Track header: extract track ID for MP4 track mapping
                 byte[] data = StreamUtilities.ReadAtMost(fs, (int)(atomEnd - fs.Position));
@@ -279,11 +279,11 @@ internal class MP4ContainerHandler : IContainerHandler
                 // Track ID is at offset 12 (version 0) or 20 (version 1): version(1) + flags(3) +
                 // creation(4|8) + modification(4|8) + trackID. data[0] is the version byte.
                 int version = data[0];
-                int trackIdOffset = version == 1 ? Mp4AtomTypes.TkhdTrackIdOffsetV1 : Mp4AtomTypes.TkhdTrackIdOffsetV0;
-                if (trackIdOffset + Mp4AtomTypes.TkhdTrackIdFieldSize <= data.Length)
+                int trackIdOffset = version == 1 ? MP4AtomTypes.TkhdTrackIdOffsetV1 : MP4AtomTypes.TkhdTrackIdOffsetV0;
+                if (trackIdOffset + MP4AtomTypes.TkhdTrackIdFieldSize <= data.Length)
                 {
                     currentTrackId = (int)BinaryPrimitives.ReadUInt32BigEndian(
-                        data.AsSpan(trackIdOffset, Mp4AtomTypes.TkhdTrackIdFieldSize));
+                        data.AsSpan(trackIdOffset, MP4AtomTypes.TkhdTrackIdFieldSize));
                     if (!trackMap.ContainsKey(currentTrackId))
                     {
                         trackMap[currentTrackId] = new TrackInfo { TrackNumber = currentTrackId };
@@ -316,12 +316,12 @@ internal class MP4ContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfMov(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
+    private static void WriteSRSFMov(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        Span<byte> header = stackalloc byte[Mp4AtomTypes.AtomHeaderSize];
-        BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + Mp4AtomTypes.AtomHeaderSize));
+        byte[] payload = SRSPayloadSerializer.SerializeSRSF(samplePath, sampleSize, sampleCRC32, options);
+        Span<byte> header = stackalloc byte[MP4AtomTypes.AtomHeaderSize];
+        BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + MP4AtomTypes.AtomHeaderSize));
         header[4] = (byte)'S';
         header[5] = (byte)'R';
         header[6] = (byte)'S';
@@ -330,11 +330,11 @@ internal class MP4ContainerHandler : IContainerHandler
         outFs.Write(payload);
     }
 
-    private static void WriteSrstMov(Stream outFs, TrackInfo track, bool bigFile)
+    private static void WriteSRSTMov(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        Span<byte> header = stackalloc byte[Mp4AtomTypes.AtomHeaderSize];
-        BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + Mp4AtomTypes.AtomHeaderSize));
+        byte[] payload = SRSPayloadSerializer.SerializeSRST(track, bigFile);
+        Span<byte> header = stackalloc byte[MP4AtomTypes.AtomHeaderSize];
+        BinaryPrimitives.WriteUInt32BigEndian(header, (uint)(payload.Length + MP4AtomTypes.AtomHeaderSize));
         header[4] = (byte)'S';
         header[5] = (byte)'R';
         header[6] = (byte)'S';

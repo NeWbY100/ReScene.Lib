@@ -90,7 +90,7 @@ public class MKVFileDataTests : TempDirTestBase
     }
 
     // Element IDs (marker bit preserved, as stored on disk).
-    private static byte[] IdEbml => [0x1A, 0x45, 0xDF, 0xA3];
+    private static byte[] IdEBML => [0x1A, 0x45, 0xDF, 0xA3];
     private static byte[] IdDocType => [0x42, 0x82];
     private static byte[] IdSegment => [0x18, 0x53, 0x80, 0x67];
     private static byte[] IdInfo => [0x15, 0x49, 0xA9, 0x66];
@@ -112,9 +112,9 @@ public class MKVFileDataTests : TempDirTestBase
     /// <summary>
     /// Builds a small but structurally complete MKV byte array.
     /// </summary>
-    private static byte[] BuildSampleMkv(string muxingApp = "libebml", bool includeTrack = true)
+    private static byte[] BuildSampleMKV(string muxingApp = "libebml", bool includeTrack = true)
     {
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
 
         byte[] info = Master(IdInfo,
             Uint(IdTimestampScale, 1000000),
@@ -142,7 +142,7 @@ public class MKVFileDataTests : TempDirTestBase
         return Concat(ebml, segment);
     }
 
-    private string WriteMkv(string name, byte[] bytes)
+    private string WriteMKV(string name, byte[] bytes)
     {
         string path = Path.Combine(TempDir, name);
         File.WriteAllBytes(path, bytes);
@@ -152,7 +152,7 @@ public class MKVFileDataTests : TempDirTestBase
     [Fact]
     public void Load_ParsesElementTreeWithNamesAndValues()
     {
-        string path = WriteMkv("sample.mkv", BuildSampleMkv());
+        string path = WriteMKV("sample.mkv", BuildSampleMKV());
 
         MKVFileData data = MKVFileData.Load(path);
 
@@ -177,7 +177,7 @@ public class MKVFileDataTests : TempDirTestBase
     [Fact]
     public void Load_CountsTrackEntries()
     {
-        string path = WriteMkv("tracks.mkv", BuildSampleMkv());
+        string path = WriteMKV("tracks.mkv", BuildSampleMKV());
 
         MKVFileData data = MKVFileData.Load(path);
 
@@ -193,7 +193,7 @@ public class MKVFileDataTests : TempDirTestBase
     [Fact]
     public void Load_DoesNotRecurseIntoClusterChildren()
     {
-        string path = WriteMkv("cluster.mkv", BuildSampleMkv());
+        string path = WriteMKV("cluster.mkv", BuildSampleMKV());
 
         MKVFileData data = MKVFileData.Load(path);
         EBMLElement segment = data.Elements[1];
@@ -209,9 +209,9 @@ public class MKVFileDataTests : TempDirTestBase
     [Fact]
     public void Compare_IdenticalFiles_NoFileDifferences()
     {
-        byte[] bytes = BuildSampleMkv();
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", bytes));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", bytes));
+        byte[] bytes = BuildSampleMKV();
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", bytes));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", bytes));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result,
@@ -239,9 +239,9 @@ public class MKVFileDataTests : TempDirTestBase
         }
     }
 
-    private static byte[] BuildMkvWithClusterPayload(byte fill, int payloadLength)
+    private static byte[] BuildMKVWithClusterPayload(byte fill, int payloadLength)
     {
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] info = Master(IdInfo, Str(IdMuxingApp, "libebml"));
         byte[] payload = new byte[payloadLength];
         Array.Fill(payload, fill);
@@ -255,8 +255,8 @@ public class MKVFileDataTests : TempDirTestBase
     {
         // Different payload lengths change the cluster's data size — detectable from the
         // parsed trees alone, no byte-level sources needed.
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", BuildMkvWithClusterPayload(0xAA, 64)));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", BuildMkvWithClusterPayload(0xAA, 96)));
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", BuildMKVWithClusterPayload(0xAA, 64)));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", BuildMKVWithClusterPayload(0xAA, 96)));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result);
@@ -272,10 +272,10 @@ public class MKVFileDataTests : TempDirTestBase
     {
         // Same structure and sizes; only the A/V payload bytes inside the cluster differ.
         // This is the typical "original sample vs rebuilt sample" comparison.
-        byte[] leftBytes = BuildMkvWithClusterPayload(0xAA, 64);
-        byte[] rightBytes = BuildMkvWithClusterPayload(0xBB, 64);
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", leftBytes));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", rightBytes));
+        byte[] leftBytes = BuildMKVWithClusterPayload(0xAA, 64);
+        byte[] rightBytes = BuildMKVWithClusterPayload(0xBB, 64);
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", leftBytes));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", rightBytes));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result,
@@ -292,8 +292,8 @@ public class MKVFileDataTests : TempDirTestBase
     {
         // Without byte-level sources the comparer cannot see payload-only changes;
         // it must stay silent rather than guess.
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", BuildMkvWithClusterPayload(0xAA, 64)));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", BuildMkvWithClusterPayload(0xBB, 64)));
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", BuildMKVWithClusterPayload(0xAA, 64)));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", BuildMKVWithClusterPayload(0xBB, 64)));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result);
@@ -304,8 +304,8 @@ public class MKVFileDataTests : TempDirTestBase
     [Fact]
     public void Compare_ChangedMuxingApp_ReportsModifiedAtPath()
     {
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", BuildSampleMkv("libebml")));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", BuildSampleMkv("mkvmerge")));
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", BuildSampleMKV("libebml")));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", BuildSampleMKV("mkvmerge")));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result);
@@ -324,8 +324,8 @@ public class MKVFileDataTests : TempDirTestBase
     public void Compare_RemovedTrackEntry_ReportsRemoved()
     {
         // Left has the Tracks/TrackEntry; right does not.
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", BuildSampleMkv(includeTrack: true)));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", BuildSampleMkv(includeTrack: false)));
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", BuildSampleMKV(includeTrack: true)));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", BuildSampleMKV(includeTrack: false)));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result);
@@ -339,8 +339,8 @@ public class MKVFileDataTests : TempDirTestBase
     public void Compare_AddedTrackEntry_ReportsAdded()
     {
         // Left lacks the Tracks subtree; right has it → an Added difference.
-        MKVFileData left = MKVFileData.Load(WriteMkv("left.mkv", BuildSampleMkv(includeTrack: false)));
-        MKVFileData right = MKVFileData.Load(WriteMkv("right.mkv", BuildSampleMkv(includeTrack: true)));
+        MKVFileData left = MKVFileData.Load(WriteMKV("left.mkv", BuildSampleMKV(includeTrack: false)));
+        MKVFileData right = MKVFileData.Load(WriteMKV("right.mkv", BuildSampleMKV(includeTrack: true)));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result);
@@ -353,9 +353,9 @@ public class MKVFileDataTests : TempDirTestBase
     public void Load_MalformedFile_DoesNotThrow_ReturnsPartialTree()
     {
         // Valid EBML header followed by garbage; Load must not throw.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] garbage = [0xFF, 0xFF, 0xFF, 0x12, 0x34, 0x56];
-        string path = WriteMkv("bad.mkv", Concat(ebml, garbage));
+        string path = WriteMKV("bad.mkv", Concat(ebml, garbage));
 
         MKVFileData data = MKVFileData.Load(path);
 
@@ -369,12 +369,12 @@ public class MKVFileDataTests : TempDirTestBase
         // Real-world MKVs almost always store the Segment with an unknown size (the 1-byte all-ones
         // form 0xFF, or the 8-byte 0x01 FF…FF form) so the muxer can stream without backtracking.
         // The parser must treat the body as running to EOF and still enumerate the children.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] info = Master(IdInfo, Str(IdMuxingApp, "libebml"));
         byte[] cluster = Master(IdCluster, Uint(IdClusterTimestamp, 0));
         // Segment ID + 1-byte unknown-size VINT (0xFF) + body that runs to the end of the file.
         byte[] segment = Concat(IdSegment, [0xFF], info, cluster);
-        string path = WriteMkv("unknown.mkv", Concat(ebml, segment));
+        string path = WriteMKV("unknown.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path);
 
@@ -390,11 +390,11 @@ public class MKVFileDataTests : TempDirTestBase
     [Fact]
     public void Load_FormatsFloatAndDateValues()
     {
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         // DateUTC is nanoseconds relative to 2001-01-01T00:00:00 UTC; all-zero bytes == the epoch.
         byte[] info = Master(IdInfo, FloatLeaf(IdDuration, 1234.5), Leaf(IdDateUtc, new byte[8]));
         byte[] segment = Master(IdSegment, info);
-        string path = WriteMkv("floatdate.mkv", Concat(ebml, segment));
+        string path = WriteMKV("floatdate.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path);
         EBMLElement info2 = data.Elements[1].Children.First(c => c.Name == "Info");
@@ -408,7 +408,7 @@ public class MKVFileDataTests : TempDirTestBase
     {
         static byte[] BuildTwoTracks(string codecId2)
         {
-            byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+            byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
             byte[] track1 = Master(IdTrackEntry, Uint(IdTrackNumber, 1), Str(IdCodecId, "V_MPEGH/ISO/HEVC"));
             byte[] track2 = Master(IdTrackEntry, Uint(IdTrackNumber, 2), Str(IdCodecId, codecId2));
             byte[] tracks = Master(IdTracks, track1, track2);
@@ -416,8 +416,8 @@ public class MKVFileDataTests : TempDirTestBase
             return Concat(ebml, segment);
         }
 
-        MKVFileData left = MKVFileData.Load(WriteMkv("l.mkv", BuildTwoTracks("A_FLAC")));
-        MKVFileData right = MKVFileData.Load(WriteMkv("r.mkv", BuildTwoTracks("A_AAC")));
+        MKVFileData left = MKVFileData.Load(WriteMKV("l.mkv", BuildTwoTracks("A_FLAC")));
+        MKVFileData right = MKVFileData.Load(WriteMKV("r.mkv", BuildTwoTracks("A_AAC")));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result);
@@ -435,11 +435,11 @@ public class MKVFileDataTests : TempDirTestBase
     {
         // A field the registry types as an unsigned int but whose payload exceeds 8 bytes cannot be a
         // number — it must surface as raw bytes rather than overflow into a misleading value.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] oversizedScale = Leaf(IdTimestampScale, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
         byte[] info = Master(IdInfo, oversizedScale);
         byte[] segment = Master(IdSegment, info);
-        string path = WriteMkv("oversize.mkv", Concat(ebml, segment));
+        string path = WriteMKV("oversize.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path);
         EBMLElement scale = data.Elements[1].Children
@@ -454,14 +454,14 @@ public class MKVFileDataTests : TempDirTestBase
     public void Load_FlagLacing_IsNamed()
     {
         // FlagLacing (0x9C) is a standard TrackEntry child; it must be named, not "Unknown (0x9C)".
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] trackEntry = Master(IdTrackEntry,
             Uint(IdTrackNumber, 1),
             Leaf([0x9C], [0x00]), // FlagLacing = 0 (lacing disabled)
             Str(IdCodecId, "S_TEXT/UTF8"));
         byte[] tracks = Master(IdTracks, trackEntry);
         byte[] segment = Master(IdSegment, tracks);
-        string path = WriteMkv("lacing.mkv", Concat(ebml, segment));
+        string path = WriteMKV("lacing.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path);
         EBMLElement track = data.Elements[1].Children
@@ -493,20 +493,20 @@ public class MKVFileDataTests : TempDirTestBase
     [InlineData(0xBBUL, "CuePoint")]
     [InlineData(0x7384UL, "SegmentFilename")]
     public void Lookup_AddedElements_AreNamed(ulong id, string expectedName)
-        => Assert.Equal(expectedName, EbmlElementRegistry.Lookup(id).Name);
+        => Assert.Equal(expectedName, EBMLElementRegistry.Lookup(id).Name);
 
     [Fact]
     public void Lookup_Colour_IsMaster()
-        => Assert.Equal(EBMLValueType.Master, EbmlElementRegistry.Lookup(0x55B0).Type);
+        => Assert.Equal(EBMLValueType.Master, EBMLElementRegistry.Lookup(0x55B0).Type);
 
     [Fact]
     public void Load_UnknownElementId_NamedUnknownWithHexId()
     {
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         // 0x4DAB is a valid 2-byte EBML ID that is not in the element registry.
         byte[] unknown = Leaf([0x4D, 0xAB], [0xDE, 0xAD]);
         byte[] segment = Master(IdSegment, unknown);
-        string path = WriteMkv("unknownid.mkv", Concat(ebml, segment));
+        string path = WriteMKV("unknownid.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path);
         EBMLElement element = Assert.Single(data.Elements[1].Children);
@@ -521,7 +521,7 @@ public class MKVFileDataTests : TempDirTestBase
     {
         // A Segment stuffed with more tiny Void leaves (2 bytes each: ID 0xEC + size 0x80) than the
         // cap must stop parsing at the cap and surface an explicit truncation marker instead of looping on.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] voids = new byte[(MKVFileData.DefaultMaxElements + 100) * 2];
         for (int i = 0; i < voids.Length; i += 2)
         {
@@ -530,7 +530,7 @@ public class MKVFileDataTests : TempDirTestBase
         }
 
         byte[] segment = Master(IdSegment, voids);
-        string path = WriteMkv("cap.mkv", Concat(ebml, segment));
+        string path = WriteMKV("cap.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path);
         EBMLElement seg = data.Elements[1];
@@ -549,7 +549,7 @@ public class MKVFileDataTests : TempDirTestBase
         // [audit #4] Two MKVs identical through the element cap but differing in later bytes must not be
         // reported identical. Both parse trees end in the same truncation marker, so the marker's own
         // (equal) value hides the divergence; the comparer must byte-compare the still-unparsed tail.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] voids = new byte[(MKVFileData.DefaultMaxElements + 100) * 2];
         for (int i = 0; i < voids.Length; i += 2)
         {
@@ -569,8 +569,8 @@ public class MKVFileDataTests : TempDirTestBase
         byte[] leftBytes = Concat(ebml, Master(IdSegment, leftVoids));
         byte[] rightBytes = Concat(ebml, Master(IdSegment, rightVoids));
 
-        MKVFileData left = MKVFileData.Load(WriteMkv("capleft.mkv", leftBytes));
-        MKVFileData right = MKVFileData.Load(WriteMkv("capright.mkv", rightBytes));
+        MKVFileData left = MKVFileData.Load(WriteMKV("capleft.mkv", leftBytes));
+        MKVFileData right = MKVFileData.Load(WriteMKV("capright.mkv", rightBytes));
 
         // Sanity: both trees hit the cap and end with an identical truncation marker.
         Assert.Equal("… (truncated)", left.Elements[1].Children[^1].Name);
@@ -591,7 +591,7 @@ public class MKVFileDataTests : TempDirTestBase
     {
         // [audit #4] The mirror guard: two byte-identical truncated files must still compare equal once
         // the tail is byte-compared, so the fix does not introduce a false positive on identical input.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] voids = new byte[(MKVFileData.DefaultMaxElements + 100) * 2];
         for (int i = 0; i < voids.Length; i += 2)
         {
@@ -600,8 +600,8 @@ public class MKVFileDataTests : TempDirTestBase
         }
 
         byte[] bytes = Concat(ebml, Master(IdSegment, voids));
-        MKVFileData left = MKVFileData.Load(WriteMkv("capsame_l.mkv", bytes));
-        MKVFileData right = MKVFileData.Load(WriteMkv("capsame_r.mkv", bytes));
+        MKVFileData left = MKVFileData.Load(WriteMKV("capsame_l.mkv", bytes));
+        MKVFileData right = MKVFileData.Load(WriteMKV("capsame_r.mkv", bytes));
 
         var result = new CompareResult();
         FileComparer.CompareMKVFiles(left, right, result,
@@ -614,7 +614,7 @@ public class MKVFileDataTests : TempDirTestBase
     public void Load_CustomElementCap_IsHonored()
     {
         // The cap is user-configurable; a small explicit value must truncate accordingly.
-        byte[] ebml = Master(IdEbml, Str(IdDocType, "matroska"));
+        byte[] ebml = Master(IdEBML, Str(IdDocType, "matroska"));
         byte[] voids = new byte[50 * 2];
         for (int i = 0; i < voids.Length; i += 2)
         {
@@ -623,7 +623,7 @@ public class MKVFileDataTests : TempDirTestBase
         }
 
         byte[] segment = Master(IdSegment, voids);
-        string path = WriteMkv("smallcap.mkv", Concat(ebml, segment));
+        string path = WriteMKV("smallcap.mkv", Concat(ebml, segment));
 
         MKVFileData data = MKVFileData.Load(path, maxElements: 10);
 

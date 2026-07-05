@@ -19,7 +19,7 @@ internal static class SRRBlockLayout
     public const ushort RARFileSentinel = 0x7171;
 
     // OSO (OpenSubtitles) hash-block payload field sizes.
-    public const int OsoFileSizeLength = 8;  // ulong file size
-    public const int OsoHashLength = 8;      // 8-byte hash
-    public const int OsoFixedPayloadSize = OsoFileSizeLength + OsoHashLength + NameLengthFieldLength; // 18
+    public const int OSOFileSizeLength = 8;  // ulong file size
+    public const int OSOHashLength = 8;      // 8-byte hash
+    public const int OSOFixedPayloadSize = OSOFileSizeLength + OSOHashLength + NameLengthFieldLength; // 18
 }

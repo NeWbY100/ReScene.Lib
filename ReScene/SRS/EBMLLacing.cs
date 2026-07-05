@@ -141,7 +141,7 @@ internal static class EBMLLacing
     /// </summary>
     public static int ReadLacingHeaderSize(Stream fs, long blockStart, int blockHeaderBase, int flagsByte)
     {
-        var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
+        var laceType = (EBMLLaceType)(flagsByte & MKVBlockFlags.LacingMask);
         if (laceType == EBMLLaceType.None)
         {
             return 0;

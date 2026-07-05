@@ -10,13 +10,13 @@ namespace ReScene.Tests;
 /// (<see cref="MP4ContainerHandler.Profile"/>, sample with mdat payloads present) and the rebuild
 /// side (<see cref="MP4ContainerRebuilder"/>, SRS with mdat payloads stripped).
 /// </summary>
-public class Mp4MultiMdatTests
+public class MP4MultiMdatTests
 {
     // A full atom: 4-byte big-endian size (= 8 + payload) + 4-char type + zero-filled payload.
     private static byte[] Atom(string type, int payloadLength)
     {
-        byte[] atom = new byte[Mp4AtomTypes.AtomHeaderSize + payloadLength];
-        BinaryPrimitives.WriteUInt32BigEndian(atom, (uint)(Mp4AtomTypes.AtomHeaderSize + payloadLength));
+        byte[] atom = new byte[MP4AtomTypes.AtomHeaderSize + payloadLength];
+        BinaryPrimitives.WriteUInt32BigEndian(atom, (uint)(MP4AtomTypes.AtomHeaderSize + payloadLength));
         Encoding.ASCII.GetBytes(type).CopyTo(atom, 4);
         return atom;
     }
@@ -25,8 +25,8 @@ public class Mp4MultiMdatTests
     // stripped (no payload bytes physically follow) — exactly what MP4ContainerHandler.WriteSRS emits.
     private static byte[] StrippedMdatHeader(uint originalPayloadLength)
     {
-        byte[] header = new byte[Mp4AtomTypes.AtomHeaderSize];
-        BinaryPrimitives.WriteUInt32BigEndian(header, Mp4AtomTypes.AtomHeaderSize + originalPayloadLength);
+        byte[] header = new byte[MP4AtomTypes.AtomHeaderSize];
+        BinaryPrimitives.WriteUInt32BigEndian(header, MP4AtomTypes.AtomHeaderSize + originalPayloadLength);
         Encoding.ASCII.GetBytes("mdat").CopyTo(header, 4);
         return header;
     }
@@ -70,7 +70,7 @@ public class Mp4MultiMdatTests
     // ── CountMdatAtoms: SRS (payloads stripped, mdatPayloadStripped: true) ──
 
     [Fact]
-    public void CountMdatAtoms_Srs_TwoStrippedMdats_ReturnsTwo()
+    public void CountMdatAtoms_SRS_TwoStrippedMdats_ReturnsTwo()
     {
         // Two mdat headers declaring large original sizes but with NO payload bytes present —
         // the real SRS shape. Only header-only stepping reaches the second mdat.
@@ -80,7 +80,7 @@ public class Mp4MultiMdatTests
     }
 
     [Fact]
-    public void CountMdatAtoms_Srs_WrongMode_OvershootsAndUndercounts()
+    public void CountMdatAtoms_SRS_WrongMode_OvershootsAndUndercounts()
     {
         // Guard against regressing to the old bug: walking a stripped SRS with the SAMPLE stepping
         // rule (mdatPayloadStripped: false) advances by the mdat's huge declared size, overshoots
@@ -116,7 +116,7 @@ public class Mp4MultiMdatTests
     // ── Rebuild refuses multi-mdat SRS (from another tool), before writing output ──
 
     [Fact]
-    public void Rebuild_MultiMdatSrs_ThrowsNotSupportedBeforeWritingOutput()
+    public void Rebuild_MultiMdatSRS_ThrowsNotSupportedBeforeWritingOutput()
     {
         string dir = Path.Combine(Path.GetTempPath(), "rescene-mp4r-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);

@@ -34,7 +34,7 @@ internal class MKVContainerHandler : IContainerHandler
     /// EBML element IDs that we should step into during SRS writing (they are containers).
     /// This is a distinct 4-element set from <see cref="EBMLIds.IsContainer"/>.
     /// </summary>
-    private static readonly HashSet<ulong> _mKVSrsContainers =
+    private static readonly HashSet<ulong> _mKVSRSContainers =
     [
         EBMLIds.Cluster,
         EBMLIds.BlockGroup,
@@ -112,7 +112,7 @@ internal class MKVContainerHandler : IContainerHandler
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        WriteMKVSrsElements(outFs, inFs, 0, inFs.Length, tracks, samplePath, sampleSize, sampleCRC32,
+        WriteMKVSRSElements(outFs, inFs, 0, inFs.Length, tracks, samplePath, sampleSize, sampleCRC32,
             options, resampleInjected: false, ct);
     }
 
@@ -180,7 +180,7 @@ internal class MKVContainerHandler : IContainerHandler
                     continue;
                 }
 
-                int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
+                int blockHeaderBase = vintLen + MKVBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
                 if (dataStart + blockHeaderBase > elemEnd)
                 {
                     fs.Position = elemEnd;
@@ -194,7 +194,7 @@ internal class MKVContainerHandler : IContainerHandler
 
                 // Extract lace type from flags byte (bits 1-2)
                 byte flagsByte = blockHeader[blockHeaderBase - 1];
-                var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
+                var laceType = (EBMLLaceType)(flagsByte & MKVBlockFlags.LacingMask);
 
                 // Calculate remaining data after base block header
                 int dataAfterBaseHeader = (int)((long)dataSize - blockHeaderBase);
@@ -346,7 +346,7 @@ internal class MKVContainerHandler : IContainerHandler
 
     #region Writing
 
-    private static void WriteMKVSrsElements(
+    private static void WriteMKVSRSElements(
         Stream outFs, Stream inFs,
         long start, long end,
         List<TrackInfo> tracks, string samplePath, long sampleSize, uint sampleCRC32,
@@ -391,13 +391,13 @@ internal class MKVContainerHandler : IContainerHandler
                     resampleInjected = true;
                 }
 
-                WriteMKVSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
+                WriteMKVSRSElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCRC32, options, resampleInjected, ct);
             }
-            else if (_mKVSrsContainers.Contains(elemId))
+            else if (_mKVSRSContainers.Contains(elemId))
             {
                 outFs.Write(rawHeader);
-                WriteMKVSrsElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
+                WriteMKVSRSElements(outFs, inFs, dataStart, elemEnd, tracks, samplePath, sampleSize,
                     sampleCRC32, options, resampleInjected, ct);
             }
             else if (elemId == EBMLIds.FileData) // AttachedFileData - skip data
@@ -414,7 +414,7 @@ internal class MKVContainerHandler : IContainerHandler
                 long blockParseStart = inFs.Position;
                 if (EBMLReader.TryReadSize(inFs, out _, out int vintLen))
                 {
-                    int blockHeaderBase = vintLen + MkvBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
+                    int blockHeaderBase = vintLen + MKVBlockLayout.FixedHeaderOverhead; // VINT + timecode + flags
                     long available = elemEnd - blockParseStart;
                     if (blockHeaderBase <= available)
                     {
@@ -424,7 +424,7 @@ internal class MKVContainerHandler : IContainerHandler
                         inFs.ReadExactly(baseHeader, 0, blockHeaderBase);
 
                         byte flagsByte = baseHeader[blockHeaderBase - 1];
-                        var laceType = (EBMLLaceType)(flagsByte & MkvBlockFlags.LacingMask);
+                        var laceType = (EBMLLaceType)(flagsByte & MKVBlockFlags.LacingMask);
 
                         int lacingHeaderSize = 0;
                         if (laceType != EBMLLaceType.None)
@@ -468,14 +468,14 @@ internal class MKVContainerHandler : IContainerHandler
         SRSCreationOptions options)
     {
         // Build the file and track sub-elements
-        byte[] srsfPayload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
+        byte[] srsfPayload = SRSPayloadSerializer.SerializeSRSF(samplePath, sampleSize, sampleCRC32, options);
         byte[] srsfElement = EBMLWriter.BuildEBMLElement(EBMLIds.ResampleFile, srsfPayload); // RESAMPLE_FILE
 
-        bool bigFile = sampleSize >= SrsConstants.BigFileSizeThreshold;
+        bool bigFile = sampleSize >= SRSConstants.BigFileSizeThreshold;
         var trackElements = new List<byte[]>();
         foreach (TrackInfo track in tracks)
         {
-            byte[] srstPayload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
+            byte[] srstPayload = SRSPayloadSerializer.SerializeSRST(track, bigFile);
             trackElements.Add(EBMLWriter.BuildEBMLElement(EBMLIds.ResampleTrack, srstPayload)); // RESAMPLE_TRACK
         }
 

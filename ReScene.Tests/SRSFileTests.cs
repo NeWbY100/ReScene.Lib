@@ -51,7 +51,7 @@ public class SRSFileTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task Load_Id3WrappedFlacSRS_DetectsFlacNotMp3()
+    public async Task Load_Id3WrappedFlacSRS_DetectsFlacNotMP3()
     {
         // An SRS from an ID3-wrapped FLAC begins with the copied ID3v2 tag. Detection must look
         // past the tag for the fLaC marker rather than assuming ID3-leading == MP3 (finding #6).
@@ -488,10 +488,10 @@ public class SRSFileTests : TempDirTestBase
         SyntheticSampleBuilder.BuildAvi(Path.Combine(TempDir, fileName));
 
     private string BuildSyntheticMKV(string fileName) =>
-        SyntheticSampleBuilder.BuildMkv(Path.Combine(TempDir, fileName));
+        SyntheticSampleBuilder.BuildMKV(Path.Combine(TempDir, fileName));
 
     private string BuildSyntheticMP4(string fileName) =>
-        SyntheticSampleBuilder.BuildMp4(Path.Combine(TempDir, fileName));
+        SyntheticSampleBuilder.BuildMP4(Path.Combine(TempDir, fileName));
 
     private string BuildSyntheticFlac(string fileName) =>
         SyntheticSampleBuilder.BuildFlac(Path.Combine(TempDir, fileName));
@@ -500,7 +500,7 @@ public class SRSFileTests : TempDirTestBase
         SyntheticSampleBuilder.BuildFlacWithId3(Path.Combine(TempDir, fileName));
 
     private string BuildSyntheticMP3(string fileName) =>
-        SyntheticSampleBuilder.BuildMp3(Path.Combine(TempDir, fileName));
+        SyntheticSampleBuilder.BuildMP3(Path.Combine(TempDir, fileName));
 
     private string BuildSyntheticStream(string fileName) =>
         SyntheticSampleBuilder.BuildStream(Path.Combine(TempDir, fileName));

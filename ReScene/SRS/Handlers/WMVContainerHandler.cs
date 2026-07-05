@@ -21,27 +21,27 @@ internal class WMVContainerHandler : IContainerHandler
 
         using var fs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        while (fs.Position + AsfGuids.ObjectHeaderSize <= fs.Length)
+        while (fs.Position + ASFGuids.ObjectHeaderSize <= fs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long objStart = fs.Position;
 
-            byte[] header = new byte[AsfGuids.ObjectHeaderSize];
-            if (fs.Read(header, 0, AsfGuids.ObjectHeaderSize) < AsfGuids.ObjectHeaderSize)
+            byte[] header = new byte[ASFGuids.ObjectHeaderSize];
+            if (fs.Read(header, 0, ASFGuids.ObjectHeaderSize) < ASFGuids.ObjectHeaderSize)
             {
                 break;
             }
 
-            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(AsfGuids.GuidSize));
-            if (objSize < AsfGuids.ObjectHeaderSize)
+            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(ASFGuids.GuidSize));
+            if (objSize < ASFGuids.ObjectHeaderSize)
             {
                 break;
             }
 
-            totalLength += AsfGuids.ObjectHeaderSize;
+            totalLength += ASFGuids.ObjectHeaderSize;
             crc.Append(header);
 
-            long dataSize = (long)objSize - AsfGuids.ObjectHeaderSize;
+            long dataSize = (long)objSize - ASFGuids.ObjectHeaderSize;
             long objEnd = objStart + (long)objSize;
             if (objEnd > fs.Length)
             {
@@ -49,16 +49,16 @@ internal class WMVContainerHandler : IContainerHandler
             }
 
             // Check if this is the Data Object (GUID: 3626B2758E66CF11A6D900AA0062CE6C)
-            bool isDataObject = header.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
+            bool isDataObject = header.AsSpan().StartsWith(ASFGuids.DataObjectPrefix);
 
-            if (isDataObject && dataSize >= AsfGuids.DataObjectHeaderLength)
+            if (isDataObject && dataSize >= ASFGuids.DataObjectHeaderLength)
             {
                 // Data object has: file ID (16 bytes) + total packets (8 bytes) + reserved (2 bytes)
-                byte[] dataHeader = StreamUtilities.ReadAtMost(fs, AsfGuids.DataObjectHeaderLength);
-                totalLength += AsfGuids.DataObjectHeaderLength;
+                byte[] dataHeader = StreamUtilities.ReadAtMost(fs, ASFGuids.DataObjectHeaderLength);
+                totalLength += ASFGuids.DataObjectHeaderLength;
                 crc.Append(dataHeader);
 
-                ulong totalPackets = BinaryPrimitives.ReadUInt64LittleEndian(dataHeader.AsSpan(AsfGuids.DataObjectFileIdSize));
+                ulong totalPackets = BinaryPrimitives.ReadUInt64LittleEndian(dataHeader.AsSpan(ASFGuids.DataObjectFileIdSize));
                 long packetDataSize = objEnd - fs.Position;
 
                 if (totalPackets > 0 && packetDataSize > 0)
@@ -132,16 +132,16 @@ internal class WMVContainerHandler : IContainerHandler
         using var outFs = new FileStream(outputPath, FileMode.Create, FileAccess.Write);
         using var inFs = new FileStream(samplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        while (inFs.Position + AsfGuids.ObjectHeaderSize <= inFs.Length)
+        while (inFs.Position + ASFGuids.ObjectHeaderSize <= inFs.Length)
         {
             ct.ThrowIfCancellationRequested();
             long objStart = inFs.Position;
 
-            byte[] header = new byte[AsfGuids.ObjectHeaderSize];
-            inFs.ReadExactly(header, 0, AsfGuids.ObjectHeaderSize);
+            byte[] header = new byte[ASFGuids.ObjectHeaderSize];
+            inFs.ReadExactly(header, 0, ASFGuids.ObjectHeaderSize);
 
-            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(AsfGuids.GuidSize));
-            if (objSize < AsfGuids.ObjectHeaderSize)
+            ulong objSize = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(ASFGuids.GuidSize));
+            if (objSize < ASFGuids.ObjectHeaderSize)
             {
                 break;
             }
@@ -153,7 +153,7 @@ internal class WMVContainerHandler : IContainerHandler
             }
 
             // Check if Data Object
-            bool isDataObject = header.AsSpan().StartsWith(AsfGuids.DataObjectPrefix);
+            bool isDataObject = header.AsSpan().StartsWith(ASFGuids.DataObjectPrefix);
 
             outFs.Write(header);
 
@@ -161,10 +161,10 @@ internal class WMVContainerHandler : IContainerHandler
             {
                 // Parse data packets, write only packet headers (strip payload data)
                 long dataRemaining = objEnd - inFs.Position;
-                if (dataRemaining >= AsfGuids.DataObjectHeaderLength)
+                if (dataRemaining >= ASFGuids.DataObjectHeaderLength)
                 {
-                    byte[] dataHeader = new byte[AsfGuids.DataObjectHeaderLength];
-                    inFs.ReadExactly(dataHeader, 0, AsfGuids.DataObjectHeaderLength);
+                    byte[] dataHeader = new byte[ASFGuids.DataObjectHeaderLength];
+                    inFs.ReadExactly(dataHeader, 0, ASFGuids.DataObjectHeaderLength);
                     outFs.Write(dataHeader);
 
                     // Data packets are stripped: the SRS keeps the ASF header objects + SRSF/SRST.
@@ -174,10 +174,10 @@ internal class WMVContainerHandler : IContainerHandler
                 inFs.Position = objEnd;
 
                 // Inject SRSF/SRST after data object
-                WriteSrsfASF(outFs, samplePath, sampleSize, sampleCRC32, options);
+                WriteSRSFASF(outFs, samplePath, sampleSize, sampleCRC32, options);
                 foreach (TrackInfo track in tracks)
                 {
-                    WriteSrstASF(outFs, track, sampleSize >= SrsConstants.BigFileSizeThreshold);
+                    WriteSRSTASF(outFs, track, sampleSize >= SRSConstants.BigFileSizeThreshold);
                 }
             }
             else
@@ -196,23 +196,23 @@ internal class WMVContainerHandler : IContainerHandler
 
     #region Writing Helpers
 
-    private static void WriteSrsfASF(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
+    private static void WriteSRSFASF(Stream outFs, string samplePath, long sampleSize, uint sampleCRC32,
         SRSCreationOptions options)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrsf(samplePath, sampleSize, sampleCRC32, options);
-        outFs.Write(AsfSrsGuids.GuidSRSFile);
+        byte[] payload = SRSPayloadSerializer.SerializeSRSF(samplePath, sampleSize, sampleCRC32, options);
+        outFs.Write(ASFSRSGuids.GuidSRSFile);
         Span<byte> sizeBytes = stackalloc byte[8];
-        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + AsfGuids.ObjectHeaderSize));
+        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + ASFGuids.ObjectHeaderSize));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }
 
-    private static void WriteSrstASF(Stream outFs, TrackInfo track, bool bigFile)
+    private static void WriteSRSTASF(Stream outFs, TrackInfo track, bool bigFile)
     {
-        byte[] payload = SRSPayloadSerializer.SerializeSrst(track, bigFile);
-        outFs.Write(AsfSrsGuids.GuidSRSTrack);
+        byte[] payload = SRSPayloadSerializer.SerializeSRST(track, bigFile);
+        outFs.Write(ASFSRSGuids.GuidSRSTrack);
         Span<byte> sizeBytes = stackalloc byte[8];
-        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + AsfGuids.ObjectHeaderSize));
+        BinaryPrimitives.WriteUInt64LittleEndian(sizeBytes, (ulong)(payload.Length + ASFGuids.ObjectHeaderSize));
         outFs.Write(sizeBytes);
         outFs.Write(payload);
     }

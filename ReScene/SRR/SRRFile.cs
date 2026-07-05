@@ -18,9 +18,9 @@ public class SRRFile
     /// <summary>
     /// Gets the OSO hash blocks from the SRR file.
     /// </summary>
-    public IReadOnlyList<SRROsoHashBlock> OSOHashBlocks => _osoHashBlocks;
+    public IReadOnlyList<SRROSOHashBlock> OSOHashBlocks => _osoHashBlocks;
 
-    internal List<SRROsoHashBlock> _osoHashBlocks { get; } = [];
+    internal List<SRROSOHashBlock> _osoHashBlocks { get; } = [];
 
     /// <summary>
     /// Gets the RAR padding blocks from the SRR file.
@@ -557,7 +557,7 @@ public class SRRFile
                     break;
 
                 case SRRBlockType.OSOHash:
-                    SRROsoHashBlock? osoBlock = SRRFileParser.ParseOSOHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
+                    SRROSOHashBlock? osoBlock = SRRFileParser.ParseOSOHashBlock(reader, fs, startPos, crc, type, flags, headerSize);
                     if (osoBlock != null)
                     {
                         srr._osoHashBlocks.Add(osoBlock);

@@ -36,5 +36,5 @@ internal static class FlacConstants
     /// edge is unreachable: the SRS sentinel types 0x73-0x75 cannot collide with a real FLAC metadata
     /// block (valid types are 0-6, plus 127 reserved).
     /// </summary>
-    public const int MaxSrsBlockCount = 3;
+    public const int MaxSRSBlockCount = 3;
 }
