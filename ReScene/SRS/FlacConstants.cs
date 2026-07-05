@@ -1,25 +1,5 @@
 namespace ReScene.SRS;
 
-/// <summary>Standard FLAC metadata block types (type nibble, 0-6).</summary>
-internal enum FlacBlockType
-{
-    Streaminfo = 0,
-    Padding = 1,
-    Application = 2,
-    Seektable = 3,
-    VorbisComment = 4,
-    Cuesheet = 5,
-    Picture = 6,
-}
-
-/// <summary>SRS-injected block type identifiers embedded inside a FLAC stream.</summary>
-internal enum FlacSrsBlockType : byte
-{
-    Srsf = 0x73,        // 's' — file-data block
-    Srst = 0x74,        // 't' — track-data block
-    Fingerprint = 0x75, // 'u' — fingerprint block
-}
-
 /// <summary>Structural constants for the FLAC container format.</summary>
 internal static class FlacConstants
 {

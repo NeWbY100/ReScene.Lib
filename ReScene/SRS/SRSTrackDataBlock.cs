@@ -1,0 +1,148 @@
+namespace ReScene.SRS;
+
+/// <summary>
+/// Parsed SRST (TrackData) payload from an SRS file.
+/// </summary>
+public class SRSTrackDataBlock
+{
+    /// <summary>
+    /// Absolute position of the container frame in the file.
+    /// </summary>
+    public long BlockPosition
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Total size including container framing.
+    /// </summary>
+    public long BlockSize
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Offset of the container frame header.
+    /// </summary>
+    public long FrameOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Size of the container frame header (before SRST payload).
+    /// </summary>
+    public int FrameHeaderSize
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Byte offset of the flags field.
+    /// </summary>
+    public long FlagsOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// SRST flags value.
+    /// </summary>
+    public ushort Flags
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Byte offset of the track number field.
+    /// </summary>
+    public long TrackNumberOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Size of the track number field in bytes (2 or 4).
+    /// </summary>
+    public int TrackNumberFieldSize
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Track number within the container.
+    /// </summary>
+    public uint TrackNumber
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Byte offset of the data length field.
+    /// </summary>
+    public long DataLengthOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Size of the data length field in bytes (4 or 8).
+    /// </summary>
+    public int DataLengthFieldSize
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Total length of the track's stream data in the sample file.
+    /// </summary>
+    public ulong DataLength
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Byte offset of the match offset field.
+    /// </summary>
+    public long MatchOffsetOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Offset in the full media file where this track's data begins.
+    /// </summary>
+    public ulong MatchOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Byte offset of the signature size field.
+    /// </summary>
+    public long SignatureSizeOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Length of the signature in bytes.
+    /// </summary>
+    public ushort SignatureSize
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// Byte offset of the signature data.
+    /// </summary>
+    public long SignatureOffset
+    {
+        get; set;
+    }
+
+    /// <summary>
+    /// First bytes of the track's stream data, used for verification during rebuild.
+    /// </summary>
+    public ReadOnlyMemory<byte> Signature { get; set; }
+}

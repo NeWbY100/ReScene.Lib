@@ -1,15 +1,5 @@
 namespace ReScene.Core;
 
-/// <summary>One produced volume's positional comparison against its expected name + CRC.</summary>
-public sealed record VolumeMatch(int Index, string ExpectedName, string ExpectedCrc, string ActualCrc, bool Match);
-
-/// <summary>The result of comparing a produced volume set against the expected per-volume CRCs.</summary>
-public sealed record VolumeMatchResult(
-    bool AllMatch,
-    IReadOnlyList<VolumeMatch> Volumes,
-    VolumeMatch? FirstMismatch,
-    bool CountMismatch);
-
 /// <summary>
 /// Pure comparison of a produced multi-volume RAR set against the expected per-volume CRCs.
 /// Volumes are assigned to expected names positionally (RAR emits volumes in deterministic order);
