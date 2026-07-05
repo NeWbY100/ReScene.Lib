@@ -2,6 +2,43 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [1.9.0] — 2026-07-05
+
+### Changed
+
+- **Public identifiers now spell format acronyms in all-caps** — `SRR`, `SRS`, `SRST`, `SRSF`,
+  `RAR`, `MP3`, `MP4`, `MKV`, `ASF`, `WMV`, `EBML`, `OSO` (e.g. `Srr*`→`SRR*`, `RarFileName`→
+  `RARFileName`, `Mp4AtomTypes`→`MP4AtomTypes`). `Flac`, `Riff`, and `VobSub` keep PascalCase.
+  This renames public types and members, so consumers referencing the old casing must update.
+- Source layout: one top-level type per file throughout, and magic numbers replaced with named
+  constants/enums (e.g. `RARFileFlags`, `RAR4BlockType`, `RAR5ArchiveFlags`, `EBMLLaceType`,
+  `RAR4HeaderLayout`, `SRSBlockLayout`, `SRSFourCC`). Behavior is unchanged.
+
+### Added
+
+- `AllowedVersionFolders` — the reconstruction engine now honors a caller-supplied set of WinRAR
+  version folders, so only the selected versions are tried during the brute-force.
+
+### Fixed
+
+- **Data loss:** the SRR editor/verifier/commit path could mis-parse embedded RAR headers as SRR
+  blocks; SRR editing now preserves data correctly.
+- **RAR byte-exactness:** EXT_TIME remainder byte order, Unicode filename patching, and 64-bit pack
+  sizes are handled correctly; RAR4 AV/SIGN block-type display labels corrected.
+- **Verification & orchestration:** correct SHA-1/CRC-32 verification, a resilient brute-force loop
+  that no longer aborts the whole run on a bad candidate, support for releases with more than 101
+  volumes, and directory-entry handling.
+- **Sample rebuild / SRS:** MP3 samples with stacked tags rebuild correctly and no longer hang on a
+  zero-size SRS block; FLAC samples carrying a leading ID3v2 tag rebuild; MKV lacing headers larger
+  than 256 bytes are measured correctly; fragmented (multi-`mdat`) MP4 is refused cleanly on both
+  sides; MP4 `tkhd` track-ID offset and WMV profile total size corrected.
+- **Comparison:** correct stored-file content comparison, MKV element-cap tail handling, RAR4 data
+  skipping, and block alignment.
+- **Decompression robustness:** fail cleanly (rather than returning a partial/garbage buffer) on
+  truncated LZ input and on malformed PPMd/window/RAR5-block data; PPMd allocator sizing fix.
+- **Security:** closed path-traversal (Zip-Slip) sinks in SRR reconstruction.
+- Brute-force completion status reporting and case-insensitive hash matching corrected.
+
 ## [1.8.0] — 2026-07-02
 
 ### Added
