@@ -12,10 +12,7 @@ public class SrrArchiveSetTests
     [InlineData("incite-avtak.ue.xvid.cd1.r05", "incite-avtak.ue.xvid.cd1")]
     [InlineData("rls.part01.rar", "rls")]               // new style
     [InlineData("rls.part002.rar", "rls")]
-    public void GetArchiveSetKey_StripsVolumeExtension_KeepsDirectory(string path, string expected)
-    {
-        Assert.Equal(expected, RARVolumeIdentifier.GetArchiveSetKey(path));
-    }
+    public void GetArchiveSetKey_StripsVolumeExtension_KeepsDirectory(string path, string expected) => Assert.Equal(expected, RARVolumeIdentifier.GetArchiveSetKey(path));
 
     [Fact]
     public void Load_DirectoryLessTwoSetRelease_GroupsByBaseName()

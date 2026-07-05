@@ -115,12 +115,11 @@ internal static partial class RarVersionSelector
     /// required archive version — and returns the argument strings.
     /// </summary>
     public static List<string> FilterArgumentsForVersion(IEnumerable<RARCommandLineArgument> commandLineArguments, int version, RARArchiveVersion archiveVersion)
-        => commandLineArguments
+        => [.. commandLineArguments
             .Where(a => version >= a.MinimumVersion
                 && (!a.MaximumVersion.HasValue || version <= a.MaximumVersion.Value)
                 && (!a.ArchiveVersion.HasValue || a.ArchiveVersion.Value.HasFlag(archiveVersion)))
-            .Select(a => a.Argument)
-            .ToList();
+            .Select(a => a.Argument)];
 
     /// <summary>
     /// RAR 6.x does not honor timestamp options (-tsc/-tsa) when producing RAR4-format archives,

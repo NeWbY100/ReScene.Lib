@@ -35,7 +35,7 @@ public class CryptoTests : TempDirTestBase
     [Fact]
     public void CRC32_EmptyFile_Returns_00000000()
     {
-        string path = WriteBytes("empty.bin", Array.Empty<byte>());
+        string path = WriteBytes("empty.bin", []);
 
         string result = CRC32.Calculate(path);
 
@@ -102,7 +102,7 @@ public class CryptoTests : TempDirTestBase
     [Fact]
     public void SHA1_EmptyFile_Returns_EmptyDigest()
     {
-        string path = WriteBytes("empty.sha1.bin", Array.Empty<byte>());
+        string path = WriteBytes("empty.sha1.bin", []);
 
         string result = SHA1.Calculate(path);
 
@@ -116,7 +116,7 @@ public class CryptoTests : TempDirTestBase
     public void SHA1_SequentialCalls_OnDifferentFiles_EachReturnCorrectDigest()
     {
         string abcPath = WriteBytes("seq_abc.bin", Encoding.ASCII.GetBytes("abc"));
-        string emptyPath = WriteBytes("seq_empty.bin", Array.Empty<byte>());
+        string emptyPath = WriteBytes("seq_empty.bin", []);
 
         string first = SHA1.Calculate(abcPath);
         string second = SHA1.Calculate(emptyPath);

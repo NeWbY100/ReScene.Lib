@@ -982,7 +982,7 @@ public class RARDetailedParserTests
             }
             bytes.Add(b);
         } while (value != 0);
-        return bytes.ToArray();
+        return [.. bytes];
     }
 
     /// <summary>
@@ -1221,7 +1221,7 @@ public class RARDetailedParserTests
     public void Parse_RAR5FileHeader_HasHostOSField()
     {
         byte[] body = BuildRAR5FileHeaderBody("info.dat", 0);
-        byte[] fileBlock = BuildRAR5BlockWithData(2, 0, body, Array.Empty<byte>());
+        byte[] fileBlock = BuildRAR5BlockWithData(2, 0, body, []);
         byte[] endBlock = BuildRAR5Block(5, 0, EncodeVInt(0));
         using MemoryStream stream = BuildRAR5Stream(fileBlock, endBlock);
 

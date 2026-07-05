@@ -231,7 +231,7 @@ internal static class RARUtils
             }
         }
 
-        return Encoding.Unicode.GetString(output.ToArray());
+        return Encoding.Unicode.GetString([.. output]);
     }
 
     private static byte EncByte(byte[] data, ref int index)

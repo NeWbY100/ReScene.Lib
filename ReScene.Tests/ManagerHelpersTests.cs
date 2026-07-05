@@ -240,9 +240,7 @@ public class ManagerHelpersTests
             },
         };
 
-        return RarVersionSelector
-            .GetValidRarDirectories(Directory.GetDirectories(root), options, NullReSceneLogger.Instance, new object())
-            .ToArray();
+        return [.. RarVersionSelector.GetValidRarDirectories(Directory.GetDirectories(root), options, NullReSceneLogger.Instance, new object())];
     }
 
     [Fact]

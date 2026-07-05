@@ -352,7 +352,7 @@ public class RAR5HeaderReaderTests
             }
             bytes.Add(b);
         } while (value > 0);
-        return bytes.ToArray();
+        return [.. bytes];
     }
 
     /// <summary>

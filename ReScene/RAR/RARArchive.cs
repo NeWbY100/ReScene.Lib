@@ -303,10 +303,7 @@ internal sealed class RARArchive : IDisposable
     }
 
     /// <inheritdoc/>
-    public void Dispose()
-    {
-        _disposed = true;
-    }
+    public void Dispose() => _disposed = true;
 
     private static bool DetectRar5(string volumePath)
     {

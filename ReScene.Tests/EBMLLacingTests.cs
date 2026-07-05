@@ -28,7 +28,7 @@ public class EBMLLacingTests
     [Fact]
     public void ReadUnsigned_EmptyData_ReturnsZero()
     {
-        (long value, int length) = EBMLVInt.ReadUnsigned(ReadOnlySpan<byte>.Empty);
+        (long value, int length) = EBMLVInt.ReadUnsigned([]);
 
         Assert.Equal(0, value);
         Assert.Equal(0, length);
@@ -89,7 +89,7 @@ public class EBMLLacingTests
     [Fact]
     public void ReadSigned_EmptyData_ReturnsZero()
     {
-        (long value, int length) = EBMLVInt.ReadSigned(ReadOnlySpan<byte>.Empty);
+        (long value, int length) = EBMLVInt.ReadSigned([]);
 
         Assert.Equal(0, value);
         Assert.Equal(0, length);

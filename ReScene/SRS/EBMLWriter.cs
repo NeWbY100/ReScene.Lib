@@ -127,7 +127,7 @@ internal static class EBMLWriter
             result.Add((byte)((value >> (i * 8)) & 0xFF));
         }
 
-        return result.ToArray();
+        return [.. result];
     }
 
     /// <summary>

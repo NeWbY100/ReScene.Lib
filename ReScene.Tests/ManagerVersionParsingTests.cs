@@ -56,14 +56,8 @@ public sealed class ManagerVersionParsingTests
     }
 
     [Fact]
-    public void ParseRARVersion_Unparseable_Throws()
-    {
-        Assert.Throws<FormatException>(() => Manager.ParseRARVersion("winrar-beta"));
-    }
+    public void ParseRARVersion_Unparseable_Throws() => Assert.Throws<FormatException>(() => Manager.ParseRARVersion("winrar-beta"));
 
     [Fact]
-    public void ParseRARVersion_Valid_ReturnsSameAsTryParse()
-    {
-        Assert.Equal(560, Manager.ParseRARVersion("winrar-560"));
-    }
+    public void ParseRARVersion_Valid_ReturnsSameAsTryParse() => Assert.Equal(560, Manager.ParseRARVersion("winrar-560"));
 }

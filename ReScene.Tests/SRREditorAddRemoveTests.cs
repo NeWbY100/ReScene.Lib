@@ -63,7 +63,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         SRRFile srr = SRRFile.Load(srrPath);
 
         // Order is [existing, new] in the parsed stored-file list.
-        Assert.Equal(["existing.nfo", "added.nfo"], srr.StoredFiles.Select(b => b.FileName).ToArray());
+        Assert.Equal(["existing.nfo", "added.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
 
         // The new stored block must physically precede the RARFile block in the byte stream.
         byte[] bytes = File.ReadAllBytes(srrPath);
@@ -152,7 +152,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         SRREditor.AddStoredFiles(srrPath, [("alpha.nfo", fileA), ("beta.nfo", fileB)]);
 
         SRRFile srr = SRRFile.Load(srrPath);
-        Assert.Equal(["base.nfo", "alpha.nfo", "beta.nfo"], srr.StoredFiles.Select(b => b.FileName).ToArray());
+        Assert.Equal(["base.nfo", "alpha.nfo", "beta.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
     }
 
     // Removal is case-insensitive (OrdinalIgnoreCase): removing "B.NFO" deletes the
@@ -170,7 +170,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         SRREditor.RemoveStoredFiles(srrPath, ["B.NFO"]);
 
         SRRFile srr = SRRFile.Load(srrPath);
-        Assert.Equal(["a.nfo", "c.nfo"], srr.StoredFiles.Select(b => b.FileName).ToArray());
+        Assert.Equal(["a.nfo", "c.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
     }
 
     // Removing a name that is not present is a silent no-op: the file is left
@@ -264,6 +264,6 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         // Sanity: the removal actually happened.
         SRRFile srr = SRRFile.Load(srrPath);
-        Assert.Equal(["keep.nfo"], srr.StoredFiles.Select(b => b.FileName).ToArray());
+        Assert.Equal(["keep.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
     }
 }

@@ -12,10 +12,7 @@ internal static partial class RARVolumeNaming
     /// Computes the path of the next volume in the set, or <see langword="null"/>
     /// when the input path doesn't match a recognized volume pattern.
     /// </summary>
-    public static string? GetNextVolumePath(string currentPath, bool isOldNaming)
-    {
-        return isOldNaming ? GetNextOldStyleVolume(currentPath) : GetNextNewStyleVolume(currentPath);
-    }
+    public static string? GetNextVolumePath(string currentPath, bool isOldNaming) => isOldNaming ? GetNextOldStyleVolume(currentPath) : GetNextNewStyleVolume(currentPath);
 
     /// <summary>
     /// Extracts the archive base name from a volume file name by stripping a
