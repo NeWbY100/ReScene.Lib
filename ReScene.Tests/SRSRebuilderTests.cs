@@ -942,7 +942,7 @@ public class SRSRebuilderTests : TempDirTestBase
     }
 
     [Fact]
-    public void Rebuild_MP3ZeroSizeSrsBlock_TerminatesWithoutHanging()
+    public async Task Rebuild_MP3ZeroSizeSrsBlock_TerminatesWithoutHanging()
     {
         // A malformed SRS block declaring totalSize 0 must not spin the rebuild loop forever:
         // advancing the position by totalSize would leave it unchanged. The parser (ParseMP3)
@@ -962,16 +962,23 @@ public class SRSRebuilderTests : TempDirTestBase
             srsPath, new Dictionary<uint, SRSTrackDataBlock>(), mediaPath,
             new Dictionary<uint, long>(), outputPath, null, null, cts.Token));
 
-        bool completed = task.Wait(TimeSpan.FromSeconds(3));
+        // Await the race rather than blocking (xUnit1031): if the rebuild wins, it finished in time.
+        bool completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(3))) == task;
         if (!completed)
         {
-            // Bug regressed: actively cancel and observe the spinning task (the loop honors ct each
-            // iteration) so it releases its file handles instead of pinning a core until process exit.
+            // Bug regressed: actively cancel and let the spinning task unwind (the loop honors ct
+            // each iteration) so it releases its file handles instead of pinning a core until exit.
             cts.Cancel();
-            try { task.Wait(TimeSpan.FromSeconds(5)); } catch (AggregateException) { /* observe OCE */ }
+            await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5)));
         }
 
         Assert.True(completed, "MP3 rebuild hung on a zero-size SRS block (infinite loop).");
+
+        // Observe the finished task so any fault surfaces here instead of as an unobserved exception.
+        if (completed)
+        {
+            await task;
+        }
     }
 
     [Fact]
