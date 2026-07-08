@@ -281,6 +281,9 @@ class ReScene.Core.RAROptions
     property String SRRFilePath { get; set; }
     property TriState SetFileArchiveAttribute { get; set; }
     property TriState SetFileNotContentIndexedAttribute { get; set; }
+class static ReScene.Core.RarExecutable
+    method String ResolveIn(String)
+    property String FileName { get; }
 class ReScene.Core.TimestampPreservationFailedEventArgs
     ctor ()
     property String DestinationPath { get; set; }

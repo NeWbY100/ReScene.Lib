@@ -116,7 +116,7 @@ internal sealed class CommentPhaseBruteForcer(
                 break;
             }
 
-            string rarExePath = Path.Combine(rarVersionDir, "rar.exe");
+            string rarExePath = RarExecutable.ResolveIn(rarVersionDir);
             string versionName = Path.GetFileName(rarVersionDir);
 
             currentTest++;

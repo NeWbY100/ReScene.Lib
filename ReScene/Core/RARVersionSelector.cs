@@ -135,9 +135,9 @@ internal static partial class RARVersionSelector
     }
 
     /// <summary>
-    /// Filters the given RAR version directories down to those containing a <c>rar.exe</c> and
-    /// whose parsed version falls within one of the configured version ranges, returning each
-    /// directory paired with its parsed version.
+    /// Filters the given RAR version directories down to those containing the platform's RAR
+    /// console binary (see <see cref="RarExecutable"/>) and whose parsed version falls within
+    /// one of the configured version ranges, returning each directory paired with its parsed version.
     /// </summary>
     public static List<(string Path, int Version)> GetValidRARDirectories(string[] directories, BruteForceOptions options, IReSceneLogger logger, object logSource)
     {
@@ -152,10 +152,10 @@ internal static partial class RARVersionSelector
 
         foreach (string dir in directories)
         {
-            string rarExeFilePath = Path.Combine(dir, "rar.exe");
+            string rarExeFilePath = RarExecutable.ResolveIn(dir);
             if (!File.Exists(rarExeFilePath))
             {
-                logger.Information(logSource, $"rar.exe not found in {dir}");
+                logger.Information(logSource, $"{RarExecutable.FileName} not found in {dir}");
                 continue;
             }
 

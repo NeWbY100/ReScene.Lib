@@ -579,7 +579,7 @@ public partial class Manager : IDisposable
         int archiveAttributeIteration,
         int notContentAttributeIteration)
     {
-        string rarExeFilePath = Path.Combine(rarVersionDirectoryPath, "rar.exe");
+        string rarExeFilePath = RarExecutable.ResolveIn(rarVersionDirectoryPath);
         string rarVersionDirectoryName = Path.GetFileName(rarVersionDirectoryPath);
 
         // Create subdirectory structure:
