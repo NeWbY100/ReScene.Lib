@@ -20,7 +20,7 @@ public class RARFileDataTests
         // packed bytes were misparsed as the next header and users_manual4.00.txt was lost.
         string path = Path.Combine(TestDataPath, "store_split_folder_old_srrsfv_windows", "store_split_folder.rar");
 
-        RARFileData data = RARFileData.Load(path);
+        var data = RARFileData.Load(path);
 
         Assert.False(data.IsRAR5);
         Assert.Equal(3, data.FileHeaders.Count);
@@ -38,7 +38,7 @@ public class RARFileDataTests
         // service data and each file's packed data is required to reach every file header.
         string path = Path.Combine(TestDataPath, "store_utf8_comment", "store_utf8_comment.rar");
 
-        RARFileData data = RARFileData.Load(path);
+        var data = RARFileData.Load(path);
 
         Assert.False(data.IsRAR5);
         Assert.Equal(3, data.FileHeaders.Count);

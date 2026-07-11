@@ -31,7 +31,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
 
-        var entry = Assert.Single(results);
+        (string FileName, ulong FileSize, byte[] Hash) entry = Assert.Single(results);
         Assert.Equal("clip.bin", entry.FileName);
         Assert.Equal((ulong)HashChunkSize, entry.FileSize);
         Assert.Equal(ExpectedOSOHash(content), entry.Hash);
@@ -48,7 +48,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
 
-        var entry = Assert.Single(results);
+        (string FileName, ulong FileSize, byte[] Hash) entry = Assert.Single(results);
         Assert.Equal("movie.sample.mkv", entry.FileName);
         Assert.Equal(70_000UL, entry.FileSize);
         Assert.Equal(ExpectedOSOHash(content), entry.Hash);
@@ -105,7 +105,7 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
 
-        var entry = Assert.Single(results);
+        (string FileName, ulong FileSize, byte[] Hash) entry = Assert.Single(results);
         Assert.Equal("whole.bin", entry.FileName);
         Assert.DoesNotContain(results, r => r.FileName == "continued.bin");
     }

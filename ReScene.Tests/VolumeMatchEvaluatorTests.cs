@@ -7,8 +7,8 @@ public class VolumeMatchEvaluatorTests
     [Fact]
     public void Evaluate_AllMatch_AssignsNamesPositionally()
     {
-        var produced = new[] { "f1a3ec0d", "88b361c9" };
-        var expected = new[] { ("aln-re4a.rar", "f1a3ec0d"), ("aln-re4a.r00", "88b361c9") };
+        string[] produced = new[] { "f1a3ec0d", "88b361c9" };
+        (string, string)[] expected = new[] { ("aln-re4a.rar", "f1a3ec0d"), ("aln-re4a.r00", "88b361c9") };
 
         VolumeMatchResult r = VolumeMatchEvaluator.Evaluate(produced, expected);
 
@@ -21,8 +21,8 @@ public class VolumeMatchEvaluatorTests
     [Fact]
     public void Evaluate_NearMiss_ReportsFirstMismatch_NotAllMatch()
     {
-        var produced = new[] { "f1a3ec0d", "ffffffff" };               // vol 1 ok, vol 2 wrong
-        var expected = new[] { ("x.rar", "f1a3ec0d"), ("x.r00", "88b361c9") };
+        string[] produced = new[] { "f1a3ec0d", "ffffffff" };               // vol 1 ok, vol 2 wrong
+        (string, string)[] expected = new[] { ("x.rar", "f1a3ec0d"), ("x.r00", "88b361c9") };
 
         VolumeMatchResult r = VolumeMatchEvaluator.Evaluate(produced, expected);
 

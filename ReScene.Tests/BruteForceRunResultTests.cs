@@ -8,7 +8,7 @@ public class BruteForceRunResultTests
     [Fact]
     public void WinningCombo_CarriesVersionAndArgs()
     {
-        var args = new[] { new RARCommandLineArgument("-m0", 300) };
+        RARCommandLineArgument[] args = new[] { new RARCommandLineArgument("-m0", 300) };
         var combo = new WinningCombo(351, args);
         var result = new BruteForceRunResult(true, combo);
 

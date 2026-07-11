@@ -27,7 +27,7 @@ public class ManagerVerificationTests
         opts.ExpectedVolumeCrcs["aln-re4a.rar"] = "f1a3ec0d";
         opts.ExpectedVolumeCrcs["aln-re4a.r00"] = "88b361c9";
 
-        var expected = Manager.BuildExpectedInOrder(opts);
+        IReadOnlyList<(string Name, string Crc)> expected = Manager.BuildExpectedInOrder(opts);
 
         Assert.Equal(2, expected.Count);
         Assert.Equal(("aln-re4a.rar", "f1a3ec0d"), expected[0]);
@@ -43,7 +43,7 @@ public class ManagerVerificationTests
         };
         opts.ExpectedVolumeCrcs["x.rar"] = "aabbccdd"; // x.r00 missing
 
-        var expected = Manager.BuildExpectedInOrder(opts);
+        IReadOnlyList<(string Name, string Crc)> expected = Manager.BuildExpectedInOrder(opts);
         Assert.Single(expected); // only the covered volume; caller treats partial coverage as not-verifiable
     }
 
@@ -55,7 +55,7 @@ public class ManagerVerificationTests
             RAROptions = new RAROptions { OriginalRARFileNames = ["x.rar", "x.r00"] }
         };
 
-        var expected = Manager.BuildExpectedInOrder(opts);
+        IReadOnlyList<(string Name, string Crc)> expected = Manager.BuildExpectedInOrder(opts);
         Assert.Empty(expected);
     }
 
@@ -68,7 +68,7 @@ public class ManagerVerificationTests
         };
         opts.ExpectedVolumeCrcs["aln-re4a.rar"] = "f1a3ec0d";
 
-        var expected = Manager.BuildExpectedInOrder(opts);
+        IReadOnlyList<(string Name, string Crc)> expected = Manager.BuildExpectedInOrder(opts);
 
         Assert.Single(expected);
         Assert.Equal(("ALN-RE4A.RAR", "f1a3ec0d"), expected[0]);

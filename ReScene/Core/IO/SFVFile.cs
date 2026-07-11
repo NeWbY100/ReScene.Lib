@@ -49,7 +49,7 @@ public class SFVFile
     /// </returns>
     public static SFVFile ReadFile(string filePath)
     {
-        var sfvFile = ParseLines(File.ReadAllLines(filePath), tolerant: false);
+        SFVFile sfvFile = ParseLines(File.ReadAllLines(filePath), tolerant: false);
         sfvFile.FileInfo = new FileInfo(filePath);
         return sfvFile;
     }

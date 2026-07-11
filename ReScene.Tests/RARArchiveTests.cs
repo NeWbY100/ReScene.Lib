@@ -745,7 +745,7 @@ public class RARArchiveTests
                 fs.Write(BuildEndArchiveBytes());
             }
 
-            using RARArchive archive = RARArchive.Open(path);
+            using var archive = RARArchive.Open(path);
 
             Assert.Contains(archive.Files, f => f.FileName == "big.bin");
             Assert.DoesNotContain(archive.Files, f => f.FileName == "after.txt");

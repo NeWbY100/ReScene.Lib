@@ -22,7 +22,7 @@ public class SHA1FileTests : TempDirTestBase
         string content = $"{a} *first.rar\r\n\r\n{b} *second.rar\r\n";
         string path = WriteTemp("blank.sha1", content);
 
-        SHA1File result = SHA1File.ReadFile(path);
+        var result = SHA1File.ReadFile(path);
 
         Assert.Equal(2, result.Entries.Count);
         Assert.Equal("first.rar", result.Entries[0].FileName);
@@ -36,7 +36,7 @@ public class SHA1FileTests : TempDirTestBase
         string content = $"{a} *only.rar\r\n   \r\n";
         string path = WriteTemp("ws.sha1", content);
 
-        SHA1File result = SHA1File.ReadFile(path);
+        var result = SHA1File.ReadFile(path);
 
         Assert.Single(result.Entries);
         Assert.Equal("only.rar", result.Entries[0].FileName);
@@ -49,7 +49,7 @@ public class SHA1FileTests : TempDirTestBase
         string content = $"; comment\r\n# comment\r\n: comment\r\n{a} *file.rar\r\n";
         string path = WriteTemp("comments.sha1", content);
 
-        SHA1File result = SHA1File.ReadFile(path);
+        var result = SHA1File.ReadFile(path);
 
         Assert.Single(result.Entries);
         Assert.Equal("file.rar", result.Entries[0].FileName);
@@ -73,7 +73,7 @@ public class SHA1FileTests : TempDirTestBase
         string path = Path.Combine(TempDir, "rt.sha1");
 
         file.WriteFile(path);
-        SHA1File reloaded = SHA1File.ReadFile(path);
+        var reloaded = SHA1File.ReadFile(path);
 
         Assert.Equal(2, reloaded.Entries.Count);
         // WriteFile orders entries by file name.

@@ -958,7 +958,7 @@ public class SRSRebuilderTests : TempDirTestBase
         var rebuilder = new MP3ContainerRebuilder();
         using var cts = new CancellationTokenSource();
 
-        Task task = Task.Run(() => rebuilder.Rebuild(
+        var task = Task.Run(() => rebuilder.Rebuild(
             srsPath, new Dictionary<uint, SRSTrackDataBlock>(), mediaPath,
             new Dictionary<uint, long>(), outputPath, null, null, cts.Token));
 

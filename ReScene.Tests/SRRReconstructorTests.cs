@@ -33,7 +33,7 @@ public class SRRReconstructorTests : TempDirTestBase
     {
         File.WriteAllBytes(Path.Combine(_inputDir, archivedName), sourceData);
 
-        var builder = new SRRTestDataBuilder()
+        SRRTestDataBuilder builder = new SRRTestDataBuilder()
             .AddSRRHeader("ReScene.Tests")
             .AddRARFileWithHeaders(rarName, h => h
                 .AddArchiveHeader()

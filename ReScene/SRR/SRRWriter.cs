@@ -269,7 +269,7 @@ public class SRRWriter
 
         // Keep the caller's order; skip entries whose source is missing. CreateAsync writes them
         // before the RAR-derived blocks and drops any repeated stored name.
-        List<StoredFileEntry>? storedFiles = additionalFiles
+        var storedFiles = additionalFiles
             ?.Where(e => File.Exists(e.FullPath))
             .ToList();
 

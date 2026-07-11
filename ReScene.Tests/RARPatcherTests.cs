@@ -1209,7 +1209,7 @@ public class RARPatcherTests : TempDirTestBase
     {
         // Build a RAR with mtime 2026-04-20 09:02:04.7090000s — a 1ms-grained value
         // similar to what WinRAR produced for the user.
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1219,7 +1219,7 @@ public class RARPatcherTests : TempDirTestBase
         File.WriteAllBytes(testFile, rarData);
 
         // Target: the original sub-second value (0x6C4A30 = 7,096,880).
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1248,7 +1248,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchFile_FileModifiedTimes_RoundTripsThroughParser()
     {
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1257,7 +1257,7 @@ public class RARPatcherTests : TempDirTestBase
         string testFile = Path.Combine(TempDir, "mtime_roundtrip.rar");
         File.WriteAllBytes(testFile, rarData);
 
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1294,7 +1294,7 @@ public class RARPatcherTests : TempDirTestBase
         // offset 32. On a LARGE-flag header the name actually starts at offset 40
         // (after HIGH_PACK_SIZE/HIGH_UNP_SIZE), so the lookup never matched and the
         // mtime was silently left unpatched for any file > 2 GB.
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1304,7 +1304,7 @@ public class RARPatcherTests : TempDirTestBase
         string testFile = Path.Combine(TempDir, "mtime_large.rar");
         File.WriteAllBytes(testFile, rarData);
 
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880); // 0x6C4A30
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880); // 0x6C4A30
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1335,7 +1335,7 @@ public class RARPatcherTests : TempDirTestBase
         // encoder wrote LSB-first, which only matched at 3-byte precision, so -tsm2/-tsm3 mtimes
         // were corrupted. Choose a target remainder that is a multiple of 0x100 so the 2-byte
         // precision (which drops bits 0-7) round-trips exactly.
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x001234);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x001234);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1345,7 +1345,7 @@ public class RARPatcherTests : TempDirTestBase
         File.WriteAllBytes(testFile, rarData);
 
         long remainderTicks = 0x6C4A00;                  // low byte zero for exact 2-byte round-trip
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(remainderTicks);
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(remainderTicks);
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1374,7 +1374,7 @@ public class RARPatcherTests : TempDirTestBase
     {
         // 1-byte mtime precision (WinRAR -tsm2). The reader keeps only bits 16-23 of the 24-bit
         // remainder (byte[0] << 16), so choose a target remainder that is a multiple of 0x10000.
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x010000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(0x010000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1384,7 +1384,7 @@ public class RARPatcherTests : TempDirTestBase
         File.WriteAllBytes(testFile, rarData);
 
         long remainderTicks = 0x6C0000;                  // low two bytes zero for exact 1-byte round-trip
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(remainderTicks);
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(remainderTicks);
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1416,7 +1416,7 @@ public class RARPatcherTests : TempDirTestBase
         string decodedName = "subs.idx";
         byte[] rawName = [.. System.Text.Encoding.ASCII.GetBytes(decodedName), 0x00];
 
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(1_000_000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: decodedName,
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1427,7 +1427,7 @@ public class RARPatcherTests : TempDirTestBase
         string testFile = Path.Combine(TempDir, "mtime_unicode.rar");
         File.WriteAllBytes(testFile, rarData);
 
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880); // 0x6C4A30
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880); // 0x6C4A30
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1474,7 +1474,7 @@ public class RARPatcherTests : TempDirTestBase
     public void PatchFile_FileModifiedTimes_OddSecondTarget_SetsRoundingFlag()
     {
         // Initial mtime at an even second with rounding-flag OFF.
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1485,7 +1485,7 @@ public class RARPatcherTests : TempDirTestBase
         File.WriteAllBytes(testFile, rarData);
 
         // Target at an ODD second — encoder must flip the rounding bit on.
-        var target = new DateTime(2026, 04, 20, 09, 02, 05).AddTicks(1_234_567);
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 05).AddTicks(1_234_567);
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)
@@ -1517,7 +1517,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchFile_FileModifiedTimes_NameNotInDictionary_LeftAlone()
     {
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
         byte[] expectedExtBytes = new byte[] { 0x50, 0x2F, 0x6C };
         byte[] rarData = BuildMinimalRAR4(
             fileName: "other.idx",
@@ -1579,7 +1579,7 @@ public class RARPatcherTests : TempDirTestBase
     [Fact]
     public void PatchFile_FileModifiedTimes_RecomputesValidCRC()
     {
-        var initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
+        DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1588,7 +1588,7 @@ public class RARPatcherTests : TempDirTestBase
         string testFile = Path.Combine(TempDir, "mtime_crc.rar");
         File.WriteAllBytes(testFile, rarData);
 
-        var target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
+        DateTime target = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_096_880);
         var options = new PatchOptions
         {
             FileModifiedTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase)

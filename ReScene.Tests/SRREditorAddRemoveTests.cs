@@ -60,7 +60,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         SRREditor.AddStoredFiles(srrPath, [("added.nfo", newFile)]);
 
-        SRRFile srr = SRRFile.Load(srrPath);
+        var srr = SRRFile.Load(srrPath);
 
         // Order is [existing, new] in the parsed stored-file list.
         Assert.Equal(["existing.nfo", "added.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
@@ -92,7 +92,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         Assert.True(rarOffset > 0, "RARFile block sentinel not found in the real SRR");
         byte[] originalRARTail = original[rarOffset..];
 
-        SRRFile before = SRRFile.Load(srrPath);
+        var before = SRRFile.Load(srrPath);
         int rarFilesBefore = before.RARFiles.Count;
         Assert.True(rarFilesBefore >= 1);
 
@@ -106,7 +106,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         Assert.Equal(originalRARTail, edited[rarOffsetAfter..]);
 
         // The correct parser still sees the same RAR file(s) plus the newly added stored file.
-        SRRFile after = SRRFile.Load(srrPath);
+        var after = SRRFile.Load(srrPath);
         Assert.Equal(rarFilesBefore, after.RARFiles.Count);
         Assert.Contains("added.nfo", after.StoredFiles.Select(b => b.FileName));
     }
@@ -125,7 +125,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         SRREditor.AddStoredFiles(srrPath, [("first.nfo", newFile)]);
 
-        SRRFile srr = SRRFile.Load(srrPath);
+        var srr = SRRFile.Load(srrPath);
         Assert.NotNull(srr.HeaderBlock);
         SRRStoredFileBlock only = Assert.Single(srr.StoredFiles);
         Assert.Equal("first.nfo", only.FileName);
@@ -151,7 +151,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         SRREditor.AddStoredFiles(srrPath, [("alpha.nfo", fileA), ("beta.nfo", fileB)]);
 
-        SRRFile srr = SRRFile.Load(srrPath);
+        var srr = SRRFile.Load(srrPath);
         Assert.Equal(["base.nfo", "alpha.nfo", "beta.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
     }
 
@@ -169,7 +169,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         SRREditor.RemoveStoredFiles(srrPath, ["B.NFO"]);
 
-        SRRFile srr = SRRFile.Load(srrPath);
+        var srr = SRRFile.Load(srrPath);
         Assert.Equal(["a.nfo", "c.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
     }
 
@@ -203,7 +203,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
 
         SRREditor.RemoveStoredFiles(srrPath, ["solo.nfo"]);
 
-        SRRFile srr = SRRFile.Load(srrPath);
+        var srr = SRRFile.Load(srrPath);
         Assert.Empty(srr.StoredFiles);
         Assert.NotNull(srr.HeaderBlock);
         Assert.Equal("ReScene .NET", srr.HeaderBlock!.AppName);
@@ -263,7 +263,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         Assert.Equal(osoBlockOriginal, osoBlockAfter);
 
         // Sanity: the removal actually happened.
-        SRRFile srr = SRRFile.Load(srrPath);
+        var srr = SRRFile.Load(srrPath);
         Assert.Equal(["keep.nfo"], [.. srr.StoredFiles.Select(b => b.FileName)]);
     }
 }

@@ -76,7 +76,7 @@ public class StreamUtilitiesTests : TempDirTestBase
         using var ms = new MemoryStream([1, 2, 3]);
         using var reader = new BinaryReader(ms);
 
-        var ex = Assert.Throws<EndOfStreamException>(() => StreamUtilities.ReadExactly(reader, 8));
+        EndOfStreamException ex = Assert.Throws<EndOfStreamException>(() => StreamUtilities.ReadExactly(reader, 8));
         Assert.Contains("Expected 8 bytes", ex.Message, StringComparison.Ordinal);
         Assert.Contains("got 3", ex.Message, StringComparison.Ordinal);
     }
@@ -241,7 +241,7 @@ public class StreamUtilitiesTests : TempDirTestBase
         using var source = new MemoryStream([1, 2, 3, 4]);
         using var dest = new MemoryStream();
 
-        var ex = Assert.Throws<EndOfStreamException>(
+        EndOfStreamException ex = Assert.Throws<EndOfStreamException>(
             () => StreamUtilities.CopyBytesStrict(source, dest, 10L));
         Assert.Equal("Unexpected end of stream while copying data.", ex.Message);
     }
@@ -253,7 +253,7 @@ public class StreamUtilitiesTests : TempDirTestBase
         using var source = new MemoryStream([1, 2]);
         using var dest = new MemoryStream();
 
-        var ex = Assert.Throws<EndOfStreamException>(
+        EndOfStreamException ex = Assert.Throws<EndOfStreamException>(
             () => StreamUtilities.CopyBytesStrict(source, dest, 5L, "boom while rebuilding"));
         Assert.Equal("boom while rebuilding", ex.Message);
     }
