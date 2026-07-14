@@ -34,6 +34,18 @@ public sealed class SRRArchiveSet
     /// <summary>File access times for each file this set archives, keyed by normalized path. Equals the flat <see cref="SRRFile.ArchivedFileAccessTimes"/> value for the same file.</summary>
     public Dictionary<string, DateTime> ArchivedFileAccessTimes { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Directories this set archives (normalized relative paths). Per-set membership avoids the flat, release-wide last-write-wins contamination when two sets archive a same-named directory.</summary>
+    public HashSet<string> ArchivedDirectories { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Directory modification times for each directory this set archives, keyed by normalized path.</summary>
+    public Dictionary<string, DateTime> ArchivedDirectoryTimestamps { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Directory creation times for each directory this set archives, keyed by normalized path.</summary>
+    public Dictionary<string, DateTime> ArchivedDirectoryCreationTimes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Directory access times for each directory this set archives, keyed by normalized path.</summary>
+    public Dictionary<string, DateTime> ArchivedDirectoryAccessTimes { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     // Header-derived metadata, from this set's first headers.
     public int? CompressionMethod { get; set; }
     public int? DictionarySize { get; set; }

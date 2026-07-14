@@ -50,7 +50,9 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         byte method = 0x33,       // Normal
         uint fileAttributes = 0x00000020, // Archive
         RARFileFlags extraFlags = RARFileFlags.ExtTime,
-        bool isDirectory = false)
+        bool isDirectory = false,
+        uint? creationTimeDOS = null,
+        uint? accessTimeDOS = null)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
         ushort nameSize = (ushort)nameBytes.Length;
@@ -66,11 +68,24 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         // CRC(2) + Type(1) + Flags(2) + HeaderSize(2) = 7 (base)
         // ADD_SIZE(4) + UNP_SIZE(4) + HOST_OS(1) + FILE_CRC(4) + FILE_TIME(4) + UNP_VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4) = 25
         // + NAME(variable)
+        // Extended time (when ExtTime set): flags word(2) + optional ctime DOS(4) + optional atime DOS(4).
+        // mtime always reuses the base FILE_TIME field, so it never adds its own DOS date.
+        bool hasExtTime = (extraFlags & RARFileFlags.ExtTime) != 0;
         int extTimeSize = 0;
-        if ((extraFlags & RARFileFlags.ExtTime) != 0)
+        if (hasExtTime)
         {
-            extTimeSize = 2; // Just the flags word, no extra time data
+            extTimeSize = 2; // extended-time flags word
+            if (creationTimeDOS.HasValue)
+            {
+                extTimeSize += 4; // ctime DOS date
+            }
+
+            if (accessTimeDOS.HasValue)
+            {
+                extTimeSize += 4; // atime DOS date
+            }
         }
+
         ushort headerSize = (ushort)(7 + 25 + nameSize + extTimeSize);
 
         byte[] header = new byte[headerSize];
@@ -89,12 +104,38 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         BitConverter.GetBytes(fileAttributes).CopyTo(header, 28); // ATTR
         nameBytes.CopyTo(header, 32);                             // NAME
 
-        if ((extraFlags & RARFileFlags.ExtTime) != 0)
+        if (hasExtTime)
         {
             int extTimeOffset = 32 + nameSize;
-            // Extended time flags: mtime present with no extra bytes = 0x8000
-            ushort extFlags = 0x8000;
+
+            // Extended-time rmode nibbles, high->low: mtime | ctime | atime | arctime.
+            // Present bit = 0x8; the low two bits are the extra 100ns remainder byte count (0 here).
+            ushort extFlags = 0x8000; // mtime present, no remainder bytes (reuses base FILE_TIME)
+            if (creationTimeDOS.HasValue)
+            {
+                extFlags |= 0x0800; // ctime present
+            }
+
+            if (accessTimeDOS.HasValue)
+            {
+                extFlags |= 0x0080; // atime present
+            }
+
             BitConverter.GetBytes(extFlags).CopyTo(header, extTimeOffset);
+
+            // ctime then atime follow the flags word, each as its own DOS date (mtime reuses FILE_TIME).
+            int timeOffset = extTimeOffset + 2;
+            if (creationTimeDOS.HasValue)
+            {
+                BitConverter.GetBytes(creationTimeDOS.Value).CopyTo(header, timeOffset);
+                timeOffset += 4;
+            }
+
+            if (accessTimeDOS.HasValue)
+            {
+                BitConverter.GetBytes(accessTimeDOS.Value).CopyTo(header, timeOffset);
+                timeOffset += 4;
+            }
         }
 
         // Calculate CRC

@@ -2,8 +2,65 @@ using ReScene.SRR;
 
 namespace ReScene.Tests;
 
-public class SRRArchiveSetTests
+public class SRRArchiveSetTests : TempDirTestBase
 {
+    // Encodes a DateTime as a packed RAR/DOS date-time (date in the high word, time in the low word).
+    // DOS seconds have 2-second granularity, so only even-second DateTimes round-trip exactly.
+    private static uint ToDosDate(DateTime dt) =>
+        ((uint)(((dt.Year - 1980) << 9) | (dt.Month << 5) | dt.Day) << 16)
+        | (uint)((dt.Hour << 11) | (dt.Minute << 5) | (dt.Second / 2));
+
+    [Fact]
+    public void Load_TwoSetsShareDirectoryName_EachKeepsItsOwnMcaTimes()
+    {
+        // Fix #7: directory records were tracked flat (release-wide), so two sets that each archive
+        // a same-named directory ("Subs") clobbered each other's m/c/a times (last-write-wins).
+        // Same name is the discriminating case; distinct names would not expose the contamination.
+        var cd1M = new DateTime(2021, 1, 2, 3, 4, 0);
+        var cd1C = new DateTime(2021, 5, 6, 7, 8, 0);
+        var cd1A = new DateTime(2021, 9, 10, 11, 12, 0);
+        var cd2M = new DateTime(2022, 2, 3, 4, 6, 0);
+        var cd2C = new DateTime(2022, 6, 7, 8, 10, 0);
+        var cd2A = new DateTime(2022, 10, 11, 12, 14, 0);
+
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddRARFileWithHeaders("movie.cd1.rar", headers =>
+            {
+                headers.AddArchiveHeader()
+                       .AddFileHeader("Subs\\", isDirectory: true, packedSize: 0, unpackedSize: 0,
+                           fileTimeDOS: ToDosDate(cd1M), creationTimeDOS: ToDosDate(cd1C), accessTimeDOS: ToDosDate(cd1A))
+                       .AddEndArchive();
+            })
+            .AddRARFileWithHeaders("movie.cd2.rar", headers =>
+            {
+                headers.AddArchiveHeader()
+                       .AddFileHeader("Subs\\", isDirectory: true, packedSize: 0, unpackedSize: 0,
+                           fileTimeDOS: ToDosDate(cd2M), creationTimeDOS: ToDosDate(cd2C), accessTimeDOS: ToDosDate(cd2A))
+                       .AddEndArchive();
+            })
+            .BuildToFile(TempDir, "two_sets_shared_dir.srr");
+
+        var srr = SRRFile.Load(path);
+
+        Assert.Equal(2, srr.ArchiveSets.Count);
+        SRRArchiveSet cd1 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd1", StringComparison.OrdinalIgnoreCase));
+        SRRArchiveSet cd2 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd2", StringComparison.OrdinalIgnoreCase));
+
+        // Each set records exactly its own "Subs" directory...
+        Assert.Equal("Subs", Assert.Single(cd1.ArchivedDirectories));
+        Assert.Equal("Subs", Assert.Single(cd2.ArchivedDirectories));
+
+        // ...with its own three times, uncontaminated by the other set.
+        Assert.Equal(cd1M, cd1.ArchivedDirectoryTimestamps["Subs"]);
+        Assert.Equal(cd1C, cd1.ArchivedDirectoryCreationTimes["Subs"]);
+        Assert.Equal(cd1A, cd1.ArchivedDirectoryAccessTimes["Subs"]);
+
+        Assert.Equal(cd2M, cd2.ArchivedDirectoryTimestamps["Subs"]);
+        Assert.Equal(cd2C, cd2.ArchivedDirectoryCreationTimes["Subs"]);
+        Assert.Equal(cd2A, cd2.ArchivedDirectoryAccessTimes["Subs"]);
+    }
+
     [Theory]
     [InlineData("DVD1\\aln-re4a.rar", "DVD1/aln-re4a")]
     [InlineData("DVD1\\aln-re4a.r28", "DVD1/aln-re4a")]

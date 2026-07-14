@@ -511,10 +511,14 @@ class ReScene.SRR.RARVolumeNameComparer
     property RARVolumeNameComparer Instance { get; }
 class sealed ReScene.SRR.SRRArchiveSet
     ctor ()
+    property Dictionary<String, DateTime> ArchivedDirectoryAccessTimes { get; }
+    property Dictionary<String, DateTime> ArchivedDirectoryCreationTimes { get; }
+    property Dictionary<String, DateTime> ArchivedDirectoryTimestamps { get; }
     property Dictionary<String, DateTime> ArchivedFileAccessTimes { get; }
     property Dictionary<String, DateTime> ArchivedFileCreationTimes { get; }
     property Dictionary<String, DateTime> ArchivedFileTimestamps { get; }
     property Dictionary<String, String> ArchivedFileCrcs { get; }
+    property HashSet<String> ArchivedDirectories { get; }
     property HashSet<String> ArchivedFiles { get; }
     property IList<String> VolumeNames { get; }
     property Nullable<Boolean> HasLargeFiles { get; set; }

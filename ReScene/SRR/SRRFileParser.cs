@@ -711,6 +711,16 @@ internal static class SRRFileParser
         {
             srr.ArchivedDirectories.Add(normalized);
             SetDirectoryTimes(srr, normalized, modifiedTime, creationTime, accessTime);
+
+            // Also attribute the directory (and its own three times) to the set whose embedded
+            // headers are being parsed, so sets that share a directory name keep distinct metadata
+            // instead of last-write-wins contaminating the flat, release-wide dictionaries.
+            if (set != null)
+            {
+                set.ArchivedDirectories.Add(normalized);
+                SetDirectoryTimes(set, normalized, modifiedTime, creationTime, accessTime);
+            }
+
             return;
         }
 
@@ -764,6 +774,24 @@ internal static class SRRFileParser
         if (accessTime.HasValue)
         {
             srr.ArchivedDirectoryAccessTimes[path] = accessTime.Value;
+        }
+    }
+
+    internal static void SetDirectoryTimes(SRRArchiveSet set, string path, DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)
+    {
+        if (modifiedTime.HasValue)
+        {
+            set.ArchivedDirectoryTimestamps[path] = modifiedTime.Value;
+        }
+
+        if (creationTime.HasValue)
+        {
+            set.ArchivedDirectoryCreationTimes[path] = creationTime.Value;
+        }
+
+        if (accessTime.HasValue)
+        {
+            set.ArchivedDirectoryAccessTimes[path] = accessTime.Value;
         }
     }
 
