@@ -159,14 +159,43 @@ public partial class Manager : IDisposable
         var result = new List<(string, string)>();
         foreach (string volume in options.RAROptions.OriginalRARFileNames)
         {
-            string name = Path.GetFileName(volume);
-            if (options.ExpectedVolumeCrcs.TryGetValue(name, out string? crc))
+            string name = LastSegment(volume);
+
+            // Look up the canonical directory-qualified key first (so same-basename volumes in
+            // different set directories resolve to their own CRC — #9), then fall back to the bare
+            // basename (the common flat-SFV case, keyed by basename only). Never returns empty where
+            // the basename would have matched. The returned Name stays the bare basename — it's
+            // matched positionally and reported, not used as a lookup key.
+            if (options.ExpectedVolumeCrcs.TryGetValue(QualifiedKey(volume), out string? crc)
+                || options.ExpectedVolumeCrcs.TryGetValue(name, out crc))
             {
                 result.Add((name, crc));
             }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The canonical directory-qualified key for a volume: its relative path with separators
+    /// normalized to <c>/</c> and any leading/trailing slashes trimmed. Matches the keys the app's
+    /// planner emits, so same-basename volumes in different directories stay distinct (#9).
+    /// </summary>
+    private static string QualifiedKey(string volumePath)
+        => volumePath.Replace('\\', '/').Trim('/');
+
+    private static readonly char[] _pathSegmentSeparators = ['/', '\\'];
+
+    /// <summary>
+    /// Returns the last path segment, splitting on BOTH <c>/</c> and <c>\</c> on every platform.
+    /// Unlike <see cref="Path.GetFileName(string)"/>, which only splits on the platform separator
+    /// (leaving <c>\</c> embedded in SRR-internal volume names on non-Windows), this keeps volume
+    /// verification and renaming correct across platforms.
+    /// </summary>
+    internal static string LastSegment(string path)
+    {
+        int index = path.LastIndexOfAny(_pathSegmentSeparators);
+        return index < 0 ? path : path[(index + 1)..];
     }
 
     /// <summary>
@@ -961,7 +990,7 @@ public partial class Manager : IDisposable
                 for (int i = 0; i < allVolumes.Count; i++)
                 {
                     string outputFileName = useOriginalNames && i < originalNames.Count
-                        ? Path.GetFileName(originalNames[i])
+                        ? LastSegment(originalNames[i])
                         : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
                     string outputPath = Path.Combine(rarOutputDir, outputFileName);
                     Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
@@ -982,7 +1011,7 @@ public partial class Manager : IDisposable
         {
             // Standard behavior: just rename the first .rar file
             string outputFileName = useOriginalNames
-                ? Path.GetFileName(originalNames[0])
+                ? LastSegment(originalNames[0])
                 : Path.GetFileName(actualRARFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
             string outputPath = Path.Combine(rarOutputDir, outputFileName);
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
