@@ -225,6 +225,55 @@ public class ManagerHelpersTests
         Assert.Equal("existing", File.ReadAllText(dest));
     }
 
+    [Fact]
+    public void MoveMatchedFile_SamePathDifferentSeparatorStyle_TreatsAsNoOp()
+    {
+        // A raw string compare of the unresolved paths (the old implementation) would see these as
+        // different and attempt a real move — which would fail as "destination occupied" since the
+        // file already sits at that exact location. The filesystem-correct (full-path-normalized)
+        // equality must recognize they refer to the SAME file and short-circuit.
+        using var tmp = new TempDir();
+        string subDir = Path.Combine(tmp.Path, "sub");
+        Directory.CreateDirectory(subDir);
+        string path = Path.Combine(subDir, "movie.rar");
+        File.WriteAllText(path, "x");
+
+        string backslashStyle = tmp.Path + "\\sub\\movie.rar";
+        string forwardSlashStyle = tmp.Path.Replace('\\', '/') + "/sub/movie.rar";
+
+        Assert.True(MatchedRARWriter.MoveMatchedFile(backslashStyle, forwardSlashStyle));
+        Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void MoveMatchedFile_SamePathWithRedundantSegment_TreatsAsNoOp()
+    {
+        using var tmp = new TempDir();
+        string subDir = Path.Combine(tmp.Path, "sub");
+        Directory.CreateDirectory(subDir);
+        string path = Path.Combine(subDir, "movie.rar");
+        File.WriteAllText(path, "x");
+
+        string plain = Path.Combine(tmp.Path, "sub", "movie.rar");
+        string withRedundantSegment = Path.Combine(tmp.Path, "sub", ".", "movie.rar");
+
+        Assert.True(MatchedRARWriter.MoveMatchedFile(plain, withRedundantSegment));
+        Assert.True(File.Exists(path));
+    }
+
+    [Fact]
+    public void MoveMatchedFile_MovesSuccessfully_DestinationVerifiedToExistAfterward()
+    {
+        // Regression guard for the post-move existence check: a normal, successful move must still
+        // report success (the check is defensive, not a behavior change for the happy path).
+        using var tmp = new TempDir();
+        string source = tmp.File("420-m3.rar");
+        string dest = Path.Combine(tmp.Path, "Movie.2020.rar");
+
+        Assert.True(MatchedRARWriter.MoveMatchedFile(source, dest));
+        Assert.True(File.Exists(dest));
+    }
+
     #endregion
 
     #region GetValidRARDirectories folder allow-list

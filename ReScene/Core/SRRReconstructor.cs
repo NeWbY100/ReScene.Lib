@@ -22,7 +22,13 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     /// <summary>
     /// Reconstructs RAR files from an SRR file by replaying original headers and splicing in source file data.
     /// </summary>
-    public async Task<bool> ReconstructAsync(
+    /// <returns>
+    /// Whether every expected release volume (by count and normalized name — see
+    /// <see cref="VolumeIdentityMatcher"/>) was written and hash-verified, and the absolute paths
+    /// actually written (populated regardless of overall success, so a partial/failed run's output
+    /// can still be inspected or cleaned up by the caller).
+    /// </returns>
+    public async Task<(bool Success, IReadOnlyList<string> WrittenPaths)> ReconstructAsync(
         string srrFilePath,
         string inputDirectory,
         string outputDirectory,
@@ -43,6 +49,8 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         int totalVolumes = originalRARFileNames.Count;
         int completedVolumes = 0;
         bool allMatched = true;
+        List<string> writtenPaths = [];
+        List<string> writtenRARFileNames = [];
 
         // Track open source file streams for multi-volume spanning
         FileStream? currentSourceStream = null;
@@ -107,6 +115,8 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                             await VerifyAndReportVolumeAsync(currentOutputPath, currentRARFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
                             completedVolumes++;
+                            writtenPaths.Add(currentOutputPath);
+                            writtenRARFileNames.Add(currentRARFileName);
                             FireProgress(inputDirectory, currentRARFileName, totalVolumes, completedVolumes, startTime);
                         }
 
@@ -332,6 +342,8 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                 await VerifyAndReportVolumeAsync(currentOutputPath, currentRARFileName, hashes, hashType, ref allMatched).ConfigureAwait(false);
                 completedVolumes++;
+                writtenPaths.Add(currentOutputPath);
+                writtenRARFileNames.Add(currentRARFileName);
                 FireProgress(inputDirectory, currentRARFileName, totalVolumes, completedVolumes, startTime);
             }
         }
@@ -342,21 +354,32 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         }
 
         TimeSpan elapsed = DateTime.Now - startTime;
-        if (allMatched && completedVolumes > 0)
+
+        // Completeness requires the FULL expected release volume set — by count and normalized
+        // name, not merely "at least one volume was produced and hash-verified". completedVolumes
+        // == 0 forces this false even when originalRARFileNames is itself empty (nothing was ever
+        // expected AND nothing was produced is not a success).
+        bool identityComplete = completedVolumes > 0 && VolumeIdentityMatcher.Matches(originalRARFileNames, writtenRARFileNames);
+        bool success = allMatched && identityComplete;
+
+        if (success)
         {
             _logger.Information(this, $"=== Reconstruction SUCCESS: {completedVolumes} volume(s) in {elapsed.TotalSeconds:F1}s ===", LogTarget.System);
         }
         else if (completedVolumes == 0)
         {
             _logger.Warning(this, $"=== Reconstruction FAILED: no volumes produced ===", LogTarget.System);
-            allMatched = false;
+        }
+        else if (!identityComplete)
+        {
+            _logger.Warning(this, $"=== Reconstruction FAILED: incomplete volume set ({completedVolumes} of {totalVolumes} expected) ===", LogTarget.System);
         }
         else
         {
             _logger.Warning(this, $"=== Reconstruction completed with hash mismatches ({completedVolumes} volume(s), {elapsed.TotalSeconds:F1}s) ===", LogTarget.System);
         }
 
-        return allMatched;
+        return (success, writtenPaths);
     }
 
     private static bool IsSRRBlockType(byte type)

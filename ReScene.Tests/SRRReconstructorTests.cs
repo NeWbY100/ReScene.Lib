@@ -76,10 +76,11 @@ public class SRRReconstructorTests : TempDirTestBase
         string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
         var reconstructor = new SRRReconstructor();
-        bool result = await reconstructor.ReconstructAsync(
+        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
             srr, _inputDir, _outputDir, ["test.rar"], [], HashType.CRC32, CancellationToken.None);
 
-        Assert.True(result);
+        Assert.True(success);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
         // Byte-exact: headers replayed verbatim with the source payload spliced into place. This
         // catches a dropped/duplicated/misplaced payload, not just "a file was written".
         Assert.Equal(
@@ -99,10 +100,11 @@ public class SRRReconstructorTests : TempDirTestBase
         string expectedCrc = CRC32.Calculate(expectedRARPath);
 
         var reconstructor = new SRRReconstructor();
-        bool result = await reconstructor.ReconstructAsync(
+        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
             srr, _inputDir, _outputDir, ["test.rar"], [expectedCrc], HashType.CRC32, CancellationToken.None);
 
-        Assert.True(result);
+        Assert.True(success);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
     }
 
     [Fact]
@@ -117,11 +119,62 @@ public class SRRReconstructorTests : TempDirTestBase
         string wrongCrc = realCrc == "00000000" ? "ffffffff" : "00000000";
 
         var reconstructor = new SRRReconstructor();
-        bool result = await reconstructor.ReconstructAsync(
+        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
             srr, _inputDir, _outputDir, ["test.rar"], [wrongCrc], HashType.CRC32, CancellationToken.None);
 
-        Assert.False(result);
+        Assert.False(success);
         Assert.True(File.Exists(Path.Combine(_outputDir, "test.rar")));
+        // Written paths are still reported even on failure, so a caller can inspect/clean up.
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_FewerVolumesWrittenThanExpected_ReturnsFalseEvenWhenAllWrittenHashesMatch()
+    {
+        // Regression for the bug this task fixes: the OLD condition was `allMatched &&
+        // completedVolumes > 0`, which passed once ANY volumes were produced and verified — even
+        // if the release actually expects MORE volumes than the SRR/reconstruction produced here.
+        // Two volumes are written and both hash-verify, but the caller says the release expects
+        // THREE — that must be reported as failure.
+        File.WriteAllBytes(Path.Combine(_inputDir, "movie.cd1"), SourcePayload);
+        File.WriteAllBytes(Path.Combine(_inputDir, "movie.cd2"), SourcePayload);
+
+        string srr = new SRRTestDataBuilder()
+            .AddSRRHeader("ReScene.Tests")
+            .AddRARFileWithHeaders("vol1.rar", h => h
+                .AddArchiveHeader()
+                .AddFileHeader("movie.cd1", packedSize: (uint)SourcePayload.Length, unpackedSize: (uint)SourcePayload.Length)
+                .AddEndArchive())
+            .AddRARFileWithHeaders("vol2.rar", h => h
+                .AddArchiveHeader()
+                .AddFileHeader("movie.cd2", packedSize: (uint)SourcePayload.Length, unpackedSize: (uint)SourcePayload.Length)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "partial.srr");
+
+        var reconstructor = new SRRReconstructor();
+        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
+            srr, _inputDir, _outputDir, ["vol1.rar", "vol2.rar", "vol3.rar"], [], HashType.CRC32, CancellationToken.None);
+
+        Assert.False(success);
+        Assert.Equal(
+            [Path.Combine(_outputDir, "vol1.rar"), Path.Combine(_outputDir, "vol2.rar")],
+            writtenPaths);
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_WrittenVolumeNameDoesNotMatchExpected_ReturnsFalseDespiteMatchingCount()
+    {
+        // Count alone is not sufficient: the expected name(s) must also match (normalized), so a
+        // caller passing a mismatched/wrong expected-names list is caught rather than silently
+        // accepted just because the COUNT happens to line up.
+        string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
+
+        var reconstructor = new SRRReconstructor();
+        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
+            srr, _inputDir, _outputDir, ["completely-different-name.rar"], [], HashType.CRC32, CancellationToken.None);
+
+        Assert.False(success);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
     }
 
     [Fact]
@@ -134,10 +187,11 @@ public class SRRReconstructorTests : TempDirTestBase
             .BuildToFile(TempDir, "test.srr");
 
         var reconstructor = new SRRReconstructor();
-        bool result = await reconstructor.ReconstructAsync(
+        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
             srr, _inputDir, _outputDir, [], [], HashType.CRC32, CancellationToken.None);
 
-        Assert.False(result);
+        Assert.False(success);
+        Assert.Empty(writtenPaths);
     }
 
     [Fact]

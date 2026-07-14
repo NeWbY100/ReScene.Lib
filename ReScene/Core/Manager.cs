@@ -245,7 +245,7 @@ public partial class Manager : IDisposable
             var reconstructor = new SRRReconstructor(_logger);
             reconstructor.Progress += (s, e) => FireBruteForceProgress(e);
 
-            bool result = await reconstructor.ReconstructAsync(
+            (bool result, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
                 options.RAROptions.SRRFilePath,
                 options.ReleaseDirectoryPath,
                 options.OutputDirectoryPath,
@@ -257,7 +257,10 @@ public partial class Manager : IDisposable
             OperationCompletionStatus completionStatus = result ? OperationCompletionStatus.Success : OperationCompletionStatus.Error;
             status = new BruteForceStatusChangedEventArgs(OperationStatus.Running, OperationStatus.Completed, completionStatus);
             FireBruteForceStatusChanged(status);
-            return new BruteForceRunResult(result, null);
+            return new BruteForceRunResult(result, null)
+            {
+                CustomPackerFiles = result ? writtenPaths : []
+            };
         }
 
         string[] rarVersionDirectories = Directory.GetDirectories(options.RARInstallationsDirectoryPath);
@@ -318,10 +321,9 @@ public partial class Manager : IDisposable
         // Save file hash
         HashSet<string> fileHashes = [];
 
-        bool found = false;
-        WinningCombo? winningCombo = null;
+        var matchAccumulator = new BruteForceMatchAccumulator();
         bool stopOnFirstMatch = options.RAROptions.StopOnFirstMatch;
-        for (int a = 0; a < (options.RAROptions.SetFileArchiveAttribute == TriState.Checked ? 2 : 1) && !(found && stopOnFirstMatch); a++)
+        for (int a = 0; a < (options.RAROptions.SetFileArchiveAttribute == TriState.Checked ? 2 : 1) && !(matchAccumulator.Found && stopOnFirstMatch); a++)
         {
             if (options.RAROptions.SetFileArchiveAttribute != TriState.Unchecked)
             {
@@ -337,7 +339,7 @@ public partial class Manager : IDisposable
                 }
             }
 
-            for (int b = 0; b < (options.RAROptions.SetFileNotContentIndexedAttribute == TriState.Checked ? 2 : 1) && !(found && stopOnFirstMatch); b++)
+            for (int b = 0; b < (options.RAROptions.SetFileNotContentIndexedAttribute == TriState.Checked ? 2 : 1) && !(matchAccumulator.Found && stopOnFirstMatch); b++)
             {
                 if (options.RAROptions.SetFileNotContentIndexedAttribute != TriState.Unchecked)
                 {
@@ -361,12 +363,11 @@ public partial class Manager : IDisposable
                         break;
                     }
 
-                    (bool foundCombination, int newProgress, WinningCombo? combo) = await TryProcessCommandLinesAsync(options, version, rarVersionDirectoryPath, inputFilesDir, totalProgressSize, currentProgress, bruteForceStartDateTime, fileHashes, a, b).ConfigureAwait(false);
+                    (bool foundCombination, int newProgress, CommittedMatch? match) = await TryProcessCommandLinesAsync(options, version, rarVersionDirectoryPath, inputFilesDir, totalProgressSize, currentProgress, bruteForceStartDateTime, fileHashes, a, b).ConfigureAwait(false);
                     currentProgress = newProgress;
+                    matchAccumulator.Record(foundCombination, match);
                     if (foundCombination)
                     {
-                        found = true;
-                        winningCombo = combo;
                         if (stopOnFirstMatch)
                         {
                             _logger.Information(this, "Match found - stopping brute force (StopOnFirstMatch is enabled)", LogTarget.Phase2);
@@ -398,7 +399,7 @@ public partial class Manager : IDisposable
         {
             _logger.Information(this, $"=== Brute-force CANCELLED after {elapsed.TotalSeconds:F1}s ===", LogTarget.System);
         }
-        else if (found)
+        else if (matchAccumulator.Found)
         {
             _logger.Information(this, $"=== Brute-force SUCCESS in {elapsed.TotalSeconds:F1}s ===", LogTarget.System);
         }
@@ -409,12 +410,15 @@ public partial class Manager : IDisposable
 
         OperationCompletionStatus completion = _cts.IsCancellationRequested
             ? OperationCompletionStatus.Cancelled
-            : found
+            : matchAccumulator.Found
                 ? OperationCompletionStatus.Success
                 : OperationCompletionStatus.Error;
         status = new(OperationStatus.Running, OperationStatus.Completed, completion);
         FireBruteForceStatusChanged(status);
-        return new BruteForceRunResult(found, winningCombo);
+        return new BruteForceRunResult(matchAccumulator.Found, matchAccumulator.Combo)
+        {
+            Matches = matchAccumulator.Matches
+        };
     }
 
     /// <summary>
@@ -596,7 +600,7 @@ public partial class Manager : IDisposable
     }
 
 
-    private async Task<(bool Found, int NewProgress, WinningCombo? Combo)> TryProcessCommandLinesAsync(
+    private async Task<(bool Found, int NewProgress, CommittedMatch? Match)> TryProcessCommandLinesAsync(
         BruteForceOptions options,
         int version,
         string rarVersionDirectoryPath,
@@ -844,10 +848,21 @@ public partial class Manager : IDisposable
                 // Log match to System tab for visibility
                 LogMatchDetails(options, rarVersionDirectoryName, displayArguments, hash, actualRARFilePath);
 
-                // Rename the matched file(s) to their final name inside the "output" subdirectory
-                RenameMatchedOutput(options, rarFilePath, actualRARFilePath, rarOutputDir);
+                // Rename the matched file(s) to their final name inside the "output" subdirectory.
+                // This is transactional: only a FULLY-placed set (the mode's whole expected volume
+                // identity) counts as a match. An incomplete placement (occupied destination, a
+                // move failure, or fewer volumes produced than the release requires) must NOT be
+                // reported as found — the search keeps going so a later, fully-placed combo can
+                // still win, without colliding with this attempt's rolled-back partial output.
+                (IReadOnlyList<string> placed, bool complete) = RenameMatchedOutput(options, rarFilePath, actualRARFilePath, rarOutputDir);
+                if (!complete)
+                {
+                    _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: matched but the full volume set could not be placed — continuing", LogTarget.Phase2);
+                    continue;
+                }
 
-                return (true, currentProgress, new WinningCombo(version, commandLineArguments));
+                var winningCombo = new WinningCombo(version, commandLineArguments);
+                return (true, currentProgress, new CommittedMatch(winningCombo, placed));
             }
             catch (OperationCanceledException)
             {
@@ -960,64 +975,175 @@ public partial class Manager : IDisposable
     }
 
     /// <summary>
-    /// Renames/moves the matched RAR file (or all volumes, when CompleteAllVolumes is enabled)
-    /// to their final names inside the <c>output</c> subdirectory, patching remaining volumes if needed.
+    /// Renames/moves the matched RAR file (or all volumes, when CompleteAllVolumes is enabled) to
+    /// their final names inside the <c>output</c> subdirectory, patching remaining volumes if
+    /// needed. Transactional: the full source-to-destination move map is precomputed and
+    /// validated (every destination free) before any file is touched; if a move fails (a
+    /// different file already occupies its destination) or throws partway through, this call's
+    /// own already-completed moves are rolled back (best-effort — see
+    /// <see cref="RollBackMoves"/>) and <c>Complete</c> is <see langword="false"/>, never leaving
+    /// a partially-renamed set behind for a later winning combo to collide with.
     /// </summary>
-    private void RenameMatchedOutput(
+    /// <returns>
+    /// The destination paths actually placed, and whether the mode's full expected volume
+    /// identity was placed. Completeness is judged against
+    /// <see cref="RAROptions.OriginalRARFileNames"/> — the release volume names, not
+    /// <see cref="BuildExpectedInOrder"/>, which omits volumes with no known CRC — by COUNT: the
+    /// single first volume for non-CAV, or every volume for CAV, regardless of whether
+    /// <see cref="RAROptions.RenameToOriginalNames"/> is set (a generated-name run is judged
+    /// complete once the full expected count is placed). <c>Placed</c> is only meaningful when
+    /// <c>Complete</c> is <see langword="true"/> — a partial result is never partially reported.
+    /// </returns>
+    internal (IReadOnlyList<string> Placed, bool Complete) RenameMatchedOutput(
         BruteForceOptions options, string rarFilePath, string actualRARFilePath, string rarOutputDir)
     {
         string baseName = Path.GetFileNameWithoutExtension(rarFilePath);
         string patchedBaseName = options.RAROptions.NeedsPatching ? baseName + "-patched" : baseName;
         IReadOnlyList<string> originalNames = options.RAROptions.OriginalRARFileNames;
-        bool useOriginalNames = options.RAROptions.RenameToOriginalNames &&
-                                originalNames.Count > 0;
+        bool useOriginalNames = options.RAROptions.RenameToOriginalNames && originalNames.Count > 0;
+
+        List<(string Source, string Dest)> plan;
 
         if (options.RAROptions.CompleteAllVolumes)
         {
             // Re-find all volumes now that RAR has completed
             string? completedRARFilePath = MatchedRARWriter.FindCreatedRARFile(rarFilePath);
-            if (completedRARFilePath != null)
+            if (completedRARFilePath == null)
             {
-                // Patch remaining volumes (first volume already patched - will be no-op for it)
-                if (options.RAROptions.NeedsPatching)
-                {
-                    PatchRARFilesHostOS(completedRARFilePath, options.RAROptions);
-                }
+                _logger.Warning(this, "No completed volume(s) found to place.", LogTarget.System);
+                return ([], false);
+            }
 
-                // Rename all volumes to their final names inside the "output" subdirectory
-                List<string> allVolumes = MatchedRARWriter.GetAllVolumeFiles(completedRARFilePath);
+            // Patch remaining volumes (first volume already patched - will be no-op for it)
+            if (options.RAROptions.NeedsPatching)
+            {
+                PatchRARFilesHostOS(completedRARFilePath, options.RAROptions);
+            }
 
-                for (int i = 0; i < allVolumes.Count; i++)
-                {
-                    string outputFileName = useOriginalNames && i < originalNames.Count
-                        ? LastSegment(originalNames[i])
-                        : Path.GetFileName(allVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
-                    string outputPath = Path.Combine(rarOutputDir, outputFileName);
-                    Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-                    if (MatchedRARWriter.MoveMatchedFile(allVolumes[i], outputPath))
-                    {
-                        _logger.Information(this, $"  Volume: {outputFileName}", LogTarget.System);
-                    }
-                    else
-                    {
-                        _logger.Warning(this, $"  Volume NOT written (a different file already occupies '{outputFileName}'); left at '{allVolumes[i]}'", LogTarget.System);
-                    }
-                }
+            List<string> producedVolumes = MatchedRARWriter.GetAllVolumeFiles(completedRARFilePath);
 
-                _logger.Information(this, $"  Completed {allVolumes.Count} volume(s)", LogTarget.System);
+            // The expected identity is EVERY release volume name (not just the ones with a known
+            // CRC) — when no names are available at all, fall back to trusting whatever was
+            // produced (there is nothing to validate the count against).
+            List<string> expectedNames = originalNames.Count > 0
+                ? [.. originalNames.Select(LastSegment)]
+                : [.. producedVolumes.Select(v => Path.GetFileName(v))];
+
+            if (producedVolumes.Count != expectedNames.Count)
+            {
+                _logger.Warning(this, $"  Produced {producedVolumes.Count} volume(s) but the release expects {expectedNames.Count} — not placing a partial set.", LogTarget.System);
+                return ([], false);
+            }
+
+            plan = new List<(string, string)>(producedVolumes.Count);
+            for (int i = 0; i < producedVolumes.Count; i++)
+            {
+                string outputFileName = useOriginalNames
+                    ? expectedNames[i]
+                    : Path.GetFileName(producedVolumes[i]).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
+                plan.Add((producedVolumes[i], Path.Combine(rarOutputDir, outputFileName)));
             }
         }
         else
         {
-            // Standard behavior: just rename the first .rar file
+            // Standard behavior: just the first .rar file — the mode's whole expected identity is
+            // that single volume.
             string outputFileName = useOriginalNames
                 ? LastSegment(originalNames[0])
                 : Path.GetFileName(actualRARFilePath).Replace(baseName, patchedBaseName, StringComparison.Ordinal);
-            string outputPath = Path.Combine(rarOutputDir, outputFileName);
-            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-            if (!MatchedRARWriter.MoveMatchedFile(actualRARFilePath, outputPath))
+            plan = [(actualRARFilePath, Path.Combine(rarOutputDir, outputFileName))];
+        }
+
+        return ExecuteMovePlan(plan);
+    }
+
+    /// <summary>
+    /// Executes a precomputed source-to-destination move plan transactionally: every destination
+    /// is verified free (or is its own source — a no-op) before any file is moved; if a move then
+    /// fails or throws, this call's own already-completed moves are rolled back (see
+    /// <see cref="RollBackMoves"/>) and the result is <c>Complete=false</c> with an empty
+    /// <c>Placed</c> — a partial result is never partially reported.
+    /// </summary>
+    private (IReadOnlyList<string> Placed, bool Complete) ExecuteMovePlan(List<(string Source, string Dest)> plan)
+    {
+        foreach ((string source, string dest) in plan)
+        {
+            if (!MatchedRARWriter.PathsEqual(source, dest) && File.Exists(dest))
             {
-                _logger.Warning(this, $"Matched archive NOT written (a different file already occupies '{outputFileName}'); left at '{actualRARFilePath}'", LogTarget.System);
+                _logger.Warning(this, $"  Volume placement aborted: destination already occupied by a different file: '{dest}'", LogTarget.System);
+                return ([], false);
+            }
+        }
+
+        var completedMoves = new List<(string Source, string Dest)>();
+        var placed = new List<string>();
+
+        foreach ((string source, string dest) in plan)
+        {
+            if (MatchedRARWriter.PathsEqual(source, dest))
+            {
+                // Already at its final path — nothing to move, still counts as placed.
+                placed.Add(dest);
+                _logger.Information(this, $"  Volume: {Path.GetFileName(dest)} (already in place)", LogTarget.System);
+                continue;
+            }
+
+            bool moved;
+            Exception? moveException = null;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                moved = MatchedRARWriter.MoveMatchedFile(source, dest);
+            }
+            catch (Exception ex)
+            {
+                moved = false;
+                moveException = ex;
+            }
+
+            if (moved)
+            {
+                completedMoves.Add((source, dest));
+                placed.Add(dest);
+                _logger.Information(this, $"  Volume: {Path.GetFileName(dest)}", LogTarget.System);
+                continue;
+            }
+
+            string reason = moveException != null
+                ? moveException.Message
+                : $"a different file already occupies '{dest}'";
+            _logger.Warning(this, $"  Volume NOT written ({reason}); rolling back {completedMoves.Count} prior move(s)", LogTarget.System);
+
+            RollBackMoves(completedMoves);
+            return ([], false);
+        }
+
+        _logger.Information(this, $"  Completed {placed.Count} volume(s)", LogTarget.System);
+        return (placed, true);
+    }
+
+    /// <summary>
+    /// Rolls back this call's own completed moves (dest → original source), in reverse order,
+    /// best-effort: a rollback move that itself fails (something now occupies the original
+    /// source) or throws is logged and left as-is — the caller's overall result is
+    /// <c>Complete=false</c> regardless, so a failed rollback changes only how cleanly the file
+    /// system unwinds, never the reported outcome.
+    /// </summary>
+    internal void RollBackMoves(IReadOnlyList<(string Source, string Dest)> completedMoves)
+    {
+        for (int i = completedMoves.Count - 1; i >= 0; i--)
+        {
+            (string source, string dest) = completedMoves[i];
+            try
+            {
+                if (!MatchedRARWriter.MoveMatchedFile(dest, source))
+                {
+                    _logger.Warning(this, $"  Rollback failed: could not move '{dest}' back to '{source}' (a different file now occupies it); output left inconsistent at '{dest}'.", LogTarget.System);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(this, $"  Rollback failed: could not move '{dest}' back to '{source}': {ex.Message}; output left inconsistent at '{dest}'.", LogTarget.System);
             }
         }
     }

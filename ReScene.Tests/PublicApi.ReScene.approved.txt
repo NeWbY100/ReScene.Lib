@@ -24,6 +24,8 @@ class sealed ReScene.Core.BruteForceRunResult
     method String ToString()
     method Void Deconstruct(Boolean&, WinningCombo&)
     property Boolean Success { get; set; }
+    property IReadOnlyList<CommittedMatch> Matches { get; set; }
+    property IReadOnlyList<String> CustomPackerFiles { get; set; }
     property WinningCombo Combo { get; set; }
 class ReScene.Core.BruteForceStatusChangedEventArgs
     ctor (Nullable<OperationStatus>, OperationStatus)
@@ -37,6 +39,18 @@ class ReScene.Core.CRCValidationProgressEventArgs
     property Int64 BytesVerified { get; set; }
     property Int64 TotalBytes { get; set; }
     property String FileName { get; set; }
+class sealed ReScene.Core.CommittedMatch
+    ctor (WinningCombo, IReadOnlyList<String>)
+    method Boolean Equals(CommittedMatch)
+    method Boolean Equals(Object)
+    method Boolean op_Equality(CommittedMatch, CommittedMatch)
+    method Boolean op_Inequality(CommittedMatch, CommittedMatch)
+    method CommittedMatch <Clone>$()
+    method Int32 GetHashCode()
+    method String ToString()
+    method Void Deconstruct(WinningCombo&, IReadOnlyList<String>&)
+    property IReadOnlyList<String> Files { get; set; }
+    property WinningCombo Combo { get; set; }
 class ReScene.Core.Comparison.CompareResult
     ctor ()
     property IReadOnlyList<FileDifference> FileDifferences { get; }

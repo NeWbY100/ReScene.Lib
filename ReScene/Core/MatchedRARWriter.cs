@@ -11,13 +11,17 @@ internal static class MatchedRARWriter
     /// Moves a matched RAR file to its final path. Returns <see langword="true"/> when the file
     /// ends up at <paramref name="destinationPath"/> — either moved there, or already there
     /// because no rename was needed. Returns <see langword="false"/> when a different file
-    /// already occupies the destination (the source is left untouched).
+    /// already occupies the destination (the source is left untouched), or when the move did not
+    /// actually leave a file at the destination.
     /// </summary>
     public static bool MoveMatchedFile(string sourcePath, string destinationPath)
     {
-        if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
+        if (PathsEqual(sourcePath, destinationPath))
         {
-            return true;
+            // No rename needed — the file is already at its final path (a very common case: an
+            // unpatched, not-renamed-to-release-names run's produced volume already sits at the
+            // name RenameMatchedOutput would compute). Still verify it's actually there.
+            return File.Exists(destinationPath);
         }
 
         if (File.Exists(destinationPath))
@@ -26,7 +30,26 @@ internal static class MatchedRARWriter
         }
 
         File.Move(sourcePath, destinationPath);
-        return true;
+
+        // Defensive post-condition: a caller must never be told a move succeeded when the
+        // destination doesn't actually hold a file afterward.
+        return File.Exists(destinationPath);
+    }
+
+    /// <summary>
+    /// Filesystem-correct equality for two paths, used to short-circuit the source==destination
+    /// no-op case: resolves both to their full, normalized form (so differing relative segments,
+    /// redundant <c>.</c> components, or separator style referring to the same file compare equal
+    /// — a raw string compare of the unresolved paths would miss this) and compares
+    /// case-insensitively on Windows/macOS (their default file systems) or case-sensitively on
+    /// Linux.
+    /// </summary>
+    internal static bool PathsEqual(string left, string right)
+    {
+        StringComparison comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return string.Equals(Path.GetFullPath(left), Path.GetFullPath(right), comparison);
     }
 
     /// <summary>
