@@ -204,6 +204,29 @@ public class SrrNameCanonicalizerTests : IDisposable
     }
 
     [Fact]
+    public void ApplyComponent_ParentAtRoot_StaysOnCurrentPathsRoot()
+    {
+        // codex final review, narrow Critical: the ".." fallback must use the CURRENT
+        // (link-resolved) path's own root, not the root captured at the top of
+        // ResolveAncestorChain — a cross-volume junction (e.g. C:\...\J -> D:\) moves `current`
+        // onto a different volume, and snapping back to the ORIGINAL root would let ".." from
+        // that volume's own root silently jump to the WRONG volume (D:\release\evil mapped onto
+        // the inside-looking C:\release\evil — a false-accept escape). This is a deterministic
+        // helper-level unit test rather than a real cross-volume fixture: a second fixed drive
+        // letter isn't reliably available in every test environment, but the ".." fallback
+        // (TrimAllTrailingSeparators / Path.GetDirectoryName / Path.GetPathRoot) is pure
+        // path-string arithmetic with no filesystem I/O, so a drive that need not actually exist
+        // is enough to exercise it — matching how the >MAX_PATH case preferred a deterministic
+        // helper test over an environment-dependent end-to-end fixture.
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        Assert.Equal(@"D:\", SrrNameCanonicalizer.ApplyComponent(@"D:\", ".."));
+    }
+
+    [Fact]
     public void GetFinalPath_NonExistentPath_ThrowsWithErrorCode()
     {
         // codex Important #4: the captured Win32 error must surface in the exception message.

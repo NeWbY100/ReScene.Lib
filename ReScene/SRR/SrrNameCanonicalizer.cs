@@ -102,7 +102,7 @@ public static class SrrNameCanonicalizer
         foreach (string component in absolute[root.Length..]
             .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
         {
-            current = ApplyComponent(current, component, root);
+            current = ApplyComponent(current, component);
         }
 
         return current;
@@ -111,8 +111,11 @@ public static class SrrNameCanonicalizer
     // Applies one raw path component to an already-fully-resolved `current` prefix: "." is a
     // no-op, ".." pops one level (safe — `current` never has an unresolved link at its tail),
     // and any other component is resolved through its link target (if it has one) before being
-    // adopted as the new `current`.
-    private static string ApplyComponent(string current, string component, string root)
+    // adopted as the new `current`. internal (not private): unit-tested directly (see
+    // ApplyComponent_ParentAtRoot_StaysOnCurrentPathsRoot) since the ".." fallback below is pure
+    // path-string arithmetic with no filesystem I/O, so it's exercisable without a real
+    // cross-volume fixture; excluded from the PublicApi snapshot like the other internal members.
+    internal static string ApplyComponent(string current, string component)
     {
         if (component == ".")
         {
@@ -121,7 +124,15 @@ public static class SrrNameCanonicalizer
 
         if (component == "..")
         {
-            return Path.GetDirectoryName(TrimAllTrailingSeparators(current)) ?? root;
+            // Fall back to the CURRENT (link-resolved) path's own root, NOT the root captured at
+            // the top of ResolveAncestorChain (codex final review, narrow Critical): a
+            // cross-volume junction (e.g. C:\...\J -> D:\) moves `current` onto a different
+            // volume entirely. Snapping back to the originally captured root would let ".." at
+            // that volume's own root silently jump to the WRONG volume, mapping an outside path
+            // (D:\release\evil) onto an inside-looking one (C:\release\evil) — a false-accept
+            // escape.
+            string trimmed = TrimAllTrailingSeparators(current);
+            return Path.GetDirectoryName(trimmed) ?? Path.GetPathRoot(current)!;
         }
 
         string candidate = Path.Combine(current, component);
