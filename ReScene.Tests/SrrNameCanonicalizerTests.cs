@@ -13,7 +13,11 @@ public class SrrNameCanonicalizerTests : IDisposable
         File.WriteAllText(Path.Combine(_root, "CD1", "a.sfv"), "x");
     }
 
-    public void Dispose() => Directory.Delete(_root, recursive: true);
+    public void Dispose()
+    {
+        Directory.Delete(_root, recursive: true);
+        GC.SuppressFinalize(this);
+    }
 
     [Fact]
     public void CanonicalizeRelative_ProducesForwardSlashNames()

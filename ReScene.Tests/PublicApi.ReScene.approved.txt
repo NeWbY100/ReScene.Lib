@@ -703,7 +703,9 @@ class static ReScene.SRR.SrrNameCanonicalizer
     method String GetFinalPath(String)
     method String ResolveSfvEntry(String, String)
 class sealed ReScene.SRR.SrrNameException
+    ctor ()
     ctor (String)
+    ctor (String, Exception)
 class sealed ReScene.SRR.StoredFileEntry
     ctor (String, String)
     method Boolean Equals(Object)
