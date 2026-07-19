@@ -8,7 +8,9 @@ namespace ReScene.SRR;
 /// ancestor junction/symlink — Path.GetFullPath alone does not), forward-slash logical names,
 /// and SFV-entry hardening. Windows-first (GetFinalPathNameByHandle); on non-Windows,
 /// a component-order walk resolves each existing ancestor's link target before the next
-/// component is applied, so a symlink is always resolved before a following "..". Containment
+/// component is applied, so a symlink is always resolved before a following "..". The SAME
+/// component-order walk backs the Windows long-path (\\?\) fallback, so containment is decided
+/// on an OS-resolved final path on every code path, never a lexically-collapsed one. Containment
 /// is centralized in <see cref="EnsureContainedRelative"/> and reused by every entry point.
 /// </summary>
 public static class SrrNameCanonicalizer
@@ -22,6 +24,14 @@ public static class SrrNameCanonicalizer
     {
         if (!OperatingSystem.IsWindows())
         {
+            if (!Directory.Exists(path) && !File.Exists(path))
+            {
+                // Parity with the Windows branch below (CreateFileW's OPEN_EXISTING failure):
+                // GetFinalPath's contract is "the path exists" — surface a typed exception
+                // instead of letting a raw FileNotFoundException escape from the walk below.
+                throw new SrrNameException($"Cannot resolve final path — path does not exist: {path}");
+            }
+
             // Component-order walk: resolve EVERY ancestor (codex r1 f1 / r4 f1 / Critical #1).
             return ResolveAncestorChain(path);
         }
@@ -73,11 +83,13 @@ public static class SrrNameCanonicalizer
         return finalPath;
     }
 
-    // Component-order POSIX fallback: walks the ORIGINAL path components in order, resolving
+    // Component-order link-aware walk: walks the ORIGINAL path components in order, resolving
     // each existing component's link target before the next component is applied. This is
     // deliberately NOT `Path.GetFullPath(path)` first — GetFullPath collapses ".." lexically
     // BEFORE any symlink is resolved, so "/root/L/../secret" with L -> /outside/dir would be
     // checked as "/root/secret" instead of the OS-correct "/outside/secret" (codex Critical #1).
+    // Used as the POSIX GetFinalPath fallback AND by ToExtendedLengthPath (Windows long-path
+    // fallback) — it has no Windows/POSIX-specific dependencies, only portable BCL calls.
     private static string ResolveAncestorChain(string path)
     {
         string absolute = Path.IsPathRooted(path) ? path : Path.Combine(Directory.GetCurrentDirectory(), path);
@@ -109,7 +121,18 @@ public static class SrrNameCanonicalizer
         }
 
         string candidate = Path.Combine(current, component);
-        FileSystemInfo info = Directory.Exists(candidate) ? new DirectoryInfo(candidate) : new FileInfo(candidate);
+        bool isDirectory = Directory.Exists(candidate);
+        if (!isDirectory && !File.Exists(candidate))
+        {
+            // A component that doesn't exist can't be a link either — adopt it literally.
+            // ResolveLinkTarget throws FileNotFoundException for a non-existent path rather than
+            // returning null, so this check must run first. Required so ToExtendedLengthPath
+            // (Windows long-path fallback) can resolve a path whose tail doesn't exist yet,
+            // mirroring ResolveExistingPrefixThenAppend's same tolerance for SFV entries.
+            return candidate;
+        }
+
+        FileSystemInfo info = isDirectory ? new DirectoryInfo(candidate) : new FileInfo(candidate);
         FileSystemInfo resolved = info.ResolveLinkTarget(returnFinalTarget: true) ?? info;
         return resolved.FullName;
     }
@@ -247,9 +270,9 @@ public static class SrrNameCanonicalizer
 
         // Our raw P/Invoke doesn't get .NET's automatic long-path (\\?\) prefixing, so a path
         // beyond MAX_PATH can fail here even though it's otherwise valid. Retry once with an
-        // explicit extended-length form (codex Important #4). Path.GetFullPath is safe here —
-        // this is a Windows-only fallback used just to widen a failed native open, not a
-        // containment decision, so it cannot reintroduce the Critical #1 symlink-vs-".." bug.
+        // explicit extended-length form built through the same link-aware walk as the POSIX
+        // fallback (codex Important #4 / residual-closure follow-up) — never through
+        // Path.GetFullPath, which would reintroduce the Critical #1 symlink-vs-".." bug here too.
         string extended = ToExtendedLengthPath(path);
         if (string.Equals(extended, path, StringComparison.Ordinal))
         {
@@ -267,17 +290,30 @@ public static class SrrNameCanonicalizer
         return handle;
     }
 
-    private static string ToExtendedLengthPath(string path)
+    // internal (not private): unit-tested directly (see
+    // ToExtendedLengthPath_ResolvesLinkBeforeParentSegment) since a >MAX_PATH end-to-end fixture
+    // cannot reliably force the CreateFileW fallback branch across every Windows long-path
+    // policy configuration, while this helper's own behavior is deterministic to test in
+    // isolation. Not part of the public surface — internal is excluded from the PublicApi
+    // snapshot's visibility check (Public/Family/FamilyOrAssembly only).
+    internal static string ToExtendedLengthPath(string path)
     {
         if (path.StartsWith(@"\\?\", StringComparison.Ordinal))
         {
             return path;
         }
 
-        string full = Path.GetFullPath(path);
-        return full.StartsWith(@"\\", StringComparison.Ordinal)
-            ? @"\\?\UNC\" + full[2..]
-            : @"\\?\" + full;
+        // Reuse the SAME original-component walk as the POSIX fallback (ResolveAncestorChain):
+        // it resolves every ancestor's link target before applying a following "." or "..", so
+        // the \\?\-prefixed form handed to CreateFileW targets the SAME object `path` would
+        // under normal (short-path) Windows semantics — never a path lexically collapsed ahead
+        // of reparse-point resolution. This also happens to be the technically correct way to
+        // build a \\?\ path in the first place: Microsoft's own docs require \\?\ paths to be
+        // fully resolved, with no "." / ".." segments.
+        string resolved = ResolveAncestorChain(path);
+        return resolved.StartsWith(@"\\", StringComparison.Ordinal)
+            ? @"\\?\UNC\" + resolved[2..]
+            : @"\\?\" + resolved;
     }
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]

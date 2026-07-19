@@ -131,6 +131,42 @@ public class SrrNameCanonicalizerTests : IDisposable
     }
 
     [Fact]
+    public void ToExtendedLengthPath_ResolvesLinkBeforeParentSegment()
+    {
+        // Regression test for the long-path-open fallback's path-construction helper (closes the
+        // residual flagged after the codex containment fix, review round 2): proves it resolves
+        // a link's target BEFORE applying a following ".." rather than lexically canceling
+        // "link" and ".." the way Path.GetFullPath would — the exact codex Critical #1 pattern,
+        // now also closed here. This is a helper-level unit test on ToExtendedLengthPath rather
+        // than an end-to-end >MAX_PATH fixture, because whether a >MAX_PATH path actually forces
+        // the CreateFileW fallback branch (rather than succeeding directly) varies by the host's
+        // Windows long-path policy; testing the fallback's path construction directly is
+        // deterministic regardless of that policy.
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string outside = Path.Combine(Path.GetTempPath(), "canon-ext-outside-" + Guid.NewGuid().ToString("N"));
+        string target = Path.Combine(outside, "dir");
+        Directory.CreateDirectory(target);
+        string link = Path.Combine(_root, "J");
+        CreateLink(link, target);
+        try
+        {
+            string constructed = SrrNameCanonicalizer.ToExtendedLengthPath(Path.Combine(link, "..", "secret.bin"));
+            string expectedTarget = Path.Combine(SrrNameCanonicalizer.GetFinalPath(outside), "secret.bin");
+
+            Assert.Equal(@"\\?\" + expectedTarget, constructed);
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GetFinalPath_NonExistentPath_ThrowsWithErrorCode()
     {
         // codex Important #4: the captured Win32 error must surface in the exception message.
