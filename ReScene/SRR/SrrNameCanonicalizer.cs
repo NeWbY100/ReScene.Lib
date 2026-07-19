@@ -95,8 +95,12 @@ public static class SrrNameCanonicalizer
         string absolute = Path.IsPathRooted(path) ? path : Path.Combine(Directory.GetCurrentDirectory(), path);
         string root = Path.GetPathRoot(absolute)!;
         string current = root;
+
+        // Split on BOTH separators (codex final-review Minor): a Windows path using forward
+        // slashes wouldn't split on Path.DirectorySeparatorChar alone, treating the whole
+        // remainder as one bogus component.
         foreach (string component in absolute[root.Length..]
-            .Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
         {
             current = ApplyComponent(current, component, root);
         }
@@ -221,13 +225,16 @@ public static class SrrNameCanonicalizer
     }
 
     // Walks `relativeSpec` component-by-component from the already-final `finalBase`, resolving
-    // each EXISTING ancestor through GetFinalPath (so a link at any level is caught — codex
-    // Critical #2), then literal-appending any trailing components that don't exist on disk (an
-    // SFV entry may legitimately reference a file not yet materialized).
+    // EVERY existing component through GetFinalPath — existence is checked FRESH on each
+    // component, never latched off by an earlier gap (codex final-review Critical: a one-way
+    // "no longer exists" flag let a component that exists right now — e.g. a link reached AFTER
+    // a ".." returns to a real directory, following a nonexistent detour — get literal-appended
+    // unresolved, silently reintroducing the Critical #2 escape) — then literal-appending any
+    // component that doesn't exist right now (an SFV entry may legitimately reference a file not
+    // yet materialized).
     private static string ResolveExistingPrefixThenAppend(string finalBase, string relativeSpec)
     {
         string current = finalBase;
-        bool stillExisting = true;
         foreach (string component in relativeSpec.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
         {
             if (component == ".")
@@ -242,15 +249,9 @@ public static class SrrNameCanonicalizer
             }
 
             string candidate = Path.Combine(current, component);
-            if (stillExisting && (Directory.Exists(candidate) || File.Exists(candidate)))
-            {
-                current = GetFinalPath(candidate);
-            }
-            else
-            {
-                stillExisting = false;
-                current = candidate;
-            }
+            current = Directory.Exists(candidate) || File.Exists(candidate)
+                ? GetFinalPath(candidate)
+                : candidate;
         }
 
         return current;

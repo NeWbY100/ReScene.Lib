@@ -218,6 +218,64 @@ public class SrrNameCanonicalizerTests : IDisposable
         }
     }
 
+    [Fact]
+    public void ResolveSfvEntry_MissingPrefixThenLink_Throws()
+    {
+        // codex final-review Critical: the walker's existence check must be re-evaluated fresh on
+        // every component, never latched off by an earlier missing component. Entry "x/../J/evil"
+        // with "x" nonexistent: after "x" (missing) and ".." return to the real SFV directory, "J"
+        // (a link that genuinely exists right now) must still be resolved through GetFinalPath —
+        // a stale "no longer exists" flag would literal-append "J/evil" unresolved, and the
+        // lexical-only string comparison in EnsureContainedRelative would wrongly accept an entry
+        // that actually escapes through the link (same shape as the Critical #2 already closed).
+        string target = Path.Combine(Path.GetTempPath(), "canon-sfv-latch-tgt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(target, "evil"), "x");
+        string link = Path.Combine(_root, "CD1", "J");
+        CreateLink(link, target);
+        try
+        {
+            Assert.Throws<SrrNameException>(() =>
+                SrrNameCanonicalizer.ResolveSfvEntry(Path.Combine(_root, "CD1"), "x/../J/evil"));
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(target, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GetFinalPath_LinkBeforeParentSegment_ResolvesOnPosixToo()
+    {
+        // Minor (codex final review): mirrors ToExtendedLengthPath_ResolvesLinkBeforeParentSegment's
+        // Windows-only coverage, but exercises GetFinalPath's actual POSIX fallback
+        // (ResolveAncestorChain) directly via a real symlink, proving the same "link resolved
+        // before a following .." guarantee holds on the platform that fallback is written for.
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string outside = Path.Combine(Path.GetTempPath(), "canon-posix-outside-" + Guid.NewGuid().ToString("N"));
+        string target = Path.Combine(outside, "dir");
+        Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(outside, "secret.bin"), "real");
+        string link = Path.Combine(_root, "L");
+        Directory.CreateSymbolicLink(link, target);
+        try
+        {
+            string resolved = SrrNameCanonicalizer.GetFinalPath(Path.Combine(link, "..", "secret.bin"));
+            string expected = SrrNameCanonicalizer.GetFinalPath(Path.Combine(outside, "secret.bin"));
+            Assert.Equal(expected, resolved);
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData("CD1\\a.sfv", "CD1/a.sfv")]
     public void CanonicalizeLogicalName_NormalizesBackslashes(string input, string expected) =>
