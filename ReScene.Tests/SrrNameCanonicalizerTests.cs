@@ -47,9 +47,7 @@ public class SrrNameCanonicalizerTests : IDisposable
         Directory.CreateDirectory(target);
         File.WriteAllText(Path.Combine(target, "x.bin"), "x");
         string link = Path.Combine(_root, "J");
-        // NTFS JUNCTIONS need no privilege (unlike symlinks) — runs unconditionally on
-        // Windows (codex r2b f1 / r4 f1; xUnit 2.9.3 has no Assert.Skip, none needed).
-        CreateJunction(link, target);
+        CreateLink(link, target);
         try
         {
             string rootFinal = SrrNameCanonicalizer.GetFinalPath(_root);
@@ -63,14 +61,125 @@ public class SrrNameCanonicalizerTests : IDisposable
         }
     }
 
+    [Fact]
+    public void CanonicalizeRelative_RepeatedTrailingSeparators_StillContained()
+    {
+        // codex Important #3: a root string with extra trailing separators must not break
+        // containment for otherwise-valid children.
+        string rootFinal = SrrNameCanonicalizer.GetFinalPath(_root);
+        string rootWithExtraSeparators = rootFinal + new string(Path.DirectorySeparatorChar, 3);
+        string name = SrrNameCanonicalizer.CanonicalizeRelative(
+            rootWithExtraSeparators, Path.Combine(_root, "CD1", "a.sfv"));
+        Assert.Equal("CD1/a.sfv", name);
+    }
+
+    [Fact]
+    public void CanonicalizeRelative_FilesystemRoot_ProducesRelativeName()
+    {
+        // codex Important #3: the filesystem root ("C:\" / "/") must not become a doubled
+        // separator ("C:\\" / "//") that rejects every real child.
+        string driveRoot = SrrNameCanonicalizer.GetFinalPath(Path.GetPathRoot(_root)!);
+        string name = SrrNameCanonicalizer.CanonicalizeRelative(
+            driveRoot, Path.Combine(_root, "CD1", "a.sfv"));
+        Assert.EndsWith("CD1/a.sfv", name, StringComparison.Ordinal);
+        Assert.DoesNotContain("\\", name, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CanonicalizeRelative_CaseDistinctSiblings_OnlyExactCaseContained()
+    {
+        // codex Important #3: Windows filesystems are case-insensitive by design
+        // (OrdinalIgnoreCase is correct there); only case-sensitive POSIX filesystems can
+        // distinguish "Root" from "root", so this assertion only applies off Windows.
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string upper = Path.Combine(Path.GetTempPath(), "Canon-Case-" + Guid.NewGuid().ToString("N"));
+        string lower = upper.ToLowerInvariant();
+        Directory.CreateDirectory(upper);
+        Directory.CreateDirectory(lower);
+        try
+        {
+            File.WriteAllText(Path.Combine(upper, "x.bin"), "x");
+            string rootFinal = SrrNameCanonicalizer.GetFinalPath(lower);
+            Assert.Throws<SrrNameException>(() =>
+                SrrNameCanonicalizer.CanonicalizeRelative(rootFinal, Path.Combine(upper, "x.bin")));
+        }
+        finally
+        {
+            Directory.Delete(upper, recursive: true);
+            Directory.Delete(lower, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void GetFinalPath_LongPath_Succeeds()
+    {
+        // codex Important #4: a valid result longer than the original fixed 1024-char buffer
+        // must not be rejected.
+        string deep = _root;
+        while (deep.Length < 1100)
+        {
+            deep = Path.Combine(deep, "seg1234567890");
+        }
+
+        Directory.CreateDirectory(deep);
+        string finalPath = SrrNameCanonicalizer.GetFinalPath(deep);
+        Assert.True(finalPath.Length > 1024);
+    }
+
+    [Fact]
+    public void GetFinalPath_NonExistentPath_ThrowsWithErrorCode()
+    {
+        // codex Important #4: the captured Win32 error must surface in the exception message.
+        // This is specific to the Windows CreateFileW branch; the POSIX fallback has different,
+        // pre-existing missing-path semantics that are out of scope here.
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string missing = Path.Combine(_root, "does-not-exist-" + Guid.NewGuid().ToString("N"));
+        SrrNameException ex = Assert.Throws<SrrNameException>(() => SrrNameCanonicalizer.GetFinalPath(missing));
+        Assert.Contains("error", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Theory]
     [InlineData("..\\evil.rar")]
     [InlineData("C:\\abs\\evil.rar")]
     [InlineData("sub/../../evil.rar")]
+    [InlineData("/abs/evil.rar")]
+    [InlineData("C:relative.rar")]
+    [InlineData("\\\\server\\share\\evil.rar")]
+    [InlineData("\\\\?\\C:\\evil.rar")]
     public void ResolveSfvEntry_EscapingEntry_Throws(string entry)
     {
         Assert.Throws<SrrNameException>(() =>
             SrrNameCanonicalizer.ResolveSfvEntry(Path.Combine(_root, "CD1"), entry));
+    }
+
+    [Fact]
+    public void ResolveSfvEntry_ThroughLink_Throws()
+    {
+        // codex Critical #2: an SFV entry that traverses a link inside the SFV directory
+        // pointing outside it must be rejected via final-path containment, not just lexically.
+        string target = Path.Combine(Path.GetTempPath(), "canon-sfv-tgt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(target, "x.bin"), "x");
+        string link = Path.Combine(_root, "CD1", "J");
+        CreateLink(link, target);
+        try
+        {
+            Assert.Throws<SrrNameException>(() =>
+                SrrNameCanonicalizer.ResolveSfvEntry(Path.Combine(_root, "CD1"), "J/x.bin"));
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(target, recursive: true);
+        }
     }
 
     [Theory]
@@ -85,8 +194,27 @@ public class SrrNameCanonicalizerTests : IDisposable
     [InlineData("a/../b.nfo")]
     [InlineData("C:/abs/x.nfo")]
     [InlineData("a//b.nfo")]
+    [InlineData("/abs/x.nfo")]
+    [InlineData("C:relative.nfo")]
+    [InlineData("\\\\server\\share\\x.nfo")]
+    [InlineData("\\\\?\\C:\\x.nfo")]
     public void CanonicalizeLogicalName_Degenerate_Throws(string bad) =>
         Assert.Throws<SrrNameException>(() => SrrNameCanonicalizer.CanonicalizeLogicalName(bad));
+
+    // Windows: NTFS junctions need no privilege (unlike symlinks). POSIX: symlink creation also
+    // needs no privilege. Runs unconditionally on both hosts — no skip path exists (codex r2b
+    // f1 / r4 f1 / r7 f7; xUnit 2.9.3 has no Assert.Skip, none needed).
+    private static void CreateLink(string link, string target)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            CreateJunction(link, target);
+        }
+        else
+        {
+            Directory.CreateSymbolicLink(link, target);
+        }
+    }
 
     private static void CreateJunction(string link, string target)
     {
