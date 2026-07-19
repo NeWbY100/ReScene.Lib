@@ -696,6 +696,7 @@ class ReScene.SRR.SRRWriter
     ctor ()
     event EventHandler<SRRCreationProgressEventArgs> Progress
     method Task<SRRCreationResult> CreateAsync(String, IReadOnlyList<String>, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
+    method Task<SRRCreationResult> CreateFromInputsAsync(String, IReadOnlyList<String>, String, Boolean, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
     method Task<SRRCreationResult> CreateFromSFVAsync(String, String, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
 class static ReScene.SRR.SrrNameCanonicalizer
     method String CanonicalizeLogicalName(String)
