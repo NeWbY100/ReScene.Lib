@@ -167,6 +167,43 @@ public class SrrNameCanonicalizerTests : IDisposable
     }
 
     [Fact]
+    public void ToExtendedLengthPath_ForwardSlashLinkBeforeParentSegment_ResolvesCorrectly()
+    {
+        // codex final-review #7 residual (test-coverage gap, not a code bug):
+        // ToExtendedLengthPath_ResolvesLinkBeforeParentSegment above builds its path via
+        // Path.Combine, which only ever produces backslashes on Windows — so nothing exercises
+        // the FORWARD-SLASH compound-component case that motivated splitting on both separators
+        // in ResolveAncestorChain. This test feeds a path built with literal '/' (not
+        // Path.Combine) through the same link-then-".." shape and proves it splits into
+        // individual components — rather than treating "J/../secret.bin" as one bogus,
+        // unresolved component — and still resolves the link before applying "..".
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string outside = Path.Combine(Path.GetTempPath(), "canon-ext-fslash-outside-" + Guid.NewGuid().ToString("N"));
+        string target = Path.Combine(outside, "dir");
+        Directory.CreateDirectory(target);
+        string link = Path.Combine(_root, "J");
+        CreateLink(link, target);
+        try
+        {
+            // Literal forward slashes throughout — NOT Path.Combine, which would emit backslashes.
+            string forwardSlashPath = link.Replace('\\', '/') + "/../secret.bin";
+            string constructed = SrrNameCanonicalizer.ToExtendedLengthPath(forwardSlashPath);
+            string expectedTarget = Path.Combine(SrrNameCanonicalizer.GetFinalPath(outside), "secret.bin");
+
+            Assert.Equal(@"\\?\" + expectedTarget, constructed);
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
+    [Fact]
     public void GetFinalPath_NonExistentPath_ThrowsWithErrorCode()
     {
         // codex Important #4: the captured Win32 error must surface in the exception message.
