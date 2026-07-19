@@ -276,11 +276,15 @@ public class SRRWriterMultiInputTests : IDisposable
     }
 
     [Fact]
-    public async Task MissingVolume_FlatNaming_FailsMidWrite_PreservesDestinationAndCleansTemp()
+    public async Task MissingVolume_FlatNaming_CaughtPreTmp_PreservesDestinationNoTempLeft()
     {
         // Flat naming (storeRelativePaths: false) never canonicalizes a volume path against the
-        // root, so the missing volume isn't caught until the writer actually tries to open it —
-        // a genuine failure AFTER the tmp file already holds the header and stored-file blocks.
+        // root, but the C3 review fix (ReconcileVolumesAgainstStoredFiles) now runs GetFinalPath
+        // over every resolved volume — regardless of naming mode — to seed the writer-wide
+        // collision/dedup registry, BEFORE the tmp file is created. So a missing volume is caught
+        // here, pre-tmp, in both naming modes (this test no longer reaches WriteVolumesAsync at
+        // all; see VolumeOpenShareViolation_FailsAfterTmpCreated_... below for a genuine
+        // post-tmp-creation failure).
         File.WriteAllBytes(_out, [4, 5, 6]);
         File.Delete(Path.Combine(_root, "CD2", "b.r00"));
 
@@ -289,6 +293,35 @@ public class SRRWriterMultiInputTests : IDisposable
 
         Assert.NotNull(r.ErrorMessage);
         Assert.Equal([4, 5, 6], File.ReadAllBytes(_out));
+        Assert.Empty(Directory.GetFiles(_root, "*.tmp-*"));
+    }
+
+    // Genuine post-tmp-creation failure (peer follow-up to C3/C7): an exclusive lock on the
+    // SECOND volume in a chain lets GetFinalPath (a zero-access metadata query, unaffected by
+    // FileShare.None per GetFinalPathNameByHandle's documented pattern) succeed all the way
+    // through resolution and reconciliation — so the tmp file is created and the SFV's stored
+    // block and the first volume's headers are genuinely written — before ProcessRARVolume's
+    // real read-access FileStream.Open on the locked volume hits a sharing-violation IOException,
+    // exercising the `if (tmpCreated) TryDeleteFile(tmpPath)` branch for real.
+    [Fact]
+    public async Task VolumeOpenShareViolation_FailsAfterTmpCreated_PreservesDestinationAndCleansTemp()
+    {
+        File.WriteAllBytes(_out, [8, 8, 8]);
+        string lockedVolume = Path.Combine(_root, "CD1", "a.r00");
+        var exclusiveLock = new FileStream(lockedVolume, FileMode.Open, FileAccess.Read, FileShare.None);
+        try
+        {
+            SRRCreationResult r = await _writer.CreateFromInputsAsync(
+                _out, [Sfv("CD1", "a")], _root, storeRelativePaths: true);
+
+            Assert.NotNull(r.ErrorMessage);
+        }
+        finally
+        {
+            exclusiveLock.Dispose();
+        }
+
+        Assert.Equal([8, 8, 8], File.ReadAllBytes(_out));
         Assert.Empty(Directory.GetFiles(_root, "*.tmp-*"));
     }
 
