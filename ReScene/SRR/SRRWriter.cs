@@ -277,7 +277,8 @@ public class SRRWriter
     {
         options ??= new SRRCreationOptions();
         var result = new SRRCreationResult();
-        string tmpPath = outputPath + ".tmp-" + Guid.NewGuid().ToString("N")[..8];
+        string tmpPath = string.Empty;
+        bool tmpCreated = false;
 
         try
         {
@@ -293,22 +294,43 @@ public class SRRWriter
 
             // Ensure the output directory exists BEFORE the self-collision check below, since
             // GetFinalPath (used to compute the output's comparison key) requires its target to
-            // exist — a fresh nested output path must not be misread as "cannot resolve".
+            // exist — a fresh nested output path must not be misread as "cannot resolve". A later
+            // validation/write failure can leave this freshly-created directory behind, empty;
+            // that's an accepted trade-off — no cleanup here, since removing it could race another
+            // writer or delete a directory that pre-existed for an unrelated reason.
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
             {
                 Directory.CreateDirectory(outputDir);
             }
 
-            // Reject an outputPath that resolves to any input or stored source before touching disk.
-            ValidateOutputNotASource(outputPath, inputFiles, additionalFiles);
+            string outputKey = ComputeOutputKey(outputPath);
 
-            List<(string Name, string Path)> volumes =
+            // Reject an outputPath that resolves to any explicit input or stored source before
+            // touching disk — fails fast for the common explicit-input case.
+            RejectIfOutputMatches(outputKey, inputFiles, "an input");
+            if (additionalFiles != null)
+            {
+                RejectIfOutputMatches(outputKey, additionalFiles.Select(e => e.FullPath), "a stored source");
+            }
+
+            List<(string Name, string Path)> rawVolumes =
                 await ResolveVolumesAsync(inputFiles, rootFinal, storeRelativePaths, ct).ConfigureAwait(false);
-            List<StoredFileEntry> storedFiles =
+            (List<StoredFileEntry> storedFiles, HashSet<string> sourcesSeen, Dictionary<string, string> namesSeen) =
                 ResolveStoredFiles(inputFiles, additionalFiles, rootFinal, storeRelativePaths);
+            List<(string Name, string Path)> volumes =
+                ReconcileVolumesAgainstStoredFiles(rawVolumes, sourcesSeen, namesSeen);
 
-            using (var outStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            // Re-validate against the FULLY RESOLVED emission set (codex/peer C1): an outputPath
+            // equal to a volume DISCOVERED via an SFV (never itself an `inputFiles` entry) or to a
+            // stored source resolved from one wasn't caught by the pre-resolution check above, yet
+            // File.Move below would still destroy it.
+            RejectIfOutputMatches(outputKey, volumes.Select(v => v.Path), "a resolved volume");
+            RejectIfOutputMatches(outputKey, storedFiles.Select(f => f.FullPath), "a resolved stored source");
+
+            (FileStream outStream, tmpPath) = CreateExclusiveTempFile(outputPath);
+            tmpCreated = true;
+            using (outStream)
             using (var writer = new BinaryWriter(outStream, Encoding.UTF8, leaveOpen: true))
             {
                 WriteSRRHeader(writer, options.AppName);
@@ -380,16 +402,37 @@ public class SRRWriter
             result.OutputPath = outputPath;
             result.Success = true;
 
-            ReportProgress(volumes.Count, volumes.Count, "SRR creation complete.");
+            // The commit above must be the LAST fallible action affecting the result (codex/peer
+            // C5): a throwing Progress subscriber here — including one that throws
+            // OperationCanceledException — must not flip an already-committed success into an
+            // error result, nor propagate as a "cancelled" outcome after the destination has
+            // already been replaced. Swallow: the caller already has everything it needs from
+            // `result`, and the commit genuinely succeeded regardless of what a listener does.
+            try
+            {
+                ReportProgress(volumes.Count, volumes.Count, "SRR creation complete.");
+            }
+            catch
+            {
+                // Intentionally ignored — see comment above.
+            }
         }
         catch (OperationCanceledException)
         {
-            StreamUtilities.TryDeleteFile(tmpPath);
+            if (tmpCreated)
+            {
+                StreamUtilities.TryDeleteFile(tmpPath);
+            }
+
             throw;
         }
         catch (Exception ex)
         {
-            StreamUtilities.TryDeleteFile(tmpPath);
+            if (tmpCreated)
+            {
+                StreamUtilities.TryDeleteFile(tmpPath);
+            }
+
             result.ErrorMessage = ex.Message;
         }
 
@@ -397,39 +440,56 @@ public class SRRWriter
     }
 
     /// <summary>
-    /// Rejects an <paramref name="outputPath"/> that resolves to the same file as any input or
-    /// stored source (clause 5). Computed on the OS final path so a symlink/junction can't
-    /// disguise a self-collision; when <paramref name="outputPath"/> doesn't exist yet (the
-    /// normal case) its DIRECTORY is resolved instead and the file name reattached, since
-    /// <see cref="SrrNameCanonicalizer.GetFinalPath"/> requires the path to exist.
+    /// Computes the comparison key for an <paramref name="outputPath"/> self-collision check
+    /// (clause 5): the OS final path when it already exists, else its DIRECTORY's final path
+    /// with the file name reattached (since <see cref="SrrNameCanonicalizer.GetFinalPath"/>
+    /// requires its target to exist, and the normal case is an outputPath that doesn't exist
+    /// yet).
     /// </summary>
-    private static void ValidateOutputNotASource(
-        string outputPath, IReadOnlyList<string> inputFiles, IReadOnlyList<StoredFileEntry>? additionalFiles)
-    {
-        string outputKey = File.Exists(outputPath)
+    private static string ComputeOutputKey(string outputPath) =>
+        File.Exists(outputPath)
             ? SrrNameCanonicalizer.GetFinalPath(outputPath)
             : Path.Combine(
                 SrrNameCanonicalizer.GetFinalPath(Path.GetDirectoryName(Path.GetFullPath(outputPath))!),
                 Path.GetFileName(outputPath));
 
-        foreach (string input in inputFiles)
+    /// <summary>
+    /// Rejects <paramref name="outputKey"/> (from <see cref="ComputeOutputKey"/>) if it matches
+    /// the OS final path of any of <paramref name="candidatePaths"/> — reused for BOTH the
+    /// pre-resolution check (explicit inputs/stored sources) and the post-resolution check
+    /// (discovered volumes/stored sources, codex/peer C1) so a symlink/junction can't disguise a
+    /// self-collision either way.
+    /// </summary>
+    private static void RejectIfOutputMatches(string outputKey, IEnumerable<string> candidatePaths, string sourceKind)
+    {
+        foreach (string candidate in candidatePaths)
         {
-            if (string.Equals(outputKey, SrrNameCanonicalizer.GetFinalPath(input), StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(outputKey, SrrNameCanonicalizer.GetFinalPath(candidate), StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"Output path is the same as an input: {input}");
+                throw new InvalidOperationException($"Output path is the same as {sourceKind}: {candidate}");
             }
         }
+    }
 
-        if (additionalFiles is null)
+    /// <summary>
+    /// Creates the transaction's temp file exclusively (<see cref="FileMode.CreateNew"/>) so an
+    /// astronomically unlikely 8-hex suffix collision with a pre-existing file can never be
+    /// silently truncated (codex/peer C7, unlike <see cref="FileMode.Create"/>); on that
+    /// collision, regenerates the suffix and retries a bounded number of times.
+    /// </summary>
+    private static (FileStream Stream, string Path) CreateExclusiveTempFile(string outputPath)
+    {
+        const int maxAttempts = 5;
+        for (int attempt = 1; ; attempt++)
         {
-            return;
-        }
-
-        foreach (StoredFileEntry entry in additionalFiles)
-        {
-            if (string.Equals(outputKey, SrrNameCanonicalizer.GetFinalPath(entry.FullPath), StringComparison.OrdinalIgnoreCase))
+            string candidate = outputPath + ".tmp-" + Guid.NewGuid().ToString("N")[..8];
+            try
             {
-                throw new InvalidOperationException($"Output path is the same as a stored source: {entry.FullPath}");
+                return (new FileStream(candidate, FileMode.CreateNew, FileAccess.Write, FileShare.None), candidate);
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                // Regenerate and retry — see summary above.
             }
         }
     }
@@ -468,6 +528,15 @@ public class SRRWriter
                 continue;
             }
 
+            // Clause 2: a first RAR volume is always named .rar — plain old-style .rar, or new-
+            // style .partN.rar (which itself ends in ".rar"). A lone .rNN/.NNN continuation can
+            // never be a first volume, even when no sibling .rar exists on disk to disprove it
+            // via the chain-walk below (pyrescene get_start_rar_files parity).
+            if (!string.Equals(Path.GetExtension(input), ".rar", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"'{Path.GetFileName(input)}' is not a first RAR volume.");
+            }
+
             List<string> chainFiles = FileOperations.GetAllVolumeFiles(input);
             if (chainFiles.Count == 0)
             {
@@ -495,7 +564,7 @@ public class SRRWriter
             {
                 string name = storeRelativePaths
                     ? SrrNameCanonicalizer.CanonicalizeRelative(rootFinal!, volumePath)
-                    : Path.GetFileName(volumePath);
+                    : SrrNameCanonicalizer.CanonicalizeLogicalName(Path.GetFileName(volumePath));
                 result.Add((name, volumePath));
             }
         }
@@ -525,8 +594,11 @@ public class SRRWriter
     /// already present as a source. A source already seen (by <see cref="SrrNameCanonicalizer.GetFinalPath"/>,
     /// ordinal-ignore-case) is silently skipped; a logical name claimed by two DISTINCT sources
     /// is an error naming both (strict — unlike <see cref="CreateAsync"/>'s legacy first-wins skip).
+    /// Also returns the source/name registries so <see cref="ReconcileVolumesAgainstStoredFiles"/>
+    /// can extend the SAME collision/dedup policy over volumes (spec §1a is writer-wide, not
+    /// stored-files-only — codex/peer C3).
     /// </summary>
-    private static List<StoredFileEntry> ResolveStoredFiles(
+    private static (List<StoredFileEntry> Files, HashSet<string> SourcesSeen, Dictionary<string, string> NamesSeen) ResolveStoredFiles(
         IReadOnlyList<string> inputFiles,
         IReadOnlyList<StoredFileEntry>? additionalFiles,
         string? rootFinal,
@@ -547,7 +619,7 @@ public class SRRWriter
             if (namesSeen.TryGetValue(logicalName, out string? existingSource))
             {
                 throw new InvalidOperationException(
-                    $"Stored logical name '{logicalName}' has distinct sources: '{existingSource}' and '{sourcePath}'.");
+                    $"Logical name '{logicalName}' has distinct sources: '{existingSource}' and '{sourcePath}'.");
             }
 
             namesSeen[logicalName] = sourcePath;
@@ -569,10 +641,46 @@ public class SRRWriter
                 continue;
             }
 
+            // Flat names still route through CanonicalizeLogicalName (codex/peer C2): a POSIX
+            // file name may legally contain '\', which would otherwise survive raw and become a
+            // traversal-form name when the SRR is later parsed/extracted on Windows.
             string logicalName = storeRelativePaths
                 ? SrrNameCanonicalizer.CanonicalizeRelative(rootFinal!, input)
-                : Path.GetFileName(input);
+                : SrrNameCanonicalizer.CanonicalizeLogicalName(Path.GetFileName(input));
             AddCandidate(logicalName, input);
+        }
+
+        return (result, sourcesSeen, namesSeen);
+    }
+
+    /// <summary>
+    /// Extends <see cref="ResolveStoredFiles"/>'s collision/dedup registry over the resolved
+    /// volume list, in emission order (stored files are written first, so they seed the
+    /// registry; volumes are walked next) — closing the writer-wide policy gap (§1a is not
+    /// stored-files-only): the SAME volume source resolved twice (e.g. two SFVs referencing it)
+    /// is silently deduplicated, a volume name colliding with an already-claimed name (whether
+    /// from a stored file or an earlier volume) by a DISTINCT source is a strict error.
+    /// </summary>
+    private static List<(string Name, string Path)> ReconcileVolumesAgainstStoredFiles(
+        IEnumerable<(string Name, string Path)> volumes, HashSet<string> sourcesSeen, Dictionary<string, string> namesSeen)
+    {
+        var result = new List<(string Name, string Path)>();
+        foreach ((string Name, string Path) volume in volumes)
+        {
+            string sourceFinal = SrrNameCanonicalizer.GetFinalPath(volume.Path);
+            if (!sourcesSeen.Add(sourceFinal))
+            {
+                continue; // Duplicate identical source -> deduplicated silently (spec §1a).
+            }
+
+            if (namesSeen.TryGetValue(volume.Name, out string? existingSource))
+            {
+                throw new InvalidOperationException(
+                    $"Logical name '{volume.Name}' has distinct sources: '{existingSource}' and '{volume.Path}'.");
+            }
+
+            namesSeen[volume.Name] = volume.Path;
+            result.Add(volume);
         }
 
         return result;

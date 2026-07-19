@@ -291,4 +291,185 @@ public class SRRWriterMultiInputTests : IDisposable
         Assert.Equal([4, 5, 6], File.ReadAllBytes(_out));
         Assert.Empty(Directory.GetFiles(_root, "*.tmp-*"));
     }
+
+    // --- Review-fix regression coverage (task-2-findings.md C1-C6; C7 has no deterministic test
+    // per the finding's own allowance) ---
+
+    // C1: output self-collision must also be checked against the FULLY RESOLVED emission set —
+    // a.r00 is only ever discovered via the SFV, never an `inputFiles` entry itself.
+    [Fact]
+    public async Task OutputEqualsDiscoveredVolume_ReturnsError_SourcePreserved()
+    {
+        string volumePath = Path.Combine(_root, "CD1", "a.r00");
+        byte[] originalBytes = File.ReadAllBytes(volumePath);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            volumePath, [Sfv("CD1", "a")], _root, true);
+
+        Assert.NotNull(r.ErrorMessage);
+        Assert.Equal(originalBytes, File.ReadAllBytes(volumePath));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_root, "CD1"), "*.tmp-*"));
+    }
+
+    // C2: flat volume/stored names must route through CanonicalizeLogicalName, not raw
+    // Path.GetFileName. Not portably constructible as a real file on Windows (backslash is a
+    // path separator here) — the direct assertion pins the canonicalizer boundary the flat
+    // branches now call; the second test proves ordinary names still come out unchanged.
+    [Fact]
+    public void CanonicalizeLogicalName_BackslashParentTraversal_Throws() =>
+        Assert.Throws<SrrNameException>(() => SrrNameCanonicalizer.CanonicalizeLogicalName("..\\evil.sfv"));
+
+    [Fact]
+    public async Task FlatNaming_RoutesVolumeAndStoredNamesThroughCanonicalizer()
+    {
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            _out, [Sfv("CD1", "a")], _root, storeRelativePaths: false);
+
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(_out);
+        Assert.Equal(["a.sfv"], srr.StoredFiles.Select(f => f.FileName));
+        Assert.Equal(["a.rar", "a.r00"], srr.RARFiles.Select(f => f.FileName));
+    }
+
+    // C3: the §1a collision/dedup policy is writer-wide (stored files AND volumes), checked in
+    // emission order.
+    [Fact]
+    public async Task TwoSfvsReferenceSameVolume_WrittenOnce()
+    {
+        string sharedDir = Path.Combine(_root, "Shared");
+        Directory.CreateDirectory(sharedDir);
+        RarFixtures.WriteStoreModeRarSet(sharedDir, "shared", volumeCount: 2, payloadBytes: 32);
+
+        string sfvA = Path.Combine(_root, "A.sfv");
+        string sfvB = Path.Combine(_root, "B.sfv");
+        File.WriteAllLines(sfvA, ["Shared/shared.rar 00000000", "Shared/shared.r00 00000000"]);
+        File.WriteAllLines(sfvB, ["Shared/shared.rar 00000000", "Shared/shared.r00 00000000"]);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            _out, [sfvA, sfvB], _root, storeRelativePaths: true);
+
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(_out);
+        Assert.Equal(["Shared/shared.rar", "Shared/shared.r00"], srr.RARFiles.Select(f => f.FileName));
+    }
+
+    [Fact]
+    public async Task DistinctChainsSameFlatBasename_ReturnsErrorNamingBoth()
+    {
+        string dir1 = Path.Combine(_root, "Y1");
+        string dir2 = Path.Combine(_root, "Y2");
+        Directory.CreateDirectory(dir1);
+        Directory.CreateDirectory(dir2);
+        RarFixtures.WriteStoreModeRarSet(dir1, "dup", volumeCount: 1, payloadBytes: 32);
+        RarFixtures.WriteStoreModeRarSet(dir2, "dup", volumeCount: 1, payloadBytes: 32);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            _out, [Path.Combine(dir1, "dup.rar"), Path.Combine(dir2, "dup.rar")], _root, storeRelativePaths: false);
+
+        Assert.NotNull(r.ErrorMessage);
+        Assert.Contains("Y1", r.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("Y2", r.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StoredFileAndVolumeSameFlatName_ReturnsError()
+    {
+        string fakeRar = Path.Combine(_root, "fake.bin");
+        File.WriteAllText(fakeRar, "not a rar");
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            _out, [Path.Combine(_root, "CD1", "a.rar")], _root, storeRelativePaths: false,
+            additionalFiles: [new StoredFileEntry("a.rar", fakeRar)]);
+
+        Assert.NotNull(r.ErrorMessage);
+    }
+
+    // C4: a lone .rNN with no .rar sibling on disk can never be a first volume.
+    [Fact]
+    public async Task LoneRNNWithoutRarSibling_DirectInput_ReturnsError()
+    {
+        string dir = Path.Combine(_root, "LoneR00");
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "x.r00"), [0]);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            Path.Combine(dir, "out.srr"), [Path.Combine(dir, "x.r00")], _root, storeRelativePaths: true);
+
+        Assert.Contains("not a first RAR volume", r.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    // C5: the atomic commit (File.Move) must be the LAST fallible action affecting the result —
+    // a throwing Progress subscriber on the final "complete" event must not flip an
+    // already-committed success into a failure, nor surface as a lost-destination cancel.
+    [Fact]
+    public async Task ProgressHandlerThrowsOnCompletion_StillReportsCommittedSuccess()
+    {
+        _writer.Progress += (_, args) =>
+        {
+            if (args.Message == "SRR creation complete.")
+            {
+                throw new InvalidOperationException("boom");
+            }
+        };
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(_out, [Sfv("CD1", "a")], _root, true);
+
+        Assert.True(r.Success);
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(_out);
+        Assert.Equal(2, srr.RARFiles.Count);
+    }
+
+    [Fact]
+    public async Task ProgressHandlerThrowsCancellationOnCompletion_DoesNotSurfaceAsCancelOrLoseDestination()
+    {
+        _writer.Progress += (_, args) =>
+        {
+            if (args.Message == "SRR creation complete.")
+            {
+                throw new OperationCanceledException("boom");
+            }
+        };
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(_out, [Sfv("CD1", "a")], _root, true);
+
+        Assert.True(r.Success);
+        Assert.Null(r.ErrorMessage);
+        Assert.True(File.Exists(_out));
+    }
+
+    // C6: RARVolumeNaming.GetBaseName must anchor to the TRAILING .partN.rar suffix, not the
+    // first ".part"-like substring, so two chains whose release name itself contains ".Part.N"
+    // don't collapse into one.
+    [Fact]
+    public async Task PartNameContainingLiteralPartSegment_DoesNotMergeDistinctChains()
+    {
+        string dir = Path.Combine(_root, "TwoPartMovie");
+        Directory.CreateDirectory(dir);
+        RarFixtures.WriteStoreModePartRarSet(dir, "The.Movie.Part.1", volumeCount: 2, payloadBytes: 32, digitWidth: 2);
+        RarFixtures.WriteStoreModePartRarSet(dir, "The.Movie.Part.2", volumeCount: 2, payloadBytes: 32, digitWidth: 2);
+
+        string sfvPath = Path.Combine(dir, "movie.sfv");
+        File.WriteAllLines(sfvPath,
+        [
+            "The.Movie.Part.1.part01.rar 00000000",
+            "The.Movie.Part.2.part01.rar 00000000",
+            "The.Movie.Part.1.part02.rar 00000000",
+            "The.Movie.Part.2.part02.rar 00000000",
+        ]);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
+
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        Assert.Equal(
+            [
+                "TwoPartMovie/The.Movie.Part.1.part01.rar",
+                "TwoPartMovie/The.Movie.Part.1.part02.rar",
+                "TwoPartMovie/The.Movie.Part.2.part01.rar",
+                "TwoPartMovie/The.Movie.Part.2.part02.rar",
+            ],
+            srr.RARFiles.Select(f => f.FileName));
+    }
 }

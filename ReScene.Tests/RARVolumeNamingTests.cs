@@ -61,6 +61,8 @@ public class RARVolumeNamingTests
     [InlineData("release.part001.rar", "release")]
     [InlineData("RELEASE.PART01.RAR", "RELEASE")]
     [InlineData("my.show.s01e01.part02.rar", "my.show.s01e01")]
+    [InlineData("The.Movie.Part.1.part01.rar", "The.Movie.Part.1")]
+    [InlineData("The.Movie.Part.2.part01.rar", "The.Movie.Part.2")]
     public void GetBaseName_StripsPartSegment(string fileName, string expected) => Assert.Equal(expected, RARVolumeNaming.GetBaseName(fileName));
 
     [Theory]

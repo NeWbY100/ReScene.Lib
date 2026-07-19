@@ -15,8 +15,8 @@ internal static partial class RARVolumeNaming
     public static string? GetNextVolumePath(string currentPath, bool isOldNaming) => isOldNaming ? GetNextOldStyleVolume(currentPath) : GetNextNewStyleVolume(currentPath);
 
     /// <summary>
-    /// Extracts the archive base name from a volume file name by stripping a
-    /// <c>.partNN</c> segment when the file is a <c>.partNN.rar</c> volume. For all
+    /// Extracts the archive base name from a volume file name by stripping a trailing
+    /// <c>.partNN.rar</c> suffix when the file is a <c>.partNN.rar</c> volume. For all
     /// other names (including old-style <c>.rNN</c> volumes and plain <c>.rar</c>)
     /// the file name without its extension is returned.
     /// </summary>
@@ -25,14 +25,17 @@ internal static partial class RARVolumeNaming
     /// </param>
     public static string GetBaseName(string fileName)
     {
-        if (fileName.Contains(".part", StringComparison.OrdinalIgnoreCase)
-            && fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+        // Anchored to the TRAILING ".part<digits>.rar" suffix via NewStylePartRegex's own "$"
+        // end-anchor (codex/peer C6) — a first IndexOf(".part") match would strip at an earlier,
+        // unrelated ".part"/".Part" substring in a release name (e.g. "The.Movie.Part.1.part01.rar"
+        // and "The.Movie.Part.2.part01.rar" both collapsing to "The.Movie", merging two distinct
+        // archive sets into one chain). The regex backtracks past any non-trailing occurrence, so
+        // only the real numbering suffix is stripped, regardless of how many ".part"-like
+        // substrings appear earlier in the name.
+        Match match = NewStylePartRegex().Match(fileName);
+        if (match.Success)
         {
-            int partIndex = fileName.IndexOf(".part", StringComparison.OrdinalIgnoreCase);
-            if (partIndex > 0)
-            {
-                return fileName[..partIndex];
-            }
+            return fileName[..match.Index];
         }
 
         return Path.GetFileNameWithoutExtension(fileName);
