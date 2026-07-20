@@ -45,6 +45,29 @@ internal static class RarFixtures
         }
     }
 
+    /// <summary>
+    /// Writes a single-volume store-mode RAR4 file containing one packed-file (file header) block
+    /// per name in <paramref name="entryNames"/>, in order — for tests that need multiple packed
+    /// blocks in one archive, e.g. <c>RarProofInspector</c>'s last-block-wins state machine, where
+    /// only the ordering of packed-file blocks (not their content) matters.
+    /// </summary>
+    public static void WriteMultiEntryRarFile(string path, params string[] entryNames)
+    {
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var writer = new BinaryWriter(fs);
+
+        writer.Write(RAR4Marker);
+        WriteArchiveHeader(writer, RARArchiveFlags.None);
+        byte[] payload = [1, 2, 3, 4];
+        foreach (string name in entryNames)
+        {
+            WriteFileHeader(writer, name, (uint)payload.Length, RARFileFlags.LongBlock);
+            writer.Write(payload);
+        }
+
+        WriteEndArchive(writer);
+    }
+
     private static void WriteVolume(string path, string archivedFileName, int payloadBytes, int index, int volumeCount)
     {
         RARArchiveFlags archiveFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering;

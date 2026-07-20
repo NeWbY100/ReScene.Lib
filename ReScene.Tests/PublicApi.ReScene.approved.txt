@@ -385,6 +385,20 @@ enum ReScene.RAR.Decompression.RARVersion
     field RARVersion RAR20
     field RARVersion RAR29
     field RARVersion RAR50
+class sealed ReScene.RAR.ProofRarFacts
+    ctor (Boolean, Boolean, Boolean, Boolean)
+    method Boolean Equals(Object)
+    method Boolean Equals(ProofRarFacts)
+    method Boolean op_Equality(ProofRarFacts, ProofRarFacts)
+    method Boolean op_Inequality(ProofRarFacts, ProofRarFacts)
+    method Int32 GetHashCode()
+    method ProofRarFacts <Clone>$()
+    method String ToString()
+    method Void Deconstruct(Boolean&, Boolean&, Boolean&, Boolean&)
+    property Boolean AnyImage { get; set; }
+    property Boolean HasPackedBlocks { get; set; }
+    property Boolean LastPackedIsImage { get; set; }
+    property Boolean Readable { get; set; }
 class ReScene.RAR.RAR5ArchiveInfo
     ctor ()
     property Boolean HasRecoveryRecord { get; }
@@ -504,6 +518,8 @@ class ReScene.RAR.RARHeaderField
     property String Description { get; set; }
     property String Name { get; set; }
     property String Value { get; set; }
+class static ReScene.RAR.RarProofInspector
+    method ProofRarFacts Inspect(String)
 enum ReScene.RAR.TimestampPrecision
     field Byte value__
     field TimestampPrecision HighPrecision1
