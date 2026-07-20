@@ -176,6 +176,17 @@ public class FullPipelineGoldenTests : IDisposable
     /// pass-10-reorder would produce: nfo, generated SRS, nested SRR, its SFV (no proof pairs in
     /// this tree, so ApplyProofBeforeSfvReorder is a no-op — verified separately by
     /// CreatorViewModelArtifactTests).
+    ///
+    /// E1(d) NOTE (Task 9 second fix round): this list's ORDER is HAND-BUILT/hardcoded above, not
+    /// produced by running the actual scanner/VM ordering logic (a lib test cannot reference
+    /// App.Core at all). This golden therefore validates the WRITER's byte-for-byte output GIVEN a
+    /// correct, reference-order stored list — it does NOT validate that ReleaseScanner/
+    /// CreatorViewModel actually PRODUCE that order in production (e.g. main-sfv deferral, proof-
+    /// directory splice reconciliation, multi-chain subtitle naming). That ordering correctness is
+    /// covered separately by ReScene.App.Core.Tests (ReleaseScannerStoredTests/
+    /// ReleaseScannerMainSetTests and CreatorViewModelArtifactTests, notably the E1-E4 tests added
+    /// alongside this note) — a passing golden alone does NOT prove the scanner/VM ordering is
+    /// correct, only that the writer is, so don't read it as full-pipeline ordering validation.
     /// </summary>
     private static async Task<List<StoredFileEntry>> BuildStoredListForFullPipeline(string tree, string workDir)
     {
