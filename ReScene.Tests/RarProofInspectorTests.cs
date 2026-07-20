@@ -94,4 +94,49 @@ public class RarProofInspectorTests : TempDirTestBase
 
         Assert.False(facts.Readable);
     }
+
+    [Fact]
+    public void Inspect_TruncatedBlockHeader_ReportsUnreadable_NotCleanEndOfArchive()
+    {
+        // Task 5 fix round I1: a null block returned WHILE CanReadBaseHeader was still true is
+        // corruption, not a clean end of archive (a clean end is CanReadBaseHeader itself going
+        // false). Before the fix this fell through the loop as a "clean" partial success
+        // (Readable=true, HasPackedBlocks=false).
+        string path = Path.Combine(TempDir, "p.rar");
+        RarFixtures.WriteTruncatedRarFile(path);
+
+        ProofRarFacts facts = RarProofInspector.Inspect(path);
+
+        Assert.False(facts.Readable);
+    }
+
+    [Fact]
+    public void Inspect_MalformedPackedSizeWouldMoveBackward_ReportsUnreadable_DoesNotThrowOrHang()
+    {
+        // Task 5 fix round I2: a hostile/malformed 64-bit packed size (top bit set) casts to a
+        // deeply negative long via RARBlockReadResult.DataSize, which — without the
+        // forward-progress guard — assigns a negative Stream.Position and throws
+        // ArgumentOutOfRangeException uncaught (not an IOException, so the existing catch clause
+        // did not save it). The guard must catch this before the assignment and report
+        // Readable=false instead.
+        string path = Path.Combine(TempDir, "p.rar");
+        RarFixtures.WriteMalformedPackedSizeRarFile(path);
+
+        ProofRarFacts facts = RarProofInspector.Inspect(path);
+
+        Assert.False(facts.Readable);
+    }
+
+    [Fact]
+    public void Inspect_PreCancelledToken_ThrowsOperationCanceled()
+    {
+        // Task 5 fix round I4: Inspect gained a CancellationToken parameter, checked per block-loop
+        // iteration.
+        string path = Path.Combine(TempDir, "p.rar");
+        RarFixtures.WriteMultiEntryRarFile(path, "cover.jpg");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => RarProofInspector.Inspect(path, cts.Token));
+    }
 }

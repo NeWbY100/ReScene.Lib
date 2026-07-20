@@ -68,6 +68,72 @@ internal static class RarFixtures
         WriteEndArchive(writer);
     }
 
+    /// <summary>
+    /// Writes marker + archive header + a truncated block header that declares a headerSize far
+    /// beyond what the file actually contains — enough bytes exist for
+    /// <c>RARHeaderReader.CanReadBaseHeader</c> to be true (so a walker attempts the block) but not
+    /// enough for <c>ReadBlock</c> to succeed. Proves the "a null block mid-stream is corruption,
+    /// not a clean end of archive" distinction <c>RarProofInspector</c> must make.
+    /// </summary>
+    public static void WriteTruncatedRarFile(string path)
+    {
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var writer = new BinaryWriter(fs);
+
+        writer.Write(RAR4Marker);
+        WriteArchiveHeader(writer, RARArchiveFlags.None);
+
+        byte[] fakeHeader = new byte[7];
+        fakeHeader[2] = 0x74;                                     // FileHeader type
+        BitConverter.GetBytes((ushort)0).CopyTo(fakeHeader, 3);   // flags
+        BitConverter.GetBytes((ushort)100).CopyTo(fakeHeader, 5); // headerSize -- far beyond EOF
+        WriteCrc(fakeHeader);
+        writer.Write(fakeHeader);
+    }
+
+    /// <summary>
+    /// Writes a single packed-file block whose 64-bit packed size (via <c>LHD_LARGE</c>'s
+    /// HIGH_PACK_SIZE field) has its top bit set. <c>RARBlockReadResult.DataSize</c> casts the
+    /// unsigned packed size to a signed <c>long</c>, so this wraps to a deeply negative value —
+    /// proving <c>RarProofInspector</c>'s forward-progress guard against a hostile/malformed size
+    /// field that would otherwise seek the stream backward (hang) or to a negative position
+    /// (uncaught throw).
+    /// </summary>
+    public static void WriteMalformedPackedSizeRarFile(string path)
+    {
+        const string name = "x.jpg";
+        byte[] nameBytes = Encoding.ASCII.GetBytes(name);
+        ushort nameSize = (ushort)nameBytes.Length;
+        ushort headerSize = (ushort)(7 + 25 + 8 + nameSize); // +8 for HIGH_PACK_SIZE/HIGH_UNP_SIZE
+
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74; // FileHeader
+        BitConverter.GetBytes((ushort)(RARFileFlags.LongBlock | RARFileFlags.Large)).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(0u).CopyTo(header, 7);            // ADD_SIZE (low 32 bits of packed size)
+        BitConverter.GetBytes(0u).CopyTo(header, 11);           // UNP_SIZE
+        header[15] = 2;                                          // HOST_OS
+        BitConverter.GetBytes(0u).CopyTo(header, 16);           // FILE_CRC
+        BitConverter.GetBytes(0u).CopyTo(header, 20);           // FILE_TIME
+        header[24] = 29;                                         // UNP_VER
+        header[25] = 0x30;                                       // METHOD: Store
+        BitConverter.GetBytes(nameSize).CopyTo(header, 26);
+        BitConverter.GetBytes(0x20u).CopyTo(header, 28);        // ATTR
+        BitConverter.GetBytes(0x80000000u).CopyTo(header, 32);  // HIGH_PACK_SIZE: top bit set
+        BitConverter.GetBytes(0u).CopyTo(header, 36);           // HIGH_UNP_SIZE
+        nameBytes.CopyTo(header, 40);
+
+        WriteCrc(header);
+
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var writer = new BinaryWriter(fs);
+        writer.Write(RAR4Marker);
+        WriteArchiveHeader(writer, RARArchiveFlags.None);
+        writer.Write(header);
+        // Deliberately no payload / end-archive block -- the malformed size must be caught before
+        // a walker would ever try to skip past the (nonexistent) packed data.
+    }
+
     private static void WriteVolume(string path, string archivedFileName, int payloadBytes, int index, int volumeCount)
     {
         RARArchiveFlags archiveFlags = RARArchiveFlags.Volume | RARArchiveFlags.NewNumbering;

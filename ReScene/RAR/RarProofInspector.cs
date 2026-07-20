@@ -17,24 +17,30 @@ public static class RarProofInspector
     // its whole (shorter) tail, same as Python's `name[-4:]` slicing.
     private static readonly string[] _imageLast4 = [".jpg", "jpeg", ".png", ".bmp", ".gif"];
 
+    // The single "we could not verify this RAR at all" outcome — RAR5, a corrupt/truncated header,
+    // a malformed size field, or a genuine I/O error all collapse to this same instance so callers
+    // get one warning path regardless of cause.
+    private static readonly ProofRarFacts _unreadable = new(Readable: false, HasPackedBlocks: false, AnyImage: false, LastPackedIsImage: false);
+
     /// <summary>
     /// Opens <paramref name="rarPath"/> and walks its packed-file (RAR4) blocks. RAR5 archives
     /// report <see cref="ProofRarFacts.Readable"/> = <see langword="false"/> — the ported pyrescene
     /// logic has no RAR5 support (excerpt: "No RAR5 support yet" at L375). A corrupt/truncated
-    /// header likewise reports <see langword="false"/>, mirroring the excerpt's caught
-    /// <c>ValueError</c> path. [DIVERGENCE: hardening] the excerpt catches only <c>ValueError</c>
-    /// and lets other I/O errors crash; this port folds every read failure (RAR5, corrupt headers,
-    /// file I/O errors) into the same <c>Readable=false</c> outcome so callers get one warning path
-    /// instead of an unhandled exception.
+    /// header, or a block whose declared size would not advance the stream (hostile/malformed
+    /// 64-bit packed size), likewise reports <see langword="false"/> rather than hanging or seeking
+    /// to an invalid position — mirroring the excerpt's caught <c>ValueError</c> path.
+    /// [DIVERGENCE: hardening] the excerpt catches only <c>ValueError</c> and lets other failures
+    /// crash; this port folds every read failure into the same <c>Readable=false</c> outcome so
+    /// callers get one warning path instead of an unhandled exception or an infinite loop.
     /// </summary>
-    public static ProofRarFacts Inspect(string rarPath)
+    public static ProofRarFacts Inspect(string rarPath, CancellationToken ct = default)
     {
         try
         {
             using var fs = new FileStream(rarPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (RARUtils.IsRAR5Marker(fs))
             {
-                return new ProofRarFacts(Readable: false, HasPackedBlocks: false, AnyImage: false, LastPackedIsImage: false);
+                return _unreadable;
             }
 
             fs.Position = 0;
@@ -45,10 +51,16 @@ public static class RarProofInspector
 
             while (reader.CanReadBaseHeader)
             {
+                ct.ThrowIfCancellationRequested();
+
                 RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
                 if (block is null)
                 {
-                    break;
+                    // CanReadBaseHeader was true (enough bytes existed for a base header) yet
+                    // ReadBlock still failed — a malformed/truncated block header, NOT a clean end
+                    // of archive (a clean end is CanReadBaseHeader itself going false on the next
+                    // loop check). Treat as corrupt rather than reporting a partial success.
+                    return _unreadable;
                 }
 
                 // excerpt: remove_unwanted_sfvs L368 — `block.rawtype == BlockType.RarPackedFile`
@@ -71,6 +83,17 @@ public static class RarProofInspector
                     target += block.AddSize;
                 }
 
+                // Forward-progress guard: a hostile/malformed 64-bit packed size can wrap negative
+                // when RARBlockReadResult.DataSize casts it to a signed long, pushing `target`
+                // behind (or onto) this very block's own start. Without this check that either
+                // throws (a negative Stream.Position, uncaught by the catch below since it isn't
+                // an IOException) or re-reads the same bytes forever. Never trust a size field that
+                // doesn't move the stream strictly past where this block began.
+                if (target <= block.BlockPosition)
+                {
+                    return _unreadable;
+                }
+
                 fs.Position = Math.Min(target, fs.Length);
             }
 
@@ -78,7 +101,7 @@ public static class RarProofInspector
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            return new ProofRarFacts(Readable: false, HasPackedBlocks: false, AnyImage: false, LastPackedIsImage: false);
+            return _unreadable;
         }
     }
 

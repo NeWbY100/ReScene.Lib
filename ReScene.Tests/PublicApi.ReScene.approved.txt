@@ -519,7 +519,7 @@ class ReScene.RAR.RARHeaderField
     property String Name { get; set; }
     property String Value { get; set; }
 class static ReScene.RAR.RarProofInspector
-    method ProofRarFacts Inspect(String)
+    method ProofRarFacts Inspect(String, CancellationToken)
 enum ReScene.RAR.TimestampPrecision
     field Byte value__
     field TimestampPrecision HighPrecision1
