@@ -47,7 +47,7 @@ public sealed class SfvVolumeResolverTests : IDisposable
     }
 
     [Fact]
-    public void ResolveOrderedChains_SpacedRarName_OneChain_BothVolumesSorted()
+    public void ResolveOrderedChains_SpacedRarName_OneChain_BothVolumesGrouped()
     {
         Touch("sub title.rar");
         Touch("sub title.r00");
