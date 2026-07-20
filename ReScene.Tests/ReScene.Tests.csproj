@@ -23,11 +23,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
     <!-- TestData/multiset/tools/build-tree.cs is a standalone .NET file-based app (its own
-         `#:package` directive), never part of this project's own compilation — see
-         TestData/multiset/README.md. -->
+         `#:package` directive), never part of this project's own compilation and never needed at
+         test run time — see TestData/multiset/README.md. Excluded from the None/copy-to-output
+         glob entirely (not just from Compile): otherwise it lands in bin/, and a forced rebuild
+         that redirects BaseOutputPath (the gate's `-p:BaseOutputPath=bin2/`) shifts the SDK's
+         default compile-exclude away from the conventional bin/, so that stale copy would get
+         swept into Compile and fail with CS9298 ('#:' directives are file-based-app only). The
+         Compile Removes below are belt-and-suspenders against any OTHER stray .cs that ends up
+         under bin/obj (e.g. from a source generator or a future copy glob) for the same reason. -->
+    <None Include="TestData\**\*" Exclude="TestData\**\*.cs" CopyToOutputDirectory="PreserveNewest" />
     <Compile Remove="TestData\**\*.cs" />
+    <Compile Remove="bin\**\*.cs" />
+    <Compile Remove="obj\**\*.cs" />
   </ItemGroup>
 
 </Project>
