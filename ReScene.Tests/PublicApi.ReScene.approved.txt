@@ -558,6 +558,7 @@ class ReScene.SRR.SRRBlock
 enum ReScene.SRR.SRRBlockFlags
     field SRRBlockFlags LongBlock
     field SRRBlockFlags None
+    field SRRBlockFlags RecoveryBlocksRemoved
     field SRRBlockFlags SkipIfUnknown
     field UInt16 value__
 enum ReScene.SRR.SRRBlockType

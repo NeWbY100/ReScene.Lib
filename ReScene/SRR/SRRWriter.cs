@@ -745,7 +745,8 @@ public class SRRWriter
 
         writer.Write(SRRBlockLayout.RARFileSentinel);      // CRC (SRR RAR file sentinel)
         writer.Write((byte)SRRBlockType.RARFile);          // RARFile type
-        writer.Write((ushort)SRRBlockFlags.None);          // flags
+        // pyReScene parity (see SRRBlockFlags.RecoveryBlocksRemoved doc): set unconditionally.
+        writer.Write((ushort)SRRBlockFlags.RecoveryBlocksRemoved); // flags
         writer.Write(headerSize);
         writer.Write((ushort)nameBytes.Length);
         writer.Write(nameBytes);
