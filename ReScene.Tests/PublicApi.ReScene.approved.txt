@@ -715,6 +715,9 @@ class ReScene.SRR.SRRWriter
     method Task<SRRCreationResult> CreateAsync(String, IReadOnlyList<String>, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
     method Task<SRRCreationResult> CreateFromInputsAsync(String, IReadOnlyList<String>, String, Boolean, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
     method Task<SRRCreationResult> CreateFromSFVAsync(String, String, IReadOnlyList<StoredFileEntry>, SRRCreationOptions, CancellationToken)
+class static ReScene.SRR.SfvVolumeResolver
+    method IEnumerable<String> ParseSfvEntryNames(IEnumerable<String>)
+    method IReadOnlyList<IReadOnlyList<String>> ResolveOrderedChains(String, IEnumerable<String>)
 class static ReScene.SRR.SrrNameCanonicalizer
     method String CanonicalizeLogicalName(String)
     method String CanonicalizeRelative(String, String)

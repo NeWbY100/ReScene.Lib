@@ -227,7 +227,7 @@ public class SRRWriter
 
         // Parse SFV to find RAR volumes
         var rarFiles = new List<string>();
-        foreach (string fileName in ParseSfvEntryNames(sfvLines))
+        foreach (string fileName in SfvVolumeResolver.ParseSfvEntryNames(sfvLines))
         {
             if (RARVolumeIdentifier.IsRARVolume(fileName))
             {
@@ -516,12 +516,18 @@ public class SRRWriter
             {
                 string sfvDir = Path.GetDirectoryName(input) ?? ".";
                 string[] lines = await File.ReadAllLinesAsync(input, ct).ConfigureAwait(false);
-                foreach (string entryName in ParseSfvEntryNames(lines))
+
+                // SFV->ordered-chains resolution now lives in the shared SfvVolumeResolver (single
+                // source of truth with the folder-mode subtitle path — codex Task 9 fix-3 G3/G4).
+                // Fold each resolved chain's volumes into this cross-input accumulator: re-grouping
+                // already-grouped volumes through AddVolumeToChain is idempotent (same first-seen
+                // key order; the final per-chain sort below re-sorts), so ResolveVolumesAsync's
+                // exact byte output is unchanged — proven by FullPipelineGoldenTests.
+                foreach (IReadOnlyList<string> chain in SfvVolumeResolver.ResolveOrderedChains(sfvDir, lines))
                 {
-                    string resolved = SrrNameCanonicalizer.ResolveSfvEntry(sfvDir, entryName);
-                    if (RARVolumeIdentifier.IsRARVolume(resolved))
+                    foreach (string volumePath in chain)
                     {
-                        AddVolumeToChain(chains, chainOrder, resolved);
+                        AddVolumeToChain(chains, chainOrder, volumePath);
                     }
                 }
 
@@ -684,32 +690,6 @@ public class SRRWriter
         }
 
         return result;
-    }
-
-    /// <summary>
-    /// Extracts candidate file names from SFV lines ("filename CRC32", CRC being the trailing
-    /// whitespace-delimited token so names may themselves contain spaces). Blank and comment
-    /// (';') lines are skipped. Shared by <see cref="CreateFromSFVAsync"/> and
-    /// <see cref="CreateFromInputsAsync"/>; callers apply their own RAR-volume filtering.
-    /// </summary>
-    private static IEnumerable<string> ParseSfvEntryNames(IEnumerable<string> lines)
-    {
-        foreach (string line in lines)
-        {
-            string trimmed = line.Trim();
-            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(';'))
-            {
-                continue;
-            }
-
-            int lastSpace = trimmed.LastIndexOf(' ');
-            if (lastSpace <= 0)
-            {
-                continue;
-            }
-
-            yield return trimmed[..lastSpace].Trim();
-        }
     }
 
     #region SRR Block Writers

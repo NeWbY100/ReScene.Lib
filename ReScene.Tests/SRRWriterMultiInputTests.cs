@@ -505,4 +505,43 @@ public class SRRWriterMultiInputTests : IDisposable
             ],
             srr.RARFiles.Select(f => f.FileName));
     }
+
+    // ── Writer<->resolver agreement (codex Task 9 fix-3 G3/G4): the SFV branch now routes through
+    //    the shared SfvVolumeResolver, the SAME code the folder-mode subtitle path uses. These
+    //    prove the extracted resolver still handles the two cases the VM copy got wrong, INSIDE
+    //    the writer's real end-to-end path. ──
+
+    [Fact]
+    public async Task Sfv_SpacedVolumeName_GroupsOneSet_NotDropped()
+    {
+        string dir = Path.Combine(_root, "Sub");
+        Directory.CreateDirectory(dir);
+        RarFixtures.WriteStoreModeRarSet(dir, "sub title", volumeCount: 2, payloadBytes: 64);
+        string sfvPath = Path.Combine(dir, "s.sfv");
+        File.WriteAllLines(sfvPath, ["sub title.rar 00000000", "sub title.r00 00000000"]);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
+
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        Assert.Equal(["Sub/sub title.rar", "Sub/sub title.r00"], srr.RARFiles.Select(f => f.FileName));
+    }
+
+    [Fact]
+    public async Task Sfv_DotSlashContinuation_FoldsIntoHeadsSet_NoSplit()
+    {
+        string dir = Path.Combine(_root, "Sub");
+        Directory.CreateDirectory(dir);
+        RarFixtures.WriteStoreModeRarSet(dir, "eng", volumeCount: 2, payloadBytes: 64);
+        string sfvPath = Path.Combine(dir, "s.sfv");
+        File.WriteAllLines(sfvPath, ["eng.rar 00000000", @".\eng.r00 00000000"]);
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
+
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        Assert.Equal(["Sub/eng.rar", "Sub/eng.r00"], srr.RARFiles.Select(f => f.FileName));
+    }
 }
