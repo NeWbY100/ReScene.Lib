@@ -16,9 +16,10 @@ public enum SRRBlockFlags : ushort
     /// block was written. pyReScene sets this unconditionally on every RAR-file block it writes,
     /// "even if there aren't RR" (rescene/rar.py, SrrRarFileBlock.__init__) — real-world SRRs
     /// (and, per that same comment, modern ReScene .NET) always carry it. Our SRRs are always
-    /// header-only/recovery-stripped, so the flag is semantically accurate here too; our own
-    /// reader (SRRRARFileBlock) never inspects it, so setting it doesn't change round-trip
-    /// behavior — it only brings our byte output into pyReScene parity.
+    /// header-only/recovery-stripped, so the flag is semantically accurate here too. Our reader
+    /// (<see cref="SRRRARFileBlock"/>) does parse and populate this flag on every read — but no
+    /// consumer branches on its value for RAR-file blocks, so setting it doesn't change round-trip
+    /// behavior; it only brings our byte output into pyReScene parity.
     /// </summary>
     RecoveryBlocksRemoved = 0x0001,
 

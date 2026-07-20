@@ -23,19 +23,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- TestData/multiset/tools/build-tree.cs is a standalone .NET file-based app (its own
-         `#:package` directive), never part of this project's own compilation and never needed at
-         test run time — see TestData/multiset/README.md. Excluded from the None/copy-to-output
-         glob entirely (not just from Compile): otherwise it lands in bin/, and a forced rebuild
-         that redirects BaseOutputPath (the gate's `-p:BaseOutputPath=bin2/`) shifts the SDK's
-         default compile-exclude away from the conventional bin/, so that stale copy would get
-         swept into Compile and fail with CS9298 ('#:' directives are file-based-app only). The
-         Compile Removes below are belt-and-suspenders against any OTHER stray .cs that ends up
-         under bin/obj (e.g. from a source generator or a future copy glob) for the same reason. -->
-    <None Include="TestData\**\*" Exclude="TestData\**\*.cs" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- tools/build-tree.cs is a standalone .NET file-based app (its own `#:package` directive),
+         never part of this project's own compilation and never needed at test run time — see
+         TestData/multiset/README.md's "Why build-tree.cs lives outside TestData/". It lives in
+         tools/, a SIBLING of TestData/ with no None/Content glob of its own, specifically so it is
+         never copied to ANY output directory — a prior version lived under TestData/ and got
+         copied to bin/ by the None glob above, and a forced rebuild that redirects BaseOutputPath
+         (the gate's `-p:BaseOutputPath=bin2/`) shifts the SDK's default compile-exclude away from
+         the conventional bin/, so a stale bin/ copy got swept into Compile and failed with CS9298
+         ('#:' directives are file-based-app only). The Compile Removes below are belt-and-
+         suspenders — kept even after the relocation — against any OTHER stray .cs landing under a
+         build output root (bin/, obj/, or the gate's bin2*) for the same reason; bin2* uses a
+         trailing wildcard so it also covers any bin2-prefixed variant, not just literal bin2/. -->
     <Compile Remove="TestData\**\*.cs" />
+    <Compile Remove="tools\**\*.cs" />
     <Compile Remove="bin\**\*.cs" />
     <Compile Remove="obj\**\*.cs" />
+    <Compile Remove="bin2*\**\*.cs" />
   </ItemGroup>
 
 </Project>

@@ -7,9 +7,10 @@ regeneration steps) and for the KNOWN DIVERGENCE this harness surfaced.
 
 Steps (docs/superpowers/specs/2026-07-18-multiset-srr-creation-design.md §6):
   1. Assert the local pyrescene checkout is pinned to the recorded commit.
-  2. (Re)build tree-2disc/ and tree-storageonly/ via the file-based C# helper (tools/build-tree.cs),
-     which ports ReScene.Tests/RarFixtures.cs's WriteStoreModeRarSet byte-for-byte so the RAR
-     volumes are produced by the same layout our own writer/tests already exercise.
+  2. (Re)build tree-2disc/ and tree-storageonly/ via the file-based C# helper
+     (../tools/build-tree.cs — deliberately OUTSIDE this TestData/ tree, see README.md's I2
+     writeup), which ports ReScene.Tests/RarFixtures.cs's WriteStoreModeRarSet byte-for-byte so
+     the RAR volumes are produced by the same layout our own writer/tests already exercise.
   3. Run `bin/pyrescene.py --no-srs --no-isdb` over each tree with PYTHONPATH pointed at the
      vendored imghdr shim (compat/imghdr.py — Python 3.13+ dropped imghdr from the stdlib).
   4. Copy the resulting .srr next to each tree as golden-<name>.srr.
@@ -45,7 +46,9 @@ def assert_pinned_pyrescene(pyrescene_dir: Path) -> None:
 
 
 def build_trees() -> None:
-    tools_dir = HERE / "tools"
+    # ReScene.Tests/tools/, a sibling of TestData/ — deliberately NOT under TestData/ so
+    # build-tree.cs is never swept up by TestData's None/copy-to-output glob (I2, README.md).
+    tools_dir = HERE.parent.parent / "tools"
     subprocess.run(
         ["dotnet", "run", "build-tree.cs", "--", str(HERE)],
         cwd=str(tools_dir), check=True,
@@ -86,7 +89,7 @@ def main() -> None:
     pyrescene_dir = Path(args.pyrescene_dir)
     assert_pinned_pyrescene(pyrescene_dir)
 
-    print("Building tree-2disc/ and tree-storageonly/ via tools/build-tree.cs ...")
+    print("Building tree-2disc/ and tree-storageonly/ via ../tools/build-tree.cs ...")
     build_trees()
 
     with tempfile.TemporaryDirectory(prefix="pyrescene-golden-") as tmp:

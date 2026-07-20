@@ -15,8 +15,9 @@ this flag, even if there aren't RR"*, `rescene/rar.py` `SrrRarFileBlock.__init__
 `SRRWriter.WriteRARFileBlock` (`ReScene/SRR/SRRWriter.cs`) always wrote `SRRBlockFlags.None`
 (`0x0000`) for these blocks — the ORIGINAL single-SFV/single-RAR `CreateAsync` path's pre-existing
 behavior, shared verbatim by `CreateFromInputsAsync`'s `WriteVolumesAsync`/`ProcessRARVolume`;
-nothing Task 1/2 of this feature introduced it. `SRRRARFileBlock` (the reader) has no flags
-property at all, so the bit is read-side-inert — this was never functionally observed before this
+nothing Task 1/2 of this feature introduced it. `SRRRARFileBlock` (the reader) does parse and
+populate this flag on every read (it inherits `SRRBlock.Flags`), but no consumer branches on its
+value for RAR-file blocks, so the bit was functionally inert — this was never observed before this
 harness did a real, byte-exact comparison against genuine pyrescene output.
 
 **First byte offset (in the raw, non-normalized `golden-2disc.srr`): 379** (block starts at 376;
@@ -38,9 +39,9 @@ forward-slash-normalized names, RAR volume order (`CD1/a.rar`, `CD1/a.r00`, `CD2
 **Adjudicated fix (landed):** `SRRBlockFlags` gained a `RecoveryBlocksRemoved = 0x0001` member
 (`ReScene/SRR/SRRBlockFlags.cs`), and `WriteRARFileBlock` now sets it unconditionally, matching
 pyReScene for both this multi-input path and the pre-existing single-input `CreateAsync` path.
-Confirmed safe: `SRRRARFileBlock` never reads this flag, so reconstruction/round-trip is
-unaffected, and the flag is semantically accurate (this writer's SRRs are always header-only /
-recovery-stripped). `GoldenFixtureTests.TwoDiscTree_MatchesPyresceneGoldenBytes` and
+Confirmed safe: `SRRRARFileBlock` does parse/populate this flag on read, but no consumer branches
+on its value, so reconstruction/round-trip is unaffected, and the flag is semantically accurate
+(this writer's SRRs are always header-only / recovery-stripped). `GoldenFixtureTests.TwoDiscTree_MatchesPyresceneGoldenBytes` and
 `StorageOnlyTree_MatchesPyresceneGoldenBytes` both pass; the only other test the fix touched was
 `PublicApiSnapshotTests` (its self-regenerating public-API-surface baseline, `PublicApi.ReScene.approved.txt`
 — one line added for the new enum member; not a byte-content test).
@@ -55,21 +56,40 @@ recovery-stripped). `GoldenFixtureTests.TwoDiscTree_MatchesPyresceneGoldenBytes`
   CPython's `Lib/imghdr.py` (PSF License 2.0) — the same public `tests` list + `what(file, h=None)`
   API, format-detection bodies for jpeg/png/gif/tiff/rgb/pbm/pgm/ppm/rast/xbm/bmp/webp/exr — wired
   in via `PYTHONPATH=compat`.
-- RAR volumes: `tools/build-tree.cs`, a .NET 10 **file-based app** (`dotnet run build-tree.cs --
-  <outDir>`, no `.csproj`; not part of `ReScene.Lib.slnx` or `ReScene.Manager.slnx`, so it never
-  affects the forced-rebuild gate). It is a byte-for-byte port of
-  `ReScene.Tests/RarFixtures.cs`'s `WriteStoreModeRarSet` (same RAR4 marker/archive-header/
-  file-header/end-block layout and flag values, inlined as literals since those enums are
-  `internal` to the `ReScene` assembly) — chosen over a from-scratch Python RAR4 writer so the
-  golden's RAR bytes are produced by the exact layout our own writer/tests already rely on, rather
-  than a second, independently-fallible implementation. Each generated volume's SFV line carries
-  the file's REAL CRC32 (`Force.Crc32`, `Crc32Algorithm.Compute` over the whole file), independently
-  cross-checked against Python's `zlib.crc32` while building these fixtures.
+- RAR volumes: `../tools/build-tree.cs` (`ReScene.Tests/tools/build-tree.cs` — a SIBLING of
+  `TestData/`, deliberately NOT under it; see "Why build-tree.cs lives outside TestData/" below),
+  a .NET 10 **file-based app** (`dotnet run build-tree.cs -- <outDir>`, no `.csproj`; not part of
+  `ReScene.Lib.slnx` or `ReScene.Manager.slnx`, so it never affects the forced-rebuild gate). It is
+  a byte-for-byte port of `ReScene.Tests/RarFixtures.cs`'s `WriteStoreModeRarSet` (same RAR4
+  marker/archive-header/file-header/end-block layout and flag values, inlined as literals since
+  those enums are `internal` to the `ReScene` assembly) — chosen over a from-scratch Python RAR4
+  writer so the golden's RAR bytes are produced by the exact layout our own writer/tests already
+  rely on, rather than a second, independently-fallible implementation. Each generated volume's
+  SFV line carries the file's REAL CRC32 (`Force.Crc32`, `Crc32Algorithm.Compute` over the whole
+  file), independently cross-checked against Python's `zlib.crc32` while building these fixtures.
 - Exact commands: see `generate-golden.py` (`python generate-golden.py`, optionally
   `--pyrescene-dir <path>`); it (1) asserts the pinned hash, (2) runs
-  `dotnet run build-tree.cs -- <this dir>` to (re)build `tree-2disc/`/`tree-storageonly/`,
-  (3) runs `python bin/pyrescene.py --no-srs --no-isdb --output <tmp> <tree>` with
-  `PYTHONPATH=<this dir>/compat` for each tree, (4) copies the result to `golden-<name>.srr`.
+  `dotnet run build-tree.cs -- <this dir>` (cwd `../tools/`) to (re)build
+  `tree-2disc/`/`tree-storageonly/`, (3) runs `python bin/pyrescene.py --no-srs --no-isdb --output
+  <tmp> <tree>` with `PYTHONPATH=<this dir>/compat` for each tree, (4) copies the result to
+  `golden-<name>.srr`.
+
+### Why build-tree.cs lives outside TestData/
+
+`build-tree.cs` (a file-based app with its own `#:package` directive) originally lived at
+`TestData/multiset/tools/build-tree.cs`. `ReScene.Tests.csproj`'s
+`<None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />` copied it into `bin/`
+alongside the real test data. A forced rebuild that redirects `BaseOutputPath` (the
+`dotnet build -t:Rebuild -p:BaseOutputPath=bin2/` gate) shifts the SDK's default compile-exclude
+away from the conventional `bin/`, so a stale `bin/…/build-tree.cs` copy left by an earlier normal
+build was no longer excluded and got swept into `Compile` by the default `**/*.cs` glob →
+`CS9298` (`#:` directives are file-based-app only). Excluding `.cs` from the copy glob and adding
+`Compile Remove` entries for `bin/`, `obj/`, and `bin2*` closed each instance of this as it was
+found, but a codex review flagged that enumerating output roots is inherently incomplete — a build
+retargeted to yet another custom output root would reopen the same hole. The root-cause fix:
+`build-tree.cs` now lives in `ReScene.Tests/tools/`, a directory no `None`/`Content` glob in this
+project ever copies to ANY output directory — so it is structurally impossible for it to land in
+`bin/`, `bin2/`, or any other build output, and no output-root enumeration is needed at all.
 
 ## Fixture trees
 

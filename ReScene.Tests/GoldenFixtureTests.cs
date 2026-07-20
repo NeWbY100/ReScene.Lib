@@ -23,16 +23,63 @@ public class GoldenFixtureTests
     // Independent minimal splitter (spec §6): only the header block's app-name is rewritten;
     // every other byte passes through untouched. Layout: [ushort sentinel][byte type]
     // [ushort flags][ushort headerSize] then, when flags bit0 set, [ushort len][name bytes].
+    //
+    // This is the trust anchor for every golden byte comparison in this file (and Task 9's), so
+    // it validates the input is a well-formed header block and THROWS on any mismatch rather than
+    // silently rewriting it — an inconsistent headerSize/nameLen (or a wrong sentinel/type) would
+    // otherwise be masked identically on both sides of the comparison, hiding a real writer bug.
     internal static byte[] NormalizeAppName(byte[] srr)
     {
         const string replacement = "NORMALIZED";
+
+        if (srr.Length < 7)
+        {
+            throw new InvalidOperationException(
+                $"Header block is only {srr.Length} bytes — too short for the 7-byte base header.");
+        }
+
+        ushort sentinel = BitConverter.ToUInt16(srr, 0);
+        if (sentinel != 0x6969)
+        {
+            throw new InvalidOperationException(
+                $"Unexpected header sentinel 0x{sentinel:X4} (expected 0x6969).");
+        }
+
+        if (srr[2] != 0x69)
+        {
+            throw new InvalidOperationException(
+                $"Unexpected header block type 0x{srr[2]:X2} (expected 0x69).");
+        }
+
         ushort flags = BitConverter.ToUInt16(srr, 3);
         if ((flags & 0x1) == 0)
         {
             return srr;
         }
 
+        ushort headerSize = BitConverter.ToUInt16(srr, 5);
+        if (srr.Length < 9)
+        {
+            throw new InvalidOperationException(
+                $"Header claims an app name (flags=0x{flags:X4}) but is only {srr.Length} bytes — " +
+                "too short to contain the name-length field.");
+        }
+
         ushort nameLen = BitConverter.ToUInt16(srr, 7);
+        int nameEnd = 9 + nameLen;
+        if (headerSize != nameEnd)
+        {
+            throw new InvalidOperationException(
+                $"Inconsistent header block: headerSize={headerSize} but 9 + nameLen({nameLen}) = {nameEnd}.");
+        }
+
+        if (nameEnd > srr.Length)
+        {
+            throw new InvalidOperationException(
+                $"Header claims a {nameLen}-byte name ending at offset {nameEnd}, but the buffer is " +
+                $"only {srr.Length} bytes.");
+        }
+
         byte[] repl = Encoding.UTF8.GetBytes(replacement);
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
@@ -42,15 +89,16 @@ public class GoldenFixtureTests
         w.Write((ushort)(7 + 2 + repl.Length));   // headerSize rewritten
         w.Write((ushort)repl.Length);
         w.Write(repl);
-        w.Write(srr, 9 + nameLen, srr.Length - (9 + nameLen));
+        w.Write(srr, nameEnd, srr.Length - nameEnd);
         return ms.ToArray();
     }
 
     #region NormalizeAppName hand-built byte vectors
 
-    // These run FIRST (alphabetically before the golden-comparison tests, but more importantly
-    // logically first in this file) so a symmetric bug in the normalizer itself can't mask a real
-    // divergence between our writer's output and pyrescene's — see spec §6.
+    // These are logically first in this file (xUnit does not guarantee alphabetical or
+    // cross-suite run order — declaration order within a class is the only default guarantee, and
+    // these Facts don't depend on it either way) so a bug in the normalizer itself can't mask a
+    // real divergence between our writer's output and pyrescene's — see spec §6.
 
     [Fact]
     public void NormalizeAppName_NoAppNameFlag_ReturnsInputUnchanged()
@@ -59,7 +107,9 @@ public class GoldenFixtureTests
 
         byte[] result = NormalizeAppName(input);
 
-        Assert.Same(input, result);
+        // Assert.Equal (the semantic contract), not Assert.Same: the early-return-same-reference
+        // path is an implementation detail, not something callers rely on.
+        Assert.Equal(input, result);
     }
 
     [Fact]
@@ -103,19 +153,79 @@ public class GoldenFixtureTests
         Assert.Equal(trailing, result[^trailing.Length..]);
     }
 
-    /// <summary>
-    /// Builds a synthetic header block byte array (sentinel 0x6969, type 0x69) with the given
-    /// flags/app-name/trailing bytes — an input fixture, NOT a call into production code.
-    /// </summary>
-    private static byte[] BuildHeaderBlock(ushort flags, string? appName, byte[] trailing)
-    {
-        byte[]? nameBytes = appName != null ? Encoding.UTF8.GetBytes(appName) : null;
-        ushort headerSize = (ushort)(7 + (nameBytes != null ? 2 + nameBytes.Length : 0));
+    // The four vectors below are the trust-anchor hardening (codex finding): NormalizeAppName
+    // must THROW on a malformed/self-inconsistent header rather than silently normalize it away,
+    // since a real writer bug in these exact fields would otherwise be masked identically on both
+    // sides of every golden comparison in this file (and Task 9's).
 
+    [Fact]
+    public void NormalizeAppName_InconsistentHeaderSize_Throws()
+    {
+        // nameLen correctly says 1 byte ("X"), so a correct headerSize would be 9 + 1 = 10 — but
+        // this header claims 27 (pyrescene's own real header-size value, for realism). The OLD
+        // normalizer never read/validated headerSize at all, so this was silently accepted and
+        // normalized away — exactly the masking codex demonstrated.
+        byte[] input = BuildHeaderBlock(flags: 0x0001, appName: "X", trailing: [0xAA, 0xBB, 0xCC], headerSizeOverride: 27);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => NormalizeAppName(input));
+        Assert.Contains("headerSize", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NormalizeAppName_SentinelMismatch_Throws()
+    {
+        byte[] input = BuildHeaderBlock(flags: 0x0000, appName: null, trailing: [], sentinel: 0x6A6A);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => NormalizeAppName(input));
+        Assert.Contains("sentinel", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void NormalizeAppName_TypeMismatch_Throws()
+    {
+        byte[] input = BuildHeaderBlock(flags: 0x0000, appName: null, trailing: [], type: 0x6A);
+
+        var ex = Assert.Throws<InvalidOperationException>(() => NormalizeAppName(input));
+        Assert.Contains("block type", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void NormalizeAppName_NameLengthExceedsBuffer_Throws()
+    {
+        // headerSize (29) IS internally consistent with the declared nameLen (20) — 9 + 20 = 29 —
+        // so this passes the headerSize-consistency check and must be caught by the bounds check
+        // instead: the buffer is cut off after only 2 of the declared 20 name bytes.
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
         w.Write((ushort)0x6969);
         w.Write((byte)0x69);
+        w.Write((ushort)0x0001);
+        w.Write((ushort)29);
+        w.Write((ushort)20);
+        w.Write(new byte[] { 0x41, 0x42 });
+        byte[] input = ms.ToArray();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => NormalizeAppName(input));
+        Assert.Contains("buffer", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Builds a synthetic header block byte array (sentinel 0x6969, type 0x69 by default) with the
+    /// given flags/app-name/trailing bytes — an input fixture, NOT a call into production code.
+    /// <paramref name="headerSizeOverride"/>, <paramref name="sentinel"/>, and
+    /// <paramref name="type"/> let a test deliberately craft a malformed header.
+    /// </summary>
+    private static byte[] BuildHeaderBlock(
+        ushort flags, string? appName, byte[] trailing,
+        ushort? headerSizeOverride = null, ushort sentinel = 0x6969, byte type = 0x69)
+    {
+        byte[]? nameBytes = appName != null ? Encoding.UTF8.GetBytes(appName) : null;
+        ushort headerSize = headerSizeOverride ?? (ushort)(7 + (nameBytes != null ? 2 + nameBytes.Length : 0));
+
+        using var ms = new MemoryStream();
+        using var w = new BinaryWriter(ms);
+        w.Write(sentinel);
+        w.Write(type);
         w.Write(flags);
         w.Write(headerSize);
         if (nameBytes != null)
