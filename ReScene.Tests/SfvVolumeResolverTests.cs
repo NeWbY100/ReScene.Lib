@@ -95,4 +95,21 @@ public sealed class SfvVolumeResolverTests : IDisposable
 
         Assert.Empty(SfvVolumeResolver.ResolveOrderedChains(_dir, lines));
     }
+
+    // Part A / F1 regression (Task 9 fix-4): the resolver must NOT sort within a chain — it returns
+    // volumes in first-seen LISTING order so that the SINGLE caller-side sort (SRRWriter.cs:568, and
+    // the VM's GenerateNestedSubtitleSrrsAsync) stays byte-identical to base. fix-3 sorted here too,
+    // which the writer then re-sorted (an unstable double-sort that diverged from base on `.rNN`/`.NNN`
+    // ties). A listing order that DIFFERS from RARVolumeNameComparer order proves no per-chain sort ran.
+    [Fact]
+    public void ResolveOrderedChains_WithinChain_PreservesListingOrder_NotComparatorSorted()
+    {
+        // Listing [A.r05, A.rar, A.r02] — comparator order would be [A.rar, A.r02, A.r05].
+        string[] lines = ["A.r05 00000000", "A.rar 00000000", "A.r02 00000000"];
+
+        string[][] chains = BaseNames(SfvVolumeResolver.ResolveOrderedChains(_dir, lines));
+
+        string[] chain = Assert.Single(chains);
+        Assert.Equal(["A.r05", "A.rar", "A.r02"], chain); // listing order, not comparator-sorted
+    }
 }

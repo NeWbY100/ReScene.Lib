@@ -544,4 +544,57 @@ public class SRRWriterMultiInputTests : IDisposable
         SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
         Assert.Equal(["Sub/eng.rar", "Sub/eng.r00"], srr.RARFiles.Select(f => f.FileName));
     }
+
+    // ── Part A / F1 regression (Task 9 fix-4): the writer must sort each chain EXACTLY ONCE from
+    //    SFV-listing order (byte-identical to base). fix-3 made SfvVolumeResolver.ResolveOrderedChains
+    //    sort each chain (SfvVolumeResolver.cs) AND the writer sort AGAIN (SRRWriter.cs:568). Because
+    //    `List.Sort` is UNSTABLE and RARVolumeNameComparer gives `.rNN` and `.NNN` volumes EQUAL rank,
+    //    a chain that mixes them makes sort(sort(listing)) != sort(listing) on the tied elements — the
+    //    writer would embed a different volume order than base. IMPORTANT: the instability only
+    //    manifests once a single chain exceeds .NET's introsort insertion-sort threshold (16); at
+    //    n<=16 List.Sort runs a STABLE insertion sort, so a small tie set (the finding's own
+    //    5-element A.004/A.r04 example) does NOT reproduce. This fixture uses 17 tied volumes in one
+    //    chain (A.rar + A.001..A.008 + A.r01..A.r08) — the smallest size at which quicksort
+    //    partitioning kicks in — listed interleaved so the double-sort provably reorders the ties.
+    //    The assertion pins the writer's output to a SINGLE deterministic List.Sort of the listing
+    //    (what base produced): RED under fix-3's double-sort, GREEN after fix-4's single sort.
+    [Fact]
+    public async Task Sfv_ManyTiedRnnAndNnnVolumes_OneChain_WriterSortsExactlyOnceFromListing()
+    {
+        string dir = Path.Combine(_root, "Tie");
+        Directory.CreateDirectory(dir);
+
+        // Listing order: A.rar, then interleaved A.00k / A.r0k pairs (each numbered pair ties under
+        // RARVolumeNameComparer, so listing order alone decides the tie — the single sort preserves
+        // it, the double sort does not).
+        var listing = new List<string> { "A.rar" };
+        for (int k = 1; k <= 8; k++)
+        {
+            listing.Add($"A.{k:D3}");
+            listing.Add($"A.r{k:D2}");
+        }
+
+        foreach (string name in listing)
+        {
+            RarFixtures.WriteStoreModeRarVolume(Path.Combine(dir, name), "A.dat", payloadBytes: 32);
+        }
+
+        string sfvPath = Path.Combine(dir, "A.sfv");
+        File.WriteAllLines(sfvPath, listing.Select(n => $"{n} 00000000"));
+
+        SRRCreationResult r = await _writer.CreateFromInputsAsync(
+            Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
+
+        Assert.Null(r.ErrorMessage);
+        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+
+        // expected = ONE deterministic sort of the SFV-listed entries (identical List.Sort algorithm
+        // and initial order as the writer's single internal sort of the chain).
+        var expected = new List<string>(listing);
+        expected.Sort(RARVolumeNameComparer.Instance);
+
+        Assert.Equal(
+            expected.Select(n => $"Tie/{n}"),
+            srr.RARFiles.Select(f => f.FileName));
+    }
 }

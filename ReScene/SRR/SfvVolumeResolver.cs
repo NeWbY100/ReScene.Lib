@@ -42,14 +42,27 @@ public static class SfvVolumeResolver
     /// <summary>
     /// Resolves an SFV's listed entries into RAR-volume chains, byte-identically to
     /// <see cref="SRRWriter"/>'s <c>ResolveVolumesAsync</c> SFV branch (SRRWriter.cs — the
-    /// <c>IsSfvPath</c> case plus its final per-chain sort): (a) parse names via
-    /// <see cref="ParseSfvEntryNames"/> (last-space split, spaces tolerated); (b) resolve each via
+    /// <c>IsSfvPath</c> case): (a) parse names via <see cref="ParseSfvEntryNames"/> (last-space
+    /// split, spaces tolerated); (b) resolve each via
     /// <see cref="SrrNameCanonicalizer.ResolveSfvEntry"/> (so <c>.\</c>/<c>./</c> segments collapse
     /// onto the same directory as their siblings); (c) keep only
     /// <see cref="RARVolumeIdentifier.IsRARVolume(string)"/> entries; (d) group by
-    /// <see cref="RARVolumeIdentifier.GetArchiveSetKey"/> in first-seen order; (e) sort each chain
-    /// by <see cref="RARVolumeNameComparer"/>. Returns the chains in first-seen order; each inner
-    /// list is one chain's resolved volume paths in volume order.
+    /// <see cref="RARVolumeIdentifier.GetArchiveSetKey"/> in first-seen order. Returns the chains in
+    /// first-seen order; each inner list holds that chain's resolved volume paths in first-seen
+    /// LISTING order (the order <see cref="ParseSfvEntryNames"/> yields them).
+    /// <para>
+    /// The resolver deliberately does NOT sort within a chain (Task 9 fix-4 / F1): its single caller
+    /// that needs volume order — <see cref="SRRWriter"/>'s <c>ResolveVolumesAsync</c>, which folds
+    /// these volumes through its own accumulator and sorts EXACTLY ONCE at SRRWriter.cs:568 — must
+    /// remain byte-identical to base. A resolver-side sort followed by the writer's sort is an
+    /// unstable double-sort (<c>List.Sort</c> is unstable, and <see cref="RARVolumeNameComparer"/>
+    /// gives <c>.rNN</c> and <c>.NNN</c> volumes EQUAL rank): for a chain mixing them,
+    /// <c>sort(sort(listing)) != sort(listing)</c> on the tied elements, so the writer would embed a
+    /// different volume order than base. Feeding LISTING order into the writer's single sort
+    /// reproduces base exactly. Sorting is therefore each caller's own responsibility
+    /// (<c>SRRWriter</c> at :568; <c>CreatorViewModel.GenerateNestedSubtitleSrrsAsync</c> re-sorts
+    /// per chain for its own volume[0]/naming needs).
+    /// </para>
     /// </summary>
     public static IReadOnlyList<IReadOnlyList<string>> ResolveOrderedChains(string sfvDirectory, IEnumerable<string> sfvLines)
     {
@@ -75,12 +88,13 @@ public static class SfvVolumeResolver
             volumes.Add(resolved);
         }
 
+        // Return each chain in LISTING order (no per-chain sort — see the remark above: the caller
+        // sorts exactly once, so sorting here would make the writer's sort a byte-diverging
+        // double-sort on `.rNN`/`.NNN` ties).
         var result = new List<IReadOnlyList<string>>(chainOrder.Count);
         foreach (string key in chainOrder)
         {
-            List<string> volumes = chains[key];
-            volumes.Sort(RARVolumeNameComparer.Instance);
-            result.Add(volumes);
+            result.Add(chains[key]);
         }
 
         return result;

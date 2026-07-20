@@ -31,6 +31,18 @@ internal static class RarFixtures
     }
 
     /// <summary>
+    /// Writes ONE self-contained store-mode RAR4 volume at <paramref name="path"/> with an
+    /// ARBITRARY extension — for tests that need a specific on-disk mix of volume extensions the
+    /// sequential set builders don't emit (e.g. a single chain that lists both old-style
+    /// <c>.rNN</c> and numbered <c>.NNN</c> continuations, which tie under
+    /// <c>RARVolumeNameComparer</c>). The writer's SFV branch trusts the SFV's listed membership,
+    /// so each volume only needs to be an individually-parseable store-mode RAR4 file; volume
+    /// split-flag coherence across the set is irrelevant to which RAR-file blocks get emitted.
+    /// </summary>
+    public static void WriteStoreModeRarVolume(string path, string archivedFileName, int payloadBytes)
+        => WriteVolume(path, archivedFileName, payloadBytes, index: 0, volumeCount: 1);
+
+    /// <summary>
     /// Writes a new-style-named (<c>{baseName}.partN.rar</c>, <paramref name="digitWidth"/>-digit
     /// zero-padded) store-mode RAR4 volume set — for first-volume-rule tests that need
     /// part1/part01/part001 naming.

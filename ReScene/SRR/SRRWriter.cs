@@ -519,10 +519,11 @@ public class SRRWriter
 
                 // SFV->ordered-chains resolution now lives in the shared SfvVolumeResolver (single
                 // source of truth with the folder-mode subtitle path — codex Task 9 fix-3 G3/G4).
-                // Fold each resolved chain's volumes into this cross-input accumulator: re-grouping
-                // already-grouped volumes through AddVolumeToChain is idempotent (same first-seen
-                // key order; the final per-chain sort below re-sorts), so ResolveVolumesAsync's
-                // exact byte output is unchanged — proven by FullPipelineGoldenTests.
+                // The resolver returns each chain in first-seen LISTING order and deliberately does
+                // NOT sort (Task 9 fix-4 / F1): folding that listing order through AddVolumeToChain
+                // and sorting EXACTLY ONCE at line 568 below reproduces base byte-for-byte. A
+                // resolver-side sort would make line 568 a second, unstable sort that diverges from
+                // base on `.rNN`/`.NNN` ties. Byte output unchanged — proven by FullPipelineGoldenTests.
                 foreach (IReadOnlyList<string> chain in SfvVolumeResolver.ResolveOrderedChains(sfvDir, lines))
                 {
                     foreach (string volumePath in chain)
