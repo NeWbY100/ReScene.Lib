@@ -24,6 +24,10 @@
 
   <ItemGroup>
     <None Include="TestData\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <!-- TestData/multiset/tools/build-tree.cs is a standalone .NET file-based app (its own
+         `#:package` directive), never part of this project's own compilation — see
+         TestData/multiset/README.md. -->
+    <Compile Remove="TestData\**\*.cs" />
   </ItemGroup>
 
 </Project>
