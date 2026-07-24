@@ -92,7 +92,11 @@ public class OperationProgressEventArgs : EventArgs
     public OperationProgressEventArgs(long operationSize, long operationProgressed, DateTime startDateTime)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(operationSize);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(operationProgressed, operationSize);
+        // Progress can legitimately overshoot the denominator: the brute-force total is an approximation
+        // (BruteForceProgressCalculator scales by a Phase-1 version ratio, but per-version RAR 6.x
+        // timestamp skips vary), so a late combination can push the count past the estimate. Clamp
+        // instead of throwing — a progress event must never abort the operation that fires it.
+        operationProgressed = Math.Clamp(operationProgressed, 0, operationSize);
 
         OperationSize = operationSize;
         OperationProgressed = operationProgressed;

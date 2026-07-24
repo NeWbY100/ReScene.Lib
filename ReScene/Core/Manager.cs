@@ -690,6 +690,11 @@ public partial class Manager : IDisposable
             // finish creating all volumes. If it doesn't match, we kill RAR immediately.
             Task<int>? runningProcessTask = null;
             CancellationTokenSource? processCts = null;
+            // Guards against double-counting this combination: the success path increments below (once
+            // rar has run); a LATE exception (from hashing/verify/rename after that increment) must NOT
+            // be counted again in the catch. Only a failure BEFORE the increment (e.g. rar failed to
+            // launch) is counted there.
+            bool combinationCounted = false;
 
             try
             {
@@ -716,6 +721,15 @@ public partial class Manager : IDisposable
                     {
                         monitorCts.Cancel();
                     }
+
+                    // Task.WhenAny does not surface a faulted task. If the process could not be launched
+                    // (e.g. a *nix rar binary without the execute bit), runningProcessTask is faulted here;
+                    // observe and rethrow it so the catch below records the combination as an error rather
+                    // than letting it fall through to the normal increment + "not created" no-match path.
+                    if (runningProcessTask.IsFaulted)
+                    {
+                        await runningProcessTask.ConfigureAwait(false);
+                    }
                 }
                 else
                 {
@@ -724,6 +738,7 @@ public partial class Manager : IDisposable
                 }
 
                 currentProgress++;
+                combinationCounted = true;
                 FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
                 {
                     PhaseDescription = "Phase 2: Full RAR Creation"
@@ -871,11 +886,25 @@ public partial class Manager : IDisposable
             }
             catch (Exception ex)
             {
-                // A single rar.exe that fails to launch (e.g. a DOS-era build in an "all versions"
-                // pack that passes File.Exists but can't start on 64-bit Windows, or an AV block)
-                // must not abort the entire brute-force. Log it, count the combination, and move on.
+                // A single rar that fails to launch (e.g. a *nix binary without the execute bit, a
+                // DOS-era build in an "all versions" pack that passes File.Exists but can't start on
+                // 64-bit Windows, or an AV block) must not abort the entire brute-force. Log it, count
+                // the combination, and fire a CombinationFailed progress event so this row is reported
+                // as an error instead of a misleading clean "No Match" — then move on.
                 _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: RAR execution failed ({ex.Message}) — skipping this combination", LogTarget.Phase2);
-                currentProgress++;
+                // Count this combination only if the success path didn't already (a launch failure throws
+                // BEFORE the increment above; a late verify/rename exception throws AFTER it). Either way,
+                // surface it as an error row so it isn't reported as a clean "No Match".
+                if (!combinationCounted)
+                {
+                    currentProgress++;
+                }
+
+                FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                {
+                    PhaseDescription = "Phase 2: Full RAR Creation",
+                    CombinationFailed = true
+                });
                 continue;
             }
             finally

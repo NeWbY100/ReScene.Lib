@@ -9,6 +9,7 @@ class ReScene.Core.BruteForceOptions
     property String ReleaseDirectoryPath { get; set; }
 class ReScene.Core.BruteForceProgressEventArgs
     ctor (String, String, String, Int64, Int64, DateTime)
+    property Boolean CombinationFailed { get; set; }
     property String PhaseDescription { get; set; }
     property String RARCommandLineArguments { get; }
     property String RARVersionDirectoryPath { get; }

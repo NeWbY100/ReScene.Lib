@@ -44,4 +44,12 @@ public class BruteForceProgressEventArgs(string releaseDirectoryPath, string rar
     /// Gets the description of the current brute-force phase (e.g., "Phase 1: Comment Block Filtering").
     /// </summary>
     public string PhaseDescription { get; init; } = "";
+
+    /// <summary>
+    /// True when the engine could not process this combination — most commonly because the RAR
+    /// console binary failed to launch (e.g. a *nix binary without the execute bit, a DOS-era build
+    /// that can't start on 64-bit Windows, or an AV block). Consumers mark the combination's row as an
+    /// error rather than finalising it as a clean "No Match"; the full reason is in the Phase 2 log.
+    /// </summary>
+    public bool CombinationFailed { get; init; }
 }
