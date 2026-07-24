@@ -11,13 +11,23 @@ namespace ReScene.Core;
 /// </summary>
 internal static partial class RARVersionSelector
 {
-    [GeneratedRegex("(?:win)?(?:rar|wr)(?:-x64|-x32)?-?(\\d+)(?:b\\d+)?", RegexOptions.IgnoreCase)]
+    // Matches the WinRAR/RAR distribution folder names across all three platforms:
+    //   Windows      winrar-560, wrar600, winrar-x64-611, WR25B3A       (version digits right after rar)
+    //   Linux        rarlinux-3.9.3, rarlinux-x64-5.5.0, rarlinux-x64-611, rarlinux-x32-620b2
+    //   macOS        rarosx-3.1.0 … rarosx-6.0.2  (and the newer rarmacos-x64-… form)
+    // The optional platform token (linux/osx/macos/bsd) and the extra -arm arch cover the *nix tarball
+    // names; the version group accepts either a concatenated run ("611") or the older dotted form
+    // ("5.5.0"), whose dots are stripped before parsing so "5.5.0" → 550 and "3.9.3" → 393. A trailing
+    // "b<n>" beta marker is left for the variant tag (see below).
+    [GeneratedRegex("(?:win)?(?:rar|wr)(?:linux|osx|macos|bsd)?(?:-x64|-x32|-arm)?-?(\\d+(?:\\.\\d+)*)(?:b\\d+)?", RegexOptions.IgnoreCase)]
     private static partial Regex Generated_rarVersionRegex();
 
     private static readonly Regex _rarVersionRegex = Generated_rarVersionRegex();
 
     /// <summary>
-    /// Tries to parse the RAR version number from a directory name (e.g., "winrar-560" → 560).
+    /// Tries to parse the RAR version number from a directory name — Windows, Linux and macOS
+    /// distribution folder names alike (e.g., "winrar-560" → 560; "rarlinux-x64-5.5.0" → 550;
+    /// "rarosx-3.9.3" → 393).
     /// </summary>
     /// <param name="rarVersionDirectoryName">The WinRAR version directory name.</param>
     /// <param name="version">When this method returns <see langword="true"/>, the normalised version number; otherwise 0.</param>
@@ -40,7 +50,9 @@ internal static partial class RARVersionSelector
         version = 0;
         variantTag = string.Empty;
         Match versionMatch = _rarVersionRegex.Match(rarVersionDirectoryName);
-        if (!versionMatch.Success || !int.TryParse(versionMatch.Groups[1].Value, out int versionNumber))
+        // The captured version may be dotted (*nix tarballs, "5.5.0"); stripping the dots yields the same
+        // integer the concatenated Windows names carry ("550"), so both feed one normalisation path.
+        if (!versionMatch.Success || !int.TryParse(versionMatch.Groups[1].Value.Replace(".", string.Empty, StringComparison.Ordinal), out int versionNumber))
         {
             return false;
         }
