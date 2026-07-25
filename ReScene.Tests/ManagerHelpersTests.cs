@@ -334,6 +334,34 @@ public class ManagerHelpersTests
 
     #endregion
 
+    #region IsCompletedRunFailure
+
+    [Theory]
+    [InlineData(127, true)]  // Linux loader failure (missing shared libraries) — ran, did no work
+    [InlineData(126, true)]  // not executable via loader
+    [InlineData(10, true)]   // rar "no files matching mask"
+    [InlineData(2, true)]    // rar fatal error
+    [InlineData(1, true)]    // rar warning yet nothing created — still no work done
+    [InlineData(0, false)]   // clean exit without a file keeps the historical no-match treatment
+    [InlineData(null, false)] // unknown (killed by cleanup before completing) stays conservative
+    public void IsCompletedRunFailure_NonZeroKnownExitWithoutArchive_IsFailure(int? exitCode, bool expected)
+        => Assert.Equal(expected, Manager.IsCompletedRunFailure(exitCode, cancellationRequested: false));
+
+    [Theory]
+    [InlineData(1)]    // the swallowed-cancel exit itself — the case that would masquerade as a failure
+    [InlineData(127)]
+    [InlineData(0)]
+    [InlineData(null)]
+    public void IsCompletedRunFailure_NeverAFailure_WhileCancellationRequested(int? exitCode)
+    {
+        // RARProcess.RunAsync swallows the cancellation exception and returns exit 1, so a user cancel
+        // landing before rar creates its first file is indistinguishable from a failed run by exit code
+        // alone — the classification must suppress on a requested cancellation.
+        Assert.False(Manager.IsCompletedRunFailure(exitCode, cancellationRequested: true));
+    }
+
+    #endregion
+
     /// <summary>A self-cleaning unique temporary directory for filesystem tests.</summary>
     private sealed class TempDir : IDisposable
     {

@@ -573,6 +573,19 @@ public partial class Manager : IDisposable
     private void FireBruteForceProgress(BruteForceProgressEventArgs e)
         => BruteForceProgress?.Invoke(this, e);
 
+    /// <summary>
+    /// True when a rar process that ran to completion did no work: a non-zero exit code with no archive
+    /// created (the caller establishes file absence first). Covers e.g. a Linux binary whose dynamic
+    /// loader fails on missing shared libraries (exit 127) — the process starts, so no exception is
+    /// thrown, but nothing is ever tested. Exit 0 without a file, and an unknown exit (the process was
+    /// killed by cleanup before completing), keep the historical no-match treatment. Never a failure
+    /// while cancellation is requested: <see cref="RARProcess.RunAsync"/> SWALLOWS the cancellation
+    /// exception and returns exit 1, so a user cancel that lands before rar creates its first file
+    /// would otherwise be indistinguishable from a genuine failed run.
+    /// </summary>
+    internal static bool IsCompletedRunFailure(int? completedExitCode, bool cancellationRequested)
+        => !cancellationRequested && completedExitCode is not (null or 0);
+
     private void FireBruteForceStatusChanged(BruteForceStatusChangedEventArgs e)
         => BruteForceStatusChanged?.Invoke(this, e);
 
@@ -696,6 +709,12 @@ public partial class Manager : IDisposable
             // launch) is counted there.
             bool combinationCounted = false;
 
+            // Exit code of a rar process that ran to completion, when known. Null while the process is
+            // still running or was killed by the early-termination/cleanup cancels. Used to tell a rar
+            // that RAN but did no work (e.g. its loader failed on missing shared libraries: exit 127,
+            // no archive) apart from a genuine created-then-unmatched attempt.
+            int? completedExitCode = null;
+
             try
             {
                 if (options.RAROptions.CompleteAllVolumes)
@@ -733,8 +752,12 @@ public partial class Manager : IDisposable
                 }
                 else
                 {
-                    // Standard: run with early termination (kills RAR after first volume is complete)
-                    await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token).ConfigureAwait(false);
+                    // Standard: run with early termination (kills RAR after first volume is complete).
+                    // The helper returns rar's real exit code when the process completed on its own;
+                    // an early-terminated run yields the swallowed-cancel exit (1) or 0 if rar was
+                    // still winding down at the grace timeout — either way early termination requires
+                    // a volume to already exist, so those values never reach the not-created branch.
+                    completedExitCode = await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token).ConfigureAwait(false);
                 }
 
                 currentProgress++;
@@ -748,11 +771,40 @@ public partial class Manager : IDisposable
                 string? actualRARFilePath = MatchedRARWriter.FindCreatedRARFile(rarFilePath);
                 if (actualRARFilePath == null)
                 {
-                    _logger.Information(this, $"RAR file was not created: {rarFilePath}", LogTarget.Phase2);
                     if (runningProcessTask != null && !runningProcessTask.IsCompleted)
                     {
                         processCts!.Cancel();
                         await Task.WhenAny(runningProcessTask, Task.Delay(1000)).ConfigureAwait(false);
+                    }
+
+                    // CompleteAllVolumes mode: read the exit code off the completed task. NOTE:
+                    // RARProcess.RunAsync swallows the cancellation exception and returns exit 1, so a
+                    // task ended by the cancel above (or by a user Stop) is RanToCompletion with
+                    // Result==1 — cancellation must be excluded in the classification below, not here.
+                    if (runningProcessTask is { IsCompletedSuccessfully: true })
+                    {
+                        completedExitCode = runningProcessTask.Result;
+                    }
+
+                    // A rar that RAN but exited non-zero without creating anything did no work — e.g.
+                    // its loader failed on missing shared libraries (exit 127 on Linux) — and must be
+                    // reported as a failed combination, not a clean "No Match" (the stderr detail is
+                    // already in the Phase 2 log). Exit 0 / unknown keeps the historical no-match
+                    // treatment, and a requested cancellation is never a failure (its swallowed exit 1
+                    // would otherwise masquerade as one). currentProgress was already counted above;
+                    // fire the flagged event only.
+                    if (IsCompletedRunFailure(completedExitCode, _cts.IsCancellationRequested))
+                    {
+                        _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: rar exited with code {completedExitCode} and no archive was created — marking this combination as failed", LogTarget.Phase2);
+                        FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                        {
+                            PhaseDescription = "Phase 2: Full RAR Creation",
+                            CombinationFailed = true
+                        });
+                    }
+                    else
+                    {
+                        _logger.Information(this, $"RAR file was not created: {rarFilePath}", LogTarget.Phase2);
                     }
 
                     continue;
