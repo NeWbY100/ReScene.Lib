@@ -591,7 +591,9 @@ public partial class Manager : IDisposable
     /// containing a space are whole-token quoted so a shell re-splitting the copied command line
     /// reconstructs the engine's argv exactly. Only <c>-z&lt;commentfile&gt;</c> can carry a path
     /// (the other switches are short flags), so e.g. an output folder like <c>D:\My Releases\out</c>
-    /// would otherwise split the token and break the pasted line.
+    /// would otherwise split the token and break the pasted line. The wrap assumes tokens contain no
+    /// double quote — unreachable on Windows (reserved path character) and vanishingly rare elsewhere;
+    /// a correct escape would have to be per-shell and belongs in the per-platform rendering, not here.
     /// </summary>
     internal static string JoinExecutedArguments(IEnumerable<string> finalArguments)
         => string.Join(" ", finalArguments.Select(a => a.Contains(' ', StringComparison.Ordinal) ? $"\"{a}\"" : a));
