@@ -586,6 +586,16 @@ public partial class Manager : IDisposable
     internal static bool IsCompletedRunFailure(int? completedExitCode, bool cancellationRequested)
         => !cancellationRequested && completedExitCode is not (null or 0);
 
+    /// <summary>
+    /// Flattens the executed argument list for the progress events' <c>ExecutedArguments</c>: tokens
+    /// containing a space are whole-token quoted so a shell re-splitting the copied command line
+    /// reconstructs the engine's argv exactly. Only <c>-z&lt;commentfile&gt;</c> can carry a path
+    /// (the other switches are short flags), so e.g. an output folder like <c>D:\My Releases\out</c>
+    /// would otherwise split the token and break the pasted line.
+    /// </summary>
+    internal static string JoinExecutedArguments(IEnumerable<string> finalArguments)
+        => string.Join(" ", finalArguments.Select(a => a.Contains(' ', StringComparison.Ordinal) ? $"\"{a}\"" : a));
+
     private void FireBruteForceStatusChanged(BruteForceStatusChangedEventArgs e)
         => BruteForceStatusChanged?.Invoke(this, e);
 
@@ -675,6 +685,12 @@ public partial class Manager : IDisposable
             // Output RAR file to the rarOutputDir subdirectory
             string rarFilePath = Path.Combine(rarOutputDir, $"{archiveAttribute}{notContentIndexedAttribute}{rarVersionDirectoryName}-{joinedArguments}.rar");
 
+            // Build the ACTUAL argument list (display args + engine-added -ma4/-vn/-z) up front — pure
+            // composition — so every progress event can carry the executed form for the row's runnable
+            // copied command; the display form alone would omit switches that change the output bytes.
+            List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version);
+            string executedArguments = JoinExecutedArguments(finalArguments);
+
             if (File.Exists(rarFilePath))
             {
                 // Different argument combinations can filter to the same output name for a given
@@ -684,18 +700,21 @@ public partial class Manager : IDisposable
                 currentProgress++;
                 FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
                 {
-                    PhaseDescription = "Phase 2: Full RAR Creation"
+                    PhaseDescription = "Phase 2: Full RAR Creation",
+                    InputDirectoryPath = inputFilesDir,
+                    OutputFilePath = rarFilePath,
+                    ExecutedArguments = executedArguments
                 });
                 continue;
             }
 
             FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
             {
-                PhaseDescription = "Phase 2: Full RAR Creation"
+                PhaseDescription = "Phase 2: Full RAR Creation",
+                InputDirectoryPath = inputFilesDir,
+                OutputFilePath = rarFilePath,
+                ExecutedArguments = executedArguments
             });
-
-            // Build final arguments list, including comment option if available
-            List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version);
 
             // ---- Execute RAR ----
             // When CompleteAllVolumes is enabled, we start RAR without auto-kill and check
@@ -764,7 +783,10 @@ public partial class Manager : IDisposable
                 combinationCounted = true;
                 FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
                 {
-                    PhaseDescription = "Phase 2: Full RAR Creation"
+                    PhaseDescription = "Phase 2: Full RAR Creation",
+                    InputDirectoryPath = inputFilesDir,
+                    OutputFilePath = rarFilePath,
+                    ExecutedArguments = executedArguments
                 });
 
                 // Check if RAR file or volume files were created
@@ -799,7 +821,10 @@ public partial class Manager : IDisposable
                         FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
                         {
                             PhaseDescription = "Phase 2: Full RAR Creation",
-                            CombinationFailed = true
+                            CombinationFailed = true,
+                            InputDirectoryPath = inputFilesDir,
+                            OutputFilePath = rarFilePath,
+                            ExecutedArguments = executedArguments
                         });
                     }
                     else
@@ -955,7 +980,10 @@ public partial class Manager : IDisposable
                 FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
                 {
                     PhaseDescription = "Phase 2: Full RAR Creation",
-                    CombinationFailed = true
+                    CombinationFailed = true,
+                    InputDirectoryPath = inputFilesDir,
+                    OutputFilePath = rarFilePath,
+                    ExecutedArguments = executedArguments
                 });
                 continue;
             }

@@ -10,6 +10,9 @@ class ReScene.Core.BruteForceOptions
 class ReScene.Core.BruteForceProgressEventArgs
     ctor (String, String, String, Int64, Int64, DateTime)
     property Boolean CombinationFailed { get; set; }
+    property String ExecutedArguments { get; set; }
+    property String InputDirectoryPath { get; set; }
+    property String OutputFilePath { get; set; }
     property String PhaseDescription { get; set; }
     property String RARCommandLineArguments { get; }
     property String RARVersionDirectoryPath { get; }

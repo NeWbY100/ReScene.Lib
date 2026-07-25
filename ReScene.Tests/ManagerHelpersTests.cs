@@ -362,6 +362,24 @@ public class ManagerHelpersTests
 
     #endregion
 
+    #region JoinExecutedArguments
+
+    [Fact]
+    public void JoinExecutedArguments_PlainTokens_JoinUnquoted()
+        => Assert.Equal("-ma4 a -r -s- -m0", Manager.JoinExecutedArguments(["-ma4", "a", "-r", "-s-", "-m0"]));
+
+    [Fact]
+    public void JoinExecutedArguments_TokenWithSpace_IsWholeTokenQuoted()
+    {
+        // -z<commentfile> is the one token that carries a path; an output folder with a space would
+        // otherwise split in the pasted shell line and rar would get a truncated -z plus a stray operand.
+        Assert.Equal(
+            "a -m0 \"-zD:\\My Releases\\out\\comment.txt\"",
+            Manager.JoinExecutedArguments(["a", "-m0", @"-zD:\My Releases\out\comment.txt"]));
+    }
+
+    #endregion
+
     /// <summary>A self-cleaning unique temporary directory for filesystem tests.</summary>
     private sealed class TempDir : IDisposable
     {
