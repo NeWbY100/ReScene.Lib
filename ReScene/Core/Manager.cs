@@ -747,6 +747,13 @@ public partial class Manager : IDisposable
                     {
                         LogTarget = LogTarget.Phase2
                     };
+
+                    // Stream this process's full output to its per-attempt log file under
+                    // <workRoot>/logs — previously only the standard path opened one, so
+                    // Complete-All-Volumes runs (the wizard default) produced no log files at all;
+                    // WriteOutput for an unregistered process is a silent no-op. CloseLog fires from
+                    // the shared process-status Completed handler, same as the standard path.
+                    _processLogManager.OpenLog(process, options.OutputDirectoryPath, rarFilePath);
                     SubscribeToProcessEvents(process);
 
                     runningProcessTask = process.RunAsync(processCts.Token);
