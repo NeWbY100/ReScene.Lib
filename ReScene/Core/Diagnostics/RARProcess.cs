@@ -156,9 +156,12 @@ internal sealed partial class RARProcess
                 // Output file
                 outputFilePath,
 
-                // Input directory/files
-                // RAR 2.00 does not like just '.' as input directory
-                ".\\*"
+                // Input directory/files mask, in the PLATFORM's separator: ".\*" on Windows, "./*" on
+                // Unix. A hardcoded ".\*" matched nothing on Linux (backslash is an ordinary filename
+                // character there), so rar created no archive and every combination read as a clean
+                // no-match. The output parser already strips both prefixes (NormalizeOutputFileName).
+                // RAR 2.00 does not like just '.' as the input directory, hence the explicit mask.
+                $".{Path.DirectorySeparatorChar}*"
         ];
 
         // Save new options
