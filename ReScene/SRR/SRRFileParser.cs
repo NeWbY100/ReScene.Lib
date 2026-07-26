@@ -502,8 +502,8 @@ internal static class SRRFileParser
         }
     }
 
+    // RAR4 service blocks store an already RAR4-encoded method byte.
     internal static (string? Comment, ReadOnlyMemory<byte>? Bytes) TryNativeDecompressComment(RARServiceBlockInfo serviceInfo, byte[] compressedData)
-        // RAR4 service blocks store an already RAR4-encoded method byte.
         => TryDecompressComment((int)serviceInfo.UnpackedSize, compressedData, serviceInfo.CompressionMethod, isRAR5: false);
 
     /// <summary>
