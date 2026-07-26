@@ -95,8 +95,18 @@ public static class SrrNameCanonicalizer
     // checked as "/root/secret" instead of the OS-correct "/outside/secret" (codex Critical #1).
     // Used as the POSIX GetFinalPath fallback AND by ToExtendedLengthPath (Windows long-path
     // fallback) — it has no Windows/POSIX-specific dependencies, only portable BCL calls.
-    private static string ResolveAncestorChain(string path)
+    private static string ResolveAncestorChain(string path) => ResolveAncestorChain(path, depth: 0);
+
+    // depth guards the recursion introduced by link-target adoption below: a link's STORED target
+    // can itself route through links, and pathological target cycles would otherwise recurse
+    // forever. 40 mirrors the order of POSIX SYMLOOP_MAX-style limits.
+    private static string ResolveAncestorChain(string path, int depth)
     {
+        if (depth > 40)
+        {
+            throw new SrrNameException($"Cannot resolve final path — too many nested links: {path}");
+        }
+
         string absolute = Path.IsPathRooted(path) ? path : Path.Combine(Directory.GetCurrentDirectory(), path);
         string root = Path.GetPathRoot(absolute)!;
         string current = root;
@@ -107,7 +117,7 @@ public static class SrrNameCanonicalizer
         foreach (string component in absolute[root.Length..]
             .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
         {
-            current = ApplyComponent(current, component);
+            current = ApplyComponent(current, component, depth);
         }
 
         return current;
@@ -120,7 +130,10 @@ public static class SrrNameCanonicalizer
     // ApplyComponent_ParentAtRoot_StaysOnCurrentPathsRoot) since the ".." fallback below is pure
     // path-string arithmetic with no filesystem I/O, so it's exercisable without a real
     // cross-volume fixture; excluded from the PublicApi snapshot like the other internal members.
-    internal static string ApplyComponent(string current, string component)
+    internal static string ApplyComponent(string current, string component) =>
+        ApplyComponent(current, component, depth: 0);
+
+    private static string ApplyComponent(string current, string component, int depth)
     {
         if (component == ".")
         {
@@ -153,8 +166,19 @@ public static class SrrNameCanonicalizer
         }
 
         FileSystemInfo info = isDirectory ? new DirectoryInfo(candidate) : new FileInfo(candidate);
-        FileSystemInfo resolved = info.ResolveLinkTarget(returnFinalTarget: true) ?? info;
-        return resolved.FullName;
+        FileSystemInfo? target = info.ResolveLinkTarget(returnFinalTarget: true);
+        if (target is null)
+        {
+            // Not a link: candidate = Combine(fully-resolved parent, plain name) is already final.
+            return info.FullName;
+        }
+
+        // The adopted target STRING can itself route through unresolved ancestor links — macOS's
+        // /var -> /private/var is the canonical case (GetTempPath hands out /var/... paths, and a
+        // link created toward them stores the /var spelling). Resolve the target's own chain so
+        // `current` stays fully final on every arm; otherwise paths reached through the link and
+        // directly-walked paths to the same file compare unequal (a false containment REJECT).
+        return ResolveAncestorChain(target.FullName, depth + 1);
     }
 
     public static string CanonicalizeRelative(string rootFinalPath, string sourcePath)

@@ -147,6 +147,40 @@ public class SrrNameCanonicalizerTests : IDisposable
     }
 
     [Fact]
+    public void GetFinalPath_LinkTargetRoutedThroughAnotherLink_FullyResolvesAncestors()
+    {
+        // macOS surfaced this via /var -> /private/var (its GetTempPath hands out /var/... paths):
+        // a link whose STORED TARGET string routes through another link. The adopted target must
+        // have its own ancestor chain resolved, or a path reached through the link and a directly
+        // walked path to the same file compare unequal — a false containment reject. Built here
+        // with an explicit alias link so the case runs on every POSIX platform, not just macOS.
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        string outside = Path.Combine(Path.GetTempPath(), "canon-alias-" + Guid.NewGuid().ToString("N"));
+        string real = Path.Combine(outside, "real");
+        Directory.CreateDirectory(Path.Combine(real, "dir"));
+        File.WriteAllText(Path.Combine(real, "secret.bin"), "x");
+        string alias = Path.Combine(outside, "alias");
+        Directory.CreateSymbolicLink(alias, real);
+        string link = Path.Combine(_root, "LT");
+        Directory.CreateSymbolicLink(link, Path.Combine(alias, "dir")); // target string via the alias
+        try
+        {
+            string resolved = SrrNameCanonicalizer.GetFinalPath(Path.Combine(link, "..", "secret.bin"));
+            string expected = SrrNameCanonicalizer.GetFinalPath(Path.Combine(real, "secret.bin"));
+            Assert.Equal(expected, resolved);
+        }
+        finally
+        {
+            Directory.Delete(link);
+            Directory.Delete(outside, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ToExtendedLengthPath_ResolvesLinkBeforeParentSegment()
     {
         // Regression test for the long-path-open fallback's path-construction helper (closes the
