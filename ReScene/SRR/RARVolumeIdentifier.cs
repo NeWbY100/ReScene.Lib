@@ -15,14 +15,17 @@ public static class RARVolumeIdentifier
     /// </summary>
     public static string GetArchiveSetKey(string volumePath)
     {
-        string baseName = RARVolumeNaming.GetBaseName(Path.GetFileName(volumePath));
-        string? dir = Path.GetDirectoryName(volumePath);
-        if (string.IsNullOrEmpty(dir))
+        // Format-aware split: volume paths are SRR/RAR-internal data, where Windows packers write
+        // '\' and pyrescene writes '/'. OS Path APIs would leave '\' unsplit on Unix (GetFileName
+        // returns the whole string), so split on both separators explicitly.
+        int cut = volumePath.LastIndexOfAny(['\\', '/']);
+        string baseName = RARVolumeNaming.GetBaseName(cut < 0 ? volumePath : volumePath[(cut + 1)..]);
+        if (cut < 0)
         {
             return baseName;
         }
 
-        string normalizedDir = dir.Replace('\\', '/').Trim('/');
+        string normalizedDir = volumePath[..cut].Replace('\\', '/').Trim('/');
         return normalizedDir.Length == 0 ? baseName : $"{normalizedDir}/{baseName}";
     }
 

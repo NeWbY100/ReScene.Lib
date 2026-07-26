@@ -232,6 +232,14 @@ public class ManagerHelpersTests
         // different and attempt a real move — which would fail as "destination occupied" since the
         // file already sits at that exact location. The filesystem-correct (full-path-normalized)
         // equality must recognize they refer to the SAME file and short-circuit.
+        if (!OperatingSystem.IsWindows())
+        {
+            // Mixed separator styles for one file only exist on Windows — on POSIX '\' is a
+            // literal name character, so the two spellings genuinely ARE different paths and
+            // the no-op expectation would be wrong.
+            return;
+        }
+
         using var tmp = new TempDir();
         string subDir = Path.Combine(tmp.Path, "sub");
         Directory.CreateDirectory(subDir);
@@ -396,12 +404,16 @@ public class ManagerHelpersTests
             return full;
         }
 
-        /// <summary>Creates a WinRAR version subfolder containing a rar.exe stub and returns its path.</summary>
+        /// <summary>
+        /// Creates a WinRAR version subfolder containing a rar-binary stub and returns its path.
+        /// The stub carries the PLATFORM's binary name (rar.exe / rar) — the validity scan resolves
+        /// via RarExecutable, so a hardcoded "rar.exe" stub makes every folder invalid on Unix.
+        /// </summary>
         public string VersionDir(string name)
         {
             string dir = System.IO.Path.Combine(Path, name);
             Directory.CreateDirectory(dir);
-            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, "rar.exe"), "stub");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(dir, RarExecutable.FileName), "stub");
             return dir;
         }
 

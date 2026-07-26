@@ -1,0 +1,6 @@
+# Test fixtures are byte-exact format data (SRR/RAR/SFV/golden reference files): several tests
+# compare raw bytes against them, so git must NEVER line-ending-normalize anything under TestData.
+# Without this, text-looking fixtures were stored LF-normalized: Windows checkouts converted them
+# back to CRLF (matching the RAR-stored content, tests green) while Linux/macOS checkouts kept LF
+# and every byte-identity test failed by exactly the newline count.
+ReScene.Tests/TestData/** -text

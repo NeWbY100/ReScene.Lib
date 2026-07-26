@@ -309,9 +309,11 @@ public class SRRFileRealDataTests : TempDirTestBase
     {
         var srr = SRRFile.Load(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.srr"));
 
-        Assert.Contains("txt\\empty_file.txt", srr.ArchivedFiles);
-        Assert.Contains("txt\\little_file.txt", srr.ArchivedFiles);
-        Assert.Contains("txt\\users_manual4.00.txt", srr.ArchivedFiles);
+        // The loader normalizes archive-internal separators to the OS separator (the names feed
+        // filesystem joins downstream), so the expectations must be OS-built too.
+        Assert.Contains(Path.Combine("txt", "empty_file.txt"), srr.ArchivedFiles);
+        Assert.Contains(Path.Combine("txt", "little_file.txt"), srr.ArchivedFiles);
+        Assert.Contains(Path.Combine("txt", "users_manual4.00.txt"), srr.ArchivedFiles);
     }
 
     [Fact]

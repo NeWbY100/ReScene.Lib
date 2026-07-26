@@ -99,6 +99,15 @@ public class SrrNameCanonicalizerTests : IDisposable
         string upper = Path.Combine(Path.GetTempPath(), "Canon-Case-" + Guid.NewGuid().ToString("N"));
         string lower = upper.ToLowerInvariant();
         Directory.CreateDirectory(upper);
+        if (Directory.Exists(lower))
+        {
+            // The temp filesystem is case-INSENSITIVE (macOS APFS default) — "Root" and "root"
+            // are the same directory there, so the case-distinct premise cannot be built. The
+            // assertion is meaningful only on case-sensitive filesystems (typical Linux).
+            Directory.Delete(upper, recursive: true);
+            return;
+        }
+
         Directory.CreateDirectory(lower);
         try
         {
@@ -119,6 +128,13 @@ public class SrrNameCanonicalizerTests : IDisposable
     {
         // codex Important #4: a valid result longer than the original fixed 1024-char buffer
         // must not be rejected.
+        if (OperatingSystem.IsMacOS())
+        {
+            // macOS PATH_MAX is 1024 — the filesystem itself cannot create the >1024-char tree
+            // this test needs, so the buffer-growth path is covered on Windows and Linux only.
+            return;
+        }
+
         string deep = _root;
         while (deep.Length < 1100)
         {

@@ -24,16 +24,21 @@ public static class SrrNameCanonicalizer
     {
         if (!OperatingSystem.IsWindows())
         {
-            if (!Directory.Exists(path) && !File.Exists(path))
+            // Component-order walk: resolve EVERY ancestor (codex r1 f1 / r4 f1 / Critical #1).
+            string resolved = ResolveAncestorChain(path);
+
+            // Parity with the Windows branch below (CreateFileW's OPEN_EXISTING failure):
+            // GetFinalPath's contract is "the path exists". The check runs on the RESOLVED
+            // result, never the raw input — .NET's Exists lexically collapses ".." before
+            // stat'ing, so probing the input would drop a symlink hop preceding a ".."
+            // ("/root/L/../x" probed as "/root/x") and wrongly reject valid paths: the exact
+            // hazard the walk above exists to prevent.
+            if (!Directory.Exists(resolved) && !File.Exists(resolved))
             {
-                // Parity with the Windows branch below (CreateFileW's OPEN_EXISTING failure):
-                // GetFinalPath's contract is "the path exists" — surface a typed exception
-                // instead of letting a raw FileNotFoundException escape from the walk below.
                 throw new SrrNameException($"Cannot resolve final path — path does not exist: {path}");
             }
 
-            // Component-order walk: resolve EVERY ancestor (codex r1 f1 / r4 f1 / Critical #1).
-            return ResolveAncestorChain(path);
+            return resolved;
         }
 
         using SafeFileHandle handle = OpenForMetadata(path);
