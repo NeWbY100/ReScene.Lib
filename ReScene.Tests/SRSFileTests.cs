@@ -163,7 +163,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Equal("ReScene.NET", srs.FileData!.AppName);
+        Assert.Equal("ReScene.Lib", srs.FileData!.AppName);
     }
 
     #endregion

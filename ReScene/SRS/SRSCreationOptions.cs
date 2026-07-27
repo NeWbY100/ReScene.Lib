@@ -6,9 +6,10 @@ namespace ReScene.SRS;
 public class SRSCreationOptions
 {
     /// <summary>
-    /// Application name to embed in the SRS file.
+    /// Application name to embed in the SRS file. Defaults to the library's own name;
+    /// applications should pass their own (ReScene Manager does).
     /// </summary>
-    public string AppName { get; set; } = "ReScene.NET";
+    public string AppName { get; set; } = "ReScene.Lib";
 
     /// <summary>
     /// Optional path to the full "main" media file (e.g. the unpacked full

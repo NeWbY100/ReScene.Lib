@@ -6,9 +6,10 @@ namespace ReScene.SRR;
 public class SRRCreationOptions
 {
     /// <summary>
-    /// Application name to embed in the SRR header.
+    /// Application name to embed in the SRR header. Defaults to the library's own name;
+    /// applications should pass their own (ReScene Manager does).
     /// </summary>
-    public string? AppName { get; set; } = "ReScene.NET";
+    public string? AppName { get; set; } = "ReScene.Lib";
 
     /// <summary>
     /// If false, reject compressed RAR volumes (method != Store).

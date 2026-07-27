@@ -255,7 +255,7 @@ divergence section above for the one byte-level finding this tree surfaced.
 ## App-name normalization
 
 pyrescene's header records `pyReScene Auto <version>` as its app name; our writer's default is
-`ReScene.NET`. Before any byte comparison, `GoldenFixtureTests.NormalizeAppName` — an independent,
+`ReScene.Lib` (`ReScene.NET` when these fixtures were generated). Before any byte comparison, `GoldenFixtureTests.NormalizeAppName` — an independent,
 from-scratch header-block splitter (NOT the production `SRRFileParser`) — rewrites only the
 header's app-name field (both files) to the fixed string `NORMALIZED`, leaving every other byte
 (including the RAR-block-flags divergence above) untouched. Its own correctness is validated first

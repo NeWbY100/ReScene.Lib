@@ -7,7 +7,7 @@ namespace ReScene.Tests;
 /// Non-circular oracle for <see cref="SRRWriter.CreateFromInputsAsync"/>: asserts our output is
 /// byte-identical to an SRR built by the LOCAL pyrescene checkout over the same synthetic release
 /// tree (app-name field normalized — pyrescene's header records "pyReScene Auto &lt;version&gt;",
-/// ours defaults to "ReScene.NET"). See
+/// ours defaults to "ReScene.Lib"). See
 /// <c>TestData/multiset/README.md</c> for the pinned pyrescene commit and generation commands.
 /// This harness originally found a real divergence (RarFile block flags — see
 /// <see cref="TwoDiscTree_MatchesPyresceneGoldenBytes"/> and the README's "Fixed divergence"

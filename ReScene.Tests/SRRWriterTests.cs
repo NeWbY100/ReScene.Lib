@@ -69,7 +69,7 @@ public class SRRWriterTests : TempDirTestBase
         await writer.CreateAsync(srrPath, [rarPath]);
 
         var srr = SRRFile.Load(srrPath);
-        Assert.Equal("ReScene.NET", srr.HeaderBlock!.AppName);
+        Assert.Equal("ReScene.Lib", srr.HeaderBlock!.AppName);
     }
 
     #endregion
