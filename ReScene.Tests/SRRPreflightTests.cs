@@ -91,6 +91,97 @@ public class SRRPreflightTests : TempDirTestBase
         Assert.False(Directory.Exists(outDir));
     }
 
+    [Fact]
+    public void ZeroLengthRRService_StillDeclines()
+    {
+        // Rule 3 (Service named "RR") is unconditional on name alone — unlike rules 4/5, which
+        // are gated on a declared-but-absent payload. A zero-declared-size RR service block must
+        // still be treated as recovery-record evidence, not silently pass just because there is
+        // no ADD_SIZE to call "stripped".
+        string srr = BuildSrr(0, h => h
+            .AddArchiveHeader()
+            .AddServiceBlock("RR", 0, includeData: false)
+            .AddEndArchive());
+        SRRReconstructionResult r = NewReconstructor().PreflightSet(srr, ["a.rar"]);
+        Assert.Equal(SRRReconstructionStatus.UnsupportedSrr, r.Status);
+        Assert.Contains("RR", r.Diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void RARFileSectionWithHeaderPadding_DoesNotDesyncTheWalk()
+    {
+        // The RARFile (0x71) block's declared header size can legitimately include bytes beyond
+        // the name (padding this codebase's own builder never emits, but a real-world or
+        // malformed SRR could). The walk must seek to the declared end of the header — not
+        // "wherever reading the name happened to leave the stream" — or the next block gets
+        // misparsed from padding bytes.
+        string srr = new SRRTestDataBuilder().AddSRRHeader("t")
+            .AddRARFileWithHeaders("a.rar", 0, extraHeaderPadding: 4, h => h
+                .AddArchiveHeader()
+                .AddFileHeader("a.bin", packedSize: 8, unpackedSize: 8)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "padded.srr");
+
+        SRRReconstructionResult r = NewReconstructor().PreflightSet(srr, ["a.rar"]);
+        Assert.Equal(SRRReconstructionStatus.Success, r.Status);
+    }
+
+    [Fact]
+    public void EmptyFile_IsError()
+    {
+        string srr = Path.Combine(TempDir, "empty.srr");
+        File.WriteAllBytes(srr, []);
+        Assert.Equal(SRRReconstructionStatus.Error,
+            NewReconstructor().PreflightSet(srr, ["a.rar"]).Status);
+    }
+
+    [Fact]
+    public void NoSrrHeaderBlock_IsError_EvenWithOtherwiseValidContent()
+    {
+        // A well-formed sequence of blocks that simply never includes the SRR header (0x69) —
+        // e.g. one that starts directly with a RAR-file section — is not a valid SRR, matching
+        // SRRVerifier's "Missing SRR header block (0x69)" stance. It must not be treated as
+        // assemblable just because nothing else looked wrong.
+        string srr = new SRRTestDataBuilder()
+            .AddRARFileWithHeaders("a.rar", h => h
+                .AddArchiveHeader()
+                .AddFileHeader("a.bin", packedSize: 8, unpackedSize: 8)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "noheader.srr");
+
+        Assert.Equal(SRRReconstructionStatus.Error,
+            NewReconstructor().PreflightSet(srr, ["a.rar"]).Status);
+    }
+
+    [Fact]
+    public void EndArchiveWithMalformedAddSize_IsError()
+    {
+        // EndArchive (0x7B) has no ADD_SIZE field (RAR4HeaderLayout); a LONG_BLOCK EndArchive
+        // declaring one is a malformed shape, not evidence of anything specific — Error, not
+        // UnsupportedSrr.
+        string srr = BuildSrr(0, h => h
+            .AddArchiveHeader()
+            .AddMalformedEndArchiveWithAddSize(64));
+        SRRReconstructionResult r = NewReconstructor().PreflightSet(srr, ["a.rar"]);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_EndArchiveWithMalformedAddSize_ReturnsErrorAndCreatesNoOutput()
+    {
+        // Pins the pair: PreflightSet declines this malformed shape before ReconstructAsync's own
+        // (now equally strict) EndArchive handling would ever see it.
+        string srr = BuildSrr(0, h => h
+            .AddArchiveHeader()
+            .AddMalformedEndArchiveWithAddSize(64));
+        string outDir = Path.Combine(TempDir, "out");
+        SRRReconstructionResult r = await NewReconstructor().ReconstructAsync(
+            srr, new RecordingNoopSource(), TempDir, outDir, ["a.rar"], [], HashType.CRC32,
+            CancellationToken.None);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+        Assert.False(Directory.Exists(outDir));
+    }
+
     private sealed class RecordingNoopSource : IPackedSource
     {
         public Stream OpenPackedStream(string archivedFileName) => new MemoryStream();

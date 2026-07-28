@@ -33,6 +33,10 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     /// regardless of overall success, so a partial/failed run's output can still be inspected or
     /// cleaned up by the caller.
     /// </returns>
+    /// <remarks>
+    /// This walk and <see cref="PreflightSet"/>'s must stay seek-rule-identical; change one,
+    /// change both (SRRPreflightTests pins the pairs).
+    /// </remarks>
     public async Task<SRRReconstructionResult> ReconstructAsync(
         string srrFilePath,
         IPackedSource packedSource,
@@ -144,6 +148,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             break;
                         }
 
+                        if (7 + 2 + nameLen > headerSize)
+                        {
+                            throw new InvalidDataException(
+                                $"SRR RAR-file block at offset {blockStartPos} has a name that overflows its declared header size.");
+                        }
+
                         byte[] nameBytes = reader.ReadBytes(nameLen);
                         currentRARFileName = Encoding.UTF8.GetString(nameBytes);
 
@@ -164,6 +174,17 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                         outputStream = new FileStream(currentOutputPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
                         _logger.Information(this, $"Reconstructing: {currentRARFileName}", LogTarget.System);
+
+                        // Absolute seek — the same formula every other SRR block type uses —
+                        // rather than trusting that reading the name landed the stream exactly at
+                        // the header's declared end. See PreflightSet's identical RARFile handling.
+                        if (blockStartPos + headerSize + addSize > srrStream.Length)
+                        {
+                            throw new InvalidDataException(
+                                $"SRR RAR-file block at offset {blockStartPos} extends past the end of the file.");
+                        }
+
+                        srrStream.Seek(blockStartPos + headerSize + addSize, SeekOrigin.Begin);
                     }
                     else if (blockType == (byte)SRRBlockType.RARPadding)
                     {
@@ -329,8 +350,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             if (rarAddSize > 0)
                             {
-                                byte[] endData = reader.ReadBytes((int)rarAddSize);
-                                outputStream.Write(endData, 0, endData.Length);
+                                // EndArchive has no ADD_SIZE field (see RAR4HeaderLayout) —
+                                // PreflightSet declines this malformed shape before reconstruction
+                                // starts, so this should be unreachable. Error rather than
+                                // silently consuming whatever bytes follow as "end data".
+                                throw new InvalidDataException(
+                                    $"RAR EndArchive block at SRR offset {blockStartPos} declares an ADD_SIZE ({rarAddSize} bytes), but EndArchive has no ADD_SIZE field.");
                             }
 
                             break;
@@ -457,6 +482,8 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         _logger.Information(this, $"SRR: {srrFilePath}", LogTarget.System);
         _logger.Information(this, $"Expected volumes: {originalRARFileNames.Count}", LogTarget.System);
 
+        bool sawSrrHeader = false;
+
         try
         {
             using FileStream srrStream = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -485,6 +512,11 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                 if (IsSRRBlockType(blockType))
                 {
+                    if (blockType == (byte)SRRBlockType.Header)
+                    {
+                        sawSrrHeader = true;
+                    }
+
                     if (hasLongBlock || blockType == (byte)SRRBlockType.StoredFile)
                     {
                         if (srrStream.Position + 4 > srrStream.Length)
@@ -499,8 +531,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                     {
                         // Read (but do not yet filter on) the section name — a future task adds
                         // set-membership filtering against originalRARFileNames; every section is
-                        // "selected" until then. Reading it here keeps this walk's seek arithmetic
-                        // identical to ReconstructAsync's.
+                        // "selected" until then.
                         if (srrStream.Position + 2 > srrStream.Length)
                         {
                             return MalformedSrr("SRR is truncated: incomplete RAR-file name length");
@@ -512,7 +543,25 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             return MalformedSrr("SRR is truncated: incomplete RAR-file name");
                         }
 
+                        if (7 + 2 + nameLen > headerSize)
+                        {
+                            return MalformedSrr($"SRR is malformed: RAR-file name at offset {blockStartPos} overflows its declared header size");
+                        }
+
                         reader.ReadBytes(nameLen);
+
+                        // Absolute seek — the same formula every other SRR block type uses —
+                        // rather than trusting that reading the name landed the stream exactly at
+                        // the header's declared end. A header declaring extra bytes beyond the
+                        // name (padding this codebase's own writer never emits, but a malformed or
+                        // unusual SRR could), or LONG_BLOCK addSize on this block, would otherwise
+                        // desync the walk.
+                        if (blockStartPos + headerSize + addSize > srrStream.Length)
+                        {
+                            return MalformedSrr("SRR is truncated: RAR-file section extends past end of file");
+                        }
+
+                        srrStream.Seek(blockStartPos + headerSize + addSize, SeekOrigin.Begin);
                     }
                     else
                     {
@@ -553,9 +602,21 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                         case (byte)RAR4BlockType.Marker:
                         case (byte)RAR4BlockType.FileHeader:
-                        case (byte)RAR4BlockType.EndArchive:
                             // File packed data is EXTERNAL — never in the SRR; FileHeader's
                             // ADD_SIZE is not an SRR seek distance.
+                            srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
+                            break;
+
+                        case (byte)RAR4BlockType.EndArchive:
+                            // EndArchive has no ADD_SIZE field (see RAR4HeaderLayout) — a
+                            // LONG_BLOCK EndArchive declaring one is a malformed shape (not
+                            // evidence of anything specific), so it is rejected rather than
+                            // silently seeking past whatever it declares.
+                            if (rarAddSize > 0)
+                            {
+                                return MalformedSrr($"SRR is malformed: EndArchive block at offset {blockStartPos} declares an ADD_SIZE, which EndArchive has no field for");
+                            }
+
                             srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
                             break;
 
@@ -569,6 +630,14 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                                 return MalformedSrr($"SRR is malformed: embedded Service block at offset {blockStartPos} has no decodable name");
                             }
 
+                            // Rule 3 declines a Service named "RR" on name alone — unconditionally,
+                            // like Protect above — unlike the generic rules 4/5 below, which only
+                            // trigger when a payload is actually declared-but-absent.
+                            if (string.Equals(serviceName, "RR", StringComparison.Ordinal))
+                            {
+                                return Decline($"\"{serviceName}\" recovery record service block");
+                            }
+
                             if (string.Equals(serviceName, "CMT", StringComparison.Ordinal))
                             {
                                 if (blockStartPos + headerSize + rarAddSize > srrStream.Length)
@@ -580,11 +649,6 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             }
                             else if (rarAddSize > 0)
                             {
-                                if (string.Equals(serviceName, "RR", StringComparison.Ordinal))
-                                {
-                                    return Decline($"\"{serviceName}\" recovery record service block");
-                                }
-
                                 return Decline($"stripped {serviceName} service data");
                             }
                             else
@@ -610,6 +674,14 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
             or FileNotFoundException or UnauthorizedAccessException or EndOfStreamException)
         {
             return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, ex.Message);
+        }
+
+        // Matches SRRVerifier's stance: a walk that never saw an SRR header block (0x69) —
+        // including an empty file, where the loop above never executes at all — is not a valid
+        // SRR, regardless of how clean the rest of the walk looked.
+        if (!sawSrrHeader)
+        {
+            return MalformedSrr("Missing SRR header block (0x69).");
         }
 
         return SRRReconstructionResult.Ok([]);

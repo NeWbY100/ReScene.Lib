@@ -330,6 +330,22 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         return this;
     }
 
+    /// <summary>MALFORMED end-of-archive block (0x7B) that incorrectly declares an ADD_SIZE via
+    /// LONG_BLOCK. Per RAR4HeaderLayout, EndArchive has no ADD_SIZE field — no real writer
+    /// produces this shape; it exists solely to test the "malformed EndArchive" detection path.
+    /// </summary>
+    public RAR4HeaderBuilder AddMalformedEndArchiveWithAddSize(uint declaredAddSize)
+    {
+        byte[] header = new byte[11];
+        header[2] = (byte)RAR4BlockType.EndArchive;
+        BitConverter.GetBytes((ushort)RARFileFlags.LongBlock).CopyTo(header, 3);
+        BitConverter.GetBytes((ushort)11).CopyTo(header, 5);
+        BitConverter.GetBytes(declaredAddSize).CopyTo(header, 7);
+        WriteCrc(header);
+        _writer.Write(header);
+        return this;
+    }
+
     /// <summary>
     /// Computes the RAR4 header CRC16 (the low 16 bits of a CRC32 over the header bytes from
     /// offset 2 onward) and writes it into the header's first 2 bytes. Shared by <see

@@ -79,10 +79,20 @@ internal class SRRTestDataBuilder
     /// Writes an SRR RAR file reference block (type 0x71) with the given SRR block flags word
     /// (e.g. RecoveryBlocksRemoved = 0x0001) followed by embedded RAR4 headers.
     /// </summary>
-    public SRRTestDataBuilder AddRARFileWithHeaders(string rarFileName, ushort flags, Action<RAR4HeaderBuilder> buildHeaders)
+    public SRRTestDataBuilder AddRARFileWithHeaders(string rarFileName, ushort flags, Action<RAR4HeaderBuilder> buildHeaders) =>
+        AddRARFileWithHeaders(rarFileName, flags, 0, buildHeaders);
+
+    /// <summary>
+    /// Writes an SRR RAR file reference block (type 0x71) whose declared header size includes
+    /// <paramref name="extraHeaderPadding"/> zero bytes beyond the name — a shape this codebase's
+    /// own writer never emits (it always sizes the header to exactly base+nameLen+name), but a
+    /// malformed or non-standard SRR could. Exists to test that the walk seeks to the declared end
+    /// of the header rather than assuming it landed there after reading the name.
+    /// </summary>
+    public SRRTestDataBuilder AddRARFileWithHeaders(string rarFileName, ushort flags, int extraHeaderPadding, Action<RAR4HeaderBuilder> buildHeaders)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(rarFileName);
-        ushort headerSize = (ushort)(7 + 2 + nameBytes.Length); // base + nameLen + name
+        ushort headerSize = (ushort)(7 + 2 + nameBytes.Length + extraHeaderPadding); // base + nameLen + name + padding
 
         _writer.Write((ushort)0x7171);     // CRC sentinel
         _writer.Write((byte)0x71);         // RARFile type
@@ -90,6 +100,10 @@ internal class SRRTestDataBuilder
         _writer.Write(headerSize);
         _writer.Write((ushort)nameBytes.Length);
         _writer.Write(nameBytes);
+        if (extraHeaderPadding > 0)
+        {
+            _writer.Write(new byte[extraHeaderPadding]);
+        }
 
         // Write embedded RAR headers directly after
         var headerBuilder = new RAR4HeaderBuilder(_writer);
