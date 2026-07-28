@@ -113,6 +113,33 @@ internal class SRRTestDataBuilder
     }
 
     /// <summary>
+    /// Writes a MALFORMED SRR RAR file reference block (type 0x71) with LONG_BLOCK set — so the
+    /// walk must read a 4-byte ADD_SIZE field between the base header and the name — but a
+    /// caller-controlled (not auto-computed) <paramref name="declaredHeaderSize"/>, letting tests
+    /// declare a header too small to actually hold that ADD_SIZE field plus the name. Exists to
+    /// test that the boundary check accounts for whatever fixed fields LONG_BLOCK adds, rather
+    /// than assuming a fixed 7-byte prefix always precedes the name.
+    /// </summary>
+    public SRRTestDataBuilder AddLongBlockRARFileWithUndersizedHeader(
+        string rarFileName, uint addSize, ushort declaredHeaderSize, Action<RAR4HeaderBuilder> buildHeaders)
+    {
+        byte[] nameBytes = Encoding.UTF8.GetBytes(rarFileName);
+
+        _writer.Write((ushort)0x7171);     // CRC sentinel
+        _writer.Write((byte)0x71);         // RARFile type
+        _writer.Write((ushort)0x8000);     // flags: LongBlock
+        _writer.Write(declaredHeaderSize); // deliberately caller-controlled, not auto-sized
+        _writer.Write(addSize);            // ADD_SIZE field (consumed because LongBlock is set)
+        _writer.Write((ushort)nameBytes.Length);
+        _writer.Write(nameBytes);
+
+        var headerBuilder = new RAR4HeaderBuilder(_writer);
+        buildHeaders(headerBuilder);
+
+        return this;
+    }
+
+    /// <summary>
     /// Writes an SRR OSO hash block (type 0x6B).
     /// </summary>
     public SRRTestDataBuilder AddOSOHash(string fileName, ulong fileSize, byte[] osoHash)

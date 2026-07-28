@@ -182,6 +182,97 @@ public class SRRPreflightTests : TempDirTestBase
         Assert.False(Directory.Exists(outDir));
     }
 
+    [Fact]
+    public void LongBlockRARFileWithUndersizedHeader_IsError_NotBackwardSeek()
+    {
+        // A LONG_BLOCK RARFile section consumes a 4-byte ADD_SIZE field BEFORE the name — a
+        // declared header size that only accounts for base+nameLen+name (not that extra 4 bytes)
+        // must be rejected, not silently accepted and then seeked backward into the name bytes
+        // just read.
+        string srr = new SRRTestDataBuilder().AddSRRHeader("t")
+            .AddLongBlockRARFileWithUndersizedHeader("a.rar", addSize: 0, declaredHeaderSize: 14, h => h
+                .AddArchiveHeader()
+                .AddFileHeader("a.bin", packedSize: 8, unpackedSize: 8)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "undersized.srr");
+
+        SRRReconstructionResult r = NewReconstructor().PreflightSet(srr, ["a.rar"]);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+        // The status alone isn't discriminating here: an unfixed 7+2+nameLen formula still
+        // returns Error for this input, but via a DIFFERENT, later check ("embedded RAR header
+        // extends past end of file") after the wrong backward seek corrupts the stream position —
+        // not via the name-overflow check this test targets. Assert on the diagnostic itself so a
+        // regression back to the wrong formula is caught even though it "coincidentally" still
+        // errors.
+        Assert.Contains("overflows its declared header size", r.Diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_LongBlockRARFileWithUndersizedHeader_ReturnsErrorAndCreatesNoOutput()
+    {
+        string srr = new SRRTestDataBuilder().AddSRRHeader("t")
+            .AddLongBlockRARFileWithUndersizedHeader("a.rar", addSize: 0, declaredHeaderSize: 14, h => h
+                .AddArchiveHeader()
+                .AddFileHeader("a.bin", packedSize: 8, unpackedSize: 8)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "undersized2.srr");
+
+        string outDir = Path.Combine(TempDir, "out");
+        SRRReconstructionResult r = await NewReconstructor().ReconstructAsync(
+            srr, new RecordingNoopSource(), TempDir, outDir, ["a.rar"], [], HashType.CRC32,
+            CancellationToken.None);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+        Assert.False(Directory.Exists(outDir));
+        // See PreflightSet's sibling test: the status alone doesn't discriminate an unfixed
+        // formula (still errors, just later and for a different reason) from the fix.
+        Assert.Contains("overflows its declared header size", r.Diagnostic, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void NoSrrHeaderBlock_WithEvidenceContent_IsError_NotUnsupportedSrr()
+    {
+        // A file with NO SRR header block (0x69) is not a valid SRR at all — even when its
+        // content happens to look like recovery-record evidence (here: a Protected archive
+        // header), that must not be reported as UnsupportedSrr (which implies "this IS a valid
+        // SRR, just unassemblable"). It simply is not an SRR: Error.
+        string srr = new SRRTestDataBuilder()
+            .AddRARFileWithHeaders("a.rar", h => h
+                .AddArchiveHeader(RARArchiveFlags.Protected)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "headerless-evidence.srr");
+
+        SRRReconstructionResult r = NewReconstructor().PreflightSet(srr, ["a.rar"]);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+    }
+
+    [Fact]
+    public void EndArchiveWithLongBlockAndZeroAddSize_IsError()
+    {
+        // The malformed condition is LONG_BLOCK being set on EndArchive at all (it has no
+        // ADD_SIZE field per RAR4HeaderLayout) — not merely a nonzero declared value. A
+        // LONG_BLOCK EndArchive declaring addSize=0 is just as malformed and must not slip
+        // through a "declared value > 0" check.
+        string srr = BuildSrr(0, h => h
+            .AddArchiveHeader()
+            .AddMalformedEndArchiveWithAddSize(0));
+        SRRReconstructionResult r = NewReconstructor().PreflightSet(srr, ["a.rar"]);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_EndArchiveWithLongBlockAndZeroAddSize_ReturnsErrorAndCreatesNoOutput()
+    {
+        string srr = BuildSrr(0, h => h
+            .AddArchiveHeader()
+            .AddMalformedEndArchiveWithAddSize(0));
+        string outDir = Path.Combine(TempDir, "out");
+        SRRReconstructionResult r = await NewReconstructor().ReconstructAsync(
+            srr, new RecordingNoopSource(), TempDir, outDir, ["a.rar"], [], HashType.CRC32,
+            CancellationToken.None);
+        Assert.Equal(SRRReconstructionStatus.Error, r.Status);
+        Assert.False(Directory.Exists(outDir));
+    }
+
     private sealed class RecordingNoopSource : IPackedSource
     {
         public Stream OpenPackedStream(string archivedFileName) => new MemoryStream();

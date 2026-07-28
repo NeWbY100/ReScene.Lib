@@ -148,7 +148,11 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             break;
                         }
 
-                        if (7 + 2 + nameLen > headerSize)
+                        // Position-based, not a hardcoded "7 + 2 + nameLen": see PreflightSet's
+                        // identical RARFile handling for why (a LONG_BLOCK RAR-file section
+                        // consumes a 4-byte ADD_SIZE field before the name; a fixed 7-byte prefix
+                        // assumption would let a name overflow by exactly that width and pass).
+                        if (srrStream.Position + nameLen > blockStartPos + headerSize)
                         {
                             throw new InvalidDataException(
                                 $"SRR RAR-file block at offset {blockStartPos} has a name that overflows its declared header size.");
@@ -348,14 +352,16 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                         case (byte)RAR4BlockType.EndArchive:
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
-                            if (rarAddSize > 0)
+                            if (hasLongBlock)
                             {
-                                // EndArchive has no ADD_SIZE field (see RAR4HeaderLayout) —
-                                // PreflightSet declines this malformed shape before reconstruction
-                                // starts, so this should be unreachable. Error rather than
-                                // silently consuming whatever bytes follow as "end data".
+                                // EndArchive has no ADD_SIZE field (see RAR4HeaderLayout) — the
+                                // malformed condition is LONG_BLOCK being set AT ALL, not merely a
+                                // nonzero declared value. PreflightSet declines this malformed
+                                // shape before reconstruction starts, so this should be
+                                // unreachable. Error rather than silently consuming whatever bytes
+                                // follow as "end data".
                                 throw new InvalidDataException(
-                                    $"RAR EndArchive block at SRR offset {blockStartPos} declares an ADD_SIZE ({rarAddSize} bytes), but EndArchive has no ADD_SIZE field.");
+                                    $"RAR EndArchive block at SRR offset {blockStartPos} has LONG_BLOCK set, but EndArchive has no ADD_SIZE field.");
                             }
 
                             break;
@@ -510,13 +516,23 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                 uint addSize = 0;
                 bool hasLongBlock = (flags & (ushort)SRRBlockFlags.LongBlock) != 0;
 
+                if (blockType == (byte)SRRBlockType.Header)
+                {
+                    sawSrrHeader = true;
+                }
+                else if (!sawSrrHeader && (blockType == (byte)SRRBlockType.RARFile || !IsSRRBlockType(blockType)))
+                {
+                    // A RARFile section or any embedded RAR content appearing before the SRR ever
+                    // proved itself valid (via the 0x69 header block) is not "evidence" of
+                    // anything — the file simply is not an SRR. This must be checked here, before
+                    // any Decline() branch below runs, or a headerless-but-otherwise-recognizable
+                    // sequence of bytes could be mistakenly reported as UnsupportedSrr (implying
+                    // "this IS a valid SRR, just unassemblable") instead of Error.
+                    return MalformedSrr("Missing SRR header block (0x69).");
+                }
+
                 if (IsSRRBlockType(blockType))
                 {
-                    if (blockType == (byte)SRRBlockType.Header)
-                    {
-                        sawSrrHeader = true;
-                    }
-
                     if (hasLongBlock || blockType == (byte)SRRBlockType.StoredFile)
                     {
                         if (srrStream.Position + 4 > srrStream.Length)
@@ -543,7 +559,13 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             return MalformedSrr("SRR is truncated: incomplete RAR-file name");
                         }
 
-                        if (7 + 2 + nameLen > headerSize)
+                        // Position-based, not a hardcoded "7 + 2 + nameLen": srrStream.Position
+                        // already reflects whatever fixed fields were actually consumed to get
+                        // here (the base header, PLUS a 4-byte ADD_SIZE field when this SRR block
+                        // itself has LONG_BLOCK set), so this is correct whether or not that extra
+                        // field was present — a hardcoded 7-byte prefix assumption would let a name
+                        // overflow by exactly the ADD_SIZE field's width and pass.
+                        if (srrStream.Position + nameLen > blockStartPos + headerSize)
                         {
                             return MalformedSrr($"SRR is malformed: RAR-file name at offset {blockStartPos} overflows its declared header size");
                         }
@@ -608,13 +630,15 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             break;
 
                         case (byte)RAR4BlockType.EndArchive:
-                            // EndArchive has no ADD_SIZE field (see RAR4HeaderLayout) — a
-                            // LONG_BLOCK EndArchive declaring one is a malformed shape (not
-                            // evidence of anything specific), so it is rejected rather than
-                            // silently seeking past whatever it declares.
-                            if (rarAddSize > 0)
+                            // EndArchive has no ADD_SIZE field (see RAR4HeaderLayout) — the
+                            // malformed condition is LONG_BLOCK being set on this block type AT
+                            // ALL, not merely a nonzero declared value (a LONG_BLOCK EndArchive
+                            // declaring addSize=0 is just as malformed: the field itself shouldn't
+                            // exist here), so it is rejected rather than silently seeking past
+                            // whatever it declares.
+                            if (hasLongBlock)
                             {
-                                return MalformedSrr($"SRR is malformed: EndArchive block at offset {blockStartPos} declares an ADD_SIZE, which EndArchive has no field for");
+                                return MalformedSrr($"SRR is malformed: EndArchive block at offset {blockStartPos} has LONG_BLOCK set, but EndArchive has no ADD_SIZE field");
                             }
 
                             srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
