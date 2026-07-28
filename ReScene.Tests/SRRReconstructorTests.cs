@@ -133,6 +133,22 @@ public class SRRReconstructorTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task ReconstructAsync_InvalidHashType_PropagatesArgumentOutOfRangeException()
+    {
+        // HashCalculator.Calculate throws ArgumentOutOfRangeException (an ArgumentException) for
+        // any HashType outside its switch — a programmer/caller error, not an expected
+        // reconstruction failure. It must keep propagating uncaught: the packed-source-scoped
+        // ArgumentException catch must not extend to the (unrelated) verification call, and the
+        // method-wide catch no longer includes ArgumentException at all.
+        string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
+
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
+        var reconstructor = new SRRReconstructor();
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, ["test.rar"], ["anyhash"], (HashType)99, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task ReconstructAsync_FewerVolumesWrittenThanExpected_ReturnsFalseEvenWhenAllWrittenHashesMatch()
     {
         // Regression for the bug this task fixes: the OLD condition was `allMatched &&
@@ -236,6 +252,8 @@ public class SRRReconstructorTests : TempDirTestBase
             srr, packedSource, _inputDir, _outputDir, [@"..\evil.rar"], [], HashType.CRC32, CancellationToken.None);
 
         Assert.Equal(SRRReconstructionStatus.Error, result.Status);
+        Assert.Contains("escapes the output directory", result.Diagnostic ?? "", StringComparison.Ordinal);
+        Assert.Empty(result.WrittenPaths);
         Assert.False(File.Exists(escapedPath),
             "SRR reconstruction wrote a RAR volume outside the output directory (path traversal).");
     }
@@ -278,6 +296,32 @@ public class SRRReconstructorTests : TempDirTestBase
 
         Assert.Equal(SRRReconstructionStatus.Success, result.Status);
         Assert.Equal(name, recorder.RequestedName); // the DECODED unicode name, not the ANSI fallback
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_ZeroLengthArchivedName_ReturnsErrorInsteadOfFalseSuccess()
+    {
+        // RARUtils.DecodeFileName returns null for a zero-length name. A data-bearing file header
+        // (ADD_SIZE > 0) with no decodable name must not silently skip source-opening/copying and
+        // then report Success once the (header-only, truncated) volume happens to match the
+        // expected count/name — especially likely when no hashes are supplied to catch the
+        // corruption independently.
+        string srr = new SRRTestDataBuilder()
+            .AddSRRHeader("ReScene.Tests")
+            .AddRARFileWithHeaders("test.rar", h => h
+                .AddArchiveHeader()
+                .AddFileHeader("", packedSize: 8, unpackedSize: 8)
+                .AddEndArchive())
+            .BuildToFile(TempDir, "test.srr");
+
+        var recorder = new RecordingPackedSource([1, 2, 3, 4, 5, 6, 7, 8]);
+        var reconstructor = new SRRReconstructor();
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, recorder, _inputDir, _outputDir, ["test.rar"], [], HashType.CRC32, CancellationToken.None);
+
+        Assert.Equal(SRRReconstructionStatus.Error, result.Status);
+        // Never reached OpenPackedStream — the guard fails before attempting to source the data.
+        Assert.Null(recorder.RequestedName);
     }
 
     [Fact]

@@ -259,25 +259,51 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             // are still written above; packedSize is 0, so there is nothing to copy).
                             bool isDirectory = ((RARFileFlags)flags).HasFlag(RARFileFlags.Directory);
 
-                            if (!isSplitBefore && archivedFileName != null && !isDirectory)
+                            // A data-bearing, non-directory, non-continuation entry with no decodable
+                            // name has nowhere to source its packed bytes from. Letting archivedFileName
+                            // == null alone skip the open+copy below (as it must for directories/
+                            // continuations) would silently produce a header-only/truncated volume that
+                            // still reports Success when no hashes are supplied — surface it as a typed
+                            // failure instead of a silent skip.
+                            if (!isSplitBefore && !isDirectory && archivedFileName == null && packedSize > 0)
                             {
-                                if (currentSourceStream != null && currentSourceFileName != archivedFileName)
-                                {
-                                    currentSourceStream.Dispose();
-                                    currentSourceStream = null;
-                                }
-
-                                if (currentSourceStream == null)
-                                {
-                                    currentSourceStream = packedSource.OpenPackedStream(archivedFileName);
-                                    currentSourceFileName = archivedFileName;
-                                    _logger.Debug(this, $"Opened source file: {archivedFileName}");
-                                }
+                                throw new InvalidDataException(
+                                    $"RAR file header at SRR offset {blockStartPos} has packed data ({packedSize} bytes) but no decodable archived file name.");
                             }
 
-                            if (currentSourceStream != null && packedSize > 0)
+                            try
                             {
-                                await CopyBytesAsync(currentSourceStream, outputStream, packedSize, cancellationToken).ConfigureAwait(false);
+                                if (!isSplitBefore && archivedFileName != null && !isDirectory)
+                                {
+                                    if (currentSourceStream != null && currentSourceFileName != archivedFileName)
+                                    {
+                                        currentSourceStream.Dispose();
+                                        currentSourceStream = null;
+                                    }
+
+                                    if (currentSourceStream == null)
+                                    {
+                                        currentSourceStream = packedSource.OpenPackedStream(archivedFileName);
+                                        currentSourceFileName = archivedFileName;
+                                        _logger.Debug(this, $"Opened source file: {archivedFileName}");
+                                    }
+                                }
+
+                                if (currentSourceStream != null && packedSize > 0)
+                                {
+                                    await CopyBytesAsync(currentSourceStream, outputStream, packedSize, cancellationToken).ConfigureAwait(false);
+                                }
+                            }
+                            catch (ArgumentException ex)
+                            {
+                                // Scoped narrowly to the packed-source interaction: RARStream (a future
+                                // producer-backed IPackedSource) throws ArgumentException when the
+                                // snapshot it opens has no visible target header or does not start at
+                                // volume 1 (spec §4). Catching ArgumentException at the method level
+                                // instead would also swallow HashCalculator's ArgumentOutOfRangeException
+                                // for an invalid HashType below — a programmer error that must keep
+                                // propagating, not become an ordinary Error.
+                                return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, ex.Message, writtenPaths);
                             }
 
                             if (!isSplitAfter && currentSourceStream != null)
@@ -357,12 +383,8 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
             return SRRReconstructionResult.Fail(SRRReconstructionStatus.SourceExhausted, ex.Message, writtenPaths);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException
-            or ArgumentException or FileNotFoundException or UnauthorizedAccessException)
+            or FileNotFoundException or UnauthorizedAccessException)
         {
-            // ArgumentException: RARStream throws it when the produced snapshot has no visible
-            // target header or does not start at volume 1 — during a live producer this is the
-            // incomplete-snapshot shape the Manager retries (spec §4); after completion it is a
-            // real Error.
             return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, ex.Message, writtenPaths);
         }
         finally
