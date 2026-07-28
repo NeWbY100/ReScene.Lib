@@ -25,6 +25,16 @@ namespace ReScene.Tests;
 /// the shape (whether extended time is present), the two shapes land their split points at
 /// different byte offsets for the identical payload — exactly the real-world condition guided
 /// assembly must reconcile.
+///
+/// Each volume's headers (marker, archive header, file header(s), end block) are captured ONCE, as
+/// raw bytes, via <see cref="CaptureVolume"/> — never recomputed. The physical volume file
+/// interleaves those captured header bytes with the piece payloads; the SRR RARFile section that
+/// describes the same volume replays the identical captured bytes (via <see
+/// cref="RAR4HeaderBuilder.WriteRaw"/>) with no payload between them. This guarantees the SRR's
+/// embedded headers are byte-for-byte the same bytes written into the original volume file, rather
+/// than merely "the same because the same arguments were passed twice" — a distinction
+/// AssemblyFixtureBuilderTests.SrrEmbeddedHeaders_AreByteIdenticalToOriginalVolumeHeaders verifies
+/// directly.
 /// </remarks>
 internal static class AssemblyFixtureBuilder
 {
@@ -44,7 +54,7 @@ internal static class AssemblyFixtureBuilder
     /// Builds, under <paramref name="dir"/>: <c>originals/</c> (the original header shape),
     /// <c>produced/</c> (the produced header shape, same packed payload, re-split so each volume's
     /// total size equals <paramref name="volumeSize"/>), and the SRR (header + one RARFile section
-    /// per original volume, embedding that volume's headers verbatim, flagged <see
+    /// per original volume, embedding that volume's CAPTURED headers verbatim, flagged <see
     /// cref="SRRBlockFlags.RecoveryBlocksRemoved"/> as every real-world writer sets it). Every
     /// volume in both sets is a real, parseable RAR4 file — marker, archive header, file header(s)
     /// with <see cref="RARFileFlags.SplitBefore"/>/<see cref="RARFileFlags.SplitAfter"/> as needed,
@@ -86,20 +96,25 @@ internal static class AssemblyFixtureBuilder
         List<VolumePlan> originalPlan = PlanVolumes(archivedFiles, volumeSize, originalHasExtTime);
         List<VolumePlan> producedPlan = PlanVolumes(archivedFiles, volumeSize, producedHasExtTime);
 
-        List<string> originalPaths = WriteVolumeSet(originalsRoot, directoryPrefix, volumePrefix, originalPlan);
-        List<string> producedPaths = WriteVolumeSet(producedRoot, directoryPrefix, volumePrefix, producedPlan);
+        List<CapturedVolume> originalCaptured = [.. originalPlan.Select(CaptureVolume)];
+        List<CapturedVolume> producedCaptured = [.. producedPlan.Select(CaptureVolume)];
+
+        List<string> originalPaths =
+            WriteVolumeSet(originalsRoot, directoryPrefix, volumePrefix, originalPlan, originalCaptured);
+        List<string> producedPaths =
+            WriteVolumeSet(producedRoot, directoryPrefix, volumePrefix, producedPlan, producedCaptured);
 
         List<string> originalNames =
             [.. originalPaths.Select(p => QualifiedName(directoryPrefix, Path.GetFileName(p)))];
 
         SRRTestDataBuilder srrBuilder = new SRRTestDataBuilder().AddSRRHeader("fixture");
-        for (int i = 0; i < originalPlan.Count; i++)
+        for (int i = 0; i < originalCaptured.Count; i++)
         {
-            VolumePlan volume = originalPlan[i];
+            CapturedVolume captured = originalCaptured[i];
             srrBuilder = srrBuilder.AddRARFileWithHeaders(
                 originalNames[i],
                 (ushort)SRRBlockFlags.RecoveryBlocksRemoved,
-                hb => EmitVolume(hb, volume, writePayload: null));
+                hb => WriteCapturedHeaders(hb, captured));
         }
 
         string srrPath = srrBuilder.BuildToFile(dir, "fixture.srr");
@@ -207,12 +222,50 @@ internal static class AssemblyFixtureBuilder
     }
 
     /// <summary>
-    /// Writes one physical old-style volume set — real files with payload bytes — named via <see
+    /// Emits <paramref name="plan"/>'s marker + archive header + file header(s) + end block ONCE,
+    /// each as its own captured byte block — never recomputed again. Both the physical volume file
+    /// (<see cref="WriteVolumeSet"/>) and the SRR RARFile section that describes it (<see
+    /// cref="WriteCapturedHeaders"/>) are built from these same captured bytes, so they are
+    /// guaranteed byte-identical rather than merely "produced by the same code path twice".
+    /// </summary>
+    private static CapturedVolume CaptureVolume(VolumePlan plan)
+    {
+        byte[] marker = CaptureBlock(hb => hb.AddMarker());
+        byte[] archiveHeader = CaptureBlock(hb => hb.AddArchiveHeader(plan.ArchiveFlags));
+        List<byte[]> fileHeaders = [.. plan.Pieces.Select(piece => CaptureBlock(hb => hb.AddFileHeader(
+            piece.FileName,
+            packedSize: (uint)piece.Data.Length,
+            unpackedSize: (uint)piece.Data.Length,
+            fileCRC: piece.FileCrc,
+            method: 0x30, // Store — packed bytes ARE the payload, matching RARStream's raw read
+            extraFlags: piece.ExtraFlags,
+            mtimeRemainder: piece.MtimeRemainder)))];
+        byte[] endArchive = CaptureBlock(hb => hb.AddEndArchive());
+
+        return new CapturedVolume(marker, archiveHeader, fileHeaders, endArchive);
+    }
+
+    /// <summary>Runs one <see cref="RAR4HeaderBuilder"/> call in isolation and returns exactly the bytes it wrote.</summary>
+    private static byte[] CaptureBlock(Action<RAR4HeaderBuilder> emit)
+    {
+        using MemoryStream ms = new();
+        using (BinaryWriter bw = new(ms, Encoding.UTF8, leaveOpen: true))
+        {
+            emit(new RAR4HeaderBuilder(bw));
+        }
+
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Writes one physical old-style volume set — the captured header bytes with each piece's real
+    /// payload spliced in immediately after its file header — named via <see
     /// cref="RARVolumeNaming.GetNextVolumePath"/> starting from <c>{volumePrefix}.rar</c>, the same
     /// authority <see cref="RARStream"/> itself uses to walk a set.
     /// </summary>
     private static List<string> WriteVolumeSet(
-        string setRoot, string? directoryPrefix, string volumePrefix, IReadOnlyList<VolumePlan> plan)
+        string setRoot, string? directoryPrefix, string volumePrefix,
+        IReadOnlyList<VolumePlan> plan, IReadOnlyList<CapturedVolume> captured)
     {
         string setDir = directoryPrefix is null ? setRoot : Path.Combine(setRoot, directoryPrefix);
         Directory.CreateDirectory(setDir);
@@ -220,17 +273,28 @@ internal static class AssemblyFixtureBuilder
         List<string> paths = new(plan.Count);
         string? currentPath = Path.Combine(setDir, $"{volumePrefix}.rar");
 
-        foreach (VolumePlan volume in plan)
+        for (int i = 0; i < plan.Count; i++)
         {
             if (currentPath is null)
             {
                 throw new InvalidOperationException("RARVolumeNaming produced no path for the next volume.");
             }
 
+            VolumePlan volume = plan[i];
+            CapturedVolume cap = captured[i];
+
             using (FileStream fs = new(currentPath, FileMode.Create, FileAccess.Write))
             using (BinaryWriter bw = new(fs))
             {
-                EmitVolume(new RAR4HeaderBuilder(bw), volume, bw.Write);
+                bw.Write(cap.Marker);
+                bw.Write(cap.ArchiveHeader);
+                for (int j = 0; j < cap.FileHeaders.Count; j++)
+                {
+                    bw.Write(cap.FileHeaders[j]);
+                    bw.Write(volume.Pieces[j].Data);
+                }
+
+                bw.Write(cap.EndArchive);
             }
 
             paths.Add(currentPath);
@@ -241,33 +305,21 @@ internal static class AssemblyFixtureBuilder
     }
 
     /// <summary>
-    /// Emits one volume's marker + archive header + file header(s) + end block onto <paramref
-    /// name="headerBuilder"/>. When <paramref name="writePayload"/> is given, each piece's payload
-    /// bytes are written immediately after its header — a real volume file; when null, only
-    /// headers are emitted — the exact shape an SRR RARFile section embeds. Both callers share this
-    /// method so the embedded SRR headers are byte-identical to the ones written into the original
-    /// volume file, as the guided-assembly feature requires.
+    /// Replays <paramref name="captured"/>'s exact bytes (marker, archive header, file header(s),
+    /// end block) onto <paramref name="headerBuilder"/> via <see
+    /// cref="RAR4HeaderBuilder.WriteRaw"/> — no field is recomputed, so the result is guaranteed
+    /// byte-identical to whatever originally produced <paramref name="captured"/>.
     /// </summary>
-    private static void EmitVolume(RAR4HeaderBuilder headerBuilder, VolumePlan plan, Action<byte[]>? writePayload)
+    private static void WriteCapturedHeaders(RAR4HeaderBuilder headerBuilder, CapturedVolume captured)
     {
-        headerBuilder.AddMarker();
-        headerBuilder.AddArchiveHeader(plan.ArchiveFlags);
-
-        foreach (FilePiece piece in plan.Pieces)
+        headerBuilder.WriteRaw(captured.Marker);
+        headerBuilder.WriteRaw(captured.ArchiveHeader);
+        foreach (byte[] fileHeader in captured.FileHeaders)
         {
-            headerBuilder.AddFileHeader(
-                piece.FileName,
-                packedSize: (uint)piece.Data.Length,
-                unpackedSize: (uint)piece.Data.Length,
-                fileCRC: piece.FileCrc,
-                method: 0x30, // Store — packed bytes ARE the payload, matching RARStream's raw read
-                extraFlags: piece.ExtraFlags,
-                mtimeRemainder: piece.MtimeRemainder);
-
-            writePayload?.Invoke(piece.Data);
+            headerBuilder.WriteRaw(fileHeader);
         }
 
-        headerBuilder.AddEndArchive();
+        headerBuilder.WriteRaw(captured.EndArchive);
     }
 
     private static string QualifiedName(string? directoryPrefix, string fileName) =>
@@ -279,4 +331,12 @@ internal static class AssemblyFixtureBuilder
 
     /// <summary>One volume's archive-header flags plus the file pieces to emit inside it.</summary>
     private sealed record VolumePlan(RARArchiveFlags ArchiveFlags, IReadOnlyList<FilePiece> Pieces);
+
+    /// <summary>
+    /// One volume's header blocks, captured as raw bytes exactly once (see <see
+    /// cref="CaptureVolume"/>). <see cref="FileHeaders"/> is parallel to the owning <see
+    /// cref="VolumePlan.Pieces"/> (same count, same order).
+    /// </summary>
+    private sealed record CapturedVolume(
+        byte[] Marker, byte[] ArchiveHeader, IReadOnlyList<byte[]> FileHeaders, byte[] EndArchive);
 }

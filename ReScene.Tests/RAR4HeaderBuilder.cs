@@ -21,6 +21,18 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
     }
 
     /// <summary>
+    /// Writes <paramref name="bytes"/> verbatim, bypassing all field computation. Used to replay a
+    /// previously captured header block's exact bytes (e.g. an original volume's headers into an
+    /// SRR RARFile section) rather than recomputing it, guaranteeing byte-for-byte identity with
+    /// whatever produced those bytes originally.
+    /// </summary>
+    public RAR4HeaderBuilder WriteRaw(byte[] bytes)
+    {
+        _writer.Write(bytes);
+        return this;
+    }
+
+    /// <summary>
     /// Writes a RAR 4.x archive header block (0x73) with proper CRC.
     /// </summary>
     public RAR4HeaderBuilder AddArchiveHeader(RARArchiveFlags flags = RARArchiveFlags.None)
