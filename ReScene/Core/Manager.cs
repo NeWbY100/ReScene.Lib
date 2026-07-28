@@ -1506,6 +1506,42 @@ public partial class Manager : IDisposable
     }
 
     /// <summary>
+    /// Finalizes an assembly win: moves the reconstructor's ordered <c>WrittenPaths</c> —
+    /// verbatim, no volume rediscovery, no patching — transactionally into <paramref
+    /// name="rarOutputDir"/> (the app's VerifiedOutputRelocator consumes committed files there).
+    /// Naming (spec §5): <see cref="RAROptions.RenameToOriginalNames"/> true → the assembled
+    /// file's own name is kept as-is (the reconstructor already wrote it under its SRR-recorded
+    /// original volume name, e.g. a qualified <c>"CD2/t.rar"</c> section flattens to
+    /// <c>"t.rar"</c> via <see cref="Path.GetFileName(string)"/>); false → basename replacement
+    /// preserving the COMPLETE volume suffix (<c>"foo.part01.rar"</c> → <c>"{candidateSlug}
+    /// -assembled.part01.rar"</c>, <c>"foo.r00"</c> → <c>"{candidateSlug}-assembled.r00"</c>) via
+    /// <see cref="RARVolumeNaming.GetBaseName"/> — never <see cref="Path.GetExtension(string)"/>,
+    /// which would collapse distinct <c>.partNN.rar</c> volumes onto the same generated name.
+    /// Transactional via <see cref="ExecuteMovePlan"/>: <c>Complete</c> is only ever
+    /// <see langword="true"/> when every volume was placed.
+    /// </summary>
+    internal (IReadOnlyList<string> Placed, bool Complete) FinalizeAssembledSet(
+        BruteForceOptions options, IReadOnlyList<string> assembledPaths,
+        string candidateSlug, string rarOutputDir)
+    {
+        var plan = new List<(string Source, string Dest)>(assembledPaths.Count);
+        foreach (string src in assembledPaths)
+        {
+            string fileName = Path.GetFileName(src);
+            if (!options.RAROptions.RenameToOriginalNames)
+            {
+                string baseName = RARVolumeNaming.GetBaseName(fileName);
+                string suffix = fileName[baseName.Length..];
+                fileName = $"{candidateSlug}-assembled{suffix}";
+            }
+
+            plan.Add((src, Path.Combine(rarOutputDir, fileName)));
+        }
+
+        return ExecuteMovePlan(plan);
+    }
+
+    /// <summary>
     /// Executes a precomputed source-to-destination move plan transactionally: every destination
     /// is verified free (or is its own source — a no-op) before any file is moved; if a move then
     /// fails or throws, this call's own already-completed moves are rolled back (see
