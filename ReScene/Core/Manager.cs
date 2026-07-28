@@ -103,6 +103,12 @@ public partial class Manager : IDisposable
     // assembly and legacy candidate flows.
     private bool _useAssembly;
 
+    // Guards the one-time-per-run "enable Complete all volumes" guidance log: set the first time a
+    // non-CAV candidate's quick-gate assembly comes back genuinely inconclusive (SourceExhausted
+    // with CompleteAllVolumes off). Reset alongside _useAssembly at the same per-set engagement
+    // point below — deliberately deferred from Task 7, which introduced only _useAssembly itself.
+    private bool _inconclusiveGuidanceLogged;
+
     private readonly IReSceneLogger _logger;
 
     // Owns the per-process streaming log writers (open/write/close), keeping that
@@ -357,6 +363,7 @@ public partial class Manager : IDisposable
         // candidate loop below (unchanged); Error is a SET failure — an unreadable/malformed SRR
         // must not silently degrade to legacy reconstruction.
         _useAssembly = false;
+        _inconclusiveGuidanceLogged = false;
         if (!string.IsNullOrEmpty(options.RAROptions.SRRFilePath)
             && options.RAROptions.CustomPackerDetected == SRR.CustomPackerType.None)
         {
@@ -973,42 +980,119 @@ public partial class Manager : IDisposable
                     _logger.Debug(this, $"Actual file created: {actualRARFilePath} (expected: {Path.GetFileName(rarFilePath)})", LogTarget.Phase2);
                 }
 
-                // Apply patching to first volume only (other volumes may still be in progress)
-                if (options.RAROptions.NeedsPatching)
+                string hash;
+                if (_useAssembly)
                 {
-                    PatchRARFilesHostOS(actualRARFilePath, options.RAROptions, allVolumes: false);
+                    string candidateSlug = Path.GetFileNameWithoutExtension(rarFilePath);
+                    string assemblyDir = Path.Combine(rarOutputDir, $"assembled-{candidateSlug}");
+                    bool skipRetentionCleanup = false;   // per-candidate; true ONLY for persistent Error (diagnosis retention)
+                    SRRReconstructionResult quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
+
+                    bool producerRunning = runningProcessTask is { IsCompleted: false };
+                    if (quick.Status != SRRReconstructionStatus.Success && producerRunning)
+                    {
+                        // Incomplete snapshot (spec §4): ANY non-success while the producer runs — including
+                        // Error from RARStream's missing/short-header ArgumentException — awaits completion
+                        // and retries ONCE with a fresh source.
+                        // Normal wait — faults PROPAGATE (generic catch = error row); not the quiet observer.
+                        if (runningProcessTask is not null)
+                        {
+                            completedExitCode = await runningProcessTask.ConfigureAwait(false);
+                        }
+
+                        quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
+                    }
+
+                    string? quickHash = quick.Status == SRRReconstructionStatus.Success && quick.WrittenPaths.Count >= 1
+                        ? HashCalculator.Calculate(options.HashType, quick.WrittenPaths[0])
+                        : null;
+                    bool quickMatch = quickHash != null && options.Hashes.Contains(quickHash);
+                    // Duplicate detection BEFORE recording the hash (mirrors the legacy fileHashes pattern):
+                    bool isDuplicateHash = quickHash != null && fileHashes.Contains(quickHash);
+                    if (quickHash != null)
+                    {
+                        fileHashes.Add(quickHash);
+                    }
+
+                    _logger.Information(this, $"Assembled hash for {(quick.WrittenPaths.Count >= 1 ? quick.WrittenPaths[0] : assemblyDir)}: {quickHash ?? quick.Status.ToString()} (match: {quickMatch})", LogTarget.Phase2);
+
+                    if (!quickMatch)
+                    {
+                        // Post-retry classification (spec §4):
+                        switch (quick.Status)
+                        {
+                            case SRRReconstructionStatus.Error:
+                                // Persistent parse/I-O failure = failed combination — the EXISTING error-row
+                                // shape (CombinationFailed progress event + warning). RETENTION: like the
+                                // exception disposition, BOTH artifact classes are LEFT IN PLACE for
+                                // diagnosis (spec §5).
+                                FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
+                                    totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
+                                    rarFilePath, executedArguments, quick.Diagnostic);
+                                skipRetentionCleanup = true;
+                                break;
+                            case SRRReconstructionStatus.SourceExhausted when !options.RAROptions.CompleteAllVolumes:
+                                // Mirror shift in non-CAV: vol-2 bytes were never written — INCONCLUSIVE.
+                                if (!_inconclusiveGuidanceLogged)
+                                {
+                                    _inconclusiveGuidanceLogged = true;
+                                    _logger.Information(this, "Some candidates are inconclusive without full volumes — enable \"Complete all volumes\" to test them", LogTarget.System);
+                                }
+                                _logger.Debug(this, $"{candidateSlug}: inconclusive (assembly needs produced volume 2+)", LogTarget.Phase2);
+                                break;
+                            default:
+                                // SourceExhausted (CAV, producer done) or a hash mismatch: real no-match.
+                                break;
+                        }
+                        await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
+                        if (!skipRetentionCleanup) // false for mismatch/SourceExhausted/duplicate; true for Error
+                        {
+                            ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateHash);
+                        }
+                        continue;
+                    }
+
+                    hash = quickHash!;
                 }
-
-                string hash = HashCalculator.Calculate(options.HashType, actualRARFilePath);
-
-                _logger.Information(this, $"Hash for {actualRARFilePath}: {hash} (match: {options.Hashes.Contains(hash)})", LogTarget.Phase2);
-
-                // Track if we've seen this hash before (to avoid keeping duplicates)
-                bool isDuplicateHash = fileHashes.Contains(hash);
-                fileHashes.Add(hash);
-
-                if (!options.Hashes.Contains(hash))
+                else
                 {
-                    // No match - kill background RAR process if still running, and OBSERVE it to
-                    // real completion before touching any file below (invariant: no deletion while
-                    // a producer task is unobserved). A no-op when runningProcessTask is null
-                    // (standard path: already observed inside RARCompressDirectoryAsync).
-                    await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
-
-                    if (options.RAROptions.DeleteRARFiles)
+                    // Apply patching to first volume only (other volumes may still be in progress)
+                    if (options.RAROptions.NeedsPatching)
                     {
-                        // Delete all non-matching files
-                        DeleteRARFileAndVolumes(actualRARFilePath);
+                        PatchRARFilesHostOS(actualRARFilePath, options.RAROptions, allVolumes: false);
                     }
-                    else if (options.RAROptions.DeleteDuplicateCRCFiles && isDuplicateHash)
-                    {
-                        // Delete duplicates to save disk space (only keep unique CRC files)
-                        _logger.Debug(this, $"Deleting duplicate hash file: {actualRARFilePath} (hash: {hash})", LogTarget.Phase2);
-                        DeleteRARFileAndVolumes(actualRARFilePath);
-                    }
-                    // If DeleteRARFiles is false and (DeleteDuplicateCRCFiles is false or not a duplicate), keep for debugging
 
-                    continue;
+                    hash = HashCalculator.Calculate(options.HashType, actualRARFilePath);
+
+                    _logger.Information(this, $"Hash for {actualRARFilePath}: {hash} (match: {options.Hashes.Contains(hash)})", LogTarget.Phase2);
+
+                    // Track if we've seen this hash before (to avoid keeping duplicates)
+                    bool isDuplicateHash = fileHashes.Contains(hash);
+                    fileHashes.Add(hash);
+
+                    if (!options.Hashes.Contains(hash))
+                    {
+                        // No match - kill background RAR process if still running, and OBSERVE it to
+                        // real completion before touching any file below (invariant: no deletion while
+                        // a producer task is unobserved). A no-op when runningProcessTask is null
+                        // (standard path: already observed inside RARCompressDirectoryAsync).
+                        await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
+
+                        if (options.RAROptions.DeleteRARFiles)
+                        {
+                            // Delete all non-matching files
+                            DeleteRARFileAndVolumes(actualRARFilePath);
+                        }
+                        else if (options.RAROptions.DeleteDuplicateCRCFiles && isDuplicateHash)
+                        {
+                            // Delete duplicates to save disk space (only keep unique CRC files)
+                            _logger.Debug(this, $"Deleting duplicate hash file: {actualRARFilePath} (hash: {hash})", LogTarget.Phase2);
+                            DeleteRARFileAndVolumes(actualRARFilePath);
+                        }
+                        // If DeleteRARFiles is false and (DeleteDuplicateCRCFiles is false or not a duplicate), keep for debugging
+
+                        continue;
+                    }
                 }
 
                 // ---- MATCH FOUND (first volume) ----
@@ -1151,6 +1235,75 @@ public partial class Manager : IDisposable
         }
 
         return (false, currentProgress, null);
+    }
+
+    /// <summary>
+    /// Assembles the first <paramref name="volumeCount"/> ORIGINAL volumes for the current
+    /// candidate from the produced set. Fresh ProducedVolumesPackedSource per call
+    /// (single-snapshot). volumeCount: 1 = quick gate; int.MaxValue = full set.
+    /// </summary>
+    private async Task<SRRReconstructionResult> AssembleCandidateAsync(
+        BruteForceOptions options, string producedFirstVolume, string assemblyDir,
+        string candidateSlug, int volumeCount, CancellationToken ct)
+    {
+        IReadOnlyList<string> names = options.RAROptions.OriginalRARFileNames;
+        if (volumeCount < names.Count)
+        {
+            names = [.. names.Take(volumeCount)];
+        }
+
+        // The ATTEMPT PROBE the flow tests count — one line per invocation, retry included:
+        _logger.Debug(this, $"Assembly attempt for {candidateSlug}: volumes={volumeCount}", LogTarget.Phase2);
+        using var source = new ProducedVolumesPackedSource(producedFirstVolume);
+        return await new SRRReconstructor(_logger).ReconstructAsync(
+            options.RAROptions.SRRFilePath!, source, options.ReleaseDirectoryPath,
+            assemblyDir, names, [], options.HashType, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>The error-row shape shared with the not-created branch's "rar exited with code…"
+    /// case above: one warning + one CombinationFailed progress event; then callers continue.</summary>
+    private void FireAssemblyErrorRow(BruteForceOptions options, string rarVersionDirectoryPath,
+        string displayArguments, int totalProgressSize, int currentProgress,
+        DateTime bruteForceStartDateTime, string inputFilesDir, string rarFilePath,
+        string executedArguments, string? diagnostic)
+    {
+        _logger.Warning(this, $"{Path.GetFileName(rarVersionDirectoryPath)} / {displayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
+        FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath,
+            displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+        {
+            PhaseDescription = "Phase 2: Full RAR Creation",
+            CombinationFailed = true,
+            InputDirectoryPath = inputFilesDir,
+            OutputFilePath = rarFilePath,
+            ExecutedArguments = executedArguments,
+        });
+    }
+
+    /// <summary>Mismatch/no-match retention applied to BOTH artifact classes under the
+    /// standard flags (spec §5): the assembled dir and the carrier volume set.</summary>
+    private void ApplyMismatchRetention(string assemblyDir, string actualRARFilePath,
+        BruteForceOptions options, bool duplicate)
+    {
+        bool delete = options.RAROptions.DeleteRARFiles
+            || (duplicate && options.RAROptions.DeleteDuplicateCRCFiles);
+        if (!delete)
+        {
+            return;
+        }
+
+        try
+        {
+            if (Directory.Exists(assemblyDir))
+            {
+                Directory.Delete(assemblyDir, true);
+            }
+        }
+        catch (IOException)
+        {
+            // best-effort, mirrors carrier deletion
+        }
+
+        DeleteRARFileAndVolumes(actualRARFilePath);   // the existing carrier helper
     }
 
     /// <summary>
