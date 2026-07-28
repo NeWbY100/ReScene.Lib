@@ -12,6 +12,15 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
     private readonly BinaryWriter _writer = writer;
 
     /// <summary>
+    /// Writes the RAR 4.x marker signature (7 bytes: <c>52 61 72 21 1A 07 00</c>).
+    /// </summary>
+    public RAR4HeaderBuilder AddMarker()
+    {
+        _writer.Write(RARUtils.RAR4Marker);
+        return this;
+    }
+
+    /// <summary>
     /// Writes a RAR 4.x archive header block (0x73) with proper CRC.
     /// </summary>
     public RAR4HeaderBuilder AddArchiveHeader(RARArchiveFlags flags = RARArchiveFlags.None)
@@ -52,7 +61,8 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         RARFileFlags extraFlags = RARFileFlags.ExtTime,
         bool isDirectory = false,
         uint? creationTimeDOS = null,
-        uint? accessTimeDOS = null)
+        uint? accessTimeDOS = null,
+        byte[]? mtimeRemainder = null)
     {
         byte[] nameBytes = Encoding.ASCII.GetBytes(fileName);
         ushort nameSize = (ushort)nameBytes.Length;
@@ -64,17 +74,24 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
             flags |= RARFileFlags.Directory;
         }
 
+        if (mtimeRemainder is { Length: > 3 })
+        {
+            throw new ArgumentOutOfRangeException(nameof(mtimeRemainder), "The mtime remainder must be 0-3 bytes.");
+        }
+
         // Header layout:
         // CRC(2) + Type(1) + Flags(2) + HeaderSize(2) = 7 (base)
         // ADD_SIZE(4) + UNP_SIZE(4) + HOST_OS(1) + FILE_CRC(4) + FILE_TIME(4) + UNP_VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4) = 25
         // + NAME(variable)
-        // Extended time (when ExtTime set): flags word(2) + optional ctime DOS(4) + optional atime DOS(4).
-        // mtime always reuses the base FILE_TIME field, so it never adds its own DOS date.
+        // Extended time (when ExtTime set): flags word(2) + optional mtime remainder(0-3) +
+        // optional ctime DOS(4) + optional atime DOS(4). mtime's own DOS date always reuses the
+        // base FILE_TIME field — only its sub-second remainder (if any) lives here.
         bool hasExtTime = (extraFlags & RARFileFlags.ExtTime) != 0;
+        int mtimeRemainderCount = mtimeRemainder?.Length ?? 0;
         int extTimeSize = 0;
         if (hasExtTime)
         {
-            extTimeSize = 2; // extended-time flags word
+            extTimeSize = 2 + mtimeRemainderCount; // extended-time flags word + optional mtime remainder
             if (creationTimeDOS.HasValue)
             {
                 extTimeSize += 4; // ctime DOS date
@@ -109,8 +126,8 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
             int extTimeOffset = 32 + nameSize;
 
             // Extended-time rmode nibbles, high->low: mtime | ctime | atime | arctime.
-            // Present bit = 0x8; the low two bits are the extra 100ns remainder byte count (0 here).
-            ushort extFlags = 0x8000; // mtime present, no remainder bytes (reuses base FILE_TIME)
+            // Present bit = 0x8; the low two bits are the extra 100ns remainder byte count.
+            ushort extFlags = (ushort)((0x8 | mtimeRemainderCount) << 12); // mtime present + remainder count
             if (creationTimeDOS.HasValue)
             {
                 extFlags |= 0x0800; // ctime present
@@ -123,8 +140,15 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
 
             BitConverter.GetBytes(extFlags).CopyTo(header, extTimeOffset);
 
-            // ctime then atime follow the flags word, each as its own DOS date (mtime reuses FILE_TIME).
+            // The mtime remainder (if any) immediately follows the flags word; ctime then atime
+            // follow that, each as its own DOS date (mtime's DOS date reuses base FILE_TIME).
             int timeOffset = extTimeOffset + 2;
+            if (mtimeRemainderCount > 0)
+            {
+                mtimeRemainder!.CopyTo(header, timeOffset);
+                timeOffset += mtimeRemainderCount;
+            }
+
             if (creationTimeDOS.HasValue)
             {
                 BitConverter.GetBytes(creationTimeDOS.Value).CopyTo(header, timeOffset);
