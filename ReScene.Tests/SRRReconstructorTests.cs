@@ -1,6 +1,7 @@
 using System.Text;
 using ReScene.Core;
 using ReScene.Core.Cryptography;
+using ReScene.Core.IO;
 
 namespace ReScene.Tests;
 
@@ -75,12 +76,13 @@ public class SRRReconstructorTests : TempDirTestBase
     {
         string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, ["test.rar"], [], HashType.CRC32, CancellationToken.None);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, ["test.rar"], [], HashType.CRC32, CancellationToken.None);
 
-        Assert.True(success);
-        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
+        Assert.Equal(SRRReconstructionStatus.Success, result.Status);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], result.WrittenPaths);
         // Byte-exact: headers replayed verbatim with the source payload spliced into place. This
         // catches a dropped/duplicated/misplaced payload, not just "a file was written".
         Assert.Equal(
@@ -99,12 +101,13 @@ public class SRRReconstructorTests : TempDirTestBase
         File.WriteAllBytes(expectedRARPath, ExpectedReconstructedBytes("movie.mkv", SourcePayload));
         string expectedCrc = CRC32.Calculate(expectedRARPath);
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, ["test.rar"], [expectedCrc], HashType.CRC32, CancellationToken.None);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, ["test.rar"], [expectedCrc], HashType.CRC32, CancellationToken.None);
 
-        Assert.True(success);
-        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
+        Assert.Equal(SRRReconstructionStatus.Success, result.Status);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], result.WrittenPaths);
     }
 
     [Fact]
@@ -118,14 +121,15 @@ public class SRRReconstructorTests : TempDirTestBase
         string realCrc = CRC32.Calculate(expectedRARPath);
         string wrongCrc = realCrc == "00000000" ? "ffffffff" : "00000000";
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, ["test.rar"], [wrongCrc], HashType.CRC32, CancellationToken.None);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, ["test.rar"], [wrongCrc], HashType.CRC32, CancellationToken.None);
 
-        Assert.False(success);
+        Assert.Equal(SRRReconstructionStatus.VerificationFailed, result.Status);
         Assert.True(File.Exists(Path.Combine(_outputDir, "test.rar")));
         // Written paths are still reported even on failure, so a caller can inspect/clean up.
-        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], result.WrittenPaths);
     }
 
     [Fact]
@@ -151,14 +155,23 @@ public class SRRReconstructorTests : TempDirTestBase
                 .AddEndArchive())
             .BuildToFile(TempDir, "partial.srr");
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, ["vol1.rar", "vol2.rar", "vol3.rar"], [], HashType.CRC32, CancellationToken.None);
+        List<string> progressReleaseDirectoryPaths = [];
+        reconstructor.Progress += (_, e) => progressReleaseDirectoryPaths.Add(e.ReleaseDirectoryPath);
 
-        Assert.False(success);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, ["vol1.rar", "vol2.rar", "vol3.rar"], [], HashType.CRC32, CancellationToken.None);
+
+        Assert.Equal(SRRReconstructionStatus.Error, result.Status);
         Assert.Equal(
             [Path.Combine(_outputDir, "vol1.rar"), Path.Combine(_outputDir, "vol2.rar")],
-            writtenPaths);
+            result.WrittenPaths);
+        // Pins codex plan B4: FireProgress must keep receiving releaseDirectoryForProgress (the
+        // release/input directory), not some other path, even though the seam now decouples the
+        // packed-byte source from that directory. Two volumes closed => two progress events.
+        Assert.Equal(2, progressReleaseDirectoryPaths.Count);
+        Assert.All(progressReleaseDirectoryPaths, path => Assert.Equal(_inputDir, path));
     }
 
     [Fact]
@@ -169,12 +182,13 @@ public class SRRReconstructorTests : TempDirTestBase
         // accepted just because the COUNT happens to line up.
         string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, ["completely-different-name.rar"], [], HashType.CRC32, CancellationToken.None);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, ["completely-different-name.rar"], [], HashType.CRC32, CancellationToken.None);
 
-        Assert.False(success);
-        Assert.Equal([Path.Combine(_outputDir, "test.rar")], writtenPaths);
+        Assert.Equal(SRRReconstructionStatus.Error, result.Status);
+        Assert.Equal([Path.Combine(_outputDir, "test.rar")], result.WrittenPaths);
     }
 
     [Fact]
@@ -186,12 +200,13 @@ public class SRRReconstructorTests : TempDirTestBase
             .AddStoredFile("info.nfo", [1, 2, 3, 4])
             .BuildToFile(TempDir, "test.srr");
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        (bool success, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, [], [], HashType.CRC32, CancellationToken.None);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, [], [], HashType.CRC32, CancellationToken.None);
 
-        Assert.False(success);
-        Assert.Empty(writtenPaths);
+        Assert.Equal(SRRReconstructionStatus.Error, result.Status);
+        Assert.Empty(result.WrittenPaths);
     }
 
     [Fact]
@@ -199,7 +214,9 @@ public class SRRReconstructorTests : TempDirTestBase
     {
         // A malicious SRR naming its volume "..\evil.rar" must not write outside the output
         // directory (path traversal / Zip-Slip). The escape target resolves to TempDir (the parent
-        // of _outputDir), which the harness cleans up.
+        // of _outputDir), which the harness cleans up. The traversal guard's InvalidDataException
+        // is normalized by the failure-normalization catch into a typed Error result rather than
+        // propagated as an exception.
         const string archivedName = "movie.mkv";
         File.WriteAllBytes(Path.Combine(_inputDir, archivedName), SourcePayload);
 
@@ -213,10 +230,12 @@ public class SRRReconstructorTests : TempDirTestBase
 
         string escapedPath = Path.Combine(TempDir, "evil.rar");
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
-        await Assert.ThrowsAsync<InvalidDataException>(() => reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, [@"..\evil.rar"], [], HashType.CRC32, CancellationToken.None));
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, packedSource, _inputDir, _outputDir, [@"..\evil.rar"], [], HashType.CRC32, CancellationToken.None);
 
+        Assert.Equal(SRRReconstructionStatus.Error, result.Status);
         Assert.False(File.Exists(escapedPath),
             "SRR reconstruction wrote a RAR volume outside the output directory (path traversal).");
     }
@@ -230,9 +249,35 @@ public class SRRReconstructorTests : TempDirTestBase
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
+        using var packedSource = new ReleaseFilePackedSource(_inputDir);
         var reconstructor = new SRRReconstructor();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => reconstructor.ReconstructAsync(
-            srr, _inputDir, _outputDir, ["test.rar"], [], HashType.CRC32, cts.Token));
+            srr, packedSource, _inputDir, _outputDir, ["test.rar"], [], HashType.CRC32, cts.Token));
+    }
+
+    [Fact]
+    public async Task ReconstructAsync_UnicodeLargeName_ResolvesThroughTheSeam()
+    {
+        string name = "námeé.bin";
+        byte[] payload = [1, 2, 3, 4, 5, 6, 7, 8];
+
+        SRRTestDataBuilder srrBuilder = new SRRTestDataBuilder().AddSRRHeader("ReScene.Lib");
+        srrBuilder.AddRARFileWithHeaders("u.rar", h =>
+        {
+            h.AddArchiveHeader();
+            h.AddUnicodeLargeFileHeader(name, (ulong)payload.Length, (ulong)payload.Length);
+            h.AddEndArchive();
+        });
+        string srr = srrBuilder.BuildToFile(TempDir, "u.srr");
+
+        var recorder = new RecordingPackedSource(payload);
+        var reconstructor = new SRRReconstructor(NullReSceneLogger.Instance);
+        SRRReconstructionResult result = await reconstructor.ReconstructAsync(
+            srr, recorder, TempDir, Path.Combine(TempDir, "out"),
+            ["u.rar"], [], HashType.CRC32, CancellationToken.None);
+
+        Assert.Equal(SRRReconstructionStatus.Success, result.Status);
+        Assert.Equal(name, recorder.RequestedName); // the DECODED unicode name, not the ANSI fallback
     }
 
     [Fact]
@@ -341,5 +386,20 @@ public class SRRReconstructorTests : TempDirTestBase
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => SRRReconstructor.CopyBytesAsync(source, dest, 40, cts.Token));
+    }
+
+    private sealed class RecordingPackedSource(byte[] payload) : IPackedSource
+    {
+        public string? RequestedName { get; private set; }
+
+        public Stream OpenPackedStream(string archivedFileName)
+        {
+            RequestedName = archivedFileName;
+            return new MemoryStream(payload);
+        }
+
+        public void Dispose()
+        {
+        }
     }
 }

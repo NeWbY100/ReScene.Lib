@@ -212,6 +212,111 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
     }
 
     /// <summary>
+    /// File header carrying BOTH RARFileFlags.Unicode and RARFileFlags.Large: name field is
+    /// "&lt;ansi&gt;\0&lt;encoded&gt;" (RAR unicode name format), preceded by the 8-byte
+    /// HIGH_PACK/HIGH_UNP pair. The builder round-trips the emitted name bytes through
+    /// RARUtils.DecodeFileName and throws if the decode does not equal
+    /// <paramref name="fileName"/> — the fixture can never drift from the decoder.
+    /// </summary>
+    public RAR4HeaderBuilder AddUnicodeLargeFileHeader(
+        string fileName, ulong packedSize, ulong unpackedSize, uint fileCRC = 0)
+    {
+        byte[] nameBytes = EncodeUnicodeName(fileName);
+
+        string? decoded = RARUtils.DecodeFileName(nameBytes, hasUnicode: true);
+        if (decoded != fileName)
+        {
+            throw new InvalidOperationException(
+                $"Unicode name encoding round-trip mismatch: expected '{fileName}', got '{decoded}'.");
+        }
+
+        ushort nameSize = (ushort)nameBytes.Length;
+        uint packedSizeLow = (uint)(packedSize & 0xFFFFFFFF);
+        uint packedSizeHigh = (uint)(packedSize >> 32);
+        uint unpackedSizeLow = (uint)(unpackedSize & 0xFFFFFFFF);
+        uint unpackedSizeHigh = (uint)(unpackedSize >> 32);
+
+        const byte hostOS = 2; // Windows
+        const uint fileTimeDOS = 0x5A8E3100;
+        const byte unpVer = 29;
+        const byte method = 0x33; // Normal
+        const uint fileAttributes = 0x00000020; // Archive
+
+        RARFileFlags flags = RARFileFlags.LongBlock | RARFileFlags.Large | RARFileFlags.Unicode | RARFileFlags.ExtTime;
+
+        // Header with LARGE adds HIGH_PACK_SIZE(4) + HIGH_UNP_SIZE(4) = 8 extra bytes;
+        // ExtTime adds a 2-byte flags word (mtime reuses the base FILE_TIME field).
+        ushort headerSize = (ushort)(7 + 25 + 8 + nameSize + 2);
+
+        byte[] header = new byte[headerSize];
+        header[2] = 0x74; // FileHeader
+        BitConverter.GetBytes((ushort)flags).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(packedSizeLow).CopyTo(header, 7);     // ADD_SIZE (low packed)
+        BitConverter.GetBytes(unpackedSizeLow).CopyTo(header, 11);  // UNP_SIZE (low unpacked)
+        header[15] = hostOS;
+        BitConverter.GetBytes(fileCRC).CopyTo(header, 16);
+        BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);
+        header[24] = unpVer;
+        header[25] = method;
+        BitConverter.GetBytes(nameSize).CopyTo(header, 26);
+        BitConverter.GetBytes(fileAttributes).CopyTo(header, 28);
+        // HIGH_PACK_SIZE at offset 32
+        BitConverter.GetBytes(packedSizeHigh).CopyTo(header, 32);
+        // HIGH_UNP_SIZE at offset 36
+        BitConverter.GetBytes(unpackedSizeHigh).CopyTo(header, 36);
+        // Composite Unicode name at offset 40
+        nameBytes.CopyTo(header, 40);
+
+        int extTimeOffset = 40 + nameSize;
+        ushort extFlags = 0x8000; // mtime present, no remainder bytes (reuses base FILE_TIME)
+        BitConverter.GetBytes(extFlags).CopyTo(header, extTimeOffset);
+
+        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        ushort crc = (ushort)(crc32 & 0xFFFF);
+        BitConverter.GetBytes(crc).CopyTo(header, 0);
+
+        _writer.Write(header);
+        return this;
+    }
+
+    /// <summary>
+    /// Builds a RAR unicode name field ("&lt;ansi-lossy&gt;\0&lt;encoded&gt;") for
+    /// <paramref name="fileName"/>, encoding EVERY character with opcode mode 2 (both bytes
+    /// explicit: low byte then high byte) — the simplest strategy the format allows, and the one
+    /// <see cref="RARUtils.DecodeFileName"/>'s mode-2 branch decodes unconditionally regardless of
+    /// the "standard name" ANSI fallback or the shared high-byte page. The ANSI fallback is
+    /// therefore never consulted for the decoded value, only used (lossily) as the pre-NUL
+    /// standard name RAR readers fall back to when Unicode decoding is unavailable.
+    /// </summary>
+    private static byte[] EncodeUnicodeName(string fileName)
+    {
+        byte[] stdName = Encoding.ASCII.GetBytes(fileName);
+
+        List<byte> encData = [0x00]; // shared high-byte page; unused since every char is mode 2
+        int i = 0;
+        while (i < fileName.Length)
+        {
+            int groupSize = Math.Min(4, fileName.Length - i);
+
+            // One flags byte covers up to 4 characters, 2 bits each, MSB-first. Opcode 2 (binary
+            // 10) repeated 4 times is 0xAA; a short final group still uses 0xAA; the decoder never
+            // reads the unused trailing slots because it stops once encData is exhausted.
+            encData.Add(0xAA);
+            for (int j = 0; j < groupSize; j++)
+            {
+                char c = fileName[i + j];
+                encData.Add((byte)(c & 0xFF));        // low byte
+                encData.Add((byte)((c >> 8) & 0xFF)); // high byte
+            }
+
+            i += groupSize;
+        }
+
+        return [.. stdName, 0x00, .. encData];
+    }
+
+    /// <summary>
     /// Writes a RAR 4.x CMT service block (0x7A) with stored comment data and proper CRC.
     /// </summary>
     public RAR4HeaderBuilder AddCmtServiceBlock(

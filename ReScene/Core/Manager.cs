@@ -245,14 +245,22 @@ public partial class Manager : IDisposable
             var reconstructor = new SRRReconstructor(_logger);
             reconstructor.Progress += (s, e) => FireBruteForceProgress(e);
 
-            (bool result, IReadOnlyList<string> writtenPaths) = await reconstructor.ReconstructAsync(
+            using var packedSource = new ReleaseFilePackedSource(options.ReleaseDirectoryPath);
+            SRRReconstructionResult reconResult = await reconstructor.ReconstructAsync(
                 options.RAROptions.SRRFilePath,
+                packedSource,
                 options.ReleaseDirectoryPath,
                 options.OutputDirectoryPath,
                 options.RAROptions.OriginalRARFileNames,
                 options.Hashes,
                 options.HashType,
                 _cts.Token).ConfigureAwait(false);
+            bool result = reconResult.Status == SRRReconstructionStatus.Success;
+            IReadOnlyList<string> writtenPaths = reconResult.WrittenPaths;
+            if (!result && reconResult.Diagnostic is { } diag)
+            {
+                _logger.Warning(this, $"Direct SRR reconstruction failed ({reconResult.Status}): {diag}", LogTarget.System);
+            }
 
             OperationCompletionStatus completionStatus = result ? OperationCompletionStatus.Success : OperationCompletionStatus.Error;
             status = new BruteForceStatusChangedEventArgs(OperationStatus.Running, OperationStatus.Completed, completionStatus);

@@ -1,5 +1,6 @@
 using System.Text;
 using ReScene.Core.Cryptography;
+using ReScene.Core.IO;
 using ReScene.RAR;
 using ReScene.SRR;
 
@@ -20,17 +21,21 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     private readonly IReSceneLogger _logger = logger ?? NullReSceneLogger.Instance;
 
     /// <summary>
-    /// Reconstructs RAR files from an SRR file by replaying original headers and splicing in source file data.
+    /// Reconstructs RAR files from an SRR file by replaying original headers and splicing in packed
+    /// file data supplied by <paramref name="packedSource"/>.
     /// </summary>
     /// <returns>
-    /// Whether every expected release volume (by count and normalized name — see
-    /// <see cref="VolumeIdentityMatcher"/>) was written and hash-verified, and the absolute paths
-    /// actually written (populated regardless of overall success, so a partial/failed run's output
-    /// can still be inspected or cleaned up by the caller).
+    /// A typed result: <see cref="SRRReconstructionStatus.Success"/> when every expected release
+    /// volume (by count and normalized name — see <see cref="VolumeIdentityMatcher"/>) was written
+    /// and hash-verified; otherwise a failure status with a diagnostic. <see
+    /// cref="SRRReconstructionResult.WrittenPaths"/> holds the absolute paths actually written
+    /// regardless of overall success, so a partial/failed run's output can still be inspected or
+    /// cleaned up by the caller.
     /// </returns>
-    public async Task<(bool Success, IReadOnlyList<string> WrittenPaths)> ReconstructAsync(
+    public async Task<SRRReconstructionResult> ReconstructAsync(
         string srrFilePath,
-        string inputDirectory,
+        IPackedSource packedSource,
+        string releaseDirectoryForProgress,
         string outputDirectory,
         IReadOnlyList<string> originalRARFileNames,
         HashSet<string> hashes,
@@ -39,7 +44,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     {
         _logger.Information(this, $"=== Direct SRR Reconstruction ===", LogTarget.System);
         _logger.Information(this, $"SRR: {srrFilePath}", LogTarget.System);
-        _logger.Information(this, $"Input: {inputDirectory}", LogTarget.System);
+        _logger.Information(this, $"Input: {releaseDirectoryForProgress}", LogTarget.System);
         _logger.Information(this, $"Output: {outputDirectory}", LogTarget.System);
         _logger.Information(this, $"Expected volumes: {originalRARFileNames.Count}", LogTarget.System);
 
@@ -53,7 +58,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         List<string> writtenRARFileNames = [];
 
         // Track open source file streams for multi-volume spanning
-        FileStream? currentSourceStream = null;
+        Stream? currentSourceStream = null;
         string? currentSourceFileName = null;
 
         FileStream? outputStream = null;
@@ -117,7 +122,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             completedVolumes++;
                             writtenPaths.Add(currentOutputPath);
                             writtenRARFileNames.Add(currentRARFileName);
-                            FireProgress(inputDirectory, currentRARFileName, totalVolumes, completedVolumes, startTime);
+                            FireProgress(releaseDirectoryForProgress, currentRARFileName, totalVolumes, completedVolumes, startTime);
                         }
 
                         // Read the RAR filename from the SRRRARFile block
@@ -236,14 +241,11 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                                 if (nameOffset + nameSize <= fullHeader.Length)
                                 {
-                                    archivedFileName = Encoding.ASCII.GetString(fullHeader, nameOffset, nameSize);
-                                    int nullIdx = archivedFileName.IndexOf('\0', StringComparison.Ordinal);
-                                    if (nullIdx >= 0)
-                                    {
-                                        archivedFileName = archivedFileName[..nullIdx];
-                                    }
-
-                                    archivedFileName = archivedFileName.Replace('\\', Path.DirectorySeparatorChar);
+                                    byte[] nameBytes = new byte[nameSize];
+                                    Array.Copy(fullHeader, nameOffset, nameBytes, 0, nameSize);
+                                    archivedFileName = RARUtils.DecodeFileName(nameBytes,
+                                        ((RARFileFlags)flags).HasFlag(RARFileFlags.Unicode));
+                                    archivedFileName = archivedFileName?.Replace('\\', Path.DirectorySeparatorChar);
                                 }
                             }
 
@@ -267,8 +269,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
 
                                 if (currentSourceStream == null)
                                 {
-                                    string sourcePath = FindSourceFile(inputDirectory, archivedFileName);
-                                    currentSourceStream = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                                    currentSourceStream = packedSource.OpenPackedStream(archivedFileName);
                                     currentSourceFileName = archivedFileName;
                                     _logger.Debug(this, $"Opened source file: {archivedFileName}");
                                 }
@@ -344,8 +345,25 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                 completedVolumes++;
                 writtenPaths.Add(currentOutputPath);
                 writtenRARFileNames.Add(currentRARFileName);
-                FireProgress(inputDirectory, currentRARFileName, totalVolumes, completedVolumes, startTime);
+                FireProgress(releaseDirectoryForProgress, currentRARFileName, totalVolumes, completedVolumes, startTime);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (EndOfStreamException ex)
+        {
+            return SRRReconstructionResult.Fail(SRRReconstructionStatus.SourceExhausted, ex.Message, writtenPaths);
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException
+            or ArgumentException or FileNotFoundException or UnauthorizedAccessException)
+        {
+            // ArgumentException: RARStream throws it when the produced snapshot has no visible
+            // target header or does not start at volume 1 — during a live producer this is the
+            // incomplete-snapshot shape the Manager retries (spec §4); after completion it is a
+            // real Error.
+            return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, ex.Message, writtenPaths);
         }
         finally
         {
@@ -365,21 +383,26 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         if (success)
         {
             _logger.Information(this, $"=== Reconstruction SUCCESS: {completedVolumes} volume(s) in {elapsed.TotalSeconds:F1}s ===", LogTarget.System);
-        }
-        else if (completedVolumes == 0)
-        {
-            _logger.Warning(this, $"=== Reconstruction FAILED: no volumes produced ===", LogTarget.System);
-        }
-        else if (!identityComplete)
-        {
-            _logger.Warning(this, $"=== Reconstruction FAILED: incomplete volume set ({completedVolumes} of {totalVolumes} expected) ===", LogTarget.System);
-        }
-        else
-        {
-            _logger.Warning(this, $"=== Reconstruction completed with hash mismatches ({completedVolumes} volume(s), {elapsed.TotalSeconds:F1}s) ===", LogTarget.System);
+            return SRRReconstructionResult.Ok(writtenPaths);
         }
 
-        return (success, writtenPaths);
+        if (completedVolumes == 0)
+        {
+            string message = "=== Reconstruction FAILED: no volumes produced ===";
+            _logger.Warning(this, message, LogTarget.System);
+            return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, message, writtenPaths);
+        }
+
+        if (!identityComplete)
+        {
+            string message = $"=== Reconstruction FAILED: incomplete volume set ({completedVolumes} of {totalVolumes} expected) ===";
+            _logger.Warning(this, message, LogTarget.System);
+            return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, message, writtenPaths);
+        }
+
+        string mismatchMessage = $"=== Reconstruction completed with hash mismatches ({completedVolumes} volume(s), {elapsed.TotalSeconds:F1}s) ===";
+        _logger.Warning(this, mismatchMessage, LogTarget.System);
+        return SRRReconstructionResult.Fail(SRRReconstructionStatus.VerificationFailed, mismatchMessage, writtenPaths);
     }
 
     private static bool IsSRRBlockType(byte type)
