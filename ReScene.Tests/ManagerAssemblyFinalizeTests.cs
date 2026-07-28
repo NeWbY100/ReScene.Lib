@@ -225,6 +225,21 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
         }
     }
 
+    /// <summary>Awaits <paramref name="task"/>, failing fast with a clear message instead of hanging
+    /// the test indefinitely if it never completes within <paramref name="timeout"/> (default 10s) —
+    /// so a genuine regression (e.g. broken cancellation-token propagation) produces a deterministic
+    /// test failure instead of wedging the whole suite.</summary>
+    private static async Task WithTimeoutAsync(Task task, string because, TimeSpan? timeout = null)
+    {
+        Task winner = await Task.WhenAny(task, Task.Delay(timeout ?? TimeSpan.FromSeconds(10)));
+        if (winner != task)
+        {
+            throw new TimeoutException($"Timed out waiting for: {because}");
+        }
+
+        await task;
+    }
+
     /// <summary>Replaces the LAST original volume's expected CRC with a value that can never match:
     /// the quick gate (volume 1 only) still passes, but the win path's full per-volume verification
     /// then rejects the candidate — exercises ApplyMismatchRetention from that second call site.</summary>
@@ -364,21 +379,30 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
                     // does this automatically (by design), so the test does it explicitly here. That
                     // lets Manager's already-cancelled token fault the SUBSEQUENT full-set assembly
                     // call instead, which Manager re-throws uncaught out of BruteForceRARVersionAsync.
-                    testHost.Manager.Stop();
-                    await launch.CancellationRequested.Task;
-                    launch.Exit.TrySetResult(1);
+                    //
+                    // Bounded wait + finally (review fix): a plain unbounded await here would let a
+                    // cancellation-propagation regression (Stop() failing to reach this launch's
+                    // token) wedge the whole suite — Exit stays unresolved, Manager's own internal
+                    // await never completes, and the OUTER 10s safety net below never even gets a
+                    // chance to run, since control never reaches it. Bounding this wait AND always
+                    // releasing Exit in finally means such a regression instead fails THIS row
+                    // deterministically, with a clear message, and leaves no producer task dangling.
+                    try
+                    {
+                        testHost.Manager.Stop();
+                        await WithTimeoutAsync(launch.CancellationRequested.Task,
+                            "Manager.Stop() to reach this launch's cancellation token");
+                    }
+                    finally
+                    {
+                        launch.Exit.TrySetResult(1);
+                    }
                 }
-            }
-
-            Task winner = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(10)));
-            if (winner != runTask)
-            {
-                throw new TimeoutException("Timed out waiting for the managed run to finish.");
             }
 
             try
             {
-                await runTask;
+                await WithTimeoutAsync(runTask, "the managed run to finish");
             }
             catch (OperationCanceledException) when (runOutcome == "cancellation")
             {
