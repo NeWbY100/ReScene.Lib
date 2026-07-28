@@ -18,9 +18,21 @@ public partial class Manager : IDisposable
     /// The logger to use, or <see langword="null"/> to discard log output.
     /// </param>
     public Manager(IReSceneLogger? logger = null)
+        : this(logger, new RealRARProcessRunner(logger))
+    {
+    }
+
+    /// <summary>
+    /// Test seam: injects the rar process runner so the candidate loop (launch sites,
+    /// cancellation, and the producer-observation invariant) is exercisable without a real rar
+    /// binary. Production code always goes through the public constructor, which wires
+    /// <see cref="RealRARProcessRunner"/>.
+    /// </summary>
+    internal Manager(IReSceneLogger? logger, IRARProcessRunner runner)
     {
         _logger = logger ?? NullReSceneLogger.Instance;
         _processLogManager = new ProcessLogManager(_logger, this);
+        _runner = runner;
     }
 
     /// <summary>
@@ -92,6 +104,10 @@ public partial class Manager : IDisposable
     // concurrency-safe bookkeeping out of the orchestrator. Manager forwards its process
     // callbacks to it. A single instance for the lifetime of this Manager.
     private readonly ProcessLogManager _processLogManager;
+
+    // Test seam over rar execution (see IRARProcessRunner); production always resolves to
+    // RealRARProcessRunner via the public constructor.
+    private readonly IRARProcessRunner _runner;
 
     /// <summary>
     /// Tries to parse the RAR version number from a directory name (e.g., "winrar-560" → 560).
@@ -452,21 +468,21 @@ public partial class Manager : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Runs one rar process for a candidate combination, terminating it early once a second
+    /// volume appears on disk (the release is provably multi-volume, so further compression by
+    /// THIS candidate is no longer needed to test its first-volume hash). Always observes the
+    /// process task to real completion before returning — never returns while it is still running
+    /// (see <see cref="ObserveProducerQuietlyAsync"/>).
+    /// </summary>
+    /// <returns>
+    /// The process's real exit code on natural completion. On early termination, the OBSERVED
+    /// cancellation exit (normally 1, since <see cref="RARProcess.RunAsync"/> swallows the
+    /// cancellation and returns 1) — never a synthetic 0; early termination implies a volume
+    /// already exists on disk regardless of the numeric code.
+    /// </returns>
     private async Task<int> RARCompressDirectoryAsync(string rarExeFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, CancellationToken cancellationToken)
     {
-        RARProcess process = new(rarExeFilePath, inputDirectory, outputFilePath, commandLineOptions, _logger)
-        {
-            LogTarget = LogTarget.Phase2
-        };
-
-        // Initialize streaming log writer for this process
-        if (BruteForceOptions != null)
-        {
-            _processLogManager.OpenLog(process, BruteForceOptions.OutputDirectoryPath, outputFilePath);
-        }
-
-        SubscribeToProcessEvents(process);
-
         // Create a linked cancellation token for early termination
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
@@ -474,22 +490,85 @@ public partial class Manager : IDisposable
         Task monitorTask = MonitorForSecondVolumeAsync(outputFilePath, linkedCts);
 
         // Run the RAR process
-        Task<int> processTask = process.RunAsync(linkedCts.Token);
+        Task<int> processTask = _runner.RunAsync(rarExeFilePath, inputDirectory, outputFilePath, commandLineOptions, LogTarget.Phase2,
+            process =>
+            {
+                // Initialize streaming log writer for this process
+                if (BruteForceOptions != null)
+                {
+                    _processLogManager.OpenLog(process, BruteForceOptions.OutputDirectoryPath, outputFilePath);
+                }
+
+                SubscribeToProcessEvents(process);
+            },
+            linkedCts.Token);
 
         // Wait for either process completion or early termination
         await Task.WhenAny(processTask, monitorTask).ConfigureAwait(false);
 
-        // If monitoring detected second volume, cancel the process
         if (monitorTask.IsCompleted && !processTask.IsCompleted)
         {
+            // Monitor-triggered INTENTIONAL early termination: cancel, then QUIET observation (a
+            // fault after our own cancel is cleanup noise, not a candidate verdict).
             _logger.Debug(this, $"Second volume detected, terminating RAR process early for: {outputFilePath}", LogTarget.Phase2);
             linkedCts.Cancel();
-            // Wait a bit for graceful cancellation
-            await Task.WhenAny(processTask, Task.Delay(1000, cancellationToken)).ConfigureAwait(false);
+            int? observed = await ObserveProducerQuietlyAsync(processTask, linkedCts, cancelFirst: false).ConfigureAwait(false);
+            return observed ?? 1;
         }
 
-        // Return the exit code if available, otherwise return success (0) since we terminated early
-        return processTask.IsCompleted ? await processTask.ConfigureAwait(false) : 0;
+        // Natural completion (or fault): PLAIN await — a producer fault propagates to the
+        // caller's generic catch exactly as today.
+        return await processTask.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Cancels (when requested) and OBSERVES the producer: awaits the process task to real
+    /// completion — no grace-timeout abandonment — swallowing only cancellation or a fault.
+    /// Invariant (spec §4): no finalization, deletion, or next-candidate launch may happen while a
+    /// producer task is unobserved.
+    /// </summary>
+    /// <remarks>
+    /// TWO observation modes exist with distinct fault contracts (codex rev-5 B1 — a single quiet
+    /// observer used on winning paths too would silently accept a producer that faulted AFTER the
+    /// volume-2 trigger, and could finalize a broken candidate as a match). This method is the
+    /// CLEANUP-path observer: it never throws. Use it ONLY for catch blocks and
+    /// cancellation/mismatch cleanup, where a producer fault must not abort the run (the run is
+    /// already abandoning this candidate). Winning/normal-wait observation is instead a PLAIN
+    /// awaited task — a producer fault there MUST propagate into the candidate's generic catch
+    /// (one error row, next candidate). Concretely: the CAV "first volume matched, completing all
+    /// volumes" await, and this method's own caller's natural-completion return, are both plain
+    /// <c>await task.ConfigureAwait(false)</c> calls guarded only by the cancellation filter the
+    /// legacy path already uses — never routed through this method.
+    /// </remarks>
+    /// <param name="processTask">The producer's task, or <see langword="null"/> when none was launched (a no-op).</param>
+    /// <param name="processCts">The token source to cancel first, when <paramref name="cancelFirst"/> is set.</param>
+    /// <param name="cancelFirst">Whether to cancel <paramref name="processCts"/> before awaiting.</param>
+    /// <returns>The producer's real exit code, or <see langword="null"/> if it was cancelled, faulted, or never launched.</returns>
+    private async Task<int?> ObserveProducerQuietlyAsync(Task<int>? processTask, CancellationTokenSource? processCts, bool cancelFirst)
+    {
+        if (processTask is null)
+        {
+            return null;
+        }
+
+        if (cancelFirst)
+        {
+            processCts?.Cancel();
+        }
+
+        try
+        {
+            return await processTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.Debug(this, $"Producer observed faulted during cleanup: {ex.Message}", LogTarget.Phase2);
+            return null;
+        }
     }
 
     private async Task MonitorForSecondVolumeAsync(string expectedRARFilePath, CancellationTokenSource cts)
@@ -751,20 +830,18 @@ public partial class Manager : IDisposable
                     // Start RAR without automatic early termination
                     processCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
 
-                    RARProcess process = new(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _logger)
-                    {
-                        LogTarget = LogTarget.Phase2
-                    };
-
-                    // Stream this process's full output to its per-attempt log file under
-                    // <workRoot>/logs — previously only the standard path opened one, so
-                    // Complete-All-Volumes runs (the wizard default) produced no log files at all;
-                    // WriteOutput for an unregistered process is a silent no-op. CloseLog fires from
-                    // the shared process-status Completed handler, same as the standard path.
-                    _processLogManager.OpenLog(process, options.OutputDirectoryPath, rarFilePath);
-                    SubscribeToProcessEvents(process);
-
-                    runningProcessTask = process.RunAsync(processCts.Token);
+                    runningProcessTask = _runner.RunAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, LogTarget.Phase2,
+                        process =>
+                        {
+                            // Stream this process's full output to its per-attempt log file under
+                            // <workRoot>/logs — previously only the standard path opened one, so
+                            // Complete-All-Volumes runs (the wizard default) produced no log files at all;
+                            // WriteOutput for an unregistered process is a silent no-op. CloseLog fires from
+                            // the shared process-status Completed handler, same as the standard path.
+                            _processLogManager.OpenLog(process, options.OutputDirectoryPath, rarFilePath);
+                            SubscribeToProcessEvents(process);
+                        },
+                        processCts.Token);
 
                     // Wait for first volume to complete (second volume appearing means first is done)
                     using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
@@ -789,10 +866,11 @@ public partial class Manager : IDisposable
                 else
                 {
                     // Standard: run with early termination (kills RAR after first volume is complete).
-                    // The helper returns rar's real exit code when the process completed on its own;
-                    // an early-terminated run yields the swallowed-cancel exit (1) or 0 if rar was
-                    // still winding down at the grace timeout — either way early termination requires
-                    // a volume to already exist, so those values never reach the not-created branch.
+                    // The helper returns rar's real exit code when the process completed on its own, or
+                    // the OBSERVED cancellation exit (normally 1 — never a synthetic 0; RARCompressDirectoryAsync
+                    // always awaits the producer to real completion, no grace-timeout abandonment) when
+                    // early-terminated — either way early termination requires a volume to already exist,
+                    // so those values never reach the not-created branch.
                     completedExitCode = await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token).ConfigureAwait(false);
                 }
 
@@ -810,19 +888,19 @@ public partial class Manager : IDisposable
                 string? actualRARFilePath = MatchedRARWriter.FindCreatedRARFile(rarFilePath);
                 if (actualRARFilePath == null)
                 {
-                    if (runningProcessTask != null && !runningProcessTask.IsCompleted)
-                    {
-                        processCts!.Cancel();
-                        await Task.WhenAny(runningProcessTask, Task.Delay(1000)).ConfigureAwait(false);
-                    }
+                    // Invariant (spec §4): no classification below may run while a CompleteAllVolumes
+                    // producer task is unobserved. Cancels it (if still running) and awaits it to REAL
+                    // completion — no grace-timeout abandonment. A no-op when runningProcessTask is
+                    // null (standard path: already observed inside RARCompressDirectoryAsync).
+                    int? observedExitCode = await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
 
                     // CompleteAllVolumes mode: read the exit code off the completed task. NOTE:
                     // RARProcess.RunAsync swallows the cancellation exception and returns exit 1, so a
-                    // task ended by the cancel above (or by a user Stop) is RanToCompletion with
+                    // task ended by the cancel above (or by a user Stop) completes successfully with
                     // Result==1 — cancellation must be excluded in the classification below, not here.
-                    if (runningProcessTask is { IsCompletedSuccessfully: true })
+                    if (observedExitCode.HasValue)
                     {
-                        completedExitCode = runningProcessTask.Result;
+                        completedExitCode = observedExitCode.Value;
                     }
 
                     // A rar that RAN but exited non-zero without creating anything did no work — e.g.
@@ -874,12 +952,11 @@ public partial class Manager : IDisposable
 
                 if (!options.Hashes.Contains(hash))
                 {
-                    // No match - kill background RAR process if still running
-                    if (runningProcessTask != null && !runningProcessTask.IsCompleted)
-                    {
-                        processCts!.Cancel();
-                        await Task.WhenAny(runningProcessTask, Task.Delay(1000)).ConfigureAwait(false);
-                    }
+                    // No match - kill background RAR process if still running, and OBSERVE it to
+                    // real completion before touching any file below (invariant: no deletion while
+                    // a producer task is unobserved). A no-op when runningProcessTask is null
+                    // (standard path: already observed inside RARCompressDirectoryAsync).
+                    await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
 
                     if (options.RAROptions.DeleteRARFiles)
                     {
@@ -986,6 +1063,13 @@ public partial class Manager : IDisposable
                 // the combination, and fire a CombinationFailed progress event so this row is reported
                 // as an error instead of a misleading clean "No Match" — then move on.
                 _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: RAR execution failed ({ex.Message}) — skipping this combination", LogTarget.Phase2);
+
+                // Invariant (spec §4): observe the producer to real completion before this
+                // candidate's cleanup finishes and the loop moves to the next one. A no-op when
+                // runningProcessTask is null (standard path: RARCompressDirectoryAsync's own plain
+                // await is how ITS fault reached this catch, and that await already observed it).
+                await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
+
                 // Count this combination only if the success path didn't already (a launch failure throws
                 // BEFORE the increment above; a late verify/rename exception throws AFTER it). Either way,
                 // surface it as an error row so it isn't reported as a clean "No Match".
