@@ -981,15 +981,24 @@ public partial class Manager : IDisposable
                 }
 
                 string hash;
+                string candidateSlug = Path.GetFileNameWithoutExtension(rarFilePath);
                 if (_useAssembly)
                 {
-                    string candidateSlug = Path.GetFileNameWithoutExtension(rarFilePath);
                     string assemblyDir = Path.Combine(rarOutputDir, $"assembled-{candidateSlug}");
                     bool skipRetentionCleanup = false;   // per-candidate; true ONLY for persistent Error (diagnosis retention)
+
+                    // Snapshot BEFORE the attempt, not after: ProducedVolumesPackedSource opens the
+                    // produced set as it exists AT THIS INSTANT. If the producer is still running
+                    // here, that snapshot may be incomplete regardless of what the producer does
+                    // WHILE the attempt reads it — including finishing in the background before the
+                    // attempt itself returns. Checking runningProcessTask.IsCompleted only AFTER the
+                    // attempt returns reads the producer's state as of THEN, not as of when the
+                    // snapshot was actually opened, and would wrongly skip the retry for exactly the
+                    // incomplete-snapshot case it exists to catch (a real race, not a test artifact).
+                    bool retryEligible = runningProcessTask is { IsCompleted: false };
                     SRRReconstructionResult quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
 
-                    bool producerRunning = runningProcessTask is { IsCompleted: false };
-                    if (quick.Status != SRRReconstructionStatus.Success && producerRunning)
+                    if (quick.Status != SRRReconstructionStatus.Success && retryEligible)
                     {
                         // Incomplete snapshot (spec §4): ANY non-success while the producer runs — including
                         // Error from RARStream's missing/short-header ArgumentException — awaits completion
@@ -1115,6 +1124,26 @@ public partial class Manager : IDisposable
                     }
 
                     await runningProcessTask.ConfigureAwait(false);
+                }
+
+                // TASK 9 REPLACES THIS GUARD. The quick gate above only verifies the ASSEMBLED
+                // first original volume; it is NOT yet safe to let that match fall through into
+                // the legacy full-per-volume-verification/RenameMatchedOutput code below, which
+                // operates on actualRARFilePath — the CARRIER's own produced-shape bytes, never
+                // byte-identical to the original (that is the entire point of guided assembly).
+                // Non-CAV, or CAV with no populated expected-CRC map, would move/report those
+                // WRONG bytes under the original name as a false success; only CAV with a
+                // populated CRC map happens to catch it as a (spurious) near-miss instead. Full-set
+                // assembly and finalization are a later task's job. Until then: log clearly, retain
+                // BOTH artifact classes (never delete — this genuinely IS the winning candidate's
+                // evidence), and keep searching. Deliberately NOT recorded via matchAccumulator:
+                // doing so would report BruteForceRunResult.Success=true with nothing actually
+                // placed under the expected name, and (with StopOnFirstMatch, the common default)
+                // would stop the search before the full set is ever really verified.
+                if (_useAssembly)
+                {
+                    _logger.Information(this, $"Assembly match found for {candidateSlug}; full-set assembly and finalization land with the next change — artifacts retained", LogTarget.System);
+                    continue;
                 }
 
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).

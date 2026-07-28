@@ -30,51 +30,30 @@ public sealed class RecordingLogger : IReSceneLogger
     /// <summary>Every recorded call, across all severities, in call order (a snapshot at read time).</summary>
     public IReadOnlyList<LogEntry> Entries { get { lock (_gate) { return [.. _entries]; } } }
 
+    /// <summary>
+    /// Fires synchronously, on the logging call's own thread, immediately after each entry is
+    /// recorded (outside <see cref="_gate"/>) — lets a test inject a deterministic action at an
+    /// EXACT logged moment (e.g. completing a held producer task the instant a specific line is
+    /// written) instead of racing a polling loop against real wall-clock timing. Generalizes the
+    /// synchronous-event-hook pattern ManagerProducerLifecycleTests already uses on
+    /// Manager.BruteForceProgress to any log line.
+    /// </summary>
+    public event Action<LogEntry>? Logged;
+
     public void Debug(object? sender, string message, LogTarget target = LogTarget.System)
-    {
-        lock (_gate)
-        {
-            _debugMessages.Add(message);
-            _entries.Add(new LogEntry("Debug", target, message));
-        }
-    }
+        => Record("Debug", target, message, _debugMessages);
 
     public void Information(object? sender, string message, LogTarget target = LogTarget.System)
-    {
-        lock (_gate)
-        {
-            _informationMessages.Add(message);
-            _entries.Add(new LogEntry("Information", target, message));
-        }
-    }
+        => Record("Information", target, message, _informationMessages);
 
     public void Warning(object? sender, string message, LogTarget target = LogTarget.System)
-    {
-        lock (_gate)
-        {
-            _warningMessages.Add(message);
-            _entries.Add(new LogEntry("Warning", target, message));
-        }
-    }
+        => Record("Warning", target, message, _warningMessages);
 
     public void Error(object? sender, string message, LogTarget target = LogTarget.System)
-    {
-        lock (_gate)
-        {
-            _errorMessages.Add(message);
-            _entries.Add(new LogEntry("Error", target, message));
-        }
-    }
+        => Record("Error", target, message, _errorMessages);
 
     public void Error(object? sender, Exception exception, string message, LogTarget target = LogTarget.System)
-    {
-        string combined = $"{message}: {exception.Message}";
-        lock (_gate)
-        {
-            _errorMessages.Add(combined);
-            _entries.Add(new LogEntry("Error", target, combined));
-        }
-    }
+        => Record("Error", target, $"{message}: {exception.Message}", _errorMessages);
 
     public void Verbose(object? sender, string message)
     {
@@ -88,5 +67,17 @@ public sealed class RecordingLogger : IReSceneLogger
         {
             return _entries.Count(e => e.Message.Contains(substring, StringComparison.Ordinal));
         }
+    }
+
+    private void Record(string level, LogTarget target, string message, List<string> bucket)
+    {
+        LogEntry entry = new(level, target, message);
+        lock (_gate)
+        {
+            bucket.Add(message);
+            _entries.Add(entry);
+        }
+
+        Logged?.Invoke(entry);
     }
 }

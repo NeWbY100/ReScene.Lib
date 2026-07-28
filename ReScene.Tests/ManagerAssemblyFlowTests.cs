@@ -224,13 +224,16 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         await WaitUntilAsync(() => launch is not null, "the candidate to launch");
         await WaitUntilAsync(() => host.Log.Count("Assembly attempt") >= 1, "the first assembly attempt to run");
 
-        // The log line is the FIRST statement inside AssembleCandidateAsync — attempt 1 still has
-        // to open the source, read, hit EOF, return, and reach the producerRunning check before it
-        // is actually blocked on Exit. That stretch is pure local file I/O with no artificial delay
-        // (microseconds in practice), but the poll above can observe the log the instant it's
-        // written — this margin lets attempt 1 genuinely finish and reach the retry await before
-        // Exit is touched, instead of racing it (an Exit resolved mid-attempt-1 would make
-        // producerRunning read false and skip the retry entirely).
+        // This delay guards a DIFFERENT race than retryEligible (Manager now snapshots that BEFORE
+        // starting the attempt, so it can never be affected by anything this test does after the
+        // log line — see Cav_ProducerCompletesDuringAttempt_RetryStillTriggers, which proves that
+        // directly and needs no delay at all). What THIS test still needs to guard against is
+        // CONTENT: this line repairs volume 2's bytes on disk, and attempt 1 reads from that same
+        // path. If the repair lands before attempt 1's own read reaches volume 2, attempt 1 would
+        // see the ALREADY-COMPLETE file and succeed outright — never exercising the retry this test
+        // is named for (only 1 attempt line, not 2). Attempt 1's own work (SRR preflight + a small
+        // read) is pure local file I/O with no artificial delay, so this margin lets it genuinely
+        // finish reading the OLD (truncated) bytes and reach the retry await first.
         await Task.Delay(200);
         File.WriteAllBytes(SecondVolumePath(launch!.OutputFilePath), fullVol2Bytes);
         launch.Exit.TrySetResult(0);
@@ -240,6 +243,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal(2, host.Log.Count("Assembly attempt"));
         Assert.Contains(host.Log.Entries, e => e.Message.Contains("Assembled hash for", StringComparison.Ordinal)
             && e.Message.Contains("match: True", StringComparison.Ordinal));
+        Assert.Contains(host.Log.Entries, e => e.Message.Contains("Assembly match found for", StringComparison.Ordinal));
         Assert.Single(host.Runner.Launches); // the retry reuses the SAME producer — no relaunch
     }
 
@@ -277,10 +281,10 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         await WaitUntilAsync(() => launch is not null, "the candidate to launch");
         await WaitUntilAsync(() => host.Log.Count("Assembly attempt") >= 1, "the first assembly attempt to run");
 
-        // Give attempt 1 time to finish (open, read, hit EOF, return) and reach the
-        // producerRunning check before Exit is touched — see the identical comment in
-        // Cav_IncompleteSnapshot_RetriesOnceWithFreshSource for why this margin is needed.
-        await Task.Delay(200);
+        // No delay needed here (unlike Cav_IncompleteSnapshot): this test never rewrites volume 2's
+        // bytes, so there is no content race to guard against, and retryEligible is snapshotted
+        // BEFORE the attempt starts — strictly before this test can possibly touch Exit — so it is
+        // unaffected by whatever happens after this line.
 
         // Released WITHOUT ever completing volume 2.
         launch!.Exit.TrySetResult(0);
@@ -329,9 +333,9 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         await WaitUntilAsync(() => launch is not null, "the candidate to launch");
         await WaitUntilAsync(() => host.Log.Count("Assembly attempt") >= 1, "the first assembly attempt to run");
 
-        // Give attempt 1 time to finish and reach the producerRunning check before Exit is
-        // touched — see the identical comment in Cav_IncompleteSnapshot_RetriesOnceWithFreshSource.
-        await Task.Delay(200);
+        // No delay needed (unlike Cav_IncompleteSnapshot): the garbage carrier is never rewritten,
+        // so there is no content race, and retryEligible is snapshotted before the attempt starts —
+        // strictly before this test can touch Exit — so it is unaffected by this test's timing.
 
         // Released WITHOUT repairing the garbage carrier.
         launch!.Exit.TrySetResult(0);
@@ -344,6 +348,54 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         string assemblyDir = Path.Combine(host.WorkDir, "output", $"assembled-{Path.GetFileNameWithoutExtension(launch.OutputFilePath)}");
         Assert.True(Directory.Exists(assemblyDir)); // assembled dir retained despite DeleteRARFiles=true
         Assert.True(File.Exists(launch.OutputFilePath)); // carrier retained despite DeleteRARFiles=true
+    }
+
+    [Fact]
+    public async Task Cav_ProducerCompletesDuringAttempt_RetryStillTriggers()
+    {
+        // The missed-retry-window regression (Fix Round 1): retryEligible must be snapshotted
+        // BEFORE the first attempt starts, not sampled after it returns — a producer that finishes
+        // WHILE the attempt is still reading (as opposed to strictly before or after) would make a
+        // post-attempt IsCompleted check read true and wrongly skip a retry the incomplete snapshot
+        // genuinely needs. Reproduced DETERMINISTICALLY, with no wall-clock racing at all: hooking
+        // RecordingLogger.Logged completes Exit the INSTANT the first "Assembly attempt" DEBUG line
+        // is recorded — i.e. synchronously, from within Manager's own call stack, before
+        // AssembleCandidateAsync has opened the packed source or read a single byte. That puts the
+        // producer's completion squarely INSIDE attempt 1's execution window. Volume 2's stub is
+        // never repaired, so attempt 1 (and, if the retry fires, attempt 2) both fail with
+        // SourceExhausted — this test only asserts the retry ENGAGES, not that it eventually
+        // succeeds (Cav_IncompleteSnapshot covers that, with its own separate content-race guard).
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = BuildMirrorShiftFixture(fixtureDir);
+        string producedVol2Path = RARVolumeNaming.GetNextVolumePath(fixture.ProducedFirstVolumePath, isOldNaming: true)!;
+        byte[] stubVol2Bytes = HeaderOnlyStub(File.ReadAllBytes(producedVol2Path));
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: true);
+
+        FakeRunner.Launch? launch = null;
+        host.Runner.OnLaunch = l =>
+        {
+            launch = l;
+            File.Copy(fixture.ProducedFirstVolumePath, l.OutputFilePath, overwrite: true);
+            File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), stubVol2Bytes);
+            // Exit deliberately left unresolved — completed by the log hook below instead.
+        };
+
+        bool triggered = false;
+        host.Log.Logged += entry =>
+        {
+            if (!triggered && entry.Message.StartsWith("Assembly attempt for", StringComparison.Ordinal))
+            {
+                triggered = true;
+                launch!.Exit.TrySetResult(0);
+            }
+        };
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Equal(2, host.Log.Count("Assembly attempt"));
     }
 
     [Fact]
@@ -434,5 +486,51 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         (bool AssemblyDirExists, bool CarrierExists) deleted = await RunScenarioAsync(deleteRarFiles: true);
         Assert.False(deleted.AssemblyDirExists);
         Assert.False(deleted.CarrierExists);
+    }
+
+    // ---- Fix Round 1: quick-gate match must never fall through into legacy finalization ----
+
+    [Fact]
+    public async Task NonCav_QuickMatch_NeverCommitsCarrierUnderOriginalName()
+    {
+        // The CRITICAL fix: before this guard existed, a quick-gate MATCH on an assembly candidate
+        // fell through into the LEGACY full-per-volume-verification/RenameMatchedOutput code, which
+        // operates on actualRARFilePath — the CARRIER's own produced-shape bytes, not the assembled
+        // (SRR-guided) output. In non-CAV mode (this test) that legacy code has no CRC-map gate at
+        // all — BuildExpectedInOrder's per-volume verification only ever engages for
+        // CompleteAllVolumes — so it moved those WRONG bytes under the original name and reported a
+        // false success. A single-volume, mirror-header fixture (originalHasExtTime !=
+        // producedHasExtTime, a small payload — no cross-volume spanning needed) makes the
+        // carrier's own bytes PROVABLY different from the original's, even though the ASSEMBLED
+        // reconstruction of them is byte-identical (asserted below) — exactly the gap the guard
+        // closes: nothing should ever be committed under the original name from the quick gate
+        // alone, and the run must not report a false success.
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = AssemblyFixtureBuilder.Build(fixtureDir, 15_000,
+            [("a.bin", Payload(500, 1))], originalHasExtTime: true, producedHasExtTime: false);
+
+        // Confirms the fixture actually exercises the bug: if the carrier were byte-identical to
+        // the original, this test would not distinguish the fix from a no-op.
+        Assert.NotEqual(File.ReadAllBytes(fixture.OriginalVolumePaths[0]), File.ReadAllBytes(fixture.ProducedFirstVolumePath));
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: false);
+
+        FakeRunner.Launch? launch = null;
+        host.Runner.OnLaunch = l =>
+        {
+            launch = l;
+            File.Copy(fixture.ProducedFirstVolumePath, l.OutputFilePath, overwrite: true);
+            l.Exit.TrySetResult(1); // single-volume fixture: no second volume ever appears
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        string committedPath = Path.Combine(host.WorkDir, "output", fixture.OriginalVolumeNames[0]);
+        Assert.False(File.Exists(committedPath));
+        Assert.False(result.Success);
+        Assert.Contains(host.Log.Entries, e => e.Message.Contains("Assembly match found for", StringComparison.Ordinal));
     }
 }
