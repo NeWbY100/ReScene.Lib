@@ -72,6 +72,27 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     private static string SecondVolumePath(string firstVolumePath)
         => Path.Combine(Path.GetDirectoryName(firstVolumePath)!, Path.GetFileNameWithoutExtension(firstVolumePath) + ".r00");
 
+    /// <summary>
+    /// Copies <paramref name="fixture"/>'s ENTIRE produced volume set to the candidate's flat
+    /// carrier output paths — volume 1 at <paramref name="carrierFirstVolumePath"/>, successors via
+    /// old-style naming — the shape a real CompleteAllVolumes rar run leaves behind once every
+    /// volume has actually been written (as opposed to the header-only-stub tests above, which
+    /// simulate a producer still mid-flight).
+    /// </summary>
+    private static void CopyFullProducedSet(AssemblyFixture fixture, string carrierFirstVolumePath)
+    {
+        File.Copy(fixture.ProducedFirstVolumePath, carrierFirstVolumePath, overwrite: true);
+
+        string? producedNext = RARVolumeNaming.GetNextVolumePath(fixture.ProducedFirstVolumePath, isOldNaming: true);
+        string? carrierNext = RARVolumeNaming.GetNextVolumePath(carrierFirstVolumePath, isOldNaming: true);
+        while (producedNext != null && File.Exists(producedNext))
+        {
+            File.Copy(producedNext, carrierNext!, overwrite: true);
+            producedNext = RARVolumeNaming.GetNextVolumePath(producedNext, isOldNaming: true);
+            carrierNext = RARVolumeNaming.GetNextVolumePath(carrierNext!, isOldNaming: true);
+        }
+    }
+
     private static byte[] Payload(int n, int seed) =>
         [.. Enumerable.Range(0, n).Select(i => (byte)((i * 31 + seed) % 251))];
 
@@ -181,14 +202,14 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     // via RecordingLogger ("Assembled hash" is logged only once per candidate, post-retry, so it
     // cannot count attempts).
     //
-    // None of these assert BruteForceRunResult.Success/Matches: whether a quick-gate MATCH goes on
-    // to become a full winning combination runs through the pre-existing CAV full-per-volume-
-    // verification and rename machinery, which still compares the CARRIER's own (produced-shape)
-    // bytes against the original CRCs/volume count — correct for the legacy path, but not yet
-    // assembly-aware (that full-set assembly wiring is a later task's job; AssembleCandidateAsync's
-    // own volumeCount parameter already anticipates it via its int.MaxValue "full set" case). These
-    // tests stay scoped to what Task 8 actually owns: the quick gate's own classification, logging,
-    // and retention.
+    // None of these assert BruteForceRunResult.Success/Matches: these fixtures' carriers are
+    // deliberately INCOMPLETE beyond whatever the quick gate itself needs (a single produced volume,
+    // or two for the mirror-shift cases) — Task 9's win path (below) performs its OWN full-set
+    // assembly once a quick-gate match falls through, and for a carrier this incomplete that full
+    // attempt genuinely runs out of source (one more "Assembly attempt" line, counted in the
+    // assertions below), rejecting the candidate as a no-match. That is expected and correct — full-
+    // set success/failure has its own dedicated tests further down. These tests stay scoped to what
+    // Task 8 actually owns: the quick gate's own classification, logging, and retention.
 
     [Fact]
     public async Task Cav_IncompleteSnapshot_RetriesOnceWithFreshSource()
@@ -240,10 +261,15 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         await WithTimeoutAsync(runTask, "the run to finish");
 
-        Assert.Equal(2, host.Log.Count("Assembly attempt"));
+        // The quick gate's own attempts: 1 (fails, SourceExhausted) + 1 (retry, succeeds) = 2; Task
+        // 9's win path then makes a THIRD, full-set assembly attempt. This test's carrier only ever
+        // has 2 produced volumes on disk (this fixture's original set needs 3 to reconstruct in
+        // full), so that full attempt itself hits SourceExhausted and the candidate is rejected as a
+        // no-match — expected, and outside THIS test's scope (the quick gate's own retry mechanic,
+        // already proven by the "Assembled hash for... match: True" line below).
+        Assert.Equal(3, host.Log.Count("Assembly attempt"));
         Assert.Contains(host.Log.Entries, e => e.Message.Contains("Assembled hash for", StringComparison.Ordinal)
             && e.Message.Contains("match: True", StringComparison.Ordinal));
-        Assert.Contains(host.Log.Entries, e => e.Message.Contains("Assembly match found for", StringComparison.Ordinal));
         Assert.Single(host.Runner.Launches); // the retry reuses the SAME producer — no relaunch
     }
 
@@ -488,31 +514,32 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.False(deleted.CarrierExists);
     }
 
-    // ---- Fix Round 1: quick-gate match must never fall through into legacy finalization ----
+    // ---- Fix Round 1 (Task 8) / Task 9: quick-gate match must commit the ASSEMBLED bytes, never
+    // the carrier's ----
 
     [Fact]
     public async Task NonCav_QuickMatch_NeverCommitsCarrierUnderOriginalName()
     {
-        // The CRITICAL fix: before this guard existed, a quick-gate MATCH on an assembly candidate
-        // fell through into the LEGACY full-per-volume-verification/RenameMatchedOutput code, which
-        // operates on actualRARFilePath — the CARRIER's own produced-shape bytes, not the assembled
-        // (SRR-guided) output. In non-CAV mode (this test) that legacy code has no CRC-map gate at
-        // all — BuildExpectedInOrder's per-volume verification only ever engages for
-        // CompleteAllVolumes — so it moved those WRONG bytes under the original name and reported a
-        // false success. A single-volume, mirror-header fixture (originalHasExtTime !=
-        // producedHasExtTime, a small payload — no cross-volume spanning needed) makes the
-        // carrier's own bytes PROVABLY different from the original's, even though the ASSEMBLED
-        // reconstruction of them is byte-identical (asserted below) — exactly the gap the guard
-        // closes: nothing should ever be committed under the original name from the quick gate
-        // alone, and the run must not report a false success.
+        // The strongest correctness pin for the Task 9 win path. Before Task 9's finalizer existed,
+        // a quick-gate MATCH on an assembly candidate either fell through into the LEGACY full-per-
+        // volume-verification/RenameMatchedOutput code (pre-Fix-Round-1 — committing the CARRIER's
+        // own produced-shape bytes under the original name) or was retained-but-never-finalized (the
+        // Task 8/9 temporary guard). Now the win path finalizes the ASSEMBLED reconstruction. A
+        // single-volume, mirror-header fixture (originalHasExtTime != producedHasExtTime, a small
+        // payload — no cross-volume spanning needed) makes the carrier's own bytes PROVABLY
+        // different from the original's, so asserting the committed bytes equal the ORIGINAL'S (and
+        // differ from the carrier's) can only pass if the win path committed the assembled
+        // reconstruction, never the carrier.
         string fixtureDir = Path.Combine(TempDir, "fixture");
         Directory.CreateDirectory(fixtureDir);
         AssemblyFixture fixture = AssemblyFixtureBuilder.Build(fixtureDir, 15_000,
             [("a.bin", Payload(500, 1))], originalHasExtTime: true, producedHasExtTime: false);
 
-        // Confirms the fixture actually exercises the bug: if the carrier were byte-identical to
-        // the original, this test would not distinguish the fix from a no-op.
-        Assert.NotEqual(File.ReadAllBytes(fixture.OriginalVolumePaths[0]), File.ReadAllBytes(fixture.ProducedFirstVolumePath));
+        // Confirms the fixture actually exercises the distinction: if the carrier were byte-identical
+        // to the original, this test could not tell an assembled-commit from a carrier-commit.
+        byte[] originalBytes = File.ReadAllBytes(fixture.OriginalVolumePaths[0]);
+        byte[] carrierBytes = File.ReadAllBytes(fixture.ProducedFirstVolumePath);
+        Assert.NotEqual(originalBytes, carrierBytes);
 
         using AssemblyTestHost host = NewHost();
         BruteForceOptions options = host.Options(fixture, completeAllVolumes: false);
@@ -529,8 +556,184 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
             host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
 
         string committedPath = Path.Combine(host.WorkDir, "output", fixture.OriginalVolumeNames[0]);
-        Assert.False(File.Exists(committedPath));
+        Assert.True(result.Success);
+        Assert.True(File.Exists(committedPath));
+        byte[] committedBytes = File.ReadAllBytes(committedPath);
+        Assert.Equal(originalBytes, committedBytes);
+        Assert.NotEqual(carrierBytes, committedBytes);
+        Assert.Contains(host.Log.Entries, e => e.Message.Contains("SRR-guided assembly", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NonCav_QuickMatch_FirstVolumeSuccess()
+    {
+        // Non-CAV: the single assembled volume IS the mode's whole outcome. A matching-shape,
+        // single-volume fixture (no mirror-shift mechanics needed here — that is the demonstrator
+        // test's job) proves the basic non-CAV win path: exactly one assembled volume is finalized
+        // and reported as a success.
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = BuildSingleVolumeFixture(fixtureDir);
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: false);
+
+        host.Runner.OnLaunch = l =>
+        {
+            File.Copy(fixture.ProducedFirstVolumePath, l.OutputFilePath, overwrite: true);
+            l.Exit.TrySetResult(1); // single-volume fixture: no second volume ever appears
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.True(result.Success);
+        Assert.Single(result.Matches);
+        Assert.Single(result.Matches[0].Files);
+
+        string committedPath = Path.Combine(host.WorkDir, "output", fixture.OriginalVolumeNames[0]);
+        Assert.True(File.Exists(committedPath));
+        Assert.Equal(File.ReadAllBytes(fixture.OriginalVolumePaths[0]), File.ReadAllBytes(committedPath));
+    }
+
+    // ---- Task 9: full assembly, guarded per-volume verification, and finalization ----
+
+    [Fact]
+    public async Task Cav_EndToEnd_ExtTimeScenario_MatchesAndVerifiesAllVolumes()
+    {
+        // The flagship: the same mirror-shift fixture (original headers smaller, so reconstructing
+        // an original volume needs bytes physically located in the NEXT produced volume) as the
+        // quick-gate tests above, but with the FULL produced set dropped up front — the shape a real
+        // CompleteAllVolumes rar run leaves behind once every volume is actually written. Proves the
+        // win path's full-set assembly, per-volume CRC verification, and finalization end to end.
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = BuildMirrorShiftFixture(fixtureDir);
+        Assert.True(fixture.OriginalVolumePaths.Count > 1); // genuinely multi-volume — spans a boundary
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: true);
+
+        host.Runner.OnLaunch = l =>
+        {
+            CopyFullProducedSet(fixture, l.OutputFilePath);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.True(result.Success);
+        Assert.Contains(host.Log.Entries, e => e.Message.Contains("SRR-guided assembly", StringComparison.Ordinal));
+        Assert.DoesNotContain(host.Log.Entries, e => e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
+        Assert.DoesNotContain(host.Log.Entries, e => e.Message.Contains("volume(s), expected", StringComparison.Ordinal));
+
+        for (int i = 0; i < fixture.OriginalVolumePaths.Count; i++)
+        {
+            string committedPath = Path.Combine(host.WorkDir, "output", fixture.OriginalVolumeNames[i]);
+            Assert.True(File.Exists(committedPath));
+            Assert.Equal(
+                HashCalculator.Calculate(HashType.CRC32, fixture.OriginalVolumePaths[i]),
+                HashCalculator.Calculate(HashType.CRC32, committedPath));
+        }
+    }
+
+    [Fact]
+    public async Task Cav_FullVerifyMismatch_IsNoMatch_NotSuccess()
+    {
+        // Corrupt ONE later original CRC (never volume 1's — that must stay correct so the quick
+        // gate still matches): full assembly succeeds (the bytes ARE correct), but per-volume
+        // verification catches the seeded mismatch — rejected, not a match, run continues to
+        // exhaustion.
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = BuildMirrorShiftFixture(fixtureDir);
+        Assert.True(fixture.OriginalVolumeNames.Count > 1);
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: true);
+        options.ExpectedVolumeCrcs[fixture.OriginalVolumeNames[1]] = "00000000"; // deliberately wrong
+
+        host.Runner.OnLaunch = l =>
+        {
+            CopyFullProducedSet(fixture, l.OutputFilePath);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
         Assert.False(result.Success);
-        Assert.Contains(host.Log.Entries, e => e.Message.Contains("Assembly match found for", StringComparison.Ordinal));
+        Assert.Contains(host.Log.Entries, e => e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NoCrcMap_FirstHashOnly_ParityPreserved()
+    {
+        // Empty CRC map: success rests on the quick gate's volume-1 hash alone (first-hash-only
+        // parity, spec §4) — full assembly and finalization still run (they don't depend on the CRC
+        // map), but the per-volume verification block itself must never engage.
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = BuildMirrorShiftFixture(fixtureDir);
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: true);
+        options.ExpectedVolumeCrcs.Clear();
+
+        host.Runner.OnLaunch = l =>
+        {
+            CopyFullProducedSet(fixture, l.OutputFilePath);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.True(result.Success);
+        Assert.DoesNotContain(host.Log.Entries, e => e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
+
+        for (int i = 0; i < fixture.OriginalVolumePaths.Count; i++)
+        {
+            string committedPath = Path.Combine(host.WorkDir, "output", fixture.OriginalVolumeNames[i]);
+            Assert.True(File.Exists(committedPath));
+        }
+    }
+
+    [Fact]
+    public async Task Cav_QualifiedSetNames_FinalizeAndCleanupHandleSubdirectories()
+    {
+        // Qualified set names (directoryPrefix "CD2"): the reconstructor writes
+        // assemblyDir/CD2/t.rar etc. Finalization must flatten to <work>/output/t.rar
+        // (Path.GetFileName strips the qualifier), and the empty assemblyDir/CD2/ subdirectory left
+        // behind must be removed recursively as part of success cleanup — never assumed flat.
+        string fixtureDir = Path.Combine(TempDir, "fixture");
+        Directory.CreateDirectory(fixtureDir);
+        AssemblyFixture fixture = AssemblyFixtureBuilder.Build(fixtureDir, 15_000,
+            [("a.bin", Payload(500, 1))], originalHasExtTime: true, producedHasExtTime: true,
+            directoryPrefix: "CD2");
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture, completeAllVolumes: true);
+
+        FakeRunner.Launch? launch = null;
+        host.Runner.OnLaunch = l =>
+        {
+            launch = l;
+            CopyFullProducedSet(fixture, l.OutputFilePath);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.True(result.Success);
+
+        string committedPath = Path.Combine(host.WorkDir, "output", "t.rar");
+        Assert.True(File.Exists(committedPath));
+        Assert.Equal(File.ReadAllBytes(fixture.OriginalVolumePaths[0]), File.ReadAllBytes(committedPath));
+
+        string assemblyDir = Path.Combine(host.WorkDir, "output", $"assembled-{Path.GetFileNameWithoutExtension(launch!.OutputFilePath)}");
+        Assert.False(Directory.Exists(assemblyDir)); // fully removed, including the CD2/ subdir
     }
 }

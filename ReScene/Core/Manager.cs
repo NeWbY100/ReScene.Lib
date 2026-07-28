@@ -982,6 +982,11 @@ public partial class Manager : IDisposable
 
                 string hash;
                 string candidateSlug = Path.GetFileNameWithoutExtension(rarFilePath);
+                // Hoisted so the win path below (after "MATCH FOUND") can reuse the quick gate's own
+                // assembled result and duplicate-hash flag without recomputing them; distinct name
+                // from the legacy else-arm's own local `isDuplicateHash` (untouched, below).
+                SRRReconstructionResult? quick = null;
+                bool isDuplicateAssemblyHash = false;
                 if (_useAssembly)
                 {
                     string assemblyDir = Path.Combine(rarOutputDir, $"assembled-{candidateSlug}");
@@ -996,7 +1001,7 @@ public partial class Manager : IDisposable
                     // snapshot was actually opened, and would wrongly skip the retry for exactly the
                     // incomplete-snapshot case it exists to catch (a real race, not a test artifact).
                     bool retryEligible = runningProcessTask is { IsCompleted: false };
-                    SRRReconstructionResult quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
+                    quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
 
                     if (quick.Status != SRRReconstructionStatus.Success && retryEligible)
                     {
@@ -1017,7 +1022,7 @@ public partial class Manager : IDisposable
                         : null;
                     bool quickMatch = quickHash != null && options.Hashes.Contains(quickHash);
                     // Duplicate detection BEFORE recording the hash (mirrors the legacy fileHashes pattern):
-                    bool isDuplicateHash = quickHash != null && fileHashes.Contains(quickHash);
+                    isDuplicateAssemblyHash = quickHash != null && fileHashes.Contains(quickHash);
                     if (quickHash != null)
                     {
                         fileHashes.Add(quickHash);
@@ -1056,7 +1061,7 @@ public partial class Manager : IDisposable
                         await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
                         if (!skipRetentionCleanup) // false for mismatch/SourceExhausted/duplicate; true for Error
                         {
-                            ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateHash);
+                            ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
                         }
                         continue;
                     }
@@ -1126,24 +1131,122 @@ public partial class Manager : IDisposable
                     await runningProcessTask.ConfigureAwait(false);
                 }
 
-                // TASK 9 REPLACES THIS GUARD. The quick gate above only verifies the ASSEMBLED
-                // first original volume; it is NOT yet safe to let that match fall through into
-                // the legacy full-per-volume-verification/RenameMatchedOutput code below, which
-                // operates on actualRARFilePath — the CARRIER's own produced-shape bytes, never
-                // byte-identical to the original (that is the entire point of guided assembly).
-                // Non-CAV, or CAV with no populated expected-CRC map, would move/report those
-                // WRONG bytes under the original name as a false success; only CAV with a
-                // populated CRC map happens to catch it as a (spurious) near-miss instead. Full-set
-                // assembly and finalization are a later task's job. Until then: log clearly, retain
-                // BOTH artifact classes (never delete — this genuinely IS the winning candidate's
-                // evidence), and keep searching. Deliberately NOT recorded via matchAccumulator:
-                // doing so would report BruteForceRunResult.Success=true with nothing actually
-                // placed under the expected name, and (with StopOnFirstMatch, the common default)
-                // would stop the search before the full set is ever really verified.
+                // Assembly win path (spec §4/§5): the quick gate above only verified the ASSEMBLED
+                // first original volume; the legacy full-per-volume-verification/RenameMatchedOutput
+                // code below operates on actualRARFilePath — the CARRIER's own produced-shape bytes,
+                // never byte-identical to the original — so an assembly candidate must never fall
+                // through into it. Instead: full-set assembly over the now-complete produced set (the
+                // producer was just awaited to completion above), guarded per-volume verification,
+                // and finalization via the transactional FinalizeAssembledSet.
                 if (_useAssembly)
                 {
-                    _logger.Information(this, $"Assembly match found for {candidateSlug}; full-set assembly and finalization land with the next change — artifacts retained", LogTarget.System);
-                    continue;
+                    string assemblyDir = Path.Combine(rarOutputDir, $"assembled-{candidateSlug}");
+
+                    SRRReconstructionResult assembled;
+                    if (options.RAROptions.CompleteAllVolumes)
+                    {
+                        // FULL assembly — fresh source over the now-complete produced set.
+                        // Verification and finalization use THIS result's ordered WrittenPaths,
+                        // never the quick gate's single-volume result.
+                        assembled = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, int.MaxValue, _cts.Token).ConfigureAwait(false);
+                        if (assembled.Status != SRRReconstructionStatus.Success)
+                        {
+                            // A completed-producer full assembly cannot be an incomplete snapshot —
+                            // there is no retry here (unlike the quick gate above).
+                            if (assembled.Status == SRRReconstructionStatus.Error)
+                            {
+                                // Persistent parse/I-O failure: retains BOTH classes for diagnosis.
+                                FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
+                                    totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
+                                    rarFilePath, executedArguments, assembled.Diagnostic);
+                            }
+                            else
+                            {
+                                // SourceExhausted: a real no-match — mismatch retention applies to
+                                // both artifact classes.
+                                ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                            }
+
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // Non-CAV: the single quick-gate volume already IS the mode's whole outcome.
+                        assembled = quick!;
+                    }
+
+                    // Per-volume verification — the gate is EXACTLY the legacy block's own below:
+                    // CAV mode AND a non-empty CRC map; with no map, the quick hash was the whole
+                    // gate (first-hash-only parity, spec §4) and this block is skipped entirely.
+                    // (Named distinctly from the legacy block's own `expectedInOrder` below — C#
+                    // forbids a nested block from reusing a name its enclosing block also declares,
+                    // even in a later, mutually-exclusive branch.)
+                    IReadOnlyList<(string Name, string Crc)> assemblyExpectedInOrder = BuildExpectedInOrder(options);
+                    if (options.RAROptions.CompleteAllVolumes && assemblyExpectedInOrder.Count > 0)
+                    {
+                        // The SRR-embedded SFV is ALWAYS CRC32, regardless of options.HashType (same
+                        // rationale as the legacy block's comment below).
+                        var assembledCrcs = assembled.WrittenPaths
+                            .Select(v => HashCalculator.Calculate(HashType.CRC32, v))
+                            .ToList();
+                        VolumeMatchResult verify = VolumeMatchEvaluator.Evaluate(assembledCrcs, assemblyExpectedInOrder);
+                        if (!verify.AllMatch)
+                        {
+                            VolumeMatch? m = verify.FirstMismatch;
+                            string detail = verify.CountMismatch
+                                ? $"produced {assembledCrcs.Count} volume(s), expected {assemblyExpectedInOrder.Count}"
+                                : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
+                            _logger.Information(this, $"{rarVersionDirectoryName} / {displayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
+
+                            ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                            continue;
+                        }
+                    }
+
+                    // Finalization runs OUTSIDE the guard (it applies with or without a CRC map):
+                    (IReadOnlyList<string> assembledPlaced, bool assembledComplete) = FinalizeAssembledSet(options, assembled.WrittenPaths, candidateSlug, rarOutputDir);
+                    if (!assembledComplete)
+                    {
+                        // Transactional finalization failed: retain both classes for diagnosis.
+                        FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
+                            totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
+                            rarFilePath, executedArguments, "finalization incomplete — destination occupied or move failed");
+                        continue;
+                    }
+
+                    // ---- FULL MATCH (SRR-guided assembly) ----
+                    _logger.Information(this, "*** MATCH FOUND (SRR-guided assembly)! ***", LogTarget.System);
+                    _logger.Information(this, $"  Version: {rarVersionDirectoryName}", LogTarget.System);
+                    _logger.Information(this, $"  Params:  {displayArguments}", LogTarget.System);
+                    _logger.Information(this, $"  Hash:    {hash}", LogTarget.System);
+                    _logger.Information(this, $"  RAR:     {actualRARFilePath}", LogTarget.System);
+
+                    // Success cleanup — the carrier volumes are not the reconstruction. NOTE: for
+                    // qualified sets (CD2/x.rar) the reconstructor created assemblyDir/CD2/... —
+                    // after the moves the tree still holds empty subdirectories, so removal must be
+                    // RECURSIVE on the file-empty tree (never assume flat).
+                    if (options.RAROptions.DeleteRARFiles)
+                    {
+                        DeleteRARFileAndVolumes(actualRARFilePath);
+                    }
+
+                    try
+                    {
+                        if (Directory.Exists(assemblyDir)
+                            && !Directory.EnumerateFiles(assemblyDir, "*", SearchOption.AllDirectories).Any())
+                        {
+                            Directory.Delete(assemblyDir, recursive: true);
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // Best-effort: an empty-dir cleanup failure must never convert a committed
+                        // match into a failure.
+                    }
+
+                    var assemblyWinningCombo = new WinningCombo(version, commandLineArguments);
+                    return (true, currentProgress, new CommittedMatch(assemblyWinningCombo, assembledPlaced));
                 }
 
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).
