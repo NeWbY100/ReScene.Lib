@@ -42,6 +42,11 @@ internal static class AssemblyFixtureBuilder
     private const int ArchiveHeaderSize = 13;
     private const int EndArchiveSize = 7;
 
+    // Padding coverage (insertPadding): a small, fixed zero-fill size inserted between the first
+    // and second RARFile sections (see Build's remarks) — large enough to be a meaningful,
+    // non-trivial byte-identity check, small enough to never threaten volumeSize budgeting.
+    private const uint PaddingBlockSize = 16;
+
     // Fixed RAR4 file-header fields ahead of NAME: base(7) + ADD_SIZE/UNP_SIZE/HOST_OS/FILE_CRC/
     // FILE_TIME/UNP_VER/METHOD/NAME_SIZE/ATTR(25) — see RAR4HeaderBuilder.AddFileHeader.
     private const int FixedFileHeaderFieldsSize = 32;
@@ -75,6 +80,15 @@ internal static class AssemblyFixtureBuilder
     /// <c>originals/</c> and <c>produced/</c>, and every qualified name (SRR sections, <see
     /// cref="AssemblyFixture.OriginalVolumeNames"/>) is "CD1/t.rar"-style.
     /// </param>
+    /// <param name="insertPadding">
+    /// When set, an <see cref="SRRBlockType.RARPadding"/> block (the shape <see
+    /// cref="ReScene.Core.SRRReconstructor"/> emits zero bytes for) is inserted into the SRR
+    /// between the first and second RARFile sections (requires at least two volumes), and the
+    /// FIRST original volume's physical file is extended with the matching number of zero bytes —
+    /// so guided assembly must literally re-insert padding it never sourced from the produced set
+    /// (padding bytes are never part of any archived file's payload) to reproduce the original
+    /// byte-for-byte.
+    /// </param>
     public static AssemblyFixture Build(
         string dir,
         int volumeSize,
@@ -82,7 +96,8 @@ internal static class AssemblyFixtureBuilder
         bool originalHasExtTime,
         bool producedHasExtTime,
         string volumePrefix = "t",
-        string? directoryPrefix = null)
+        string? directoryPrefix = null,
+        bool insertPadding = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(dir);
         if (archivedFiles.Count == 0)
@@ -104,6 +119,20 @@ internal static class AssemblyFixtureBuilder
         List<string> producedPaths =
             WriteVolumeSet(producedRoot, directoryPrefix, volumePrefix, producedPlan, producedCaptured);
 
+        if (insertPadding)
+        {
+            if (originalPaths.Count < 2)
+            {
+                throw new ArgumentException(
+                    "insertPadding requires at least two original volumes (padding is inserted " +
+                    "between the first and second RARFile sections); increase archivedFiles size " +
+                    "or decrease volumeSize.", nameof(insertPadding));
+            }
+
+            using FileStream paddingStream = new(originalPaths[0], FileMode.Append, FileAccess.Write);
+            paddingStream.Write(new byte[PaddingBlockSize]);
+        }
+
         List<string> originalNames =
             [.. originalPaths.Select(p => QualifiedName(directoryPrefix, Path.GetFileName(p)))];
 
@@ -115,6 +144,11 @@ internal static class AssemblyFixtureBuilder
                 originalNames[i],
                 (ushort)SRRBlockFlags.RecoveryBlocksRemoved,
                 hb => WriteCapturedHeaders(hb, captured));
+
+            if (insertPadding && i == 0)
+            {
+                srrBuilder = srrBuilder.AddRARPadding(originalNames[0], PaddingBlockSize);
+            }
         }
 
         string srrPath = srrBuilder.BuildToFile(dir, "fixture.srr");

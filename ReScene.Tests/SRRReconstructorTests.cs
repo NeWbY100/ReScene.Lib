@@ -191,11 +191,17 @@ public class SRRReconstructorTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task ReconstructAsync_WrittenVolumeNameDoesNotMatchExpected_ReturnsFalseDespiteMatchingCount()
+    public async Task ReconstructAsync_RequestedNameMatchesNoSection_WritesNothingAndReturnsError()
     {
-        // Count alone is not sufficient: the expected name(s) must also match (normalized), so a
-        // caller passing a mismatched/wrong expected-names list is caught rather than silently
-        // accepted just because the COUNT happens to line up.
+        // Set filtering (SectionMatchesSet) means a requested name with zero correspondence to any
+        // RARFile section in the SRR is never written at all — this SRR's one real section
+        // ("test.rar") does not match the caller's request, so it is skipped, never opening output
+        // for it, and reconstruction fails via "no volumes produced" rather than a post-write
+        // identity mismatch. (Before set filtering existed, every section was written
+        // unconditionally and only compared against the expected names afterward — see
+        // ReconstructAsync_FewerVolumesWrittenThanExpected_ReturnsFalseEvenWhenAllWrittenHashesMatch
+        // for that post-write identity check still being exercised, for a request that DOES
+        // correspond to real sections but is incomplete.)
         string srr = BuildSingleVolumeSRR("test.rar", "movie.mkv", SourcePayload);
 
         using var packedSource = new ReleaseFilePackedSource(_inputDir);
@@ -204,7 +210,7 @@ public class SRRReconstructorTests : TempDirTestBase
             srr, packedSource, _inputDir, _outputDir, ["completely-different-name.rar"], [], HashType.CRC32, CancellationToken.None);
 
         Assert.Equal(SRRReconstructionStatus.Error, result.Status);
-        Assert.Equal([Path.Combine(_outputDir, "test.rar")], result.WrittenPaths);
+        Assert.Empty(result.WrittenPaths);
     }
 
     [Fact]
