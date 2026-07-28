@@ -98,6 +98,19 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
         }
     }
 
+    /// <summary>
+    /// Subscribes to <paramref name="manager"/>'s progress events into a plain list — safe to read
+    /// only AFTER the run's task has been awaited to completion (no concurrent writer remains at
+    /// that point; awaiting establishes the happens-before edge). Asserting on
+    /// <c>CombinationFailed</c> here is the real contract; log-message checks are secondary.
+    /// </summary>
+    private static List<BruteForceProgressEventArgs> CollectProgressEvents(Manager manager)
+    {
+        List<BruteForceProgressEventArgs> events = [];
+        manager.BruteForceProgress += (_, e) => events.Add(e);
+        return events;
+    }
+
     [Fact]
     public async Task HarnessSmoke_LegacyRun_SingleFakeVersion_Completes()
     {
@@ -229,6 +242,7 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
             }
         };
 
+        List<BruteForceProgressEventArgs> progressEvents = CollectProgressEvents(host.Manager);
         Task<BruteForceRunResult> runTask = host.Manager.BruteForceRARVersionAsync(options);
 
         await WaitUntilAsync(() => launch1 is not null, "the first candidate to launch");
@@ -243,7 +257,10 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
         BruteForceRunResult result = await WithTimeoutAsync(runTask, "the run to finish");
         Assert.False(result.Success);
         Assert.Equal(2, host.Runner.Launches.Count);
-        Assert.True(host.Log.Count("RAR execution failed") >= 1);
+        // The real contract: exactly one CombinationFailed row (candidate 1's hash-read error);
+        // candidate 2's clean non-match must not also be flagged as a failure.
+        Assert.Single(progressEvents, e => e.CombinationFailed);
+        Assert.True(host.Log.Count("RAR execution failed") >= 1); // secondary
     }
 
     [Fact]
@@ -273,12 +290,16 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
             }
         };
 
+        List<BruteForceProgressEventArgs> progressEvents = CollectProgressEvents(host.Manager);
         BruteForceRunResult result = await WithTimeoutAsync(
             host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
 
         Assert.False(result.Success);
         Assert.Equal(2, host.Runner.Launches.Count);
-        Assert.True(host.Log.Count("RAR execution failed") >= 1);
+        // The real contract: exactly one CombinationFailed row (candidate 1's fault); candidate
+        // 2's clean non-match must not also be flagged as a failure.
+        Assert.Single(progressEvents, e => e.CombinationFailed);
+        Assert.True(host.Log.Count("RAR execution failed") >= 1); // secondary
     }
 
     [Fact]
@@ -301,6 +322,7 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
             File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), TriggerBytes); // volume-2 trigger
         };
 
+        List<BruteForceProgressEventArgs> progressEvents = CollectProgressEvents(host.Manager);
         Task<BruteForceRunResult> runTask = host.Manager.BruteForceRARVersionAsync(options);
 
         await WaitUntilAsync(() => launch is not null, "the candidate to launch");
@@ -315,7 +337,94 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
 
         Assert.False(result.Success);
         Assert.Empty(result.Matches);
-        Assert.True(host.Log.Count("RAR execution failed") >= 1);
+        // The real contract: exactly one CombinationFailed row for this candidate.
+        Assert.Single(progressEvents, e => e.CombinationFailed);
+        Assert.True(host.Log.Count("RAR execution failed") >= 1); // secondary
+    }
+
+    [Fact]
+    public async Task LateFault_AlreadyCompletedAtWinningCheck_IsFailedCombination_NeverAMatch()
+    {
+        // CAV path. Closes the SPECIFIC race the previous test's timing cannot reach: here the
+        // fault is set SYNCHRONOUSLY from within the first BruteForceProgress event raised after
+        // launch (which fires strictly AFTER the CAV block's own IsFaulted check has already
+        // passed — Manager.cs ~861 — and strictly BEFORE actualRARFilePath/hash computation).
+        // Because BOTH the event dispatch and the FakeRunner Exit TCS completion are synchronous,
+        // there is no wall-clock race: by the time Manager reaches the winning-path check, the
+        // producer task is ALREADY Faulted (IsCompleted == true). A conditional
+        // "if (!runningProcessTask.IsCompleted)" guard around that check's await (the pre-fix
+        // shape) would skip observing it entirely and finalize this as a false match.
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: true);
+        options.Hashes.Add(CarrierCrc()); // volume 1 matches — a false "match" is the failure mode
+
+        FakeRunner.Launch? launch = null;
+        host.Runner.OnLaunch = l =>
+        {
+            launch = l;
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes); // matching set
+            File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), TriggerBytes); // volume-2 trigger
+        };
+
+        bool faulted = false;
+        host.Manager.BruteForceProgress += (_, _) =>
+        {
+            // The pre-launch progress event fires with launch still null (skipped here). The
+            // post-CAV-check event — the next one — fires with launch set; faulting Exit
+            // synchronously right here (still inside Manager's own call stack) deterministically
+            // lands the fault before the winning-path check, not merely "as soon as possible"
+            // relative to a polled signal.
+            if (launch is not null && !faulted)
+            {
+                faulted = true;
+                launch.Exit.TrySetException(new InvalidOperationException("simulated already-faulted-at-check producer fault"));
+            }
+        };
+
+        List<BruteForceProgressEventArgs> progressEvents = CollectProgressEvents(host.Manager);
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.False(result.Success);
+        Assert.Empty(result.Matches);
+        Assert.Single(host.Runner.Launches);
+        Assert.Single(progressEvents, e => e.CombinationFailed);
+        Assert.True(host.Log.Count("RAR execution failed") >= 1); // secondary
+    }
+
+    [Fact]
+    public async Task StopDuringWinningWait_ObservesProducer_BeforePropagatingCancellation()
+    {
+        // CAV path. A volume already exists and its hash matches, so Manager reaches the winning
+        // "completing all volumes" wait (the actualRARFilePath==null branch does not intercept
+        // this exit). Stop() is called, then the held Exit resolves as a genuine task
+        // cancellation (TrySetCanceled) — exercising the OperationCanceledException catch
+        // (~Manager.cs:1064) specifically, which every other lifecycle test here reaches via a
+        // different exit. That catch must observe the producer before propagating.
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: true);
+        options.Hashes.Add(CarrierCrc());
+
+        FakeRunner.Launch? launch = null;
+        host.Runner.OnLaunch = l =>
+        {
+            launch = l;
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes);
+            File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), TriggerBytes);
+        };
+
+        Task<BruteForceRunResult> runTask = host.Manager.BruteForceRARVersionAsync(options);
+
+        await WaitUntilAsync(() => launch is not null, "the candidate to launch");
+        await WaitUntilAsync(() => host.Log.Count("First volume matched, completing all volumes") >= 1,
+            "Manager to reach the winning, plain-awaited completion wait");
+
+        host.Manager.Stop();
+        await WithTimeoutAsync(launch!.CancellationRequested.Task, "Stop() to cancel the running producer");
+
+        launch.Exit.TrySetCanceled();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
     }
 
     [Fact]

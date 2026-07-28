@@ -978,10 +978,21 @@ public partial class Manager : IDisposable
 
                 // If RAR is still running (CompleteAllVolumes), let it finish creating all volumes
                 // before we verify the whole set — full verification must never run against an
-                // in-progress volume set.
-                if (runningProcessTask != null && !runningProcessTask.IsCompleted)
+                // in-progress volume set. UNCONDITIONAL await when non-null — not gated on
+                // IsCompleted: a producer that faulted between the CAV block's own IsFaulted check
+                // and here (e.g. during the hash read above) is already IsCompleted==true, and
+                // gating the await on that would skip observing it entirely, letting a candidate
+                // whose producer crashed mid-volume-set be finalized as a match. Awaiting an
+                // already-successfully-completed task here is a no-op that just returns its exit
+                // code; awaiting an already-faulted one rethrows immediately into the catch below —
+                // this is the plain (unwrapped) winning-path await the invariant requires.
+                if (runningProcessTask != null)
                 {
-                    _logger.Information(this, "First volume matched, completing all volumes...", LogTarget.System);
+                    if (!runningProcessTask.IsCompleted)
+                    {
+                        _logger.Information(this, "First volume matched, completing all volumes...", LogTarget.System);
+                    }
+
                     await runningProcessTask.ConfigureAwait(false);
                 }
 
@@ -1052,7 +1063,15 @@ public partial class Manager : IDisposable
             }
             catch (OperationCanceledException)
             {
-                // User/stop cancellation must abort the whole run — propagate it.
+                // User/stop cancellation must abort the whole run — but only after observing the
+                // producer (invariant: no exit propagates while a producer task is unobserved). In
+                // today's code the task that surfaces THIS exception is typically the very one
+                // we'd be observing here (already resolved by the await that threw), making this a
+                // fast no-op — but that is a fact about the CURRENT shape of this method, not a
+                // guarantee; keeping every exit uniform means a future change to this try block
+                // can't silently reintroduce an unobserved-producer exit here. A no-op when
+                // runningProcessTask is null (standard path).
+                await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
                 throw;
             }
             catch (Exception ex)
