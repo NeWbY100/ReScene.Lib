@@ -1430,9 +1430,9 @@ public partial class Manager : IDisposable
                 Directory.Delete(assemblyDir, true);
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // best-effort, mirrors carrier deletion
+            // best-effort, mirrors carrier deletion (and the identical success-cleanup catch above)
         }
 
         DeleteRARFileAndVolumes(actualRARFilePath);   // the existing carrier helper

@@ -31,11 +31,14 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     /// and hash-verified; otherwise a failure status with a diagnostic. <see
     /// cref="SRRReconstructionResult.WrittenPaths"/> holds the absolute paths actually written
     /// regardless of overall success, so a partial/failed run's output can still be inspected or
-    /// cleaned up by the caller.
+    /// cleaned up by the caller. A volume still open at the moment of failure (e.g. a mid-copy
+    /// exception) is on disk but not yet in this list — it is only added once its own volume
+    /// closes (a new section begins, or the walk ends).
     /// </returns>
     /// <remarks>
-    /// This walk and <see cref="PreflightSet"/>'s must stay seek-rule-identical; change one,
-    /// change both (SRRPreflightTests pins the pairs).
+    /// This walk, <see cref="PreflightSet"/>'s, and <see cref="TryBuildSectionInventory"/>'s must
+    /// all stay seek-rule-identical; change one, change all three (SRRPreflightTests pins the
+    /// pairs).
     /// </remarks>
     public async Task<SRRReconstructionResult> ReconstructAsync(
         string srrFilePath,
@@ -514,8 +517,9 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     /// validated up front via <see cref="ValidateSetSelector"/>, before any matching begins.
     /// </summary>
     /// <remarks>
-    /// These two walks must stay seek-rule-identical; change one, change both (SRRPreflightTests
-    /// pins the pairs). Unlike <see cref="ReconstructAsync"/>, nothing here ever opens an output
+    /// This walk, <see cref="ReconstructAsync"/>'s, and <see cref="TryBuildSectionInventory"/>'s
+    /// must all stay seek-rule-identical; change one, change all three (SRRPreflightTests pins
+    /// the pairs). Unlike <see cref="ReconstructAsync"/>, nothing here ever opens an output
     /// stream, so there is no "is a section currently open" branch — every block class advances
     /// the stream explicitly.
     /// </remarks>
@@ -878,6 +882,10 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     /// skip path uses (a FileHeader's packed size, or any other stripped/external payload, is
     /// never physically here).
     /// </summary>
+    /// <remarks>
+    /// This walk, <see cref="PreflightSet"/>'s, and <see cref="ReconstructAsync"/>'s must all stay
+    /// seek-rule-identical; change one, change all three (SRRPreflightTests pins the pairs).
+    /// </remarks>
     /// <returns>
     /// A <see cref="SRRReconstructionStatus.Error"/> failure when the SRR is truncated or
     /// malformed enough that section names cannot be reliably collected — malformation is never
