@@ -59,10 +59,15 @@ internal sealed class AssemblyTestHost : IDisposable
     /// Builds <see cref="BruteForceOptions"/> over this host's directories. When <paramref
     /// name="fixture"/> is <see langword="null"/> (the legacy-path tests), <see
     /// cref="BruteForceOptions.Hashes"/> and <see cref="BruteForceOptions.ExpectedVolumeCrcs"/> are
-    /// left for the caller to populate.
+    /// left for the caller to populate. <paramref name="srrFilePathOverride"/>/<paramref
+    /// name="originalRarFileNamesOverride"/> let a test supply a hand-built SRR (e.g. via <see
+    /// cref="SRRTestDataBuilder"/>, for preflight-decline/error scenarios) without needing a full
+    /// <see cref="AssemblyFixture"/> — when set, they take precedence over <paramref
+    /// name="fixture"/>'s own SRR/volume names.
     /// </summary>
     public BruteForceOptions Options(AssemblyFixture? fixture, bool completeAllVolumes,
-        bool deleteRarFiles = true, bool deleteDuplicates = false, bool renameToOriginal = true)
+        bool deleteRarFiles = true, bool deleteDuplicates = false, bool renameToOriginal = true,
+        string? srrFilePathOverride = null, IReadOnlyList<string>? originalRarFileNamesOverride = null)
     {
         var options = new BruteForceOptions(VersionsDir, ReleaseDir, WorkDir)
         {
@@ -74,8 +79,8 @@ internal sealed class AssemblyTestHost : IDisposable
                 DeleteDuplicateCRCFiles = deleteDuplicates,
                 StopOnFirstMatch = true,
                 RenameToOriginalNames = renameToOriginal,
-                SRRFilePath = fixture?.SrrPath,
-                OriginalRARFileNames = fixture?.OriginalVolumeNames ?? [],
+                SRRFilePath = srrFilePathOverride ?? fixture?.SrrPath,
+                OriginalRARFileNames = originalRarFileNamesOverride ?? fixture?.OriginalVolumeNames ?? [],
                 // EMPTY ranges reject every directory (RARVersionSelector.GetValidRARDirectories) and
                 // EMPTY combinations iterate zero candidates (Manager's CommandLineArguments loop) —
                 // both must be non-empty (codex plan-rev-4 B1):

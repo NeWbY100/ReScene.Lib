@@ -98,6 +98,11 @@ public partial class Manager : IDisposable
 
     private string? _commentFilePath = null;
 
+    // Set once per set, before the attribute loop, by the SRR-guided-assembly preflight in
+    // BruteForceRARVersionAsync; TryProcessCommandLinesAsync reads it to choose between the
+    // assembly and legacy candidate flows.
+    private bool _useAssembly;
+
     private readonly IReSceneLogger _logger;
 
     // Owns the per-process streaming log writers (open/write/close), keeping that
@@ -344,6 +349,38 @@ public partial class Manager : IDisposable
 
         // Save file hash
         HashSet<string> fileHashes = [];
+
+        // === SRR-GUIDED ASSEMBLY: ONCE-PER-SET PREFLIGHT ===
+        // Runs once per set, before the attribute loop, so a declined/errored SRR is resolved a
+        // single time rather than re-checked per candidate. Three outcomes: Success engages
+        // assembly for every candidate in this set; UnsupportedSrr falls back to the legacy
+        // candidate loop below (unchanged); Error is a SET failure — an unreadable/malformed SRR
+        // must not silently degrade to legacy reconstruction.
+        _useAssembly = false;
+        if (!string.IsNullOrEmpty(options.RAROptions.SRRFilePath)
+            && options.RAROptions.CustomPackerDetected == SRR.CustomPackerType.None)
+        {
+            SRRReconstructionResult preflight = new SRRReconstructor(_logger)
+                .PreflightSet(options.RAROptions.SRRFilePath, options.RAROptions.OriginalRARFileNames);
+            switch (preflight.Status)
+            {
+                case SRRReconstructionStatus.Success:
+                    _useAssembly = true;
+                    _logger.Information(this, "SRR-guided assembly engaged (headers from SRR, data from rar output)", LogTarget.System);
+                    break;
+                case SRRReconstructionStatus.UnsupportedSrr:
+                    _logger.Information(this, $"SRR-guided assembly unavailable ({preflight.Diagnostic}) — trying legacy reconstruction for this set", LogTarget.System);
+                    break;
+                default: // Error: unreadable/malformed SRR is a SET failure, not a silent legacy fallback
+                    _logger.Error(this, $"SRR could not be read for assembly preflight: {preflight.Diagnostic}", LogTarget.System);
+                    status = new BruteForceStatusChangedEventArgs(OperationStatus.Running,
+                        OperationStatus.Completed, OperationCompletionStatus.Error);
+                    FireBruteForceStatusChanged(status);
+                    return new BruteForceRunResult(false, null);
+            }
+        }
+
+        _logger.Debug(this, $"Assembly engagement for this set: useAssembly={_useAssembly}", LogTarget.System);
 
         var matchAccumulator = new BruteForceMatchAccumulator();
         bool stopOnFirstMatch = options.RAROptions.StopOnFirstMatch;
