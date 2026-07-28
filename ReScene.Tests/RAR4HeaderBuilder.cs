@@ -316,6 +316,71 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         return [.. stdName, 0x00, .. encData];
     }
 
+    /// <summary>Old-style recovery block (0x78): base header + LONG_BLOCK ADD_SIZE, data ABSENT
+    /// (SRR-stripped shape — real old-style recovery data is never preserved in an SRR).</summary>
+    public RAR4HeaderBuilder AddProtectBlock(uint declaredDataSize)
+    {
+        byte[] header = new byte[11];
+        header[2] = (byte)RAR4BlockType.Protect;
+        BitConverter.GetBytes((ushort)RARFileFlags.LongBlock).CopyTo(header, 3);
+        BitConverter.GetBytes((ushort)11).CopyTo(header, 5);
+        BitConverter.GetBytes(declaredDataSize).CopyTo(header, 7);
+        WriteCrc(header);
+        _writer.Write(header);
+        return this;
+    }
+
+    /// <summary>
+    /// Computes the RAR4 header CRC16 (the low 16 bits of a CRC32 over the header bytes from
+    /// offset 2 onward) and writes it into the header's first 2 bytes. Shared by <see
+    /// cref="AddProtectBlock"/> and <see cref="WriteFileShapedHeader"/>.
+    /// </summary>
+    private static void WriteCrc(byte[] header)
+    {
+        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        ushort crc = (ushort)(crc32 & 0xFFFF);
+        BitConverter.GetBytes(crc).CopyTo(header, 0);
+    }
+
+    /// <summary>
+    /// Writes a RAR4 block using the file-header field layout (base header + ADD_SIZE/UNP_SIZE/
+    /// HOST_OS/DATA_CRC/FILE_TIME/UNP_VER/METHOD/NAME_SIZE/ATTR + NAME), with proper CRC — the
+    /// layout every RAR4 "file-header-shaped" block shares (the FileHeader block itself has its
+    /// own emitter; this one backs the Service-block emitters: CMT/RR/AV/etc.). Does not write
+    /// payload bytes — callers write <paramref name="addSize"/> bytes themselves, or omit them
+    /// entirely for a declared-but-absent (SRR-stripped) shape.
+    /// </summary>
+    private void WriteFileShapedHeader(
+        byte blockType, string name, uint addSize, RARFileFlags extra,
+        byte hostOS = 2, uint fileTimeDOS = 0, byte method = 0x30, uint fileAttributes = 0x00000020)
+    {
+        byte[] subTypeName = Encoding.ASCII.GetBytes(name);
+
+        // Header: CRC(2) + Type(1) + Flags(2) + HeaderSize(2) = 7
+        // ADD_SIZE(4) + UNP_SIZE(4) + HOST_OS(1) + DATA_CRC(4) + FILE_TIME(4) + UNP_VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4) = 25
+        // + NAME(variable)
+        ushort headerSize = (ushort)(7 + 25 + subTypeName.Length);
+
+        byte[] header = new byte[headerSize];
+        header[2] = blockType;
+        ushort headerFlags = (ushort)(RARFileFlags.LongBlock | extra);
+        BitConverter.GetBytes(headerFlags).CopyTo(header, 3);
+        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(addSize).CopyTo(header, 7);         // ADD_SIZE = packed size
+        BitConverter.GetBytes(addSize).CopyTo(header, 11);        // UNP_SIZE (stored: same as ADD_SIZE)
+        header[15] = hostOS;                                       // HOST_OS
+        BitConverter.GetBytes((uint)0).CopyTo(header, 16);         // DATA_CRC (placeholder)
+        BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);     // FILE_TIME
+        header[24] = 29;                                            // UNP_VER
+        header[25] = method;                                        // METHOD
+        BitConverter.GetBytes((ushort)subTypeName.Length).CopyTo(header, 26); // NAME_SIZE
+        BitConverter.GetBytes(fileAttributes).CopyTo(header, 28);  // ATTR
+        subTypeName.CopyTo(header, 32);                             // NAME
+
+        WriteCrc(header);
+        _writer.Write(header);
+    }
+
     /// <summary>
     /// Writes a RAR 4.x CMT service block (0x7A) with stored comment data and proper CRC.
     /// </summary>
@@ -327,38 +392,30 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
         uint fileAttributes = 0x00000020)
     {
         byte[] commentData = Encoding.UTF8.GetBytes(commentText);
-        byte[] subTypeName = Encoding.ASCII.GetBytes("CMT");
-
-        uint addSize = (uint)commentData.Length; // packed size = data size for stored
-
-        // Header: CRC(2) + Type(1) + Flags(2) + HeaderSize(2) = 7
-        // ADD_SIZE(4) + UNP_SIZE(4) + HOST_OS(1) + DATA_CRC(4) + FILE_TIME(4) + UNP_VER(1) + METHOD(1) + NAME_SIZE(2) + ATTR(4) = 25
-        // + NAME("CMT" = 3)
-        ushort headerSize = (ushort)(7 + 25 + subTypeName.Length);
-
-        byte[] header = new byte[headerSize];
-        header[2] = 0x7A; // Service block
-        ushort flags = (ushort)(RARFileFlags.LongBlock | RARFileFlags.SkipIfUnknown);
-        BitConverter.GetBytes(flags).CopyTo(header, 3);
-        BitConverter.GetBytes(headerSize).CopyTo(header, 5);
-        BitConverter.GetBytes(addSize).CopyTo(header, 7);       // ADD_SIZE = packed size
-        BitConverter.GetBytes((uint)commentData.Length).CopyTo(header, 11); // UNP_SIZE
-        header[15] = hostOS;                                     // HOST_OS
-        BitConverter.GetBytes((uint)0).CopyTo(header, 16);       // DATA_CRC (placeholder)
-        BitConverter.GetBytes(fileTimeDOS).CopyTo(header, 20);   // FILE_TIME
-        header[24] = 29;                                          // UNP_VER
-        header[25] = method;                                      // METHOD
-        BitConverter.GetBytes((ushort)subTypeName.Length).CopyTo(header, 26); // NAME_SIZE
-        BitConverter.GetBytes(fileAttributes).CopyTo(header, 28); // ATTR
-        subTypeName.CopyTo(header, 32);                           // NAME = "CMT"
-
-        // Calculate header CRC
-        uint crc32 = Crc32Algorithm.Compute(header, 2, header.Length - 2);
-        ushort crc = (ushort)(crc32 & 0xFFFF);
-        BitConverter.GetBytes(crc).CopyTo(header, 0);
-
-        _writer.Write(header);
+        WriteFileShapedHeader((byte)RAR4BlockType.Service, "CMT", (uint)commentData.Length,
+            RARFileFlags.SkipIfUnknown, hostOS, fileTimeDOS, method, fileAttributes);
         _writer.Write(commentData); // Write the comment data after header
+
+        return this;
+    }
+
+    /// <summary>RAR4 service block (0x7A, file-header layout) named e.g. "RR"/"AV"/"CMT";
+    /// <paramref name="includeData"/>=false emits the SRR-stripped shape (header declares
+    /// <paramref name="declaredDataSize"/>, data absent).</summary>
+    public RAR4HeaderBuilder AddServiceBlock(string name, uint declaredDataSize, bool includeData)
+    {
+        WriteFileShapedHeader((byte)RAR4BlockType.Service, name, declaredDataSize, RARFileFlags.SkipIfUnknown);
+
+        if (includeData)
+        {
+            byte[] data = new byte[declaredDataSize];
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] = (byte)(i % 251);
+            }
+
+            _writer.Write(data);
+        }
 
         return this;
     }

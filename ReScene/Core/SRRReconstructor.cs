@@ -9,7 +9,8 @@ namespace ReScene.Core;
 /// <summary>
 /// Reconstructs RAR archive files directly from an SRR binary stream and source files.
 /// Used when the SRR indicates a custom packer (not WinRAR) created the original RARs,
-/// making brute-force reconstruction impossible.
+/// making brute-force reconstruction impossible. Also exposes <see cref="PreflightSet"/> to check
+/// an SRR's assemblability up front, without writing anything.
 /// </summary>
 internal class SRRReconstructor(IReSceneLogger? logger = null)
 {
@@ -42,6 +43,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         HashType hashType,
         CancellationToken cancellationToken)
     {
+        SRRReconstructionResult preflight = PreflightSet(srrFilePath, originalRARFileNames);
+        if (preflight.Status != SRRReconstructionStatus.Success)
+        {
+            return preflight;
+        }
+
         _logger.Information(this, $"=== Direct SRR Reconstruction ===", LogTarget.System);
         _logger.Information(this, $"SRR: {srrFilePath}", LogTarget.System);
         _logger.Information(this, $"Input: {releaseDirectoryForProgress}", LogTarget.System);
@@ -225,29 +232,8 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             }
 
                             // Extract filename from file header
-                            string? archivedFileName = null;
-                            if (headerSize >= 32)
-                            {
-                                ushort nameSize = BitConverter.ToUInt16(fullHeader, 26);
-                                int nameOffset = 32;
-                                if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large) && headerSize >= RAR4HeaderLayout.FixedFieldsEnd + 8 + nameSize)
-                                {
-                                    nameOffset = RAR4HeaderLayout.FixedFieldsEnd + 8;
-                                }
-                                else if (headerSize < nameOffset + nameSize)
-                                {
-                                    nameOffset = 32;
-                                }
-
-                                if (nameOffset + nameSize <= fullHeader.Length)
-                                {
-                                    byte[] nameBytes = new byte[nameSize];
-                                    Array.Copy(fullHeader, nameOffset, nameBytes, 0, nameSize);
-                                    archivedFileName = RARUtils.DecodeFileName(nameBytes,
-                                        ((RARFileFlags)flags).HasFlag(RARFileFlags.Unicode));
-                                    archivedFileName = archivedFileName?.Replace('\\', Path.DirectorySeparatorChar);
-                                }
-                            }
+                            string? archivedFileName = DecodeEmbeddedName(fullHeader, flags, headerSize);
+                            archivedFileName = archivedFileName?.Replace('\\', Path.DirectorySeparatorChar);
 
                             bool isSplitBefore = (flags & (ushort)RARFileFlags.SplitBefore) != 0;
                             bool isSplitAfter = (flags & (ushort)RARFileFlags.SplitAfter) != 0;
@@ -319,6 +305,20 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             if (rarAddSize > 0)
                             {
+                                // PreflightSet declines any non-CMT service block with a declared
+                                // payload before reconstruction starts, so CMT (whose payload IS
+                                // stored) is the only name this branch should ever see with
+                                // rarAddSize > 0. Reaching here with any other name means the two
+                                // SRR walks have diverged — log loudly rather than silently
+                                // emitting whatever bytes follow.
+                                string? serviceName = DecodeEmbeddedName(fullHeader, flags, headerSize);
+                                if (!string.Equals(serviceName, "CMT", StringComparison.Ordinal))
+                                {
+                                    _logger.Error(this,
+                                        $"Reconstruction reached service block '{serviceName}' with a declared payload — PreflightSet should have declined this SRR (the two walks have diverged).",
+                                        LogTarget.System);
+                                }
+
                                 byte[] serviceData = reader.ReadBytes((int)rarAddSize);
                                 outputStream.Write(serviceData, 0, serviceData.Length);
                             }
@@ -339,6 +339,13 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             outputStream.Write(fullHeader, 0, fullHeader.Length);
                             if (rarAddSize > 0)
                             {
+                                // PreflightSet declines any other old-style data-bearing block
+                                // before reconstruction starts, so this branch should be
+                                // unreachable. Log loudly rather than silently emitting whatever
+                                // bytes follow (the two SRR walks have diverged).
+                                _logger.Error(this,
+                                    $"Reconstruction reached block type 0x{blockType:X2} with a declared payload — PreflightSet should have declined this SRR (the two walks have diverged).",
+                                    LogTarget.System);
                                 byte[] unknownData = reader.ReadBytes((int)rarAddSize);
                                 outputStream.Write(unknownData, 0, unknownData.Length);
                             }
@@ -427,12 +434,245 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         return SRRReconstructionResult.Fail(SRRReconstructionStatus.VerificationFailed, mismatchMessage, writtenPaths);
     }
 
+    /// <summary>
+    /// Preflights an SRR for guided assembly without writing anything: walks every SRR block and
+    /// embedded RAR4 header looking for evidence that a required payload was stripped when the
+    /// SRR was written — a recovery record (old-style 0x78, or a WinRAR "RR" service block) or any
+    /// other embedded RAR block whose declared payload is not actually present. <see
+    /// cref="ReconstructAsync"/> calls this first and returns its failure verbatim before creating
+    /// any output. <paramref name="originalRARFileNames"/> is accepted so every embedded RAR-file
+    /// section's name can be read here (keeping this walk's seek arithmetic identical to <see
+    /// cref="ReconstructAsync"/>'s); a future task adds real set-membership filtering against it —
+    /// every section is "selected" until then.
+    /// </summary>
+    /// <remarks>
+    /// These two walks must stay seek-rule-identical; change one, change both (SRRPreflightTests
+    /// pins the pairs). Unlike <see cref="ReconstructAsync"/>, nothing here ever opens an output
+    /// stream, so there is no "is a section currently open" branch — every block class advances
+    /// the stream explicitly.
+    /// </remarks>
+    internal SRRReconstructionResult PreflightSet(string srrFilePath, IReadOnlyList<string> originalRARFileNames)
+    {
+        _logger.Information(this, $"=== SRR Assembly Preflight ===", LogTarget.System);
+        _logger.Information(this, $"SRR: {srrFilePath}", LogTarget.System);
+        _logger.Information(this, $"Expected volumes: {originalRARFileNames.Count}", LogTarget.System);
+
+        try
+        {
+            using FileStream srrStream = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using BinaryReader reader = new(srrStream);
+
+            while (srrStream.Position < srrStream.Length)
+            {
+                if (srrStream.Position + 7 > srrStream.Length)
+                {
+                    return MalformedSrr("SRR is truncated: incomplete block header");
+                }
+
+                long blockStartPos = srrStream.Position;
+                reader.ReadUInt16(); // CRC — not validated by preflight
+                byte blockType = reader.ReadByte();
+                ushort flags = reader.ReadUInt16();
+                ushort headerSize = reader.ReadUInt16();
+
+                if (headerSize < 7)
+                {
+                    return MalformedSrr($"SRR is malformed: block header size {headerSize} is smaller than the base header");
+                }
+
+                uint addSize = 0;
+                bool hasLongBlock = (flags & (ushort)SRRBlockFlags.LongBlock) != 0;
+
+                if (IsSRRBlockType(blockType))
+                {
+                    if (hasLongBlock || blockType == (byte)SRRBlockType.StoredFile)
+                    {
+                        if (srrStream.Position + 4 > srrStream.Length)
+                        {
+                            return MalformedSrr("SRR is truncated: incomplete ADD_SIZE field");
+                        }
+
+                        addSize = reader.ReadUInt32();
+                    }
+
+                    if (blockType == (byte)SRRBlockType.RARFile)
+                    {
+                        // Read (but do not yet filter on) the section name — a future task adds
+                        // set-membership filtering against originalRARFileNames; every section is
+                        // "selected" until then. Reading it here keeps this walk's seek arithmetic
+                        // identical to ReconstructAsync's.
+                        if (srrStream.Position + 2 > srrStream.Length)
+                        {
+                            return MalformedSrr("SRR is truncated: incomplete RAR-file name length");
+                        }
+
+                        ushort nameLen = reader.ReadUInt16();
+                        if (srrStream.Position + nameLen > srrStream.Length)
+                        {
+                            return MalformedSrr("SRR is truncated: incomplete RAR-file name");
+                        }
+
+                        reader.ReadBytes(nameLen);
+                    }
+                    else
+                    {
+                        if (blockStartPos + headerSize + addSize > srrStream.Length)
+                        {
+                            return MalformedSrr("SRR is truncated: block extends past end of file");
+                        }
+
+                        srrStream.Seek(blockStartPos + headerSize + addSize, SeekOrigin.Begin);
+                    }
+                }
+                else
+                {
+                    if (blockStartPos + headerSize > srrStream.Length)
+                    {
+                        return MalformedSrr("SRR is truncated: embedded RAR header extends past end of file");
+                    }
+
+                    srrStream.Seek(blockStartPos, SeekOrigin.Begin);
+                    byte[] fullHeader = reader.ReadBytes(headerSize);
+
+                    uint rarAddSize = 0;
+                    if (headerSize >= 11 && (flags & (ushort)RARFileFlags.LongBlock) != 0)
+                    {
+                        rarAddSize = BitConverter.ToUInt32(fullHeader, 7);
+                    }
+
+                    switch (blockType)
+                    {
+                        case (byte)RAR4BlockType.ArchiveHeader:
+                            if (((RARArchiveFlags)flags).HasFlag(RARArchiveFlags.Protected))
+                            {
+                                return Decline("recovery record (protected archive)");
+                            }
+
+                            srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
+                            break;
+
+                        case (byte)RAR4BlockType.Marker:
+                        case (byte)RAR4BlockType.FileHeader:
+                        case (byte)RAR4BlockType.EndArchive:
+                            // File packed data is EXTERNAL — never in the SRR; FileHeader's
+                            // ADD_SIZE is not an SRR seek distance.
+                            srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
+                            break;
+
+                        case (byte)RAR4BlockType.Protect:
+                            return Decline("old-style recovery block");
+
+                        case (byte)RAR4BlockType.Service:
+                            string? serviceName = DecodeEmbeddedName(fullHeader, flags, headerSize);
+                            if (serviceName == null)
+                            {
+                                return MalformedSrr($"SRR is malformed: embedded Service block at offset {blockStartPos} has no decodable name");
+                            }
+
+                            if (string.Equals(serviceName, "CMT", StringComparison.Ordinal))
+                            {
+                                if (blockStartPos + headerSize + rarAddSize > srrStream.Length)
+                                {
+                                    return MalformedSrr("SRR is truncated: CMT service payload extends past end of file");
+                                }
+
+                                srrStream.Seek(blockStartPos + headerSize + rarAddSize, SeekOrigin.Begin);
+                            }
+                            else if (rarAddSize > 0)
+                            {
+                                if (string.Equals(serviceName, "RR", StringComparison.Ordinal))
+                                {
+                                    return Decline($"\"{serviceName}\" recovery record service block");
+                                }
+
+                                return Decline($"stripped {serviceName} service data");
+                            }
+                            else
+                            {
+                                srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
+                            }
+
+                            break;
+
+                        default:
+                            if (rarAddSize > 0)
+                            {
+                                return Decline($"stripped block 0x{blockType:X2} data");
+                            }
+
+                            srrStream.Seek(blockStartPos + headerSize, SeekOrigin.Begin);
+                            break;
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException
+            or FileNotFoundException or UnauthorizedAccessException or EndOfStreamException)
+        {
+            return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, ex.Message);
+        }
+
+        return SRRReconstructionResult.Ok([]);
+    }
+
+    private SRRReconstructionResult Decline(string reason)
+    {
+        _logger.Warning(this, $"SRR declined for guided assembly: {reason}", LogTarget.System);
+        return SRRReconstructionResult.Fail(SRRReconstructionStatus.UnsupportedSrr, reason);
+    }
+
+    private SRRReconstructionResult MalformedSrr(string reason)
+    {
+        _logger.Warning(this, $"SRR preflight failed: {reason}", LogTarget.System);
+        return SRRReconstructionResult.Fail(SRRReconstructionStatus.Error, reason);
+    }
+
     private static bool IsSRRBlockType(byte type)
         => type is ((byte)SRRBlockType.Header)
         or ((byte)SRRBlockType.StoredFile)
         or ((byte)SRRBlockType.OSOHash)
         or ((byte)SRRBlockType.RARPadding)
         or ((byte)SRRBlockType.RARFile);
+
+    /// <summary>
+    /// Decodes the embedded NAME field of a RAR4 block that reuses the file-header layout (the
+    /// FileHeader block itself, or any Service/CMT/RR/AV-style block sharing that layout):
+    /// NAME_SIZE at <see cref="RAR4HeaderLayout.NameSize"/>, NAME at <see
+    /// cref="RAR4HeaderLayout.FixedFieldsEnd"/> (pushed 8 bytes later when <see
+    /// cref="RARFileFlags.Large"/> inserts HIGH_PACK_SIZE/HIGH_UNP_SIZE first), Unicode-decoded per
+    /// <see cref="RARFileFlags.Unicode"/>. Returns null when the header is too short to carry a
+    /// name field, the name would run past the header's own bytes, or the decoder rejects the
+    /// bytes (e.g. a zero-length name) — callers treat null as "no decodable name" rather than
+    /// guessing at a fallback.
+    /// </summary>
+    private static string? DecodeEmbeddedName(byte[] fullHeader, ushort flags, ushort headerSize)
+    {
+        if (headerSize < RAR4HeaderLayout.FixedFieldsEnd)
+        {
+            return null;
+        }
+
+        ushort nameSize = BitConverter.ToUInt16(fullHeader, RAR4HeaderLayout.NameSize);
+        int nameOffset = RAR4HeaderLayout.FixedFieldsEnd;
+        if (((RARFileFlags)flags).HasFlag(RARFileFlags.Large)
+            && headerSize >= RAR4HeaderLayout.FixedFieldsEnd + 8 + nameSize)
+        {
+            nameOffset = RAR4HeaderLayout.FixedFieldsEnd + 8;
+        }
+        else if (headerSize < nameOffset + nameSize)
+        {
+            nameOffset = RAR4HeaderLayout.FixedFieldsEnd;
+        }
+
+        if (nameOffset + nameSize > fullHeader.Length)
+        {
+            return null;
+        }
+
+        byte[] nameBytes = new byte[nameSize];
+        Array.Copy(fullHeader, nameOffset, nameBytes, 0, nameSize);
+        return RARUtils.DecodeFileName(nameBytes, ((RARFileFlags)flags).HasFlag(RARFileFlags.Unicode));
+    }
 
     internal static string FindSourceFile(string inputDirectory, string archivedFileName)
     {
