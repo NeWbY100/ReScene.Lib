@@ -1,5 +1,4 @@
 using ReScene.RAR;
-using Xunit;
 
 namespace ReScene.Tests;
 
