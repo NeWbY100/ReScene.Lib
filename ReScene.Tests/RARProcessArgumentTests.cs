@@ -13,7 +13,10 @@ public sealed class RARProcessArgumentTests : IDisposable
     private readonly string _stubRar =
         Path.Combine(Path.GetTempPath(), "rarproc-" + Guid.NewGuid().ToString("N"));
 
-    public RARProcessArgumentTests() => File.WriteAllText(_stubRar, "stub");
+    public RARProcessArgumentTests()
+    {
+        File.WriteAllText(_stubRar, "stub");
+    }
 
     public void Dispose()
     {

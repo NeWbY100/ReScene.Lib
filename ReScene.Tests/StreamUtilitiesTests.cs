@@ -23,7 +23,10 @@ public class StreamUtilitiesTests : TempDirTestBase
         private readonly byte[] _data;
         private int _position;
 
-        public DripStream(byte[] data) => _data = data;
+        public DripStream(byte[] data)
+        {
+            _data = data;
+        }
 
         public override bool CanRead => true;
         public override bool CanSeek => false;

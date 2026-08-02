@@ -394,7 +394,10 @@ public class ManagerHelpersTests
         public string Path { get; } =
             System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"manager_helpers_{Guid.NewGuid():N}");
 
-        public TempDir() => Directory.CreateDirectory(Path);
+        public TempDir()
+        {
+            Directory.CreateDirectory(Path);
+        }
 
         /// <summary>Creates a file in the temp directory and returns its full path.</summary>
         public string File(string name, string contents = "x")
