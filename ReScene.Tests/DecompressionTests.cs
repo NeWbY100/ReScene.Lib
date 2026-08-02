@@ -61,7 +61,7 @@ public class DecompressionTests
     [InlineData(12)] // tables parse, decode yields zero output before starving
     public void DecompressComment_TruncatedStream_FailsCleanReturnsNull(int keepBytes)
     {
-        // Regression (review finding #4): the LZ decode loop breaks when the input is exhausted
+        // Regression: the LZ decode loop breaks when the input is exhausted
         // and previously returned the partially-filled (zero-padded) destination buffer as success.
         // A truncated stream that parses its tables but starves mid-decode must fail cleanly (null),
         // not hand back wrong bytes. Full stream = 24 bytes -> "Test comment." (13 bytes).

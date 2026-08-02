@@ -18,7 +18,7 @@ internal sealed class FakeRunner : IRARProcessRunner
 
         // Exit is completed ONLY by the test — cancellation must NOT complete it, or every
         // Cancel() path would hand Manager an already-finished task and the latch could not
-        // distinguish observation from abandonment (codex plan-rev-2 B2).
+        // distinguish observation from abandonment.
         public TaskCompletionSource<int> Exit { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>Resolves when Manager cancels this launch's token — the signal a test awaits

@@ -147,7 +147,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
     [Fact]
     public void Transactional_RejectsWhenAnyDestinationOccupied()
     {
-        // Task 9 minor: this test's original name ("RollsBackWhenDestinationOccupied") overstated
+        // This test's original name ("RollsBackWhenDestinationOccupied") overstated
         // what it pins. ExecuteMovePlan validates every destination BEFORE moving anything (see its
         // own remarks above), so this is destination-preflight REJECTION — nothing is ever moved,
         // so there is nothing to roll back. Renamed to match the actual mechanism.
@@ -174,7 +174,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
         Assert.False(File.Exists(Path.Combine(_rarOutputDir, "slug-assembled.rar")));
     }
 
-    // ---- Task 10: retention matrix (flow-level) ----
+    // ---- Retention matrix (flow-level) ----
     //
     // Pins every outcome x deletion-flag combination through the REAL Manager flow (AssemblyTestHost
     // + FakeRunner + RecordingLogger), asserted on BOTH artifact classes: the assembled scratch dir
@@ -294,7 +294,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
                 break;
             case "exception":
             case "cancellation":
-                // Synchronization for both (codex rev-5 B2): the fault/cancellation must land AFTER
+                // Synchronization for both: the fault/cancellation must land AFTER
                 // the quick gate has already matched and written a real assembled artifact to disk,
                 // never before — see RunManagerAsync below.
                 break;
@@ -359,7 +359,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
                 // Wait for BOTH the attempt probe AND the assembled artifact actually existing: the
                 // fault/cancellation must be provoked only once something real exists to retain (an
                 // immediate fault would abort before any assembly, leaving the retention assertions
-                // below with nothing to target — codex rev-5 B2).
+                // below with nothing to target).
                 await WaitUntilAsync(
                     () => testHost.Log.Count("Assembly attempt") >= 1 && File.Exists(assembledVol1),
                     "the quick gate to match and write the assembled first volume");
@@ -380,7 +380,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
                     // lets Manager's already-cancelled token fault the SUBSEQUENT full-set assembly
                     // call instead, which Manager re-throws uncaught out of BruteForceRARVersionAsync.
                     //
-                    // Bounded wait + finally (review fix): a plain unbounded await here would let a
+                    // Bounded wait + finally: a plain unbounded await here would let a
                     // cancellation-propagation regression (Stop() failing to reach this launch's
                     // token) wedge the whole suite — Exit stays unresolved, Manager's own internal
                     // await never completes, and the OUTER 10s safety net below never even gets a
@@ -417,9 +417,9 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
         Task run = RunManagerAsync(host, options, outcome);
         await run;
 
-        // Per-candidate observability (codex plan-rev-3 B3): the expectations target the candidate
-        // the outcome is ABOUT. Candidate ORDER IS NOT GUARANTEED by directory enumeration (codex
-        // rev-5 B4) — derive identity from the actual launches.
+        // Per-candidate observability: the expectations target the candidate
+        // the outcome is ABOUT. Candidate ORDER IS NOT GUARANTEED by directory enumeration —
+        // derive identity from the actual launches.
         static string VersionOf(FakeRunner.Launch l) =>
             Path.GetFileName(l.OutputFilePath).Split('-')[0]; // "rar100-..." / "rar200-..."
         string targetVersion = outcome == "duplicate"
@@ -449,7 +449,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
         {
             // The UNIQUE first candidate follows the ordinary no-match flags, independent of the
             // duplicate handling — with deleteRarFiles=false it must SURVIVE. Identity from the
-            // FIRST launch, never from directory order (codex rev-5 B4).
+            // FIRST launch, never from directory order.
             string firstVersion = VersionOf(host.Runner.Launches[0]);
             Assert.Equal(!deleteRarFiles, CarrierSurvives(firstVersion));
         }
@@ -463,7 +463,7 @@ public class ManagerAssemblyFinalizeTests : TempDirTestBase
 
         if (outcome == "successGen")
         {
-            // Generated suffix-preserving names (spec §5): slug-assembled.rar / .r00 / …
+            // Generated suffix-preserving names: slug-assembled.rar / .r00 / …
             string[] placed = Directory.GetFiles(Path.Combine(host.WorkDir, "output"), "*-assembled.*");
             Assert.Equal(f.OriginalVolumeNames.Count, placed.Length);
             Assert.Contains(placed, p2 => p2.EndsWith("-assembled.rar", StringComparison.OrdinalIgnoreCase));

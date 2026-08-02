@@ -8,7 +8,7 @@ namespace ReScene.Core.IO;
 /// OPENED RARStream enumerates the volume list when IT is constructed (inside
 /// OpenPackedStream) and never discovers volumes created later — so callers create a
 /// fresh source (and thus fresh streams) per assembly attempt and never reuse one
-/// across a producer state change (spec §4).
+/// across a producer state change.
 /// </summary>
 internal sealed class ProducedVolumesPackedSource(string producedFirstVolumePath) : IPackedSource
 {

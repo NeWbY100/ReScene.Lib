@@ -201,7 +201,7 @@ internal class MKVContainerHandler : IContainerHandler
 
                 // Measure the lacing header with the shared, unbounded reader (the same one the
                 // rebuilder uses) so creation and rebuild always agree on where frame data begins —
-                // a >256-byte lacing header must not be truncated (finding #7).
+                // a >256-byte lacing header must not be truncated.
                 int lacingHeaderSize = 0;
                 if (laceType != EBMLLaceType.None && dataAfterBaseHeader > 0)
                 {

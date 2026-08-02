@@ -4,7 +4,7 @@ using Microsoft.Win32.SafeHandles;
 namespace ReScene.SRR;
 
 /// <summary>
-/// Single writer-boundary name contract (spec §1a): OS-final-path containment (resolves every
+/// Single writer-boundary name contract: OS-final-path containment (resolves every
 /// ancestor junction/symlink — Path.GetFullPath alone does not), forward-slash logical names,
 /// and SFV-entry hardening. Windows-first (GetFinalPathNameByHandle); on non-Windows,
 /// a component-order walk resolves each existing ancestor's link target before the next
@@ -16,7 +16,7 @@ namespace ReScene.SRR;
 public static class SrrNameCanonicalizer
 {
     // Windows paths are case-insensitive at the filesystem; POSIX paths are case-sensitive
-    // (codex Important #3 — "/tmp/Root" must not match "/tmp/root" on POSIX).
+    // — "/tmp/Root" must not match "/tmp/root" on POSIX.
     private static readonly StringComparison _pathComparison =
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 
@@ -24,7 +24,7 @@ public static class SrrNameCanonicalizer
     {
         if (!OperatingSystem.IsWindows())
         {
-            // Component-order walk: resolve EVERY ancestor (codex r1 f1 / r4 f1 / Critical #1).
+            // Component-order walk: resolve EVERY ancestor.
             string resolved = ResolveAncestorChain(path);
 
             // Parity with the Windows branch below (CreateFileW's OPEN_EXISTING failure):
@@ -59,7 +59,7 @@ public static class SrrNameCanonicalizer
 
             // The API returns the required buffer size (including the null terminator) when
             // the supplied buffer is too small — grow and retry rather than rejecting a valid,
-            // merely-long result (codex Important #4).
+            // merely-long result.
             buffer = new char[length];
         }
     }
@@ -67,7 +67,7 @@ public static class SrrNameCanonicalizer
     // Strips \\?\ only where it is safe and lossless: drive-letter paths, and the distinct
     // \\?\UNC\ form for UNC shares. Other device/volume forms (\\?\Volume{GUID}\,
     // \\?\GLOBALROOT\, ...) have no non-extended equivalent and are returned unchanged rather
-    // than mangled into an unusable or wrong path (codex Important #5).
+    // than mangled into an unusable or wrong path.
     private static string NormalizeExtendedPrefix(string finalPath)
     {
         const string extendedUncPrefix = @"\\?\UNC\";
@@ -92,7 +92,7 @@ public static class SrrNameCanonicalizer
     // each existing component's link target before the next component is applied. This is
     // deliberately NOT `Path.GetFullPath(path)` first — GetFullPath collapses ".." lexically
     // BEFORE any symlink is resolved, so "/root/L/../secret" with L -> /outside/dir would be
-    // checked as "/root/secret" instead of the OS-correct "/outside/secret" (codex Critical #1).
+    // checked as "/root/secret" instead of the OS-correct "/outside/secret".
     // Used as the POSIX GetFinalPath fallback AND by ToExtendedLengthPath (Windows long-path
     // fallback) — it has no Windows/POSIX-specific dependencies, only portable BCL calls.
     private static string ResolveAncestorChain(string path) => ResolveAncestorChain(path, depth: 0);
@@ -111,7 +111,7 @@ public static class SrrNameCanonicalizer
         string root = Path.GetPathRoot(absolute)!;
         string current = root;
 
-        // Split on BOTH separators (codex final-review Minor): a Windows path using forward
+        // Split on BOTH separators: a Windows path using forward
         // slashes wouldn't split on Path.DirectorySeparatorChar alone, treating the whole
         // remainder as one bogus component.
         foreach (string component in absolute[root.Length..]
@@ -143,7 +143,7 @@ public static class SrrNameCanonicalizer
         if (component == "..")
         {
             // Fall back to the CURRENT (link-resolved) path's own root, NOT the root captured at
-            // the top of ResolveAncestorChain (codex final review, narrow Critical): a
+            // the top of ResolveAncestorChain: a
             // cross-volume junction (e.g. C:\...\J -> D:\) moves `current` onto a different
             // volume entirely. Snapping back to the originally captured root would let ".." at
             // that volume's own root silently jump to the WRONG volume, mapping an outside path
@@ -187,10 +187,10 @@ public static class SrrNameCanonicalizer
         return EnsureContainedRelative(rootFinalPath, source, sourcePath, "Source is outside the release root");
     }
 
-    // Centralized final-path containment (codex "CENTRALIZE first"): reused by both
+    // Centralized final-path containment: reused by both
     // CanonicalizeRelative and ResolveSfvEntry so the boundary math — filesystem-root and
     // repeated-trailing-separator normalization, host-appropriate case sensitivity — is
-    // computed exactly once (codex Important #3). Trims ALL trailing separators (not just one,
+    // computed exactly once. Trims ALL trailing separators (not just one,
     // unlike Path.TrimEndingDirectorySeparator, which preserves a bare root's own separator and
     // so cannot be used here) before re-adding exactly one boundary separator.
     private static string EnsureContainedRelative(
@@ -229,7 +229,7 @@ public static class SrrNameCanonicalizer
         return name;
     }
 
-    // Host-independent rooted-name grammar (codex Important #6): the host OS's own
+    // Host-independent rooted-name grammar: the host OS's own
     // Path.IsPathRooted only recognizes its own native rooted forms — e.g. on POSIX,
     // Path.IsPathRooted("C:/x") is false — so "C:/abs/x.nfo" would slip through on Linux.
     // Rejects leading '/' or '\' (POSIX absolute, UNC, and device prefixes all start this way)
@@ -259,17 +259,18 @@ public static class SrrNameCanonicalizer
 
         // Same centralized containment as CanonicalizeRelative, on FINAL (link-resolved) paths
         // — a junction/symlink named e.g. "J" inside sfvDirectory that targets outside it is
-        // now caught, where the old lexical-only check accepted it (codex Critical #2).
+        // now caught, where the old lexical-only check accepted it.
         _ = EnsureContainedRelative(finalDir, candidateFinal, entryName, "SFV entry escapes its directory");
         return candidateFinal;
     }
 
     // Walks `relativeSpec` component-by-component from the already-final `finalBase`, resolving
     // EVERY existing component through GetFinalPath — existence is checked FRESH on each
-    // component, never latched off by an earlier gap (codex final-review Critical: a one-way
+    // component, never latched off by an earlier gap (a one-way
     // "no longer exists" flag let a component that exists right now — e.g. a link reached AFTER
     // a ".." returns to a real directory, following a nonexistent detour — get literal-appended
-    // unresolved, silently reintroducing the Critical #2 escape) — then literal-appending any
+    // unresolved, silently reintroducing the directory-escape ResolveSfvEntry's containment check
+    // closes above) — then literal-appending any
     // component that doesn't exist right now (an SFV entry may legitimately reference a file not
     // yet materialized).
     private static string ResolveExistingPrefixThenAppend(string finalBase, string relativeSpec)
@@ -312,8 +313,9 @@ public static class SrrNameCanonicalizer
         // Our raw P/Invoke doesn't get .NET's automatic long-path (\\?\) prefixing, so a path
         // beyond MAX_PATH can fail here even though it's otherwise valid. Retry once with an
         // explicit extended-length form built through the same link-aware walk as the POSIX
-        // fallback (codex Important #4 / residual-closure follow-up) — never through
-        // Path.GetFullPath, which would reintroduce the Critical #1 symlink-vs-".." bug here too.
+        // fallback — never through
+        // Path.GetFullPath, which would reintroduce the same symlink-vs-".." ordering hazard
+        // ResolveAncestorChain exists to avoid, here too.
         string extended = ToExtendedLengthPath(path);
         if (string.Equals(extended, path, StringComparison.Ordinal))
         {

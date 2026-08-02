@@ -5,7 +5,7 @@ using ReScene.SRS;
 namespace ReScene.Tests;
 
 /// <summary>
-/// Tests multi-mdat (fragmented) MP4 detection (finding #5). A fragmented MP4 cannot be represented
+/// Tests multi-mdat (fragmented) MP4 detection. A fragmented MP4 cannot be represented
 /// by the single contiguous-track model, so it is refused cleanly on both the creation side
 /// (<see cref="MP4ContainerHandler.Profile"/>, sample with mdat payloads present) and the rebuild
 /// side (<see cref="MP4ContainerRebuilder"/>, SRS with mdat payloads stripped).

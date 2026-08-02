@@ -364,7 +364,7 @@ public class SRRWriterMultiInputTests : IDisposable
         Assert.Equal(["a.rar", "a.r00"], srr.RARFiles.Select(f => f.FileName));
     }
 
-    // C3: the §1a collision/dedup policy is writer-wide (stored files AND volumes), checked in
+    // The §1a collision/dedup policy is writer-wide (stored files AND volumes), checked in
     // emission order.
     [Fact]
     public async Task TwoSfvsReferenceSameVolume_WrittenOnce()
@@ -506,7 +506,7 @@ public class SRRWriterMultiInputTests : IDisposable
             srr.RARFiles.Select(f => f.FileName));
     }
 
-    // ── Writer<->resolver agreement (codex Task 9 fix-3 G3/G4): the SFV branch now routes through
+    // ── Writer<->resolver agreement: the SFV branch now routes through
     //    the shared SfvVolumeResolver, the SAME code the folder-mode subtitle path uses. These
     //    prove the extracted resolver still handles the two cases the VM copy got wrong, INSIDE
     //    the writer's real end-to-end path. ──
@@ -545,14 +545,14 @@ public class SRRWriterMultiInputTests : IDisposable
         Assert.Equal(["Sub/eng.rar", "Sub/eng.r00"], srr.RARFiles.Select(f => f.FileName));
     }
 
-    // ── Part A / F1 regression (Task 9 fix-4): the writer must sort each chain EXACTLY ONCE from
-    //    SFV-listing order (byte-identical to base). fix-3 made SfvVolumeResolver.ResolveOrderedChains
+    // ── Part A regression: the writer must sort each chain EXACTLY ONCE from
+    //    SFV-listing order (byte-identical to base). An earlier change made SfvVolumeResolver.ResolveOrderedChains
     //    sort each chain (SfvVolumeResolver.cs) AND the writer sort AGAIN (SRRWriter.cs:568). Because
     //    `List.Sort` is UNSTABLE and RARVolumeNameComparer gives `.rNN` and `.NNN` volumes EQUAL rank,
     //    a chain that mixes them makes sort(sort(listing)) != sort(listing) on the tied elements — the
     //    writer would embed a different volume order than base. IMPORTANT: the instability only
     //    manifests once a single chain exceeds .NET's introsort insertion-sort threshold (16); at
-    //    n<=16 List.Sort runs a STABLE insertion sort, so a small tie set (the finding's own
+    //    n<=16 List.Sort runs a STABLE insertion sort, so a small tie set (the original
     //    5-element A.004/A.r04 example) does NOT reproduce. This fixture uses 17 tied volumes in one
     //    chain (A.rar + A.001..A.008 + A.r01..A.r08) — the smallest size at which quicksort
     //    partitioning kicks in — listed interleaved so the double-sort provably reorders the ties.

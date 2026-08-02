@@ -41,7 +41,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void CanonicalizeRelative_AncestorLink_ResolvedBeforeContainment()
     {
-        // spec §1a rev 4: a link INSIDE the root pointing OUTSIDE it is rejected even though
+        // A link INSIDE the root pointing OUTSIDE it is rejected even though
         // the lexical path looks inside — final paths on both sides.
         string target = Path.Combine(Path.GetTempPath(), "canon-tgt-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(target);
@@ -64,7 +64,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void CanonicalizeRelative_RepeatedTrailingSeparators_StillContained()
     {
-        // codex Important #3: a root string with extra trailing separators must not break
+        // A root string with extra trailing separators must not break
         // containment for otherwise-valid children.
         string rootFinal = SrrNameCanonicalizer.GetFinalPath(_root);
         string rootWithExtraSeparators = rootFinal + new string(Path.DirectorySeparatorChar, 3);
@@ -76,7 +76,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void CanonicalizeRelative_FilesystemRoot_ProducesRelativeName()
     {
-        // codex Important #3: the filesystem root ("C:\" / "/") must not become a doubled
+        // The filesystem root ("C:\" / "/") must not become a doubled
         // separator ("C:\\" / "//") that rejects every real child.
         string driveRoot = SrrNameCanonicalizer.GetFinalPath(Path.GetPathRoot(_root)!);
         string name = SrrNameCanonicalizer.CanonicalizeRelative(
@@ -88,7 +88,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void CanonicalizeRelative_CaseDistinctSiblings_OnlyExactCaseContained()
     {
-        // codex Important #3: Windows filesystems are case-insensitive by design
+        // Windows filesystems are case-insensitive by design
         // (OrdinalIgnoreCase is correct there); only case-sensitive POSIX filesystems can
         // distinguish "Root" from "root", so this assertion only applies off Windows.
         if (OperatingSystem.IsWindows())
@@ -126,7 +126,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void GetFinalPath_LongPath_Succeeds()
     {
-        // codex Important #4: a valid result longer than the original fixed 1024-char buffer
+        // A valid result longer than the original fixed 1024-char buffer
         // must not be rejected.
         if (OperatingSystem.IsMacOS())
         {
@@ -183,11 +183,11 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void ToExtendedLengthPath_ResolvesLinkBeforeParentSegment()
     {
-        // Regression test for the long-path-open fallback's path-construction helper (closes the
-        // residual flagged after the codex containment fix, review round 2): proves it resolves
-        // a link's target BEFORE applying a following ".." rather than lexically canceling
-        // "link" and ".." the way Path.GetFullPath would — the exact codex Critical #1 pattern,
-        // now also closed here. This is a helper-level unit test on ToExtendedLengthPath rather
+        // Regression test for the long-path-open fallback's path-construction helper: proves it
+        // resolves a link's target BEFORE applying a following ".." rather than lexically
+        // canceling "link" and ".." the way Path.GetFullPath would — the same symlink-vs-".."
+        // ordering pattern ResolveAncestorChain guards against, now also closed here. This is a
+        // helper-level unit test on ToExtendedLengthPath rather
         // than an end-to-end >MAX_PATH fixture, because whether a >MAX_PATH path actually forces
         // the CreateFileW fallback branch (rather than succeeding directly) varies by the host's
         // Windows long-path policy; testing the fallback's path construction directly is
@@ -219,7 +219,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void ToExtendedLengthPath_ForwardSlashLinkBeforeParentSegment_ResolvesCorrectly()
     {
-        // codex final-review #7 residual (test-coverage gap, not a code bug):
+        // A test-coverage gap, not a code bug:
         // ToExtendedLengthPath_ResolvesLinkBeforeParentSegment above builds its path via
         // Path.Combine, which only ever produces backslashes on Windows — so nothing exercises
         // the FORWARD-SLASH compound-component case that motivated splitting on both separators
@@ -256,7 +256,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void ApplyComponent_ParentAtRoot_StaysOnCurrentPathsRoot()
     {
-        // codex final review, narrow Critical: the ".." fallback must use the CURRENT
+        // The ".." fallback must use the CURRENT
         // (link-resolved) path's own root, not the root captured at the top of
         // ResolveAncestorChain — a cross-volume junction (e.g. C:\...\J -> D:\) moves `current`
         // onto a different volume, and snapping back to the ORIGINAL root would let ".." from
@@ -279,7 +279,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void GetFinalPath_NonExistentPath_ThrowsWithErrorCode()
     {
-        // codex Important #4: the captured Win32 error must surface in the exception message.
+        // The captured Win32 error must surface in the exception message.
         // This is specific to the Windows CreateFileW branch; the POSIX fallback has different,
         // pre-existing missing-path semantics that are out of scope here.
         if (!OperatingSystem.IsWindows())
@@ -309,7 +309,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void ResolveSfvEntry_ThroughLink_Throws()
     {
-        // codex Critical #2: an SFV entry that traverses a link inside the SFV directory
+        // An SFV entry that traverses a link inside the SFV directory
         // pointing outside it must be rejected via final-path containment, not just lexically.
         string target = Path.Combine(Path.GetTempPath(), "canon-sfv-tgt-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(target);
@@ -331,13 +331,14 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void ResolveSfvEntry_MissingPrefixThenLink_Throws()
     {
-        // codex final-review Critical: the walker's existence check must be re-evaluated fresh on
+        // The walker's existence check must be re-evaluated fresh on
         // every component, never latched off by an earlier missing component. Entry "x/../J/evil"
         // with "x" nonexistent: after "x" (missing) and ".." return to the real SFV directory, "J"
         // (a link that genuinely exists right now) must still be resolved through GetFinalPath —
         // a stale "no longer exists" flag would literal-append "J/evil" unresolved, and the
         // lexical-only string comparison in EnsureContainedRelative would wrongly accept an entry
-        // that actually escapes through the link (same shape as the Critical #2 already closed).
+        // that actually escapes through the link (same shape as the link-escape the test above
+        // already closes).
         string target = Path.Combine(Path.GetTempPath(), "canon-sfv-latch-tgt-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(target);
         File.WriteAllText(Path.Combine(target, "evil"), "x");
@@ -358,7 +359,7 @@ public class SrrNameCanonicalizerTests : IDisposable
     [Fact]
     public void GetFinalPath_LinkBeforeParentSegment_ResolvesOnPosixToo()
     {
-        // Minor (codex final review): mirrors ToExtendedLengthPath_ResolvesLinkBeforeParentSegment's
+        // Mirrors ToExtendedLengthPath_ResolvesLinkBeforeParentSegment's
         // Windows-only coverage, but exercises GetFinalPath's actual POSIX fallback
         // (ResolveAncestorChain) directly via a real symlink, proving the same "link resolved
         // before a following .." guarantee holds on the platform that fallback is written for.
@@ -406,8 +407,8 @@ public class SrrNameCanonicalizerTests : IDisposable
         Assert.Throws<SrrNameException>(() => SrrNameCanonicalizer.CanonicalizeLogicalName(bad));
 
     // Windows: NTFS junctions need no privilege (unlike symlinks). POSIX: symlink creation also
-    // needs no privilege. Runs unconditionally on both hosts — no skip path exists (codex r2b
-    // f1 / r4 f1 / r7 f7; xUnit 2.9.3 has no Assert.Skip, none needed).
+    // needs no privilege. Runs unconditionally on both hosts — no skip path exists (xUnit 2.9.3
+    // has no Assert.Skip, none needed).
     private static void CreateLink(string link, string target)
     {
         if (OperatingSystem.IsWindows())

@@ -598,12 +598,12 @@ public class EBMLLacingTests
 
     #endregion
 
-    #region ReadLacingHeaderSize (finding #7)
+    #region ReadLacingHeaderSize
 
     [Fact]
     public void ReadLacingHeaderSize_XiphHeaderLargerThan256Bytes_MeasuresFullHeader()
     {
-        // Regression (finding #7): SRS creation and rebuild both peeked at most 256 bytes of the
+        // Regression: SRS creation and rebuild both peeked at most 256 bytes of the
         // lacing header, truncating anything larger and mis-placing the frame-data / signature offset.
         // Build a Xiph header for 2 frames (lace-count byte = 1, so one stored size field) whose size
         // field needs 300 continuation bytes: 300 * 0xFF + one 0x0A terminator. Header = 1+300+1 = 302.

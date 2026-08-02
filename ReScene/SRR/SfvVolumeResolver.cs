@@ -4,7 +4,7 @@ namespace ReScene.SRR;
 /// Single source of truth for turning an SFV's listed entries into ordered RAR-volume chains.
 /// Shared by <see cref="SRRWriter"/>'s <c>ResolveVolumesAsync</c> SFV branch and the folder-mode
 /// subtitle nested-SRR path (<c>CreatorViewModel.GenerateNestedSubtitleSrrsAsync</c>) so the two
-/// can never drift: codex Task 9 fix-3 (G3/G4) found the VM had reimplemented this grouping with a
+/// can never drift: the VM had reimplemented this grouping with a
 /// DIVERGENT parse+resolve — <c>SFVFile.ReadFile</c> (splits every space, so it threw on a RAR
 /// name containing spaces) plus a raw <see cref="Path.Combine(string, string)"/> (which left a
 /// <c>.\</c>-prefixed continuation lexically distinct from its <c>.rar</c> head, splitting one
@@ -51,7 +51,7 @@ public static class SfvVolumeResolver
     /// first-seen order; each inner list holds that chain's resolved volume paths in first-seen
     /// LISTING order (the order <see cref="ParseSfvEntryNames"/> yields them).
     /// <para>
-    /// The resolver deliberately does NOT sort within a chain (Task 9 fix-4 / F1): its single caller
+    /// The resolver deliberately does NOT sort within a chain: its single caller
     /// that needs volume order — <see cref="SRRWriter"/>'s <c>ResolveVolumesAsync</c>, which folds
     /// these volumes through its own accumulator and sorts EXACTLY ONCE at SRRWriter.cs:568 — must
     /// remain byte-identical to base. A resolver-side sort followed by the writer's sort is an

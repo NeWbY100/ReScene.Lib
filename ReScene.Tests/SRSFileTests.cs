@@ -54,7 +54,7 @@ public class SRSFileTests : TempDirTestBase
     public async Task Load_Id3WrappedFlacSRS_DetectsFlacNotMP3()
     {
         // An SRS from an ID3-wrapped FLAC begins with the copied ID3v2 tag. Detection must look
-        // past the tag for the fLaC marker rather than assuming ID3-leading == MP3 (finding #6).
+        // past the tag for the fLaC marker rather than assuming ID3-leading == MP3.
         string srsPath = await CreateSRSFromSynthetic(
             BuildSyntheticFlacWithId3("flac_id3_detect.flac"), "flac_id3_detect.srs");
 

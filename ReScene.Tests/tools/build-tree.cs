@@ -1,6 +1,6 @@
 #:package Crc32.NET@1.2.0
 
-// Golden-fixture tree builder for Task 3 (multi-set SRR creation, see
+// Golden-fixture tree builder for multi-set SRR creation (see
 // docs/superpowers/specs/2026-07-18-multiset-srr-creation-design.md §6). Run manually via
 // `dotnet run build-tree.cs -- <outputBaseDir>` from generate-golden.py — never invoked by the
 // xUnit test suite. Writes `tree-2disc/` and `tree-storageonly/` under <outputBaseDir>.
@@ -50,7 +50,7 @@ static void BuildStorageOnlyTree(string root)
         "Synthetic nfo-only (storage-only / fix-release) tree: no SFV, no RAR.\r\n");
 }
 
-// Task 9 (spec §3/§6): same 2-disc + Subs/ shape as tree-2disc, PLUS a Sample/ directory — the
+// tree-fullpipeline (spec §3/§6): same 2-disc + Subs/ shape as tree-2disc, PLUS a Sample/ directory — the
 // full-pipeline golden that exercises SRS generation (samples) and the vobsub_srr nested-SRR path
 // (subs) together, via `pyrescene.py --vobsub-srr` (no --no-srs).
 static void BuildFullPipelineTree(string root)
@@ -122,10 +122,10 @@ static void WriteCorrectCrcSfv(string dir, string baseName, List<string> fileNam
 // RARArchiveFlags/RARFileFlags enum values inlined as literals (those enums are internal to the
 // ReScene assembly, unreachable from this standalone file-based app). ---
 //
-// `useRealCrc` (Task 9, default false): tree-2disc/tree-storageonly NEVER pass it — those trees'
+// `useRealCrc` (default false): tree-2disc/tree-storageonly NEVER pass it — those trees'
 // RAR bytes (and hence their COMMITTED golden-2disc.srr/golden-storageonly.srr, which embed the
 // FILE_CRC field verbatim, copied straight through by pyrescene's/our own SRR-header creation)
-// must stay byte-for-byte what Task 3 already dual-reviewed and committed. Only
+// must stay byte-for-byte what was already committed. Only
 // BuildFullPipelineTree opts in, because ITS Subs/ set is actually extracted by real `unrar.exe`
 // (via --vobsub-srr), which validates FILE_CRC and fails ("checksum error") on the old
 // placeholder value.

@@ -6,7 +6,7 @@ namespace ReScene.Tests;
 /// Routes real, on-disk RAR4 fixtures (<see cref="RarFixtures"/>) through the production
 /// <see cref="RarProofInspector.Inspect"/> — proving the inspector against real bytes, since
 /// ReScene.App.Core.Tests drives the same predicates through an injectable seam with fact
-/// literals only (no cross-test-assembly reference; see the multi-set SRR creation plan, Task 5).
+/// literals only (no cross-test-assembly reference; see the multi-set SRR creation plan).
 /// </summary>
 public class RarProofInspectorTests : TempDirTestBase
 {
@@ -72,7 +72,7 @@ public class RarProofInspectorTests : TempDirTestBase
     [Fact]
     public void Inspect_RAR5Marker_ReportsUnreadable()
     {
-        // excerpt: remove_unwanted_sfvs L374-377 — "No RAR5 support yet" is a caught ValueError
+        // remove_unwanted_sfvs: "No RAR5 support yet" is a caught ValueError
         // in pyrescene; this port surfaces the same outcome as Readable=false.
         string path = Path.Combine(TempDir, "p.rar");
         File.WriteAllBytes(path, [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00]);
@@ -98,7 +98,7 @@ public class RarProofInspectorTests : TempDirTestBase
     [Fact]
     public void Inspect_TruncatedBlockHeader_ReportsUnreadable_NotCleanEndOfArchive()
     {
-        // Task 5 fix round I1: a null block returned WHILE CanReadBaseHeader was still true is
+        // A null block returned WHILE CanReadBaseHeader was still true is
         // corruption, not a clean end of archive (a clean end is CanReadBaseHeader itself going
         // false). Before the fix this fell through the loop as a "clean" partial success
         // (Readable=true, HasPackedBlocks=false).
@@ -113,7 +113,7 @@ public class RarProofInspectorTests : TempDirTestBase
     [Fact]
     public void Inspect_MalformedPackedSizeWouldMoveBackward_ReportsUnreadable_DoesNotThrowOrHang()
     {
-        // Task 5 fix round I2: a hostile/malformed 64-bit packed size (top bit set) casts to a
+        // A hostile/malformed 64-bit packed size (top bit set) casts to a
         // deeply negative long via RARBlockReadResult.DataSize, which — without the
         // forward-progress guard — assigns a negative Stream.Position and throws
         // ArgumentOutOfRangeException uncaught (not an IOException, so the existing catch clause
@@ -130,7 +130,7 @@ public class RarProofInspectorTests : TempDirTestBase
     [Fact]
     public void Inspect_PreCancelledToken_ThrowsOperationCanceled()
     {
-        // Task 5 fix round I4: Inspect gained a CancellationToken parameter, checked per block-loop
+        // Inspect gained a CancellationToken parameter, checked per block-loop
         // iteration.
         string path = Path.Combine(TempDir, "p.rar");
         RarFixtures.WriteMultiEntryRarFile(path, "cover.jpg");

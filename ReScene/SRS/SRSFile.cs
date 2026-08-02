@@ -151,7 +151,7 @@ public class SRSFile
         {
             // A FLAC wrapped in a leading ID3v2 tag (stored verbatim by the FLAC writer) also begins
             // with the ID3 magic. Look past the tag for the fLaC marker before assuming MP3, mirroring
-            // SRSWriter.DetectContainerType on the sample side (finding #6).
+            // SRSWriter.DetectContainerType on the sample side.
             (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(fs);
             if (id3Found && fs.Length >= id3Size + FlacConstants.MarkerSize)
             {

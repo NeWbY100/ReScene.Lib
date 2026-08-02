@@ -4,7 +4,7 @@ namespace ReScene.Tests;
 
 /// <summary>
 /// Known-vector tests for <see cref="EBMLWriter.MakeEBMLUInt"/> and <see cref="EBMLWriter.MakeEBMLId"/>.
-/// Added before the Task 2 renaming of magic numbers to named constants so that
+/// Added before the renaming of magic numbers to named constants so that
 /// any inadvertent value change is caught immediately.
 /// </summary>
 public class EBMLWriterTests

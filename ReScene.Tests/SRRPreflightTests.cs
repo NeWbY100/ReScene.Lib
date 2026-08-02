@@ -81,7 +81,7 @@ public class SRRPreflightTests : TempDirTestBase
     [Fact]
     public async Task ReconstructAsync_DeclinedSrr_CreatesNoOutput()
     {
-        // The guard must fire before Directory.CreateDirectory (codex plan B5).
+        // The guard must fire before Directory.CreateDirectory.
         string srr = BuildSrr(0, h => h.AddArchiveHeader(RARArchiveFlags.Protected).AddEndArchive());
         string outDir = Path.Combine(TempDir, "out");
         SRRReconstructionResult r = await NewReconstructor().ReconstructAsync(

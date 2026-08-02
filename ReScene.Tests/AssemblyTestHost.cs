@@ -33,7 +33,7 @@ internal sealed class AssemblyTestHost : IDisposable
         Root = Path.Combine(tempDir, Guid.NewGuid().ToString("N")[..8]);
         VersionsDir = Path.Combine(Root, "versions");
         // "rar100" parses via RARVersionSelector's regex ("rar" + digits -> 100); "fake100" would
-        // match nothing and zero candidates would launch (codex plan-rev-4 B1).
+        // match nothing and zero candidates would launch.
         string fakeVersion = Path.Combine(VersionsDir, "rar100");
         WorkDir = Path.Combine(Root, "work");
         ReleaseDir = Path.Combine(Root, "release");
@@ -83,7 +83,7 @@ internal sealed class AssemblyTestHost : IDisposable
                 OriginalRARFileNames = originalRarFileNamesOverride ?? fixture?.OriginalVolumeNames ?? [],
                 // EMPTY ranges reject every directory (RARVersionSelector.GetValidRARDirectories) and
                 // EMPTY combinations iterate zero candidates (Manager's CommandLineArguments loop) —
-                // both must be non-empty (codex plan-rev-4 B1):
+                // both must be non-empty:
                 RARVersions = [new VersionRange(100, 299)],
                 CommandLineArguments = [Array.Empty<RARCommandLineArgument>()],
             },

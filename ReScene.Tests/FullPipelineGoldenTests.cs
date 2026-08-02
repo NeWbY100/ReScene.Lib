@@ -4,7 +4,7 @@ using ReScene.SRS;
 namespace ReScene.Tests;
 
 /// <summary>
-/// Task 9's full-pipeline golden: <c>tree-fullpipeline</c> (2-disc RAR sets + a Sample/ media file +
+/// The full-pipeline golden: <c>tree-fullpipeline</c> (2-disc RAR sets + a Sample/ media file +
 /// a Subs/ subtitle SFV+RAR) run through the local pyrescene checkout's
 /// <c>--vobsub-srr --no-isdb</c> (NO <c>--no-srs</c>) — the ONE combination that exercises SRS
 /// generation for samples AND real subtitle-RAR extraction (needs unrar.exe on PATH; see
@@ -19,15 +19,15 @@ namespace ReScene.Tests;
 /// <see cref="NormalizeSrsfAppName"/>).
 ///
 /// STATUS: PASSES — byte-identical after deep normalization. This test originally found a real
-/// divergence (first byte 607, deep-normalized): our (pre-existing, Task 8-era) nested-SRR
+/// divergence (first byte 607, deep-normalized): our (pre-existing) nested-SRR
 /// generation ALSO stored the subtitle SFV's own bytes (and any sibling .nfo files) INSIDE the
 /// nested SRR, while pyrescene's real --vobsub-srr nested SRR contains ONLY the extracted RAR
 /// volume block(s) — nothing else. NOT the SRS/nested-SRR-header app-name fields (both normalize
-/// away cleanly, verified independently before this was even found). User-adjudicated fix (D0,
-/// task-9-delivered-fix-findings.md — parallels the RECOVERY_BLOCKS_REMOVED precedent, Task 3):
+/// away cleanly, verified independently before this was even found). Fixed
+/// (parallels the RECOVERY_BLOCKS_REMOVED precedent):
 /// CreatorViewModel.BuildNestedSubtitleStoredFiles now returns no additional files at all, fixed
 /// globally (both the folder-mode and pre-existing wizard/Advanced-tab callers). See the README's
-/// "KNOWN DIVERGENCE" section (marked resolved) and task-9-report.md for the full writeup.
+/// "KNOWN DIVERGENCE" section (marked resolved) for the full writeup.
 /// </summary>
 public class FullPipelineGoldenTests : IDisposable
 {
@@ -53,7 +53,7 @@ public class FullPipelineGoldenTests : IDisposable
         Path.Combine(AppContext.BaseDirectory, "TestData", "multiset", rel);
 
     #region NormalizeSrsfAppName hand-built byte vectors (trust-anchor rigor, mirroring
-    // GoldenFixtureTests.NormalizeAppName's own vectors — codex's Task 3 finding was that an
+    // GoldenFixtureTests.NormalizeAppName's own vectors — an
     // unvalidated normalizer can silently mask a real writer bug on both sides of a comparison)
 
     [Fact]
@@ -164,27 +164,27 @@ public class FullPipelineGoldenTests : IDisposable
     }
 
     /// <summary>
-    /// Mirrors CreatorViewModel's folder-mode artifact staging EXACTLY (Task 9): generates
+    /// Mirrors CreatorViewModel's folder-mode artifact staging EXACTLY: generates
     /// "Sample/clip.srs" via <see cref="SRSWriter.CreateAsync"/> (no collision — a single sample,
     /// stem "Sample/clip", extension dropped) and "Subs/subs.srr" via
-    /// <see cref="SRRWriter.CreateFromSFVAsync"/> — D0 fix (user-approved, golden-verified): the
+    /// <see cref="SRRWriter.CreateFromSFVAsync"/> — fix (user-approved, golden-verified): the
     /// nested SRR is RAR-blocks-ONLY (no embedded SFV, no additionalFiles at all;
     /// CreatorViewModel.BuildNestedSubtitleStoredFiles now returns null), matching pyReScene's real
     /// <c>--vobsub-srr</c> output exactly. The subtitle SFV's own bytes are stored separately, in
-    /// the OUTER SRR only (D4: the scanner's pass-10 stores every SFV; no redundant re-add). Then
+    /// the OUTER SRR only (the scanner's pass-10 stores every SFV; no redundant re-add). Then
     /// returns the full additionalFiles list in the same order CreatorViewModel's merge/
     /// pass-10-reorder would produce: nfo, generated SRS, nested SRR, its SFV (no proof pairs in
     /// this tree, so ApplyProofBeforeSfvReorder is a no-op — verified separately by
     /// CreatorViewModelArtifactTests).
     ///
-    /// E1(d) NOTE (Task 9 second fix round): this list's ORDER is HAND-BUILT/hardcoded above, not
+    /// NOTE: this list's ORDER is HAND-BUILT/hardcoded above, not
     /// produced by running the actual scanner/VM ordering logic (a lib test cannot reference
     /// App.Core at all). This golden therefore validates the WRITER's byte-for-byte output GIVEN a
     /// correct, reference-order stored list — it does NOT validate that ReleaseScanner/
     /// CreatorViewModel actually PRODUCE that order in production (e.g. main-sfv deferral, proof-
     /// directory splice reconciliation, multi-chain subtitle naming). That ordering correctness is
     /// covered separately by ReScene.App.Core.Tests (ReleaseScannerStoredTests/
-    /// ReleaseScannerMainSetTests and CreatorViewModelArtifactTests, notably the E1-E4 tests added
+    /// ReleaseScannerMainSetTests and CreatorViewModelArtifactTests, added
     /// alongside this note) — a passing golden alone does NOT prove the scanner/VM ordering is
     /// correct, only that the writer is, so don't read it as full-pipeline ordering validation.
     /// </summary>
@@ -275,7 +275,7 @@ public class FullPipelineGoldenTests : IDisposable
         buf.Length >= 3 && BitConverter.ToUInt16(buf, 0) == 0x6969 && buf[2] == 0x69;
 
     /// <summary>
-    /// Normalizes an SRSF chunk's app-name field within a stored SRS stream payload (Task 9's
+    /// Normalizes an SRSF chunk's app-name field within a stored SRS stream payload (a
     /// KNOWN RISK, resolved: pyrescene's SRS writer and ours produce byte-identical SRSF payloads
     /// for a plain stream-type sample except this field — verified by hand-decoding both sides'
     /// raw bytes). Layout (resample/main.py: FileData.serialize_as_stream == serialize_as_mp3,

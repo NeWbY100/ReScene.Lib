@@ -336,7 +336,7 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                                 // Scoped narrowly to the packed-source interaction: RARStream (a future
                                 // producer-backed IPackedSource) throws ArgumentException when the
                                 // snapshot it opens has no visible target header or does not start at
-                                // volume 1 (spec §4). Catching ArgumentException at the method level
+                                // volume 1. Catching ArgumentException at the method level
                                 // instead would also swallow HashCalculator's ArgumentOutOfRangeException
                                 // for an invalid HashType below — a programmer error that must keep
                                 // propagating, not become an ordinary Error.

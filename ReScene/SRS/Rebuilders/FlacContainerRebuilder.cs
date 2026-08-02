@@ -26,7 +26,7 @@ internal class FlacContainerRebuilder : IContainerRebuilder
 
         // Copy a leading ID3v2 wrapper (if the original FLAC had one) verbatim before the fLaC
         // marker; the FLAC writer stored it at the start of the SRS. Without this the tag would be
-        // dropped from the output and the metadata walk would start inside the tag (finding #6).
+        // dropped from the output and the metadata walk would start inside the tag.
         (bool id3Found, int id3Size) = FlacMetadataReader.DetectId3v2Wrapper(srsFs);
         if (id3Found)
         {

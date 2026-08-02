@@ -26,7 +26,7 @@ internal static partial class RARVolumeNaming
     public static string GetBaseName(string fileName)
     {
         // Anchored to the TRAILING ".part<digits>.rar" suffix via NewStylePartRegex's own "$"
-        // end-anchor (codex/peer C6) — a first IndexOf(".part") match would strip at an earlier,
+        // end-anchor — a first IndexOf(".part") match would strip at an earlier,
         // unrelated ".part"/".Part" substring in a release name (e.g. "The.Movie.Part.1.part01.rar"
         // and "The.Movie.Part.2.part01.rar" both collapsing to "The.Movie", merging two distinct
         // archive sets into one chain). The regex backtracks past any non-trailing occurrence, so

@@ -6,7 +6,7 @@ using ReScene.Core.IO;
 namespace ReScene.Tests;
 
 /// <summary>
-/// Tests for the producer-observation invariant (spec §4): no finalization, deletion, or
+/// Tests for the producer-observation invariant: no finalization, deletion, or
 /// next-candidate launch may happen while a launched rar process's task is unobserved. Drives
 /// <see cref="Manager.BruteForceRARVersionAsync"/> through <see cref="FakeRunner"/> so each
 /// scenario can hold a launch open indefinitely and assert Manager genuinely blocks on it — a real

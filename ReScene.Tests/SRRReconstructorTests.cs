@@ -183,7 +183,7 @@ public class SRRReconstructorTests : TempDirTestBase
         Assert.Equal(
             [Path.Combine(_outputDir, "vol1.rar"), Path.Combine(_outputDir, "vol2.rar")],
             result.WrittenPaths);
-        // Pins codex plan B4: FireProgress must keep receiving releaseDirectoryForProgress (the
+        // FireProgress must keep receiving releaseDirectoryForProgress (the
         // release/input directory), not some other path, even though the seam now decouples the
         // packed-byte source from that directory. Two volumes closed => two progress events.
         Assert.Equal(2, progressReleaseDirectoryPaths.Count);

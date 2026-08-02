@@ -4,13 +4,13 @@ namespace ReScene.RAR;
 /// Reads a RAR archive's packed-file blocks to answer the proof-classification predicates that
 /// App.Core's <c>ReleaseScanner</c> rule 4 and the independent proof-RAR pass need — a normative
 /// port of pyrescene's proof-RAR block walk (pyrescene-rules-excerpt.txt, <c>remove_unwanted_sfvs</c>
-/// L365-379 and <c>has_stored_proof_ext</c> L213-221; both walk the same block stream and apply the
+/// and <c>has_stored_proof_ext</c>; both walk the same block stream and apply the
 /// same last-4-characters image-extension check, just with different aggregation — last-wins vs.
 /// any-wins — hence the shared <see cref="ProofRarFacts"/> seam).
 /// </summary>
 public static class RarProofInspector
 {
-    // excerpt: has_stored_proof_ext L213-221 / remove_unwanted_sfvs L369-370 (PROOF_IMAGE_EXTS,
+    // has_stored_proof_ext / remove_unwanted_sfvs (PROOF_IMAGE_EXTS,
     // matched against the packed file name's LAST FOUR characters — so ".jpg"/".png"/".bmp"/".gif"
     // match directly, and ".jpeg" matches via its own last 4 chars "jpeg" without the leading dot.
     // Preserved verbatim, including the quirk that a name shorter than 4 characters just compares
@@ -25,7 +25,7 @@ public static class RarProofInspector
     /// <summary>
     /// Opens <paramref name="rarPath"/> and walks its packed-file (RAR4) blocks. RAR5 archives
     /// report <see cref="ProofRarFacts.Readable"/> = <see langword="false"/> — the ported pyrescene
-    /// logic has no RAR5 support (excerpt: "No RAR5 support yet" at L375). A corrupt/truncated
+    /// logic has no RAR5 support ("No RAR5 support yet"). A corrupt/truncated
     /// header, or a block whose declared size would not advance the stream (hostile/malformed
     /// 64-bit packed size), likewise reports <see langword="false"/> rather than hanging or seeking
     /// to an invalid position — mirroring the excerpt's caught <c>ValueError</c> path.
@@ -63,7 +63,7 @@ public static class RarProofInspector
                     return _unreadable;
                 }
 
-                // excerpt: remove_unwanted_sfvs L368 — `block.rawtype == BlockType.RarPackedFile`
+                // remove_unwanted_sfvs — `block.rawtype == BlockType.RarPackedFile`
                 // is any file-header block (the excerpt never filters directory entries), and every
                 // occurrence reassigns skip — last block wins, not first.
                 if (block.FileHeader is { } fh)

@@ -165,7 +165,7 @@ internal class Unpack29
 
         // A complete stream produces exactly destSize bytes. If the loop broke early because the
         // input was exhausted (truncated/malformed) before filling the buffer, the tail is zero-
-        // padded — fail cleanly rather than returning that partial buffer as success (finding #4).
+        // padded — fail cleanly rather than returning that partial buffer as success.
         if (destPtr < destSize)
         {
             return null;

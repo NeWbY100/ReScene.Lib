@@ -24,7 +24,7 @@ public class GoldenFixtureTests
     // every other byte passes through untouched. Layout: [ushort sentinel][byte type]
     // [ushort flags][ushort headerSize] then, when flags bit0 set, [ushort len][name bytes].
     //
-    // This is the trust anchor for every golden byte comparison in this file (and Task 9's), so
+    // This is the trust anchor for every golden byte comparison in this file (and FullPipelineGoldenTests'), so
     // it validates the input is a well-formed header block and THROWS on any mismatch rather than
     // silently rewriting it — an inconsistent headerSize/nameLen (or a wrong sentinel/type) would
     // otherwise be masked identically on both sides of the comparison, hiding a real writer bug.
@@ -153,10 +153,10 @@ public class GoldenFixtureTests
         Assert.Equal(trailing, result[^trailing.Length..]);
     }
 
-    // The four vectors below are the trust-anchor hardening (codex finding): NormalizeAppName
+    // The four vectors below are the trust-anchor hardening: NormalizeAppName
     // must THROW on a malformed/self-inconsistent header rather than silently normalize it away,
     // since a real writer bug in these exact fields would otherwise be masked identically on both
-    // sides of every golden comparison in this file (and Task 9's).
+    // sides of every golden comparison in this file (and FullPipelineGoldenTests').
 
     [Fact]
     public void NormalizeAppName_InconsistentHeaderSize_Throws()
@@ -164,7 +164,7 @@ public class GoldenFixtureTests
         // nameLen correctly says 1 byte ("X"), so a correct headerSize would be 9 + 1 = 10 — but
         // this header claims 27 (pyrescene's own real header-size value, for realism). The OLD
         // normalizer never read/validated headerSize at all, so this was silently accepted and
-        // normalized away — exactly the masking codex demonstrated.
+        // normalized away — exactly the masking this hardening exists to catch.
         byte[] input = BuildHeaderBlock(flags: 0x0001, appName: "X", trailing: [0xAA, 0xBB, 0xCC], headerSizeOverride: 27);
 
         var ex = Assert.Throws<InvalidOperationException>(() => NormalizeAppName(input));
@@ -276,8 +276,8 @@ public class GoldenFixtureTests
 
         // This test originally caught a real divergence: golden-2disc.srr's four SrrRarFile
         // (0x71) reference blocks all carry flags 0x0001 (RECOVERY_BLOCKS_REMOVED — pyrescene
-        // always sets it), while SRRWriter.WriteRARFileBlock wrote SRRBlockFlags.None. Adjudicated
-        // fix (see SRRBlockFlags.RecoveryBlocksRemoved doc + TestData/multiset/README.md's "Fixed
+        // always sets it), while SRRWriter.WriteRARFileBlock wrote SRRBlockFlags.None. Fixed
+        // (see SRRBlockFlags.RecoveryBlocksRemoved doc + TestData/multiset/README.md's "Fixed
         // divergence" section): WriteRARFileBlock now sets the flag unconditionally, matching
         // pyReScene for both this and the pre-existing single-input CreateAsync path.
         Assert.Equal(

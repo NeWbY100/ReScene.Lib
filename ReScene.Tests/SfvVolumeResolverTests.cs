@@ -4,7 +4,7 @@ namespace ReScene.Tests;
 
 /// <summary>
 /// Direct unit tests for the shared SFV-&gt;ordered-chains resolver (<see cref="SfvVolumeResolver"/>),
-/// the single source of truth codex Task 9 fix-3 (G3/G4) extracted from
+/// the single source of truth extracted from
 /// <c>SRRWriter.ResolveVolumesAsync</c>'s SFV branch so the folder-mode subtitle nested-SRR path
 /// (<c>CreatorViewModel.GenerateNestedSubtitleSrrsAsync</c>) can never diverge from the writer
 /// again. The two divergences these guard: a spaced RAR name (the old VM copy split every space
@@ -96,7 +96,7 @@ public sealed class SfvVolumeResolverTests : IDisposable
         Assert.Empty(SfvVolumeResolver.ResolveOrderedChains(_dir, lines));
     }
 
-    // Part A / F1 regression (Task 9 fix-4): the resolver must NOT sort within a chain — it returns
+    // Part A regression: the resolver must NOT sort within a chain — it returns
     // volumes in first-seen LISTING order so that the SINGLE caller-side sort (SRRWriter.cs:568, and
     // the VM's GenerateNestedSubtitleSrrsAsync) stays byte-identical to base. fix-3 sorted here too,
     // which the writer then re-sorted (an unstable double-sort that diverged from base on `.rNN`/`.NNN`

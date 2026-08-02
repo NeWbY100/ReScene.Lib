@@ -106,7 +106,7 @@ public partial class Manager : IDisposable
     // Guards the one-time-per-run "enable Complete all volumes" guidance log: set the first time a
     // non-CAV candidate's quick-gate assembly comes back genuinely inconclusive (SourceExhausted
     // with CompleteAllVolumes off). Reset alongside _useAssembly at the same per-set engagement
-    // point below — deliberately deferred from Task 7, which introduced only _useAssembly itself.
+    // point below — deliberately deferred from the change that introduced only _useAssembly itself.
     private bool _inconclusiveGuidanceLogged;
 
     private readonly IReSceneLogger _logger;
@@ -568,11 +568,11 @@ public partial class Manager : IDisposable
     /// <summary>
     /// Cancels (when requested) and OBSERVES the producer: awaits the process task to real
     /// completion — no grace-timeout abandonment — swallowing only cancellation or a fault.
-    /// Invariant (spec §4): no finalization, deletion, or next-candidate launch may happen while a
+    /// Invariant: no finalization, deletion, or next-candidate launch may happen while a
     /// producer task is unobserved.
     /// </summary>
     /// <remarks>
-    /// TWO observation modes exist with distinct fault contracts (codex rev-5 B1 — a single quiet
+    /// TWO observation modes exist with distinct fault contracts (a single quiet
     /// observer used on winning paths too would silently accept a producer that faulted AFTER the
     /// volume-2 trigger, and could finalize a broken candidate as a match). This method is the
     /// CLEANUP-path observer: it never throws. Use it ONLY for catch blocks and
@@ -932,7 +932,7 @@ public partial class Manager : IDisposable
                 string? actualRARFilePath = MatchedRARWriter.FindCreatedRARFile(rarFilePath);
                 if (actualRARFilePath == null)
                 {
-                    // Invariant (spec §4): no classification below may run while a CompleteAllVolumes
+                    // Invariant: no classification below may run while a CompleteAllVolumes
                     // producer task is unobserved. Cancels it (if still running) and awaits it to REAL
                     // completion — no grace-timeout abandonment. A no-op when runningProcessTask is
                     // null (standard path: already observed inside RARCompressDirectoryAsync).
@@ -1005,7 +1005,7 @@ public partial class Manager : IDisposable
 
                     if (quick.Status != SRRReconstructionStatus.Success && retryEligible)
                     {
-                        // Incomplete snapshot (spec §4): ANY non-success while the producer runs — including
+                        // Incomplete snapshot: ANY non-success while the producer runs — including
                         // Error from RARStream's missing/short-header ArgumentException — awaits completion
                         // and retries ONCE with a fresh source.
                         // Normal wait — faults PROPAGATE (generic catch = error row); not the quiet observer.
@@ -1032,14 +1032,14 @@ public partial class Manager : IDisposable
 
                     if (!quickMatch)
                     {
-                        // Post-retry classification (spec §4):
+                        // Post-retry classification:
                         switch (quick.Status)
                         {
                             case SRRReconstructionStatus.Error:
                                 // Persistent parse/I-O failure = failed combination — the EXISTING error-row
                                 // shape (CombinationFailed progress event + warning). RETENTION: like the
                                 // exception disposition, BOTH artifact classes are LEFT IN PLACE for
-                                // diagnosis (spec §5).
+                                // diagnosis.
                                 FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
                                     totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
                                     rarFilePath, executedArguments, quick.Diagnostic);
@@ -1131,7 +1131,7 @@ public partial class Manager : IDisposable
                     await runningProcessTask.ConfigureAwait(false);
                 }
 
-                // Assembly win path (spec §4/§5): the quick gate above only verified the ASSEMBLED
+                // Assembly win path: the quick gate above only verified the ASSEMBLED
                 // first original volume; the legacy full-per-volume-verification/RenameMatchedOutput
                 // code below operates on actualRARFilePath — the CARRIER's own produced-shape bytes,
                 // never byte-identical to the original — so an assembly candidate must never fall
@@ -1178,7 +1178,7 @@ public partial class Manager : IDisposable
 
                     // Per-volume verification — the gate is EXACTLY the legacy block's own below:
                     // CAV mode AND a non-empty CRC map; with no map, the quick hash was the whole
-                    // gate (first-hash-only parity, spec §4) and this block is skipped entirely.
+                    // gate (first-hash-only parity) and this block is skipped entirely.
                     // (Named distinctly from the legacy block's own `expectedInOrder` below — C#
                     // forbids a nested block from reusing a name its enclosing block also declares,
                     // even in a later, mutually-exclusive branch.)
@@ -1336,7 +1336,7 @@ public partial class Manager : IDisposable
                 // as an error instead of a misleading clean "No Match" — then move on.
                 _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: RAR execution failed ({ex.Message}) — skipping this combination", LogTarget.Phase2);
 
-                // Invariant (spec §4): observe the producer to real completion before this
+                // Invariant: observe the producer to real completion before this
                 // candidate's cleanup finishes and the loop moves to the next one. A no-op when
                 // runningProcessTask is null (standard path: RARCompressDirectoryAsync's own plain
                 // await is how ITS fault reached this catch, and that await already observed it).
@@ -1412,7 +1412,7 @@ public partial class Manager : IDisposable
     }
 
     /// <summary>Mismatch/no-match retention applied to BOTH artifact classes under the
-    /// standard flags (spec §5): the assembled dir and the carrier volume set.</summary>
+    /// standard flags: the assembled dir and the carrier volume set.</summary>
     private void ApplyMismatchRetention(string assemblyDir, string actualRARFilePath,
         BruteForceOptions options, bool duplicate)
     {
@@ -1612,7 +1612,7 @@ public partial class Manager : IDisposable
     /// Finalizes an assembly win: moves the reconstructor's ordered <c>WrittenPaths</c> —
     /// verbatim, no volume rediscovery, no patching — transactionally into <paramref
     /// name="rarOutputDir"/> (the app's VerifiedOutputRelocator consumes committed files there).
-    /// Naming (spec §5): <see cref="RAROptions.RenameToOriginalNames"/> true → the assembled
+    /// Naming: <see cref="RAROptions.RenameToOriginalNames"/> true → the assembled
     /// file's own name is kept as-is (the reconstructor already wrote it under its SRR-recorded
     /// original volume name, e.g. a qualified <c>"CD2/t.rar"</c> section flattens to
     /// <c>"t.rar"</c> via <see cref="Path.GetFileName(string)"/>); false → basename replacement

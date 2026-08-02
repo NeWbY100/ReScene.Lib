@@ -321,7 +321,7 @@ public class SRRWriter
             List<(string Name, string Path)> volumes =
                 ReconcileVolumesAgainstStoredFiles(rawVolumes, sourcesSeen, namesSeen);
 
-            // Re-validate against the FULLY RESOLVED emission set (codex/peer C1): an outputPath
+            // Re-validate against the FULLY RESOLVED emission set: an outputPath
             // equal to a volume DISCOVERED via an SFV (never itself an `inputFiles` entry) or to a
             // stored source resolved from one wasn't caught by the pre-resolution check above, yet
             // File.Move below would still destroy it.
@@ -402,8 +402,8 @@ public class SRRWriter
             result.OutputPath = outputPath;
             result.Success = true;
 
-            // The commit above must be the LAST fallible action affecting the result (codex/peer
-            // C5): a throwing Progress subscriber here — including one that throws
+            // The commit above must be the LAST fallible action affecting the result: a throwing
+            // Progress subscriber here — including one that throws
             // OperationCanceledException — must not flip an already-committed success into an
             // error result, nor propagate as a "cancelled" outcome after the destination has
             // already been replaced. Swallow: the caller already has everything it needs from
@@ -457,7 +457,7 @@ public class SRRWriter
     /// Rejects <paramref name="outputKey"/> (from <see cref="ComputeOutputKey"/>) if it matches
     /// the OS final path of any of <paramref name="candidatePaths"/> — reused for BOTH the
     /// pre-resolution check (explicit inputs/stored sources) and the post-resolution check
-    /// (discovered volumes/stored sources, codex/peer C1) so a symlink/junction can't disguise a
+    /// (discovered volumes/stored sources) so a symlink/junction can't disguise a
     /// self-collision either way.
     /// </summary>
     private static void RejectIfOutputMatches(string outputKey, IEnumerable<string> candidatePaths, string sourceKind)
@@ -474,7 +474,7 @@ public class SRRWriter
     /// <summary>
     /// Creates the transaction's temp file exclusively (<see cref="FileMode.CreateNew"/>) so an
     /// astronomically unlikely 8-hex suffix collision with a pre-existing file can never be
-    /// silently truncated (codex/peer C7, unlike <see cref="FileMode.Create"/>); on that
+    /// silently truncated (unlike <see cref="FileMode.Create"/>); on that
     /// collision, regenerates the suffix and retries a bounded number of times.
     /// </summary>
     private static (FileStream Stream, string Path) CreateExclusiveTempFile(string outputPath)
@@ -518,9 +518,9 @@ public class SRRWriter
                 string[] lines = await File.ReadAllLinesAsync(input, ct).ConfigureAwait(false);
 
                 // SFV->ordered-chains resolution now lives in the shared SfvVolumeResolver (single
-                // source of truth with the folder-mode subtitle path — codex Task 9 fix-3 G3/G4).
+                // source of truth with the folder-mode subtitle path).
                 // The resolver returns each chain in first-seen LISTING order and deliberately does
-                // NOT sort (Task 9 fix-4 / F1): folding that listing order through AddVolumeToChain
+                // NOT sort: folding that listing order through AddVolumeToChain
                 // and sorting EXACTLY ONCE at line 568 below reproduces base byte-for-byte. A
                 // resolver-side sort would make line 568 a second, unstable sort that diverges from
                 // base on `.rNN`/`.NNN` ties. Byte output unchanged — proven by FullPipelineGoldenTests.
@@ -603,7 +603,7 @@ public class SRRWriter
     /// is an error naming both (strict — unlike <see cref="CreateAsync"/>'s legacy first-wins skip).
     /// Also returns the source/name registries so <see cref="ReconcileVolumesAgainstStoredFiles"/>
     /// can extend the SAME collision/dedup policy over volumes (spec §1a is writer-wide, not
-    /// stored-files-only — codex/peer C3).
+    /// stored-files-only).
     /// </summary>
     private static (List<StoredFileEntry> Files, HashSet<string> SourcesSeen, Dictionary<string, string> NamesSeen) ResolveStoredFiles(
         IReadOnlyList<string> inputFiles,
@@ -648,7 +648,7 @@ public class SRRWriter
                 continue;
             }
 
-            // Flat names still route through CanonicalizeLogicalName (codex/peer C2): a POSIX
+            // Flat names still route through CanonicalizeLogicalName: a POSIX
             // file name may legally contain '\', which would otherwise survive raw and become a
             // traversal-form name when the SRR is later parsed/extracted on Windows.
             string logicalName = storeRelativePaths

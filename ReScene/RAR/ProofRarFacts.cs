@@ -4,9 +4,9 @@ namespace ReScene.RAR;
 /// Facts about a proof RAR's packed-file blocks, as read by <see cref="RarProofInspector.Inspect"/>.
 /// Two independent callers consume this: <c>ReleaseScanner</c> rule 4 (App.Core) needs
 /// <see cref="LastPackedIsImage"/> — pyrescene's proof state machine treats the LAST packed
-/// block's image-ness as authoritative, reassigning on every block it sees (excerpt:
-/// <c>remove_unwanted_sfvs</c> L365-379) — while the independent proof-RAR pass needs
-/// <see cref="AnyImage"/> (excerpt: <c>has_stored_proof_ext</c> L213-221, which returns as soon as
+/// block's image-ness as authoritative, reassigning on every block it sees (see
+/// <c>remove_unwanted_sfvs</c>) — while the independent proof-RAR pass needs
+/// <see cref="AnyImage"/> (see <c>has_stored_proof_ext</c>, which returns as soon as
 /// any packed block matches). One seam serves both distinct predicates.
 /// </summary>
 /// <param name="Readable">

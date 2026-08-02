@@ -7,8 +7,8 @@ using ReScene.RAR;
 namespace ReScene.Tests;
 
 /// <summary>
-/// Tests for the Manager-side SRR-guided-assembly ENGAGEMENT preflight (Task 7) and candidate
-/// flow (Task 8: the quick gate, incomplete-snapshot retry, and post-retry classification/
+/// Tests for the Manager-side SRR-guided-assembly ENGAGEMENT preflight and candidate
+/// flow (the quick gate, incomplete-snapshot retry, and post-retry classification/
 /// retention). The preflight is a once-per-set check, run before the attribute loop, that
 /// resolves to one of three outcomes — Success (engages assembly), UnsupportedSrr (falls through
 /// to the existing legacy candidate loop, completely unchanged), or Error (the whole set fails
@@ -195,7 +195,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal(OperationCompletionStatus.Error, finalStatus);
     }
 
-    // ---- Task 8: quick gate, incomplete-snapshot retry, and post-retry classification/retention ----
+    // ---- Quick gate, incomplete-snapshot retry, and post-retry classification/retention ----
     //
     // ATTEMPT PROBE: AssembleCandidateAsync logs one DEBUG line per invocation —
     // "Assembly attempt for {candidateSlug}: volumes={volumeCount}" — the tests below count THOSE
@@ -204,12 +204,12 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     //
     // None of these assert BruteForceRunResult.Success/Matches: these fixtures' carriers are
     // deliberately INCOMPLETE beyond whatever the quick gate itself needs (a single produced volume,
-    // or two for the mirror-shift cases) — Task 9's win path (below) performs its OWN full-set
+    // or two for the mirror-shift cases) — the win path (below) performs its OWN full-set
     // assembly once a quick-gate match falls through, and for a carrier this incomplete that full
     // attempt genuinely runs out of source (one more "Assembly attempt" line, counted in the
     // assertions below), rejecting the candidate as a no-match. That is expected and correct — full-
     // set success/failure has its own dedicated tests further down. These tests stay scoped to what
-    // Task 8 actually owns: the quick gate's own classification, logging, and retention.
+    // this section actually owns: the quick gate's own classification, logging, and retention.
 
     [Fact]
     public async Task Cav_IncompleteSnapshot_RetriesOnceWithFreshSource()
@@ -261,8 +261,8 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         await WithTimeoutAsync(runTask, "the run to finish");
 
-        // The quick gate's own attempts: 1 (fails, SourceExhausted) + 1 (retry, succeeds) = 2; Task
-        // 9's win path then makes a THIRD, full-set assembly attempt. This test's carrier only ever
+        // The quick gate's own attempts: 1 (fails, SourceExhausted) + 1 (retry, succeeds) = 2; the
+        // win path then makes a THIRD, full-set assembly attempt. This test's carrier only ever
         // has 2 produced volumes on disk (this fixture's original set needs 3 to reconstruct in
         // full), so that full attempt itself hits SourceExhausted and the candidate is rejected as a
         // no-match — expected, and outside THIS test's scope (the quick gate's own retry mechanic,
@@ -379,7 +379,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     [Fact]
     public async Task Cav_ProducerCompletesDuringAttempt_RetryStillTriggers()
     {
-        // The missed-retry-window regression (Fix Round 1): retryEligible must be snapshotted
+        // The missed-retry-window regression: retryEligible must be snapshotted
         // BEFORE the first attempt starts, not sampled after it returns — a producer that finishes
         // WHILE the attempt is still reading (as opposed to strictly before or after) would make a
         // post-attempt IsCompleted check read true and wrongly skip a retry the incomplete snapshot
@@ -514,17 +514,17 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.False(deleted.CarrierExists);
     }
 
-    // ---- Fix Round 1 (Task 8) / Task 9: quick-gate match must commit the ASSEMBLED bytes, never
+    // ---- Quick-gate match must commit the ASSEMBLED bytes, never
     // the carrier's ----
 
     [Fact]
     public async Task NonCav_QuickMatch_NeverCommitsCarrierUnderOriginalName()
     {
-        // The strongest correctness pin for the Task 9 win path. Before Task 9's finalizer existed,
+        // The strongest correctness pin for the win path. Before its finalizer existed,
         // a quick-gate MATCH on an assembly candidate either fell through into the LEGACY full-per-
-        // volume-verification/RenameMatchedOutput code (pre-Fix-Round-1 — committing the CARRIER's
-        // own produced-shape bytes under the original name) or was retained-but-never-finalized (the
-        // Task 8/9 temporary guard). Now the win path finalizes the ASSEMBLED reconstruction. A
+        // volume-verification/RenameMatchedOutput code (committing the CARRIER's
+        // own produced-shape bytes under the original name) or was retained-but-never-finalized (a
+        // temporary guard). Now the win path finalizes the ASSEMBLED reconstruction. A
         // single-volume, mirror-header fixture (originalHasExtTime != producedHasExtTime, a small
         // payload — no cross-volume spanning needed) makes the carrier's own bytes PROVABLY
         // different from the original's, so asserting the committed bytes equal the ORIGINAL'S (and
@@ -596,7 +596,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal(File.ReadAllBytes(fixture.OriginalVolumePaths[0]), File.ReadAllBytes(committedPath));
     }
 
-    // ---- Task 9: full assembly, guarded per-volume verification, and finalization ----
+    // ---- Full assembly, guarded per-volume verification, and finalization ----
 
     [Fact]
     public async Task Cav_EndToEnd_ExtTimeScenario_MatchesAndVerifiesAllVolumes()
@@ -671,7 +671,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     public async Task NoCrcMap_FirstHashOnly_ParityPreserved()
     {
         // Empty CRC map: success rests on the quick gate's volume-1 hash alone (first-hash-only
-        // parity, spec §4) — full assembly and finalization still run (they don't depend on the CRC
+        // parity) — full assembly and finalization still run (they don't depend on the CRC
         // map), but the per-volume verification block itself must never engage.
         string fixtureDir = Path.Combine(TempDir, "fixture");
         Directory.CreateDirectory(fixtureDir);

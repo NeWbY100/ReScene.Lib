@@ -919,7 +919,7 @@ public class SRSRebuilderTests : TempDirTestBase
     {
         // A FLAC with a leading ID3v2 tag must round-trip byte-exactly: creation stores the tag,
         // and rebuild must restore it (not hard-write fLaC at offset 0) and route to the FLAC
-        // rebuilder rather than MP3 (finding #6).
+        // rebuilder rather than MP3.
         string samplePath = SyntheticSampleBuilder.BuildFlacWithId3(
             Path.Combine(TempDir, "test_sample_id3.flac"));
 
