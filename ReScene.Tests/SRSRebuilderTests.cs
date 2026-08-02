@@ -959,8 +959,8 @@ public class SRSRebuilderTests : TempDirTestBase
         using var cts = new CancellationTokenSource();
 
         var task = Task.Run(() => rebuilder.Rebuild(
-            srsPath, new Dictionary<uint, SRSTrackDataBlock>(), mediaPath,
-            new Dictionary<uint, long>(), outputPath, null, null, cts.Token));
+            srsPath, [], mediaPath,
+            [], outputPath, null, null, cts.Token));
 
         // Await the race rather than blocking (xUnit1031): if the rebuild wins, it finished in time.
         bool completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(3))) == task;

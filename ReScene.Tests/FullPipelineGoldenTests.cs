@@ -229,7 +229,7 @@ public class FullPipelineGoldenTests : IDisposable
         try
         {
             File.WriteAllBytes(tmp, srrBytes);
-            SRRFile srr = SRRFile.Load(tmp);
+            var srr = SRRFile.Load(tmp);
 
             var edits = new List<(long Offset, int Length, byte[] Replacement)>();
             foreach (SRRStoredFileBlock stored in srr.StoredFiles)

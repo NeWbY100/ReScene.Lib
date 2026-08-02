@@ -346,7 +346,7 @@ public class SRRWriter
 
                 await WriteVolumesAsync(writer, volumes, options, result, ct).ConfigureAwait(false);
 
-                List<string> volumePaths = volumes.Select(v => v.Path).ToList();
+                var volumePaths = volumes.Select(v => v.Path).ToList();
                 if (options.ComputeOSOHashes)
                 {
                     Log("Computing OSO hashes...");

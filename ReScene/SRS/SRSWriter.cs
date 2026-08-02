@@ -283,7 +283,7 @@ public class SRSWriter
         }
         else
         {
-            offsets = new Dictionary<uint, long>();
+            offsets = [];
             using var fs = new FileStream(mainFilePath, FileMode.Open, FileAccess.Read, FileShare.Read,
                 bufferSize: 80 * 1024);
             long totalLen = fs.Length;

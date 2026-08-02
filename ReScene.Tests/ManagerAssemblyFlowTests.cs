@@ -54,7 +54,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     private static async Task WaitUntilAsync(Func<bool> condition, string because, TimeSpan? timeout = null)
     {
         TimeSpan limit = timeout ?? TimeSpan.FromSeconds(5);
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         while (!condition())
         {
             if (sw.Elapsed > limit)

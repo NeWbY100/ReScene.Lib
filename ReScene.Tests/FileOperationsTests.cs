@@ -168,7 +168,7 @@ public class FileOperationsTests : TempDirTestBase
 
         FileNotFoundException ex = Assert.Throws<FileNotFoundException>(() =>
             FileOperations.CopySelectedEntries(
-                sourceDir, destDir, files, directoryPaths: new(), ct: CancellationToken.None));
+                sourceDir, destDir, files, directoryPaths: [], ct: CancellationToken.None));
 
         // Message reports the exact count; anchor at the start so a wrong-count regression
         // (e.g. "11 file(s)") cannot pass via substring overlap.
@@ -196,7 +196,7 @@ public class FileOperationsTests : TempDirTestBase
 
         // No throw: the entry is skipped (not counted as a missing file).
         FileOperations.CopySelectedEntries(
-            sourceDir, destDir, files, directoryPaths: new(), ct: CancellationToken.None);
+            sourceDir, destDir, files, directoryPaths: [], ct: CancellationToken.None);
 
         // Destination remains empty; nothing escaped the base.
         Assert.Empty(Directory.GetFiles(destDir, "*", SearchOption.AllDirectories));
@@ -214,7 +214,7 @@ public class FileOperationsTests : TempDirTestBase
         HashSet<string> dirs = new(StringComparer.OrdinalIgnoreCase) { "Subs", $"Subs{Sep}English" };
 
         FileOperations.CopySelectedEntries(
-            sourceDir, destDir, filePaths: new(), directoryPaths: dirs, ct: CancellationToken.None);
+            sourceDir, destDir, filePaths: [], directoryPaths: dirs, ct: CancellationToken.None);
 
         Assert.True(Directory.Exists(Path.Combine(destDir, "Subs")));
         Assert.True(Directory.Exists(Path.Combine(destDir, "Subs", "English")));

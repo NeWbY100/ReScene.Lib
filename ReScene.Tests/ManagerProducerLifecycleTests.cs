@@ -48,7 +48,7 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
     private static async Task WaitUntilAsync(Func<bool> condition, string because, TimeSpan? timeout = null)
     {
         TimeSpan limit = timeout ?? TimeSpan.FromSeconds(5);
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         while (!condition())
         {
             if (sw.Elapsed > limit)
@@ -90,7 +90,7 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
     /// </summary>
     private static async Task AssertBlockedAsync(Func<bool> stillPending, string because)
     {
-        Stopwatch sw = Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
         while (sw.Elapsed < TimeSpan.FromMilliseconds(250))
         {
             Assert.True(stillPending(), because);

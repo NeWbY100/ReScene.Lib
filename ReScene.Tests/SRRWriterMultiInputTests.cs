@@ -41,7 +41,7 @@ public class SRRWriterMultiInputTests : IDisposable
             _out, [Sfv("CD1", "a"), Sfv("CD2", "b")], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(["CD1/a.sfv", "CD2/b.sfv"], srr.StoredFiles.Select(f => f.FileName));
         Assert.Equal(["CD1/a.rar", "CD1/a.r00", "CD2/b.rar", "CD2/b.r00"],
             srr.RARFiles.Select(f => f.FileName));
@@ -57,7 +57,7 @@ public class SRRWriterMultiInputTests : IDisposable
             additionalFiles: [new StoredFileEntry("r.nfo", nfo)]);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Single(srr.StoredFiles);
         Assert.Empty(srr.RARFiles);
     }
@@ -67,7 +67,7 @@ public class SRRWriterMultiInputTests : IDisposable
     {
         SRRCreationResult r = await _writer.CreateFromInputsAsync(_out, [], null, false);
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Empty(srr.StoredFiles);
         Assert.Empty(srr.RARFiles);
     }
@@ -190,7 +190,7 @@ public class SRRWriterMultiInputTests : IDisposable
             outPath, [firstVolume], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(outPath);
+        var srr = SRRFile.Load(outPath);
         Assert.Equal(2, srr.RARFiles.Count);
     }
 
@@ -233,7 +233,7 @@ public class SRRWriterMultiInputTests : IDisposable
             _out, [sfvPath], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(
             ["X1/same.rar", "X1/same.r00", "X2/same.rar", "X2/same.r00"],
             srr.RARFiles.Select(f => f.FileName));
@@ -257,7 +257,7 @@ public class SRRWriterMultiInputTests : IDisposable
             ]);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(["1.nfo", "2.nfo"], srr.StoredFiles.Select(f => f.FileName));
     }
 
@@ -270,7 +270,7 @@ public class SRRWriterMultiInputTests : IDisposable
             _out, [Sfv("CD1", "a")], _root, true);
 
         Assert.True(r.Success, r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(2, srr.RARFiles.Count);
         Assert.Empty(Directory.GetFiles(_root, "*.tmp-*"));
     }
@@ -359,7 +359,7 @@ public class SRRWriterMultiInputTests : IDisposable
             _out, [Sfv("CD1", "a")], _root, storeRelativePaths: false);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(["a.sfv"], srr.StoredFiles.Select(f => f.FileName));
         Assert.Equal(["a.rar", "a.r00"], srr.RARFiles.Select(f => f.FileName));
     }
@@ -382,7 +382,7 @@ public class SRRWriterMultiInputTests : IDisposable
             _out, [sfvA, sfvB], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(["Shared/shared.rar", "Shared/shared.r00"], srr.RARFiles.Select(f => f.FileName));
     }
 
@@ -449,7 +449,7 @@ public class SRRWriterMultiInputTests : IDisposable
 
         Assert.True(r.Success);
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(_out);
+        var srr = SRRFile.Load(_out);
         Assert.Equal(2, srr.RARFiles.Count);
     }
 
@@ -495,7 +495,7 @@ public class SRRWriterMultiInputTests : IDisposable
             Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        var srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
         Assert.Equal(
             [
                 "TwoPartMovie/The.Movie.Part.1.part01.rar",
@@ -524,7 +524,7 @@ public class SRRWriterMultiInputTests : IDisposable
             Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        var srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
         Assert.Equal(["Sub/sub title.rar", "Sub/sub title.r00"], srr.RARFiles.Select(f => f.FileName));
     }
 
@@ -541,7 +541,7 @@ public class SRRWriterMultiInputTests : IDisposable
             Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        var srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
         Assert.Equal(["Sub/eng.rar", "Sub/eng.r00"], srr.RARFiles.Select(f => f.FileName));
     }
 
@@ -586,7 +586,7 @@ public class SRRWriterMultiInputTests : IDisposable
             Path.Combine(dir, "out.srr"), [sfvPath], _root, storeRelativePaths: true);
 
         Assert.Null(r.ErrorMessage);
-        SRRFile srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
+        var srr = SRRFile.Load(Path.Combine(dir, "out.srr"));
 
         // expected = ONE deterministic sort of the SFV-listed entries (identical List.Sort algorithm
         // and initial order as the writer's single internal sort of the chain).

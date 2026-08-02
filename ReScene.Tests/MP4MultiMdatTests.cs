@@ -133,8 +133,8 @@ public class MP4MultiMdatTests
             var rebuilder = new MP4ContainerRebuilder();
 
             Assert.Throws<NotSupportedException>(() => rebuilder.Rebuild(
-                srsPath, new Dictionary<uint, SRSTrackDataBlock>(), mediaPath,
-                new Dictionary<uint, long>(), outPath, null, null, CancellationToken.None));
+                srsPath, [], mediaPath,
+                [], outPath, null, null, CancellationToken.None));
 
             // The guard fires before the output file is opened, so no partial file is left behind.
             Assert.False(File.Exists(outPath));
