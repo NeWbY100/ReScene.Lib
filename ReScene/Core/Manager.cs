@@ -826,7 +826,7 @@ public partial class Manager : IDisposable
             // Output RAR file to the rarOutputDir subdirectory
             string rarFilePath = Path.Combine(rarOutputDir, $"{archiveAttribute}{notContentIndexedAttribute}{rarVersionDirectoryName}-{joinedArguments}.rar");
 
-            // Build the ACTUAL argument list (display args + engine-added -ma4/-vn/-z) up front — pure
+            // Build the ACTUAL argument list (display args + engine-added -cfg-/-ma4/-vn/-z) up front — pure
             // composition — so every progress event can carry the executed form for the row's runnable
             // copied command; the display form alone would omit switches that change the output bytes.
             List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version);
