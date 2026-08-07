@@ -388,6 +388,98 @@ public class ManagerHelpersTests
 
     #endregion
 
+    #region BuildFinalArguments — -cfg-
+
+    // BuildFinalArguments is private; these drive it through the same live-Manager/FakeRunner flow
+    // ManagerProducerLifecycleTests uses, and read the composed argument list off the pre-execution
+    // BruteForceProgress event's ExecutedArguments — the exact (space-joined) string BuildFinalArguments
+    // produces, fired before the candidate is launched so it doesn't depend on the (never-matching)
+    // launch's own resolution.
+
+    [Theory]
+    [InlineData(203)]  // 2.x era: no other auto-added switch applies
+    [InlineData(300)]  // 3.x era: -vn is opt-in (UseOldVolumeNaming defaults false), so still bare
+    [InlineData(700)]  // 7.x era: at the -ma4 upper boundary, -ma4 must NOT be added
+    public async Task BuildFinalArguments_NoOtherAutoAddedSwitch_IsCfgOnly(int version)
+        => Assert.Equal("-cfg-", await RunSingleCandidateAsync(version));
+
+    [Fact]
+    public async Task BuildFinalArguments_Rar550Era_CfgPrecedesAutoAddedMa4()
+        // -ma4 is inserted at index 0 by its own block; -cfg- must still land ahead of it.
+        => Assert.Equal("-cfg- -ma4", await RunSingleCandidateAsync(550));
+
+    /// <summary>
+    /// Runs one Manager brute-force candidate for <paramref name="version"/> against a <see
+    /// cref="FakeRunner"/> (no real rar.exe, no matching hash configured) and returns the
+    /// ExecutedArguments captured off the first Phase 2 progress event.
+    /// </summary>
+    private static async Task<string> RunSingleCandidateAsync(int version)
+    {
+        using var tmp = new TempDir();
+        string versionsDir = Path.Combine(tmp.Path, "versions");
+        string versionDir = Path.Combine(versionsDir, $"rar{version}");
+        string releaseDir = Path.Combine(tmp.Path, "release");
+        string workDir = Path.Combine(tmp.Path, "work");
+        Directory.CreateDirectory(versionDir);
+        Directory.CreateDirectory(releaseDir);
+        Directory.CreateDirectory(workDir);
+        File.WriteAllBytes(Path.Combine(versionDir, RarExecutable.FileName), []);
+        File.WriteAllBytes(Path.Combine(releaseDir, "a.bin"), new byte[16]);
+
+        var options = new BruteForceOptions(versionsDir, releaseDir, workDir)
+        {
+            RAROptions = new RAROptions
+            {
+                RARVersions = [new VersionRange(version, version + 1)],
+                CommandLineArguments = [Array.Empty<RARCommandLineArgument>()],
+            },
+        };
+
+        var runner = new FakeRunner { OnLaunch = l => l.Exit.TrySetResult(0) };
+        string? executedArguments = null;
+        using var manager = new Manager(NullReSceneLogger.Instance, runner);
+        manager.BruteForceProgress += (_, e) => executedArguments ??= e.ExecutedArguments;
+
+        Task<BruteForceRunResult> runTask = manager.BruteForceRARVersionAsync(options);
+        Task winner = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(10)));
+        if (winner != runTask)
+        {
+            throw new TimeoutException("Timed out waiting for the brute-force run to finish.");
+        }
+
+        await runTask;
+
+        Assert.NotNull(executedArguments);
+        return executedArguments!;
+    }
+
+    #endregion
+
+    #region CommentPhaseBruteForcer.BuildPhase1Arguments — -cfg-
+
+    [Fact]
+    public void BuildPhase1Arguments_OldVersion_IsCfgThenBaseArgsOnly()
+    {
+        List<string> args = CommentPhaseBruteForcer.BuildPhase1Arguments(200, "-m3", "-md64k", "comment.txt");
+        Assert.Equal(["-cfg-", "a", "-r", "-m3", "-md64k", "-zcomment.txt"], args);
+    }
+
+    [Fact]
+    public void BuildPhase1Arguments_Rar550Era_CfgPrecedesMa4AndTimestampsFollow()
+    {
+        List<string> args = CommentPhaseBruteForcer.BuildPhase1Arguments(600, "-m3", "-md64k", "comment.txt");
+        Assert.Equal(["-cfg-", "a", "-r", "-m3", "-md64k", "-zcomment.txt", "-ma4", "-tsc-", "-tsa-"], args);
+    }
+
+    [Fact]
+    public void BuildPhase1Arguments_Rar7Era_NoMa4ButCfgAndTimestampsPresent()
+    {
+        List<string> args = CommentPhaseBruteForcer.BuildPhase1Arguments(700, "-m3", "-md64k", "comment.txt");
+        Assert.Equal(["-cfg-", "a", "-r", "-m3", "-md64k", "-zcomment.txt", "-tsc-", "-tsa-"], args);
+    }
+
+    #endregion
+
     /// <summary>A self-cleaning unique temporary directory for filesystem tests.</summary>
     private sealed class TempDir : IDisposable
     {

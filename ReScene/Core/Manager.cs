@@ -1440,8 +1440,8 @@ public partial class Manager : IDisposable
 
     /// <summary>
     /// Builds the final RAR argument list from the filtered arguments, auto-adding
-    /// <c>-ma4</c> (RAR 5.50-6.x), <c>-vn</c> (old volume naming), and the comment
-    /// option (<c>-z</c>) where applicable.
+    /// <c>-cfg-</c> (ignore user rar config), <c>-ma4</c> (RAR 5.50-6.x), <c>-vn</c> (old volume
+    /// naming), and the comment option (<c>-z</c>) where applicable.
     /// </summary>
     private List<string> BuildFinalArguments(List<string> filteredArguments, BruteForceOptions options, int version)
     {
@@ -1465,6 +1465,13 @@ public partial class Manager : IDisposable
             // Add comment option: -z<commentfile>
             finalArguments.Add($"-z{_commentFilePath}");
         }
+
+        // Force -cfg- (ignore rar.ini/rarrc) on every invocation, unconditionally and with no version
+        // gate: a user's local rar config can inject switches (e.g. -ds) that silently change what
+        // reconstruction produces, and -cfg- has been available in every supported rar release —
+        // measured across the packs 2.03 through 7.20. Inserted last so it lands ahead of -ma4's own
+        // Insert(0, ...) above rather than being pushed behind it.
+        finalArguments.Insert(0, "-cfg-");
 
         return finalArguments;
     }

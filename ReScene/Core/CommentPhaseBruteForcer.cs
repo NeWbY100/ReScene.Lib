@@ -128,21 +128,7 @@ internal sealed class CommentPhaseBruteForcer(
             });
 
             // Build arguments using CMT-specific compression method and dictionary
-            List<string> args = ["a", "-r", cmtMethodArg, cmtDictArg, $"-z{commentFilePath}"];
-
-            // Add -ma4 for RAR 5.50-6.x to create RAR4 format (RAR 7.x doesn't accept -ma4)
-            if (version is >= 550 and < RARVersionThresholds.RAR7FormatMinimum)
-            {
-                args.Add("-ma4");
-            }
-
-            // Add timestamp options if RAR version supports them (3.20+)
-            // For CMT blocks, we typically disable ctime and atime
-            if (version >= 320)
-            {
-                args.Add("-tsc-");
-                args.Add("-tsa-");
-            }
+            List<string> args = BuildPhase1Arguments(version, cmtMethodArg, cmtDictArg, commentFilePath);
 
             string testRARPath = Path.Combine(outputDir, $"test_{versionName}_{cmtMethodArg}_{cmtDictArg}.rar"
                 .Replace("-", "", StringComparison.Ordinal).Replace("/", "", StringComparison.Ordinal));
@@ -230,6 +216,34 @@ internal sealed class CommentPhaseBruteForcer(
         }
 
         return matchedVersions;
+    }
+
+    /// <summary>
+    /// Builds one candidate's Phase-1 (comment-only) rar arguments: <c>-cfg-</c> first, then the
+    /// create command, the CMT-specific compression method and dictionary size, the comment file,
+    /// <c>-ma4</c> to force RAR4 format for 5.50-6.x, and ctime/atime suppression for 3.20+.
+    /// </summary>
+    internal static List<string> BuildPhase1Arguments(int version, string cmtMethodArg, string cmtDictArg, string commentFilePath)
+    {
+        // -cfg- ignores the user's rar config for this test archive too — same rationale as the
+        // Phase-2 argument builder in Manager (a local rarrc must never change what gets compared).
+        List<string> args = ["-cfg-", "a", "-r", cmtMethodArg, cmtDictArg, $"-z{commentFilePath}"];
+
+        // Add -ma4 for RAR 5.50-6.x to create RAR4 format (RAR 7.x doesn't accept -ma4)
+        if (version is >= 550 and < RARVersionThresholds.RAR7FormatMinimum)
+        {
+            args.Add("-ma4");
+        }
+
+        // Add timestamp options if RAR version supports them (3.20+)
+        // For CMT blocks, we typically disable ctime and atime
+        if (version >= 320)
+        {
+            args.Add("-tsc-");
+            args.Add("-tsa-");
+        }
+
+        return args;
     }
 
     /// <summary>
