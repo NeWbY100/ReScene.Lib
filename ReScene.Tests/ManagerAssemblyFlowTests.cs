@@ -128,6 +128,117 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     private static byte[] HeaderOnlyStub(byte[] fullVolumeBytes, int length = 20)
         => fullVolumeBytes[..Math.Min(length, fullVolumeBytes.Length)];
 
+    // ---- Pack-order diagnostic on quick-gate mismatch ----
+    //
+    // A field incident: a user's .rarrc injected -ds (a rar default switch), so the LOCAL rar
+    // packed a release's files in a different order than the actual release — RARStream's by-name
+    // lookup still finds each entry's bytes correctly, so this never surfaces as a parse error, only
+    // as a silent hash mismatch. The tests below build a minimal two-file SRR/original ("a.bin" then
+    // "b.bin") and a hand-built, standalone produced carrier holding the same two entries — reordered
+    // for the positive case, matching order for the negative one. options.Hashes is left empty
+    // (fixture: null), which guarantees a quick-gate mismatch regardless of assembled content.
+
+    private const int PackOrderPayloadSize = 8;
+
+    /// <summary>Minimal single-volume SRR ("t.rar") whose embedded original headers list "a.bin"
+    /// then "b.bin" — the SRR/"expected" order the pack-order diagnostic compares the produced
+    /// carrier's own first-entry name against.</summary>
+    private string BuildTwoFileOrderSrr(string srrFileName) =>
+        new SRRTestDataBuilder().AddSRRHeader("t")
+            .AddRARFileWithHeaders("t.rar", hb => hb
+                .AddMarker()
+                .AddArchiveHeader()
+                .AddFileHeader("a.bin", packedSize: PackOrderPayloadSize, unpackedSize: PackOrderPayloadSize,
+                    method: 0x30, extraFlags: RARFileFlags.None)
+                .AddFileHeader("b.bin", packedSize: PackOrderPayloadSize, unpackedSize: PackOrderPayloadSize,
+                    method: 0x30, extraFlags: RARFileFlags.None)
+                .AddEndArchive())
+            .BuildToFile(TempDir, srrFileName);
+
+    /// <summary>
+    /// Writes a real, standalone single-volume RAR4 carrier at <paramref name="path"/> holding
+    /// "a.bin" then "b.bin" (or reversed, when <paramref name="reversed"/> is true), each with
+    /// <see cref="PackOrderPayloadSize"/> distinct store-mode bytes. Store mode plus RARStream's
+    /// by-name lookup means physical order never changes which bytes get spliced in for a given
+    /// name — only which entry is FIRST in the file, which is exactly what the diagnostic inspects.
+    /// </summary>
+    private static void WriteTwoFileCarrier(string path, bool reversed)
+    {
+        byte[] aPayload = [.. Enumerable.Repeat((byte)0xAA, PackOrderPayloadSize)];
+        byte[] bPayload = [.. Enumerable.Repeat((byte)0xBB, PackOrderPayloadSize)];
+        (string Name, byte[] Data)[] entries = reversed
+            ? [("b.bin", bPayload), ("a.bin", aPayload)]
+            : [("a.bin", aPayload), ("b.bin", bPayload)];
+
+        using FileStream fs = new(path, FileMode.Create, FileAccess.Write);
+        using BinaryWriter bw = new(fs);
+        var hb = new RAR4HeaderBuilder(bw);
+        hb.AddMarker();
+        hb.AddArchiveHeader();
+        foreach ((string name, byte[] data) in entries)
+        {
+            hb.AddFileHeader(name, packedSize: (uint)data.Length, unpackedSize: (uint)data.Length,
+                method: 0x30, extraFlags: RARFileFlags.None);
+            bw.Write(data);
+        }
+
+        hb.AddEndArchive();
+    }
+
+    [Fact]
+    public async Task NonMatch_ProducedPacksDifferentOrder_LogsPackOrderWarningOnce()
+    {
+        // Both candidates' produced carrier packs "b.bin" before "a.bin" — the reverse of the
+        // SRR/original order — while options.Hashes stays empty (fixture: null), guaranteeing a
+        // quick-gate mismatch on both. The pack-order diagnostic must fire on both attempts but log
+        // only once (the once-per-run guard), at Warning level.
+        string srr = BuildTwoFileOrderSrr("order-mismatch.srr");
+
+        using AssemblyTestHost host = NewHost();
+        host.AddSecondVersion();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"]);
+
+        host.Runner.OnLaunch = l =>
+        {
+            WriteTwoFileCarrier(l.OutputFilePath, reversed: true);
+            l.Exit.TrySetResult(1); // single-volume carrier: no second volume ever appears
+        };
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Equal(2, host.Runner.Launches.Count);
+        Assert.Equal(1, host.Log.Count("packs files in a different order"));
+        Assert.Single(host.Log.WarningMessages, m =>
+            m.Contains("packs files in a different order", StringComparison.Ordinal)
+            && m.Contains("'b.bin' before 'a.bin'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task NonMatch_ProducedSameFirstFileOrder_NoPackOrderWarning()
+    {
+        // Negative case: the produced carrier's first entry ("a.bin") matches the SRR/original's
+        // first entry. Still a guaranteed quick-gate mismatch (empty options.Hashes), but nothing
+        // about the order is suspicious, so the diagnostic must stay silent.
+        string srr = BuildTwoFileOrderSrr("same-order-mismatch.srr");
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"]);
+
+        host.Runner.OnLaunch = l =>
+        {
+            WriteTwoFileCarrier(l.OutputFilePath, reversed: false);
+            l.Exit.TrySetResult(1); // single-volume carrier: no second volume ever appears
+        };
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Single(host.Runner.Launches);
+        Assert.DoesNotContain(host.Log.Entries,
+            e => e.Message.Contains("packs files in a different order", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task PreflightDecline_RunsLegacyFromCandidateOne_NoProducerCancelled()
     {

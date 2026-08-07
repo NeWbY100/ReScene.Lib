@@ -109,6 +109,13 @@ public partial class Manager : IDisposable
     // point below — deliberately deferred from the change that introduced only _useAssembly itself.
     private bool _inconclusiveGuidanceLogged;
 
+    // Guards the one-time-per-run pack-order divergence warning: set the first time a quick-gate
+    // mismatch's produced first volume packs its first file under a different name than the
+    // assembled (SRR-order) first volume — the signature of a local rar environment (.rarrc, the
+    // RAR variable) injecting an order-changing default switch such as -ds. Reset alongside
+    // _useAssembly/_inconclusiveGuidanceLogged at the same per-set engagement point below.
+    private bool _packOrderGuidanceLogged;
+
     private readonly IReSceneLogger _logger;
 
     // Owns the per-process streaming log writers (open/write/close), keeping that
@@ -364,6 +371,7 @@ public partial class Manager : IDisposable
         // must not silently degrade to legacy reconstruction.
         _useAssembly = false;
         _inconclusiveGuidanceLogged = false;
+        _packOrderGuidanceLogged = false;
         if (!string.IsNullOrEmpty(options.RAROptions.SRRFilePath)
             && options.RAROptions.CustomPackerDetected == SRR.CustomPackerType.None)
         {
@@ -1058,6 +1066,29 @@ public partial class Manager : IDisposable
                                 // SourceExhausted (CAV, producer done) or a hash mismatch: real no-match.
                                 break;
                         }
+
+                        // Diagnose a produced archive that packs its files in a different order than
+                        // the release: splicing the release's original headers onto data read
+                        // positionally from a differently-ordered solid stream produces wrong bytes
+                        // with no other symptom — comparing the first entry's name is enough to catch
+                        // it and name the likely cause. Runs regardless of quick.Status above (Error/
+                        // SourceExhausted/hash-mismatch can all be caused by this), gated only on
+                        // having something to compare. Reads BOTH files before ApplyMismatchRetention
+                        // below, which may delete actualRARFilePath.
+                        if (!_packOrderGuidanceLogged && quick.WrittenPaths.Count >= 1)
+                        {
+                            string? expectedFirstName = RARFirstEntryReader.TryGetFirstFileName(quick.WrittenPaths[0]);
+                            string? producedFirstName = RARFirstEntryReader.TryGetFirstFileName(actualRARFilePath);
+                            if (expectedFirstName != null && producedFirstName != null
+                                && !string.Equals(expectedFirstName, producedFirstName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                _packOrderGuidanceLogged = true;
+                                _logger.Warning(this,
+                                    $"Produced archive packs files in a different order than the release ('{producedFirstName}' before '{expectedFirstName}') — a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.",
+                                    LogTarget.Phase2);
+                            }
+                        }
+
                         await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
                         if (!skipRetentionCleanup) // false for mismatch/SourceExhausted/duplicate; true for Error
                         {
