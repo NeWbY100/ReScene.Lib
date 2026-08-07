@@ -67,7 +67,8 @@ public class BruteForceProgressEventArgs(string releaseDirectoryPath, string rar
     /// The arguments the rar process is actually invoked with, space-joined with whole-token quoting
     /// for tokens containing spaces (so a shell re-splitting the string reconstructs the engine's argv
     /// — relevant for -z&lt;commentfile&gt; under a path with spaces) — the display form plus any
-    /// engine-added switches (-ma4 for RAR 5.50–6.x, -vn old volume naming, -z&lt;commentfile&gt;).
+    /// engine-added switches (-cfg- ignore user rar config, -ma4 for RAR 5.50–6.x, -vn old volume
+    /// naming, -z&lt;commentfile&gt;).
     /// Empty when unknown. Consumers rendering a runnable command line must prefer this over
     /// <see cref="RARCommandLineArguments"/> (the display form), or the pasted command can silently
     /// produce a different archive (e.g. RAR5 format where the run forced RAR4).
