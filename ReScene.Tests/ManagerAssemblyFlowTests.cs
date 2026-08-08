@@ -212,7 +212,40 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal(1, host.Log.Count("packs files in a different order"));
         const string expectedWarning =
             "Produced archive packs files in a different order than the release ('b.bin' before 'a.bin') — an /etc/rarfiles.lst order list or a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.";
-        Assert.Single(host.Log.WarningMessages, m => m == expectedWarning);
+        RecordingLogger.LogEntry warningEntry = Assert.Single(host.Log.Entries, e => e.Message == expectedWarning);
+        Assert.Equal("Warning", warningEntry.Level);
+        // Pins the log PANEL, not just the severity -- the diagnostic runs inside the per-candidate
+        // quick-gate loop and must land in the Phase 2 view alongside the rest of that candidate's
+        // output, not the System panel.
+        Assert.Equal(LogTarget.Phase2, warningEntry.Target);
+    }
+
+    [Fact]
+    public async Task NonMatch_ProducedPacksDifferentOrder_GuardResetsEachRun_WarnsOncePerRun()
+    {
+        // _packOrderGuidanceLogged is reset at the top of BruteForceRARVersionAsync (alongside
+        // _useAssembly/_inconclusiveGuidanceLogged/_nonAsciiOrderFallbackLogged) -- prove it
+        // actually RESETS rather than latching for the Manager's whole lifetime: running the same
+        // order-divergent set twice on the SAME Manager/host must warn once per run, twice total.
+        string srr = BuildTwoFileOrderSrr("order-mismatch-tworuns.srr");
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"]);
+
+        host.Runner.OnLaunch = l =>
+        {
+            WriteTwoFileCarrier(l.OutputFilePath, reversed: true);
+            l.Exit.TrySetResult(1); // single-volume carrier: no second volume ever appears
+        };
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the first run to finish");
+        Assert.Equal(1, host.Log.Count("packs files in a different order"));
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the second run to finish");
+        Assert.Equal(2, host.Log.Count("packs files in a different order"));
+
+        Assert.Equal(2, host.Runner.Launches.Count);
     }
 
     [Fact]
@@ -895,6 +928,10 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         Assert.Single(host.Runner.Launches);
         FakeRunner.Launch launch = host.Runner.Launches[0];
+        // Boundary assertion (not just the composed ExecutedArguments event string below): proves
+        // the engine-added -cfg- actually reaches the invocation FakeRunner records, the same way
+        // -ds is already pinned on the next line.
+        Assert.Contains("-cfg-", launch.Arguments);
         Assert.Contains("-ds", launch.Arguments);
         Assert.Equal([$".{sep}b.bin", $".{sep}a.cue"], launch.InputPaths);
 

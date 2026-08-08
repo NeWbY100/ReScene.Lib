@@ -43,6 +43,28 @@ internal static class RarFixtures
         => WriteVolume(path, archivedFileName, payloadBytes, index: 0, volumeCount: 1);
 
     /// <summary>
+    /// Writes a single self-contained store-mode RAR4 volume at <paramref name="path"/> whose
+    /// FIRST packed-file block is a directory entry (<c>LHD_DIRECTORY</c>, zero-length, no
+    /// payload), followed by one real file-header block for <paramref name="fileFileName"/> — for
+    /// tests proving a walker skips a leading directory entry rather than treating it as the
+    /// archive's first FILE.
+    /// </summary>
+    public static void WriteDirectoryThenFileRarVolume(
+        string path, string directoryName, string fileFileName, int payloadBytes)
+    {
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var writer = new BinaryWriter(fs);
+
+        writer.Write(RAR4Marker);
+        WriteArchiveHeader(writer, RARArchiveFlags.None);
+        WriteFileHeader(writer, directoryName, packedSize: 0, RARFileFlags.Directory);
+        byte[] payload = new byte[payloadBytes];
+        WriteFileHeader(writer, fileFileName, (uint)payload.Length, RARFileFlags.LongBlock);
+        writer.Write(payload);
+        WriteEndArchive(writer);
+    }
+
+    /// <summary>
     /// Writes a new-style-named (<c>{baseName}.partN.rar</c>, <paramref name="digitWidth"/>-digit
     /// zero-padded) store-mode RAR4 volume set — for first-volume-rule tests that need
     /// part1/part01/part001 naming.

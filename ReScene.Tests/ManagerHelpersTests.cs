@@ -478,6 +478,45 @@ public class ManagerHelpersTests
         Assert.Equal(["-cfg-", "a", "-r", "-m3", "-md64k", "-zcomment.txt", "-tsc-", "-tsa-"], args);
     }
 
+    // The three tests above cover BuildPhase1Arguments directly -- proof of the HELPER's output,
+    // not that BruteForceCommentPhaseAsync's real call site actually threads the result through.
+    // Phase 1 has no IRARProcessRunner seam like Phase 2 (it constructs RARProcess directly), so
+    // there is no FakeRunner to inspect here. RARProcess.RunAsync logs its fully composed
+    // CommandLineOptions via Debug BEFORE it attempts to launch the exe, so that line -- reached
+    // even though the stub exe below can never actually run -- is the cheapest honest boundary
+    // available without spawning a real rar.exe.
+    [Fact]
+    public async Task BruteForceCommentPhaseAsync_ProductionCallSite_ThreadsCfgIntoRarProcess()
+    {
+        using var tmp = new TempDir();
+        string versionDir = tmp.VersionDir("rar200");
+        string workDir = System.IO.Path.Combine(tmp.Path, "work");
+        Directory.CreateDirectory(workDir);
+
+        var options = new BruteForceOptions(tmp.Path, tmp.Path, workDir)
+        {
+            RAROptions = new RAROptions
+            {
+                CmtCompressedData = new byte[] { 1, 2, 3 },
+            },
+        };
+
+        var logger = new RecordingLogger();
+        var forcer = new CommentPhaseBruteForcer(logger, this, _ => { }, CancellationToken.None);
+
+        Task<List<(string Path, int Version)>> runTask =
+            forcer.BruteForceCommentPhaseAsync(options, [(versionDir, 200)]);
+        Task winner = await Task.WhenAny(runTask, Task.Delay(TimeSpan.FromSeconds(10)));
+        if (winner != runTask)
+        {
+            throw new TimeoutException("Timed out waiting for the Phase 1 pass to finish.");
+        }
+
+        await runTask;
+
+        Assert.Contains(logger.DebugMessages, m => m.StartsWith("Arguments: -cfg-", StringComparison.Ordinal));
+    }
+
     #endregion
 
     /// <summary>A self-cleaning unique temporary directory for filesystem tests.</summary>
