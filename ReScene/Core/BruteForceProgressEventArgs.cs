@@ -74,4 +74,13 @@ public class BruteForceProgressEventArgs(string releaseDirectoryPath, string rar
     /// produce a different archive (e.g. RAR5 format where the run forced RAR4).
     /// </summary>
     public string ExecutedArguments { get; init; } = "";
+
+    /// <summary>
+    /// This candidate's rar INPUT operand, rendered the same way as <see cref="ExecutedArguments"/>
+    /// (whole-token quoting via the same join used to build it) — the explicit, SRR-ordered file
+    /// list passed after the output path when SRR-guided assembly supplied an archived-file order.
+    /// Empty when this candidate used rar's own input mask (no order available, or assembly not
+    /// engaged for this set).
+    /// </summary>
+    public string InputFileArguments { get; init; } = "";
 }

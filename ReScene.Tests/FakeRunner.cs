@@ -12,9 +12,17 @@ namespace ReScene.Tests;
 internal sealed class FakeRunner : IRARProcessRunner
 {
     /// <summary>One recorded call to <see cref="RunAsync"/>.</summary>
-    public sealed class Launch(string outputFilePath)
+    public sealed class Launch(string outputFilePath, IReadOnlyList<string> arguments, IReadOnlyList<string>? inputPaths)
     {
         public string OutputFilePath { get; } = outputFilePath;
+
+        /// <summary>The switches this launch was called with (pre-RARProcess mask/tail composition) —
+        /// e.g. proves/disproves <c>-ds</c> for the ordered-input engine tests.</summary>
+        public IReadOnlyList<string> Arguments { get; } = arguments;
+
+        /// <summary>The <c>inputPaths</c> this launch was called with — <see langword="null"/> for a
+        /// mask run, or the SRR-ordered explicit file list Manager composed for this candidate.</summary>
+        public IReadOnlyList<string>? InputPaths { get; } = inputPaths;
 
         // Exit is completed ONLY by the test — cancellation must NOT complete it, or every
         // Cancel() path would hand Manager an already-finished task and the latch could not
@@ -36,9 +44,10 @@ internal sealed class FakeRunner : IRARProcessRunner
 
     public Task<int> RunAsync(string rarExePath, string inputDirectory, string outputFilePath,
         IEnumerable<string> arguments, LogTarget logTarget,
-        Action<RARProcess>? onCreated, CancellationToken cancellationToken)
+        Action<RARProcess>? onCreated, CancellationToken cancellationToken,
+        IReadOnlyList<string>? inputPaths = null)
     {
-        var launch = new Launch(outputFilePath);
+        var launch = new Launch(outputFilePath, [.. arguments], inputPaths);
         cancellationToken.Register(() => launch.CancellationRequested.TrySetResult());
         Launches.Add(launch);
         OnLaunch?.Invoke(launch);

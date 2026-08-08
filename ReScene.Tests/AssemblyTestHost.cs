@@ -67,7 +67,8 @@ internal sealed class AssemblyTestHost : IDisposable
     /// </summary>
     public BruteForceOptions Options(AssemblyFixture? fixture, bool completeAllVolumes,
         bool deleteRarFiles = true, bool deleteDuplicates = false, bool renameToOriginal = true,
-        string? srrFilePathOverride = null, IReadOnlyList<string>? originalRarFileNamesOverride = null)
+        string? srrFilePathOverride = null, IReadOnlyList<string>? originalRarFileNamesOverride = null,
+        IReadOnlyList<string>? orderedArchiveFiles = null)
     {
         var options = new BruteForceOptions(VersionsDir, ReleaseDir, WorkDir)
         {
@@ -86,6 +87,7 @@ internal sealed class AssemblyTestHost : IDisposable
                 // both must be non-empty:
                 RARVersions = [new VersionRange(100, 299)],
                 CommandLineArguments = [Array.Empty<RARCommandLineArgument>()],
+                OrderedArchiveFiles = orderedArchiveFiles ?? [],
             },
         };
 

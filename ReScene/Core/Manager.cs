@@ -1,3 +1,4 @@
+using System.Text;
 using ReScene.Core.Cryptography;
 using ReScene.Core.Diagnostics;
 using ReScene.Core.IO;
@@ -527,13 +528,22 @@ public partial class Manager : IDisposable
     /// process task to real completion before returning — never returns while it is still running
     /// (see <see cref="ObserveProducerQuietlyAsync"/>).
     /// </summary>
+    /// <param name="rarExeFilePath">Path to the rar executable.</param>
+    /// <param name="inputDirectory">rar's working directory for this run.</param>
+    /// <param name="outputFilePath">The output archive path.</param>
+    /// <param name="commandLineOptions">The switches to pass, in order.</param>
+    /// <param name="cancellationToken">Cancels the running process.</param>
+    /// <param name="inputPaths">
+    /// Forwarded verbatim to the runner's own <c>inputPaths</c> parameter: the SRR-ordered explicit
+    /// file list in place of the platform input mask, or <see langword="null"/> to keep the mask.
+    /// </param>
     /// <returns>
     /// The process's real exit code on natural completion. On early termination, the OBSERVED
     /// cancellation exit (normally 1, since <see cref="RARProcess.RunAsync"/> swallows the
     /// cancellation and returns 1) — never a synthetic 0; early termination implies a volume
     /// already exists on disk regardless of the numeric code.
     /// </returns>
-    private async Task<int> RARCompressDirectoryAsync(string rarExeFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, CancellationToken cancellationToken)
+    private async Task<int> RARCompressDirectoryAsync(string rarExeFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, CancellationToken cancellationToken, IReadOnlyList<string>? inputPaths = null)
     {
         // Create a linked cancellation token for early termination
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -553,7 +563,7 @@ public partial class Manager : IDisposable
 
                 SubscribeToProcessEvents(process);
             },
-            linkedCts.Token);
+            linkedCts.Token, inputPaths);
 
         // Wait for either process completion or early termination
         await Task.WhenAny(processTask, monitorTask).ConfigureAwait(false);
@@ -826,10 +836,17 @@ public partial class Manager : IDisposable
             // Output RAR file to the rarOutputDir subdirectory
             string rarFilePath = Path.Combine(rarOutputDir, $"{archiveAttribute}{notContentIndexedAttribute}{rarVersionDirectoryName}-{joinedArguments}.rar");
 
-            // Build the ACTUAL argument list (display args + engine-added -cfg-/-ma4/-vn/-z) up front — pure
-            // composition — so every progress event can carry the executed form for the row's runnable
+            // Decide this candidate's rar input operand (mask, or the SRR-ordered explicit file
+            // list) BEFORE building the switches — BuildFinalArguments needs to know whether to add
+            // -ds, and the length guard inside ComposeInputFileArguments needs the pre-cfg-/ds
+            // switches to size the real command line.
+            (IReadOnlyList<string>? inputTail, string inputFileArguments, bool useDs) =
+                ComposeInputFileArguments(options, rarExeFilePath, displayArguments, rarFilePath);
+
+            // Build the ACTUAL argument list (display args + engine-added -cfg-/-ma4/-vn/-z/-ds) up front —
+            // pure composition — so every progress event can carry the executed form for the row's runnable
             // copied command; the display form alone would omit switches that change the output bytes.
-            List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version);
+            List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version, useDs);
             string executedArguments = JoinExecutedArguments(finalArguments);
 
             if (File.Exists(rarFilePath))
@@ -844,7 +861,8 @@ public partial class Manager : IDisposable
                     PhaseDescription = "Phase 2: Full RAR Creation",
                     InputDirectoryPath = inputFilesDir,
                     OutputFilePath = rarFilePath,
-                    ExecutedArguments = executedArguments
+                    ExecutedArguments = executedArguments,
+                    InputFileArguments = inputFileArguments
                 });
                 continue;
             }
@@ -854,7 +872,8 @@ public partial class Manager : IDisposable
                 PhaseDescription = "Phase 2: Full RAR Creation",
                 InputDirectoryPath = inputFilesDir,
                 OutputFilePath = rarFilePath,
-                ExecutedArguments = executedArguments
+                ExecutedArguments = executedArguments,
+                InputFileArguments = inputFileArguments
             });
 
             // ---- Execute RAR ----
@@ -893,7 +912,7 @@ public partial class Manager : IDisposable
                             _processLogManager.OpenLog(process, options.OutputDirectoryPath, rarFilePath);
                             SubscribeToProcessEvents(process);
                         },
-                        processCts.Token);
+                        processCts.Token, inputTail);
 
                     // Wait for first volume to complete (second volume appearing means first is done)
                     using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
@@ -923,7 +942,7 @@ public partial class Manager : IDisposable
                     // always awaits the producer to real completion, no grace-timeout abandonment) when
                     // early-terminated — either way early termination requires a volume to already exist,
                     // so those values never reach the not-created branch.
-                    completedExitCode = await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token).ConfigureAwait(false);
+                    completedExitCode = await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token, inputTail).ConfigureAwait(false);
                 }
 
                 currentProgress++;
@@ -933,7 +952,8 @@ public partial class Manager : IDisposable
                     PhaseDescription = "Phase 2: Full RAR Creation",
                     InputDirectoryPath = inputFilesDir,
                     OutputFilePath = rarFilePath,
-                    ExecutedArguments = executedArguments
+                    ExecutedArguments = executedArguments,
+                    InputFileArguments = inputFileArguments
                 });
 
                 // Check if RAR file or volume files were created
@@ -971,7 +991,8 @@ public partial class Manager : IDisposable
                             CombinationFailed = true,
                             InputDirectoryPath = inputFilesDir,
                             OutputFilePath = rarFilePath,
-                            ExecutedArguments = executedArguments
+                            ExecutedArguments = executedArguments,
+                            InputFileArguments = inputFileArguments
                         });
                     }
                     else
@@ -1050,7 +1071,7 @@ public partial class Manager : IDisposable
                                 // diagnosis.
                                 FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
                                     totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
-                                    rarFilePath, executedArguments, quick.Diagnostic);
+                                    rarFilePath, executedArguments, inputFileArguments, quick.Diagnostic);
                                 skipRetentionCleanup = true;
                                 break;
                             case SRRReconstructionStatus.SourceExhausted when !options.RAROptions.CompleteAllVolumes:
@@ -1189,7 +1210,7 @@ public partial class Manager : IDisposable
                                 // Persistent parse/I-O failure: retains BOTH classes for diagnosis.
                                 FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
                                     totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
-                                    rarFilePath, executedArguments, assembled.Diagnostic);
+                                    rarFilePath, executedArguments, inputFileArguments, assembled.Diagnostic);
                             }
                             else
                             {
@@ -1242,7 +1263,7 @@ public partial class Manager : IDisposable
                         // Transactional finalization failed: retain both classes for diagnosis.
                         FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
                             totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
-                            rarFilePath, executedArguments, "finalization incomplete — destination occupied or move failed");
+                            rarFilePath, executedArguments, inputFileArguments, "finalization incomplete — destination occupied or move failed");
                         continue;
                     }
 
@@ -1387,7 +1408,8 @@ public partial class Manager : IDisposable
                     CombinationFailed = true,
                     InputDirectoryPath = inputFilesDir,
                     OutputFilePath = rarFilePath,
-                    ExecutedArguments = executedArguments
+                    ExecutedArguments = executedArguments,
+                    InputFileArguments = inputFileArguments
                 });
                 continue;
             }
@@ -1428,7 +1450,7 @@ public partial class Manager : IDisposable
     private void FireAssemblyErrorRow(BruteForceOptions options, string rarVersionDirectoryPath,
         string displayArguments, int totalProgressSize, int currentProgress,
         DateTime bruteForceStartDateTime, string inputFilesDir, string rarFilePath,
-        string executedArguments, string? diagnostic)
+        string executedArguments, string inputFileArguments, string? diagnostic)
     {
         _logger.Warning(this, $"{Path.GetFileName(rarVersionDirectoryPath)} / {displayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
         FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath,
@@ -1439,6 +1461,7 @@ public partial class Manager : IDisposable
             InputDirectoryPath = inputFilesDir,
             OutputFilePath = rarFilePath,
             ExecutedArguments = executedArguments,
+            InputFileArguments = inputFileArguments,
         });
     }
 
@@ -1469,12 +1492,102 @@ public partial class Manager : IDisposable
         DeleteRARFileAndVolumes(actualRARFilePath);   // the existing carrier helper
     }
 
+    // Conservative margin below Windows' real command-line limit (~32,767 chars for CreateProcess),
+    // leaving headroom for the exe path, switches, and output path this guard also counts.
+    private const int InputFileArgumentsLengthGuard = 25_000;
+
+    /// <summary>
+    /// Decides this candidate's rar INPUT operand — the platform mask (today's behavior) or an
+    /// explicit, SRR-ordered file list — and whether <see cref="BuildFinalArguments"/> should add
+    /// <c>-ds</c> to match. Explicit order only engages when SRR-guided assembly is active for this
+    /// set AND the SRR supplied an archived-file order (<see cref="RAROptions.OrderedArchiveFiles"/>);
+    /// every other run — legacy reconstruction, Phase 1 comment filtering, or a flat/no-SRR run —
+    /// gets a <see langword="null"/> tail, so <see cref="RARProcess"/> keeps producing today's mask
+    /// untouched and solid-set byte order for those runs never depends on this method at all.
+    /// </summary>
+    /// <param name="options">
+    /// The run's options; <see cref="BruteForceOptions.OutputDirectoryPath"/> is this candidate's
+    /// work root, where the command-line-length guard's fallback list file (if needed) is written.
+    /// </param>
+    /// <param name="rarExeFilePath">
+    /// This candidate's rar executable path — the first token on the real process command line,
+    /// counted toward the length guard below.
+    /// </param>
+    /// <param name="joinedSwitches">
+    /// This candidate's switches before <c>-ds</c> (display-form filtered arguments), space-joined —
+    /// counted toward the guard alongside the exe and output paths. The eventual <c>-cfg-</c>/
+    /// <c>-ma4</c>/<c>-vn</c>/<c>-z</c>/<c>-ds</c> additions are a handful of bytes against a
+    /// 25,000-char budget, so measuring pre-<see cref="BuildFinalArguments"/> is close enough.
+    /// </param>
+    /// <param name="outputFilePath">This candidate's output rar path — counted toward the guard.</param>
+    /// <returns>
+    /// <c>Tail</c>: <see langword="null"/> for a mask run, or the operands to pass verbatim as
+    /// <see cref="RARProcess"/>'s <c>inputPaths</c> (after the output path).
+    /// <c>Display</c>: the same tail rendered for <see cref="BruteForceProgressEventArgs.InputFileArguments"/>
+    /// (empty for a mask run).
+    /// <c>UseDs</c>: whether <see cref="BuildFinalArguments"/> should add <c>-ds</c>.
+    /// </returns>
+    private (IReadOnlyList<string>? Tail, string Display, bool UseDs) ComposeInputFileArguments(
+        BruteForceOptions options, string rarExeFilePath, string joinedSwitches, string outputFilePath)
+    {
+        if (!_useAssembly || options.RAROptions.OrderedArchiveFiles.Count == 0)
+        {
+            return (null, "", false);
+        }
+
+        List<string> tailEntries = [.. options.RAROptions.OrderedArchiveFiles.Select(ToTailEntry)];
+        string display = JoinExecutedArguments(tailEntries);
+
+        int candidateLength = rarExeFilePath.Length + joinedSwitches.Length + outputFilePath.Length + display.Length;
+        if (candidateLength <= InputFileArgumentsLengthGuard)
+        {
+            return (tailEntries, display, true);
+        }
+
+        // Over budget: fall back to rar's own @listfile operand (one file spec per line) instead of
+        // every name on the command line. rar reads the list in an unspecified local codepage, so a
+        // non-ASCII name here cannot be trusted to round-trip — rather than risk silently splicing
+        // bytes for the WRONG file, give up on ordering entirely for this run and fall through to
+        // rar's own (mask) ordering.
+        if (!options.RAROptions.OrderedArchiveFiles.All(name => name.All(char.IsAscii)))
+        {
+            _logger.Warning(this,
+                "File names exceed the command-line limit and are not ASCII — using rar's own ordering for this run",
+                LogTarget.Phase2);
+            return (null, "", false);
+        }
+
+        string listPath = Path.Combine(options.OutputDirectoryPath, "rar-file-order.lst");
+        File.WriteAllText(listPath, string.Join('\n', options.RAROptions.OrderedArchiveFiles), Encoding.ASCII);
+
+        List<string> fallbackTail = [$"@{listPath}"];
+        return (fallbackTail, JoinExecutedArguments(fallbackTail), true);
+    }
+
+    /// <summary>
+    /// Normalizes one <see cref="RAROptions.OrderedArchiveFiles"/> entry into a rar input operand
+    /// relative to the current directory — the same "./name" convention as today's platform mask
+    /// (".\*" / "./*"), so a mixed-separator name from the SRR resolves correctly regardless of the
+    /// platform running rar.
+    /// </summary>
+    private static string ToTailEntry(string name) =>
+        "." + Path.DirectorySeparatorChar + name.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+
     /// <summary>
     /// Builds the final RAR argument list from the filtered arguments, auto-adding
     /// <c>-cfg-</c> (ignore user rar config), <c>-ma4</c> (RAR 5.50-6.x), <c>-vn</c> (old volume
-    /// naming), and the comment option (<c>-z</c>) where applicable.
+    /// naming), the comment option (<c>-z</c>), and <c>-ds</c> where applicable.
     /// </summary>
-    private List<string> BuildFinalArguments(List<string> filteredArguments, BruteForceOptions options, int version)
+    /// <param name="filteredArguments">This candidate's version-filtered switches.</param>
+    /// <param name="options">The run's options.</param>
+    /// <param name="version">The rar version under test.</param>
+    /// <param name="useDs">
+    /// Whether to add <c>-ds</c> (store files in the order given rather than rar's own
+    /// rarfiles.lst/name-sort default) — set exactly when this candidate's rar invocation carries
+    /// an explicit, SRR-ordered input file list instead of the platform mask (see
+    /// <see cref="ComposeInputFileArguments"/>), never on a version gate.
+    /// </param>
+    private List<string> BuildFinalArguments(List<string> filteredArguments, BruteForceOptions options, int version, bool useDs)
     {
         List<string> finalArguments = [.. filteredArguments];
 
@@ -1495,6 +1608,11 @@ public partial class Manager : IDisposable
         {
             // Add comment option: -z<commentfile>
             finalArguments.Add($"-z{_commentFilePath}");
+        }
+
+        if (useDs)
+        {
+            finalArguments.Add("-ds");
         }
 
         // Force -cfg- (ignore rar.ini/rarrc) on every invocation, unconditionally and with no version

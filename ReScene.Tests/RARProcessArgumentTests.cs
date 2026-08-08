@@ -38,4 +38,39 @@ public sealed class RARProcessArgumentTests : IDisposable
         // The mask must use THIS platform's separator — a Windows-style ".\*" on Unix matches nothing.
         Assert.Equal(OperatingSystem.IsWindows() ? @".\*" : "./*", platformMask);
     }
+
+    [Fact]
+    public void Constructor_NullInputPaths_StillAppendsPlatformInputMask()
+    {
+        // Same assertion as the mask test above, but exercises the inputPaths parameter's default
+        // explicitly — the contract every existing caller (CommentPhaseBruteForcer, and this class's
+        // own default-less callers) relies on to keep compiling and behaving unchanged.
+        var process = new RARProcess(
+            _stubRar,
+            inputDirectory: Path.GetTempPath(),
+            outputFilePath: @"out/test.rar",
+            commandLineOptions: ["a", "-r", "-s-", "-m0"],
+            inputPaths: null);
+
+        string platformMask = $".{Path.DirectorySeparatorChar}*";
+        Assert.Equal(["a", "-r", "-s-", "-m0", @"out/test.rar", platformMask], process.CommandLineOptions);
+    }
+
+    [Fact]
+    public void Constructor_GivenInputPaths_AppendsThemVerbatimAfterOutput_NoMask()
+    {
+        // The SRR-ordered explicit file list (already normalized to "./name" form by the caller)
+        // replaces the mask entirely — no trailing ".\*"/"./*" alongside it.
+        string sep = Path.DirectorySeparatorChar.ToString();
+        string[] orderedFiles = [$".{sep}b.bin", $".{sep}a.cue"];
+
+        var process = new RARProcess(
+            _stubRar,
+            inputDirectory: Path.GetTempPath(),
+            outputFilePath: @"out/test.rar",
+            commandLineOptions: ["-cfg-", "-ds"],
+            inputPaths: orderedFiles);
+
+        Assert.Equal(["-cfg-", "-ds", @"out/test.rar", $".{sep}b.bin", $".{sep}a.cue"], process.CommandLineOptions);
+    }
 }

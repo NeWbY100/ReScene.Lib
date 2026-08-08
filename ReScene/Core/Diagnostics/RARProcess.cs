@@ -138,7 +138,13 @@ internal sealed partial class RARProcess
     /// <param name="logger">
     /// Optional logger for diagnostic output.
     /// </param>
-    public RARProcess(string processFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, IReSceneLogger? logger = null)
+    /// <param name="inputPaths">
+    /// When given, appended verbatim after <paramref name="outputFilePath"/> in place of the
+    /// platform input mask — the SRR's original archived-file order, so rar packs a solid set in
+    /// that order instead of whatever its own rarfiles.lst/name-sort default would produce.
+    /// <see langword="null"/> (the default) keeps today's mask behavior unchanged.
+    /// </param>
+    public RARProcess(string processFilePath, string inputDirectory, string outputFilePath, IEnumerable<string> commandLineOptions, IReSceneLogger? logger = null, IReadOnlyList<string>? inputPaths = null)
     {
         if (!File.Exists(processFilePath))
         {
@@ -153,16 +159,25 @@ internal sealed partial class RARProcess
         List<string> options =
         [
             .. commandLineOptions,
-                // Output file
-                outputFilePath,
-
-                // Input directory/files mask, in the PLATFORM's separator: ".\*" on Windows, "./*" on
-                // Unix. A hardcoded ".\*" matched nothing on Linux (backslash is an ordinary filename
-                // character there), so rar created no archive and every combination read as a clean
-                // no-match. The output parser already strips both prefixes (NormalizeOutputFileName).
-                // RAR 2.00 does not like just '.' as the input directory, hence the explicit mask.
-                $".{Path.DirectorySeparatorChar}*"
+            // Output file
+            outputFilePath,
         ];
+
+        // Input operand(s): the caller's explicit, ordered file list when given (verbatim — already
+        // normalized by the caller), otherwise the input directory/files mask in the PLATFORM's
+        // separator: ".\*" on Windows, "./*" on Unix. A hardcoded ".\*" matched nothing on Linux
+        // (backslash is an ordinary filename character there), so rar created no archive and every
+        // combination read as a clean no-match. The output parser already strips both prefixes
+        // (NormalizeOutputFileName). RAR 2.00 does not like just '.' as the input directory, hence the
+        // explicit mask.
+        if (inputPaths is null)
+        {
+            options.Add($".{Path.DirectorySeparatorChar}*");
+        }
+        else
+        {
+            options.AddRange(inputPaths);
+        }
 
         // Save new options
         CommandLineOptions = [.. options];

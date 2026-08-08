@@ -12,6 +12,7 @@ class ReScene.Core.BruteForceProgressEventArgs
     property Boolean CombinationFailed { get; set; }
     property String ExecutedArguments { get; set; }
     property String InputDirectoryPath { get; set; }
+    property String InputFileArguments { get; set; }
     property String OutputFilePath { get; set; }
     property String PhaseDescription { get; set; }
     property String RARCommandLineArguments { get; }
@@ -282,6 +283,7 @@ class ReScene.Core.RAROptions
     property HashSet<String> ArchiveFilePaths { get; set; }
     property IReadOnlyList<RARCommandLineArgument[]> CommandLineArguments { get; set; }
     property IReadOnlyList<String> AllowedVersionFolders { get; set; }
+    property IReadOnlyList<String> OrderedArchiveFiles { get; set; }
     property IReadOnlyList<String> OriginalRARFileNames { get; set; }
     property IReadOnlyList<VersionRange> RARVersions { get; set; }
     property Nullable<Boolean> DetectedLargeFlag { get; set; }

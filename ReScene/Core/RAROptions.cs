@@ -230,6 +230,16 @@ public class RAROptions
     public IReadOnlyList<string> OriginalRARFileNames { get; init; } = [];
 
     /// <summary>
+    /// Gets the archived files' names, in the SRR's original archive order — see
+    /// <see cref="SRR.SRRArchiveSet.ArchivedFilesInOrder"/>, the usual source. When non-empty during
+    /// SRR-guided assembly, the engine passes rar this exact order (with <c>-ds</c>) instead of its
+    /// own platform input mask, so solid-set byte order matches the SRR regardless of the local
+    /// machine's rarfiles.lst or name-sort default. Empty means "no order known": the engine falls
+    /// back to the mask.
+    /// </summary>
+    public IReadOnlyList<string> OrderedArchiveFiles { get; init; } = [];
+
+    /// <summary>
     /// Gets or sets whether the LARGE flag was detected in SRR file headers.
     /// </summary>
     public bool? DetectedLargeFlag

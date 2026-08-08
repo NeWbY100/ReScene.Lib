@@ -12,9 +12,10 @@ internal sealed class RealRARProcessRunner(IReSceneLogger? logger = null) : IRAR
 
     public Task<int> RunAsync(string rarExePath, string inputDirectory, string outputFilePath,
         IEnumerable<string> arguments, LogTarget logTarget,
-        Action<RARProcess>? onCreated, CancellationToken cancellationToken)
+        Action<RARProcess>? onCreated, CancellationToken cancellationToken,
+        IReadOnlyList<string>? inputPaths = null)
     {
-        RARProcess process = new(rarExePath, inputDirectory, outputFilePath, arguments, _logger)
+        RARProcess process = new(rarExePath, inputDirectory, outputFilePath, arguments, _logger, inputPaths)
         {
             LogTarget = logTarget
         };

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using ReScene.Core;
 using ReScene.Core.Cryptography;
 using ReScene.Core.IO;
@@ -846,5 +847,140 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         string assemblyDir = Path.Combine(host.WorkDir, "output", $"assembled-{Path.GetFileNameWithoutExtension(launch!.OutputFilePath)}");
         Assert.False(Directory.Exists(assemblyDir)); // fully removed, including the CD2/ subdir
+    }
+
+    // ---- Ordered input (-ds + explicit file list) ----
+    //
+    // When SRR-guided assembly is engaged AND the SRR supplied an archived-file order
+    // (RAROptions.OrderedArchiveFiles), the engine must drive rar with that exact order — an
+    // explicit file-list tail plus -ds — instead of its own platform mask, so solid-set byte order
+    // stops depending on the local machine's rarfiles.lst/name-sort default. The composition
+    // happens once per candidate, BEFORE the candidate ever launches: the pre-execution
+    // BruteForceProgress event (fired unconditionally, win or lose) and the fake runner's own
+    // recorded launch are enough to prove it — none of these carriers need to resolve to an actual
+    // match.
+
+    /// <summary>A file-name list whose composed "./name" tail comfortably exceeds the
+    /// command-line-length guard (25,000 chars): 3000 short ASCII names is roughly 48,000 chars
+    /// once joined, well past the threshold regardless of the fake harness's own (short) exe/output
+    /// path lengths.</summary>
+    private static List<string> BuildOversizedOrderedFileList() =>
+        [.. Enumerable.Range(0, 3000).Select(i => $"file{i:D5}.bin")];
+
+    [Fact]
+    public async Task AssemblyMode_OrderedArchiveFiles_AddsDsAndExplicitTail()
+    {
+        string srr = BuildTwoFileOrderSrr("ordered-input.srr");
+        string sep = Path.DirectorySeparatorChar.ToString();
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"],
+            orderedArchiveFiles: ["b.bin", "a.cue"]);
+
+        BruteForceProgressEventArgs? firstEvent = null;
+        host.Manager.BruteForceProgress += (_, e) => firstEvent ??= e;
+        host.Runner.OnLaunch = l => l.Exit.TrySetResult(0); // no carrier written: a clean no-match
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Single(host.Runner.Launches);
+        FakeRunner.Launch launch = host.Runner.Launches[0];
+        Assert.Contains("-ds", launch.Arguments);
+        Assert.Equal([$".{sep}b.bin", $".{sep}a.cue"], launch.InputPaths);
+
+        Assert.NotNull(firstEvent);
+        Assert.Contains("-ds", firstEvent!.ExecutedArguments.Split(' '));
+        Assert.Equal(Manager.JoinExecutedArguments([$".{sep}b.bin", $".{sep}a.cue"]), firstEvent.InputFileArguments);
+    }
+
+    [Fact]
+    public async Task AssemblyMode_NoOrderedArchiveFiles_KeepsMaskAndNoDs()
+    {
+        // Same assembly-engaged set as above, but OrderedArchiveFiles is left empty (the
+        // AssemblyTestHost.Options default) — the engine must fall back to today's mask untouched.
+        string srr = BuildTwoFileOrderSrr("ordered-input-empty.srr");
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"]);
+
+        BruteForceProgressEventArgs? firstEvent = null;
+        host.Manager.BruteForceProgress += (_, e) => firstEvent ??= e;
+        host.Runner.OnLaunch = l => l.Exit.TrySetResult(0);
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Single(host.Runner.Launches);
+        FakeRunner.Launch launch = host.Runner.Launches[0];
+        Assert.DoesNotContain("-ds", launch.Arguments);
+        Assert.Null(launch.InputPaths);
+
+        Assert.NotNull(firstEvent);
+        Assert.DoesNotContain("-ds", firstEvent!.ExecutedArguments.Split(' '));
+        Assert.Equal("", firstEvent.InputFileArguments);
+    }
+
+    [Fact]
+    public async Task AssemblyMode_OrderedFilesExceedLengthGuard_FallsBackToListFileButKeepsDs()
+    {
+        string srr = BuildTwoFileOrderSrr("ordered-input-oversized.srr");
+        List<string> names = BuildOversizedOrderedFileList();
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"],
+            orderedArchiveFiles: names);
+
+        BruteForceProgressEventArgs? firstEvent = null;
+        host.Manager.BruteForceProgress += (_, e) => firstEvent ??= e;
+        host.Runner.OnLaunch = l => l.Exit.TrySetResult(0);
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Single(host.Runner.Launches);
+        FakeRunner.Launch launch = host.Runner.Launches[0];
+        Assert.Contains("-ds", launch.Arguments);
+
+        string expectedListPath = Path.Combine(host.WorkDir, "rar-file-order.lst");
+        Assert.Equal([$"@{expectedListPath}"], launch.InputPaths);
+        Assert.True(File.Exists(expectedListPath));
+        Assert.Equal(names, File.ReadAllText(expectedListPath, Encoding.ASCII).Split('\n'));
+
+        Assert.NotNull(firstEvent);
+        Assert.Equal(Manager.JoinExecutedArguments([$"@{expectedListPath}"]), firstEvent!.InputFileArguments);
+    }
+
+    [Fact]
+    public async Task AssemblyMode_OrderedFilesExceedLengthGuardAndNonAscii_FallsBackToMaskWithOneWarning()
+    {
+        string srr = BuildTwoFileOrderSrr("ordered-input-oversized-nonascii.srr");
+        List<string> names = BuildOversizedOrderedFileList();
+        names[0] = "café-" + names[0]; // one non-ASCII character is enough to void the @listfile fallback
+
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"],
+            orderedArchiveFiles: names);
+
+        BruteForceProgressEventArgs? firstEvent = null;
+        host.Manager.BruteForceProgress += (_, e) => firstEvent ??= e;
+        host.Runner.OnLaunch = l => l.Exit.TrySetResult(0);
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Single(host.Runner.Launches);
+        FakeRunner.Launch launch = host.Runner.Launches[0];
+        Assert.DoesNotContain("-ds", launch.Arguments);
+        Assert.Null(launch.InputPaths);
+        Assert.False(File.Exists(Path.Combine(host.WorkDir, "rar-file-order.lst")));
+
+        Assert.NotNull(firstEvent);
+        Assert.Equal("", firstEvent!.InputFileArguments);
+
+        const string expectedWarning =
+            "File names exceed the command-line limit and are not ASCII — using rar's own ordering for this run";
+        Assert.Single(host.Log.Entries, e => e.Target == LogTarget.Phase2 && e.Message == expectedWarning);
+        Assert.Single(host.Log.WarningMessages, m => m == expectedWarning);
     }
 }
