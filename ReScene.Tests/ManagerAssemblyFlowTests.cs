@@ -236,8 +236,11 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
 
         Assert.Single(host.Runner.Launches);
+        // Negative arm: assert ABSENCE on the wording-stable core of the warning, not on any
+        // cause enumeration that may be reworded. A broad substring makes this the strongest
+        // spurious-warning detector; the positive flow above pins the full current wording.
         Assert.DoesNotContain(host.Log.Entries,
-            e => e.Message.Contains("an /etc/rarfiles.lst order list", StringComparison.Ordinal));
+            e => e.Message.Contains("packs files in a different order", StringComparison.Ordinal));
     }
 
     [Fact]
