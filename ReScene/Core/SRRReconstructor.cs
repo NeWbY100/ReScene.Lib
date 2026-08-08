@@ -1146,7 +1146,10 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
     {
         if (hashes.Count == 0)
         {
-            _logger.Information(null, $"  {rarFileName}: written (no hash to verify)", LogTarget.System);
+            // No hashes were supplied to THIS layer — in brute-force assembly the engine verifies
+            // every volume itself against the SFV-derived CRC map right after the walk, so naming
+            // the absence here read as "unverified" to users. Plain "written" is the honest scope.
+            _logger.Information(null, $"  {rarFileName}: written", LogTarget.System);
             return Task.CompletedTask;
         }
 
