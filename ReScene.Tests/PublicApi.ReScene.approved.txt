@@ -555,6 +555,7 @@ class sealed ReScene.SRR.SRRArchiveSet
     property HashSet<String> ArchivedDirectories { get; }
     property HashSet<String> ArchivedFiles { get; }
     property IList<String> VolumeNames { get; }
+    property IReadOnlyList<String> ArchivedFilesInOrder { get; }
     property Nullable<Boolean> HasLargeFiles { get; set; }
     property Nullable<Boolean> HasRecoveryRecord { get; set; }
     property Nullable<Boolean> IsSolid { get; set; }
@@ -638,6 +639,7 @@ class ReScene.SRR.SRRFile
     property IReadOnlyList<SRRRARFileBlock> RARFiles { get; }
     property IReadOnlyList<SRRRARPaddingBlock> RARPaddingBlocks { get; }
     property IReadOnlyList<SRRStoredFileBlock> StoredFiles { get; }
+    property IReadOnlyList<String> ArchivedFilesInOrder { get; }
     property Int32 HeaderCRCMismatches { get; }
     property Nullable<Boolean> HasEncryptedHeaders { get; }
     property Nullable<Boolean> HasExtendedTime { get; }

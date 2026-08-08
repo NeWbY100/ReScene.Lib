@@ -724,7 +724,10 @@ internal static class SRRFileParser
             return;
         }
 
-        srr.ArchivedFiles.Add(normalized);
+        if (srr.ArchivedFiles.Add(normalized))
+        {
+            srr._archivedFilesInOrder.Add(normalized);
+        }
 
         bool overwriteTimes = false;
         if (fileCRC.HasValue)
@@ -756,7 +759,10 @@ internal static class SRRFileParser
         // Track which set this file belongs to; CRC/timestamps are finalized after all headers
         // are parsed via SRRFile.FinalizeArchiveSets() to ensure split-after CRC overrides
         // (applied to the flat dict above) are reflected in the per-set view.
-        set?.ArchivedFiles.Add(normalized);
+        if (set != null && set.ArchivedFiles.Add(normalized))
+        {
+            set._archivedFilesInOrder.Add(normalized);
+        }
     }
 
     internal static void SetDirectoryTimes(SRRFile srr, string path, DateTime? modifiedTime, DateTime? creationTime, DateTime? accessTime)

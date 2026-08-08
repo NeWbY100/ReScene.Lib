@@ -124,6 +124,14 @@ public class SRRFile
     public HashSet<string> ArchivedFiles { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Gets the archived file paths in the order their headers first appeared in the SRR.
+    /// A file's continuation headers (split across volumes) do not repeat its entry.
+    /// </summary>
+    public IReadOnlyList<string> ArchivedFilesInOrder => _archivedFilesInOrder;
+
+    internal List<string> _archivedFilesInOrder { get; } = [];
+
+    /// <summary>
     /// Gets the set of archived directory paths (normalized, case-insensitive).
     /// </summary>
     public HashSet<string> ArchivedDirectories { get; internal set; } = new(StringComparer.OrdinalIgnoreCase);

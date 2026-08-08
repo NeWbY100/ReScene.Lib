@@ -599,6 +599,48 @@ public class SRRFileTests : TempDirTestBase
 
     #endregion
 
+    #region Archived File Order Tests
+
+    [Fact]
+    public void Load_NonAlphabeticalFileOrder_ArchivedFilesInOrder_MatchesHeaderOrder()
+    {
+        // Headers appear as zzz.dat then aaa.dat (deliberately non-alphabetical); aaa.dat's
+        // header repeats as a SplitBefore continuation in the next volume. The continuation
+        // must not add a second "aaa.dat" entry - the HashSet add in AddArchiveEntry is the
+        // dedupe signal for the ordered list too.
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddRARFileWithHeaders("release.rar", headers =>
+            {
+                headers.AddArchiveHeader(RARArchiveFlags.Volume | RARArchiveFlags.FirstVolume)
+                       .AddFileHeader("zzz.dat", packedSize: 5000)
+                       .AddFileHeader("aaa.dat", packedSize: 5000,
+                           extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitAfter)
+                       .AddEndArchive();
+            })
+            .AddRARFileWithHeaders("release.r00", headers =>
+            {
+                headers.AddArchiveHeader(RARArchiveFlags.Volume)
+                       .AddFileHeader("aaa.dat", packedSize: 5000,
+                           extraFlags: RARFileFlags.ExtTime | RARFileFlags.SplitBefore)
+                       .AddEndArchive();
+            })
+            .BuildToFile(TempDir, "order.srr");
+
+        var srr = SRRFile.Load(path);
+
+        Assert.Equal(["zzz.dat", "aaa.dat"], srr.ArchivedFilesInOrder);
+        Assert.Equal(2, srr.ArchivedFiles.Count);
+        Assert.Contains("zzz.dat", srr.ArchivedFiles);
+        Assert.Contains("aaa.dat", srr.ArchivedFiles);
+
+        SRRArchiveSet set = Assert.Single(srr.ArchiveSets);
+        Assert.Equal(["zzz.dat", "aaa.dat"], set.ArchivedFilesInOrder);
+        Assert.Equal(2, set.ArchivedFiles.Count);
+    }
+
+    #endregion
+
     #region Edge Cases
 
     [Fact]

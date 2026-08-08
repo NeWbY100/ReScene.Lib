@@ -22,6 +22,12 @@ public sealed class SRRArchiveSet
     /// <summary>Content files this set archives (normalized relative paths).</summary>
     public HashSet<string> ArchivedFiles { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Content files this set archives, in the order their headers first appeared in the
+    /// SRR. A file's continuation headers (split across volumes) do not repeat its entry.</summary>
+    public IReadOnlyList<string> ArchivedFilesInOrder => _archivedFilesInOrder;
+
+    internal List<string> _archivedFilesInOrder { get; } = [];
+
     /// <summary>CRC32 values (as 8-digit hex strings) for each file this set archives, keyed by normalized path. Equals the flat <see cref="SRRFile.ArchivedFileCrcs"/> value for the same file.</summary>
     public Dictionary<string, string> ArchivedFileCrcs { get; } = new(StringComparer.OrdinalIgnoreCase);
 

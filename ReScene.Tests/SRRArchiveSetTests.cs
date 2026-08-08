@@ -142,4 +142,43 @@ public class SRRArchiveSetTests : TempDirTestBase
             Assert.DoesNotContain('\\', set.Directory);
         }
     }
+
+    [Fact]
+    public void Load_TwoSets_ArchivedFilesInOrder_AreIndependentPerSet()
+    {
+        // Each set's embedded headers appear in their own non-alphabetical order; the per-set
+        // ordered lists must reflect only that set's own headers, not a merge of both sets'
+        // headers nor the flat SRRFile's release-wide appearance order.
+        string path = new SRRTestDataBuilder()
+            .AddSRRHeader()
+            .AddRARFileWithHeaders("movie.cd1.rar", headers =>
+            {
+                headers.AddArchiveHeader()
+                       .AddFileHeader("zzz.dat")
+                       .AddFileHeader("aaa.dat")
+                       .AddEndArchive();
+            })
+            .AddRARFileWithHeaders("movie.cd2.rar", headers =>
+            {
+                headers.AddArchiveHeader()
+                       .AddFileHeader("mmm.dat")
+                       .AddFileHeader("bbb.dat")
+                       .AddEndArchive();
+            })
+            .BuildToFile(TempDir, "two_sets_order.srr");
+
+        var srr = SRRFile.Load(path);
+
+        Assert.Equal(2, srr.ArchiveSets.Count);
+        SRRArchiveSet cd1 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd1", StringComparison.OrdinalIgnoreCase));
+        SRRArchiveSet cd2 = srr.ArchiveSets.Single(s => s.Key.EndsWith("cd2", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(["zzz.dat", "aaa.dat"], cd1.ArchivedFilesInOrder);
+        Assert.Equal(["mmm.dat", "bbb.dat"], cd2.ArchivedFilesInOrder);
+        Assert.Equal(["zzz.dat", "aaa.dat", "mmm.dat", "bbb.dat"], srr.ArchivedFilesInOrder);
+
+        // ArchivedFiles (the pre-existing HashSet) stays unaffected by tracking order alongside it.
+        Assert.True(cd1.ArchivedFiles.SetEquals(cd1.ArchivedFilesInOrder));
+        Assert.True(cd2.ArchivedFiles.SetEquals(cd2.ArchivedFilesInOrder));
+    }
 }
