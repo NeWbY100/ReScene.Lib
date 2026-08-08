@@ -837,11 +837,11 @@ public partial class Manager : IDisposable
             string rarFilePath = Path.Combine(rarOutputDir, $"{archiveAttribute}{notContentIndexedAttribute}{rarVersionDirectoryName}-{joinedArguments}.rar");
 
             // Decide this candidate's rar input operand (mask, or the SRR-ordered explicit file
-            // list) BEFORE building the switches — BuildFinalArguments needs to know whether to add
-            // -ds, and the length guard inside ComposeInputFileArguments needs the pre-cfg-/ds
-            // switches to size the real command line.
+            // list) BEFORE building the real switches — BuildFinalArguments needs to know whether to
+            // add -ds, and the length guard inside ComposeInputFileArguments runs its OWN trial
+            // BuildFinalArguments call to size the guard against the real final command line.
             (IReadOnlyList<string>? inputTail, string inputFileArguments, bool useDs) =
-                ComposeInputFileArguments(options, rarExeFilePath, displayArguments, rarFilePath);
+                ComposeInputFileArguments(options, rarExeFilePath, filteredArguments, version, rarFilePath);
 
             // Build the ACTUAL argument list (display args + engine-added -cfg-/-ma4/-vn/-z/-ds) up front —
             // pure composition — so every progress event can carry the executed form for the row's runnable
@@ -1513,12 +1513,15 @@ public partial class Manager : IDisposable
     /// This candidate's rar executable path — the first token on the real process command line,
     /// counted toward the length guard below.
     /// </param>
-    /// <param name="joinedSwitches">
-    /// This candidate's switches before <c>-ds</c> (display-form filtered arguments), space-joined —
-    /// counted toward the guard alongside the exe and output paths. The eventual <c>-cfg-</c>/
-    /// <c>-ma4</c>/<c>-vn</c>/<c>-z</c>/<c>-ds</c> additions are a handful of bytes against a
-    /// 25,000-char budget, so measuring pre-<see cref="BuildFinalArguments"/> is close enough.
+    /// <param name="filteredArguments">
+    /// This candidate's version-filtered switches — passed through to a trial
+    /// <see cref="BuildFinalArguments"/> call (with <c>useDs: true</c>) so the length guard measures
+    /// the REAL final switches (<c>-cfg-</c>/<c>-ma4</c>/<c>-vn</c>/<c>-z</c>/<c>-ds</c> included),
+    /// not just the pre-composition display form. The caller still calls
+    /// <see cref="BuildFinalArguments"/> itself afterward with the decided <c>UseDs</c> for the
+    /// actual invocation; this trial result is measurement-only and otherwise discarded.
     /// </param>
+    /// <param name="version">The rar version under test — forwarded to the trial <see cref="BuildFinalArguments"/> call.</param>
     /// <param name="outputFilePath">This candidate's output rar path — counted toward the guard.</param>
     /// <returns>
     /// <c>Tail</c>: <see langword="null"/> for a mask run, or the operands to pass verbatim as
@@ -1528,7 +1531,7 @@ public partial class Manager : IDisposable
     /// <c>UseDs</c>: whether <see cref="BuildFinalArguments"/> should add <c>-ds</c>.
     /// </returns>
     private (IReadOnlyList<string>? Tail, string Display, bool UseDs) ComposeInputFileArguments(
-        BruteForceOptions options, string rarExeFilePath, string joinedSwitches, string outputFilePath)
+        BruteForceOptions options, string rarExeFilePath, List<string> filteredArguments, int version, string outputFilePath)
     {
         if (!_useAssembly || options.RAROptions.OrderedArchiveFiles.Count == 0)
         {
@@ -1538,7 +1541,15 @@ public partial class Manager : IDisposable
         List<string> tailEntries = [.. options.RAROptions.OrderedArchiveFiles.Select(ToTailEntry)];
         string display = JoinExecutedArguments(tailEntries);
 
-        int candidateLength = rarExeFilePath.Length + joinedSwitches.Length + outputFilePath.Length + display.Length;
+        // Measure the REAL final command line this candidate would run with the explicit tail —
+        // useDs: true, since that's what using the tail at all implies — not just the pre-composition
+        // display args: -cfg-/-ma4/-vn/-z/-ds all add up, and a file list that fits without them can
+        // still push the real invocation over the guard. This trial list is measurement-only; the
+        // caller builds its own (identical, given the same inputs) copy once UseDs is decided below.
+        List<string> trialFinalArguments = BuildFinalArguments(filteredArguments, options, version, useDs: true);
+        string joinedFinalSwitches = JoinExecutedArguments(trialFinalArguments);
+
+        int candidateLength = rarExeFilePath.Length + joinedFinalSwitches.Length + outputFilePath.Length + display.Length;
         if (candidateLength <= InputFileArgumentsLengthGuard)
         {
             return (tailEntries, display, true);

@@ -952,6 +952,61 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task AssemblyMode_LengthGuardCrossedOnlyByEngineAddedSwitches_FallsBackToListFile()
+    {
+        // The guard must measure the REAL final command line — exe path + the switches this
+        // candidate actually runs with (including engine-added -cfg-/-ds, not just the display-form
+        // filteredArguments) + output path + tail — not an approximation that omits them. This
+        // harness's CommandLineArguments is a single empty combination, so the candidate's only
+        // switches ARE the engine-added ones: "-cfg- -ds". Size a single-entry ordered list so the
+        // PRE-final total (exe + 0 switches + output + tail) sits at or under the guard while the
+        // POST-final total (exe + "-cfg- -ds" + output + tail) sits over it — i.e. the threshold is
+        // crossed ONLY by switches BuildFinalArguments adds, never visible to a guard that measures
+        // display args alone.
+        string srr = BuildTwoFileOrderSrr("ordered-input-boundary.srr");
+
+        using AssemblyTestHost host = NewHost();
+
+        // Mirrors TryProcessCommandLinesAsync's own exe-path/output-path composition for this
+        // harness's single "rar100" candidate with empty CommandLineArguments and both attribute
+        // toggles off (TriState.Unchecked default) — fully deterministic ahead of the run, so the
+        // synthetic name below can target the guard precisely.
+        string expectedRarExeFilePath = Path.Combine(host.VersionsDir, "rar100", RarExecutable.FileName);
+        string expectedRarFilePath = Path.Combine(host.WorkDir, "output", "rar100-.rar");
+
+        int newSwitchesLength = Manager.JoinExecutedArguments(["-cfg-", "-ds"]).Length; // engine-added-only total
+        const int oldTotal = 24_996; // <= 25,000: a guard measuring display args alone would still admit this
+        int newTotal = oldTotal + newSwitchesLength; // > 25,000: the REAL total, which must be rejected instead
+
+        int tailLength = oldTotal - expectedRarExeFilePath.Length - expectedRarFilePath.Length;
+        string name = new('x', tailLength - 2); // 2 = the "./" ("." + one separator char) tail-entry prefix
+
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"],
+            orderedArchiveFiles: [name]);
+
+        BruteForceProgressEventArgs? firstEvent = null;
+        host.Manager.BruteForceProgress += (_, e) => firstEvent ??= e;
+        host.Runner.OnLaunch = l => l.Exit.TrySetResult(0);
+
+        await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
+
+        Assert.Single(host.Runner.Launches);
+        FakeRunner.Launch launch = host.Runner.Launches[0];
+        Assert.Equal(expectedRarFilePath, launch.OutputFilePath); // confirms the mirrored path composition above
+        Assert.True(newTotal > 25_000, "test setup sanity: the real total must exceed the guard");
+
+        Assert.Contains("-ds", launch.Arguments);
+        string expectedListPath = Path.Combine(host.WorkDir, "rar-file-order.lst");
+        Assert.Equal([$"@{expectedListPath}"], launch.InputPaths);
+        Assert.True(File.Exists(expectedListPath));
+        Assert.Equal([name], File.ReadAllText(expectedListPath, Encoding.ASCII).Split('\n'));
+
+        Assert.NotNull(firstEvent);
+        Assert.Equal(Manager.JoinExecutedArguments([$"@{expectedListPath}"]), firstEvent!.InputFileArguments);
+    }
+
+    [Fact]
     public async Task AssemblyMode_OrderedFilesExceedLengthGuardAndNonAscii_FallsBackToMaskWithOneWarning()
     {
         string srr = BuildTwoFileOrderSrr("ordered-input-oversized-nonascii.srr");
