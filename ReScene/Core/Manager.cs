@@ -117,6 +117,12 @@ public partial class Manager : IDisposable
     // _useAssembly/_inconclusiveGuidanceLogged at the same per-set engagement point below.
     private bool _packOrderGuidanceLogged;
 
+    // Guards the one-time-per-run non-ASCII @listfile fallback warning: the condition is a
+    // property of the SET's file list, not of any single candidate, so repeating it for every
+    // combination would flood a real brute-force log with thousands of identical lines. Reset
+    // alongside the flags above at the same per-set engagement point.
+    private bool _nonAsciiOrderFallbackLogged;
+
     private readonly IReSceneLogger _logger;
 
     // Owns the per-process streaming log writers (open/write/close), keeping that
@@ -373,6 +379,7 @@ public partial class Manager : IDisposable
         _useAssembly = false;
         _inconclusiveGuidanceLogged = false;
         _packOrderGuidanceLogged = false;
+        _nonAsciiOrderFallbackLogged = false;
         if (!string.IsNullOrEmpty(options.RAROptions.SRRFilePath)
             && options.RAROptions.CustomPackerDetected == SRR.CustomPackerType.None)
         {
@@ -1562,9 +1569,14 @@ public partial class Manager : IDisposable
         // rar's own (mask) ordering.
         if (!options.RAROptions.OrderedArchiveFiles.All(name => name.All(char.IsAscii)))
         {
-            _logger.Warning(this,
-                "File names exceed the command-line limit and are not ASCII — using rar's own ordering for this run",
-                LogTarget.Phase2);
+            if (!_nonAsciiOrderFallbackLogged)
+            {
+                _nonAsciiOrderFallbackLogged = true;
+                _logger.Warning(this,
+                    "File names exceed the command-line limit and are not ASCII — using rar's own ordering for this run",
+                    LogTarget.Phase2);
+            }
+
             return (null, "", false);
         }
 

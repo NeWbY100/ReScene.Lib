@@ -259,8 +259,12 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
             .BuildToFile(TempDir, "t.srr");
 
         using AssemblyTestHost host = NewHost();
+        // A populated file order is the production shape here: the planner fills it for every
+        // set, including sets whose preflight later declines assembly. The legacy run below must
+        // ignore it completely — rar's own ordering, no -ds, no explicit input tail.
         BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
-            srrFilePathOverride: srr, originalRarFileNamesOverride: ["a.rar"]);
+            srrFilePathOverride: srr, originalRarFileNamesOverride: ["a.rar"],
+            orderedArchiveFiles: ["b.bin", "a.bin"]);
         options.Hashes.Add(CarrierCrc());
 
         host.Runner.OnLaunch = launch =>
@@ -276,6 +280,8 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Single(result.Matches);
         Assert.Single(host.Runner.Launches);
         Assert.False(host.Runner.Launches[0].CancellationRequested.Task.IsCompleted);
+        Assert.DoesNotContain("-ds", host.Runner.Launches[0].Arguments);
+        Assert.Null(host.Runner.Launches[0].InputPaths);
         Assert.True(host.Log.Count("trying legacy reconstruction for this set") >= 1); // secondary
     }
 
@@ -1017,9 +1023,12 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         names[0] = "café-" + names[0]; // one non-ASCII character is enough to void the @listfile fallback
 
         using AssemblyTestHost host = NewHost();
+        // TWO candidates, so the once-per-run warning contract is actually observable — with a
+        // single candidate, per-candidate repetition and once-per-run are indistinguishable.
         BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
             srrFilePathOverride: srr, originalRarFileNamesOverride: ["t.rar"],
-            orderedArchiveFiles: names);
+            orderedArchiveFiles: names,
+            commandLineArguments: [[], [new("-x1", 100)]]);
 
         BruteForceProgressEventArgs? firstEvent = null;
         host.Manager.BruteForceProgress += (_, e) => firstEvent ??= e;
@@ -1027,10 +1036,13 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         await WithTimeoutAsync(host.Manager.BruteForceRARVersionAsync(options), "the run to finish");
 
-        Assert.Single(host.Runner.Launches);
-        FakeRunner.Launch launch = host.Runner.Launches[0];
-        Assert.DoesNotContain("-ds", launch.Arguments);
-        Assert.Null(launch.InputPaths);
+        Assert.Equal(2, host.Runner.Launches.Count);
+        foreach (FakeRunner.Launch launch in host.Runner.Launches)
+        {
+            Assert.DoesNotContain("-ds", launch.Arguments);
+            Assert.Null(launch.InputPaths);
+        }
+
         Assert.False(File.Exists(Path.Combine(host.WorkDir, "rar-file-order.lst")));
 
         Assert.NotNull(firstEvent);
