@@ -237,7 +237,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         Assert.Single(host.Runner.Launches);
         Assert.DoesNotContain(host.Log.Entries,
-            e => e.Message.Contains("packs files in a different order", StringComparison.Ordinal));
+            e => e.Message.Contains("an /etc/rarfiles.lst order list", StringComparison.Ordinal));
     }
 
     [Fact]
