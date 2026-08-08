@@ -1105,7 +1105,7 @@ public partial class Manager : IDisposable
                             {
                                 _packOrderGuidanceLogged = true;
                                 _logger.Warning(this,
-                                    $"Produced archive packs files in a different order than the release ('{producedFirstName}' before '{expectedFirstName}') — a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.",
+                                    $"Produced archive packs files in a different order than the release ('{producedFirstName}' before '{expectedFirstName}') — an /etc/rarfiles.lst order list or a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.",
                                     LogTarget.Phase2);
                             }
                         }

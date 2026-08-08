@@ -210,9 +210,9 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
 
         Assert.Equal(2, host.Runner.Launches.Count);
         Assert.Equal(1, host.Log.Count("packs files in a different order"));
-        Assert.Single(host.Log.WarningMessages, m =>
-            m.Contains("packs files in a different order", StringComparison.Ordinal)
-            && m.Contains("'b.bin' before 'a.bin'", StringComparison.Ordinal));
+        const string expectedWarning =
+            "Produced archive packs files in a different order than the release ('b.bin' before 'a.bin') — an /etc/rarfiles.lst order list or a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.";
+        Assert.Single(host.Log.WarningMessages, m => m == expectedWarning);
     }
 
     [Fact]
