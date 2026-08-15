@@ -16,6 +16,11 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
 
 ### Changed
 
+- `Manager.BruteForceRARVersionAsync` is now explicitly single-run-at-a-time per instance: a
+  second call while a run is executing throws `InvalidOperationException` immediately instead
+  of silently corrupting the running run's cancellation source and per-run state. `Stop()`
+  remains safe to call concurrently. The `@listfile` fallback write also moved out of the
+  input-operand composition step to its call site — pure refactor, same file, same timing.
 - The test suite now executes on net8.0 as well as net10.0 — previously the library's net8.0
   target was only ever compile-verified, so a net8.0-only runtime regression could not be caught.
 

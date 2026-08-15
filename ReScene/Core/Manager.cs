@@ -10,7 +10,7 @@ namespace ReScene.Core;
 /// Orchestrates brute-force RAR reconstruction by testing RAR version and argument combinations
 /// against expected hash values until a match is found.
 /// </summary>
-public partial class Manager : IDisposable
+public class Manager : IDisposable
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="Manager"/> class.
@@ -96,6 +96,10 @@ public partial class Manager : IDisposable
     // Reassigned at the start of each brute-force run so it can be linked to the caller's
     // cancellation token (see BruteForceRARVersionAsync). Stop() cancels it directly.
     private CancellationTokenSource _cts = new();
+
+    // 1 while a run is executing — BruteForceRARVersionAsync is single-run-at-a-time (see its
+    // doc); Interlocked entry so two racing calls can never both win.
+    private int _runActive;
 
     private string? _commentFilePath = null;
 
@@ -254,7 +258,38 @@ public partial class Manager : IDisposable
     /// <see langword="true"/> when a matching RAR archive was found, carrying the winning
     /// version + argument combination (if any) for seeding subsequent archive sets.
     /// </returns>
+    /// <remarks>
+    /// Single-run-at-a-time per instance: the run mutates per-run instance state (the linked
+    /// cancellation source, assembly/once-per-run flags, the options snapshot), so a second
+    /// call while one is executing throws <see cref="InvalidOperationException"/> before
+    /// touching any of it. The guard releases only after the terminal status event has fired,
+    /// so starting the next run from inside a <see cref="BruteForceStatusChanged"/> handler is
+    /// also rejected — await the running call instead. <see cref="Stop"/> may be called
+    /// concurrently with a run; <see cref="Dispose"/> may not.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a run is already executing on this instance.
+    /// </exception>
     public async Task<BruteForceRunResult> BruteForceRARVersionAsync(BruteForceOptions options, CancellationToken cancellationToken = default)
+    {
+        if (Interlocked.Exchange(ref _runActive, 1) != 0)
+        {
+            throw new InvalidOperationException(
+                "A brute-force run is already executing on this Manager instance — await it before starting the next one. " +
+                "(Stop() may be called concurrently; starting a new run from a status-event handler is not supported.)");
+        }
+
+        try
+        {
+            return await BruteForceRARVersionCoreAsync(options, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            Volatile.Write(ref _runActive, 0);
+        }
+    }
+
+    private async Task<BruteForceRunResult> BruteForceRARVersionCoreAsync(BruteForceOptions options, CancellationToken cancellationToken)
     {
         // Link the internal cancellation source to the caller's token so the UI's Cancel
         // (which cancels that token) actually reaches the running RAR processes, not just
@@ -874,8 +909,17 @@ public partial class Manager : IDisposable
             // list) BEFORE building the real switches — BuildFinalArguments needs to know whether to
             // add -ds, and the length guard inside ComposeInputFileArguments runs its OWN trial
             // BuildFinalArguments call to size the guard against the real final command line.
-            (IReadOnlyList<string>? inputTail, string inputFileArguments, bool useDs) =
+            (IReadOnlyList<string>? inputTail, string inputFileArguments, bool useDs, ListFilePlan? listFile) =
                 ComposeInputFileArguments(options, rarExeFilePath, filteredArguments, version, rarFilePath);
+
+            // Materialize the @listfile fallback here — the compose step above only PLANS it —
+            // and deliberately before the exists-skip below, at the same point in the candidate
+            // sequence the compose method used to write it: the skip's own progress row still
+            // references a real file, and the content is run-constant so rewrites are idempotent.
+            if (listFile is { } plan)
+            {
+                File.WriteAllText(plan.Path, plan.Content, Encoding.ASCII);
+            }
 
             // Build the ACTUAL argument list (display args + engine-added -cfg-/-ma4/-vn/-z/-ds) up front —
             // pure composition — so every progress event can carry the executed form for the row's runnable
@@ -1541,7 +1585,8 @@ public partial class Manager : IDisposable
     /// </summary>
     /// <param name="options">
     /// The run's options; <see cref="BruteForceOptions.OutputDirectoryPath"/> is this candidate's
-    /// work root, where the command-line-length guard's fallback list file (if needed) is written.
+    /// work root, where the command-line-length guard's fallback list file (if needed) is planned
+    /// — the CALLER writes it, this method itself touches no filesystem state.
     /// </param>
     /// <param name="rarExeFilePath">
     /// This candidate's rar executable path — the first token on the real process command line,
@@ -1563,30 +1608,35 @@ public partial class Manager : IDisposable
     /// <c>Display</c>: the same tail rendered for <see cref="BruteForceProgressEventArgs.InputFileArguments"/>
     /// (empty for a mask run).
     /// <c>UseDs</c>: whether <see cref="BuildFinalArguments"/> should add <c>-ds</c>.
+    /// <c>ListFile</c>: non-null exactly when the tail is the <c>@listfile</c> fallback — the
+    /// list file the caller must write before launching this candidate.
     /// </returns>
-    private (IReadOnlyList<string>? Tail, string Display, bool UseDs) ComposeInputFileArguments(
+    private (IReadOnlyList<string>? Tail, string Display, bool UseDs, ListFilePlan? ListFile) ComposeInputFileArguments(
         BruteForceOptions options, string rarExeFilePath, List<string> filteredArguments, int version, string outputFilePath)
     {
         if (!_useAssembly || options.RAROptions.OrderedArchiveFiles.Count == 0)
         {
-            return (null, "", false);
+            return (null, "", false, null);
         }
 
         List<string> tailEntries = [.. options.RAROptions.OrderedArchiveFiles.Select(ToTailEntry)];
         string display = JoinExecutedArguments(tailEntries);
 
-        // Measure the REAL final command line this candidate would run with the explicit tail —
-        // useDs: true, since that's what using the tail at all implies — not just the pre-composition
-        // display args: -cfg-/-ma4/-vn/-z/-ds all add up, and a file list that fits without them can
-        // still push the real invocation over the guard. This trial list is measurement-only; the
-        // caller builds its own (identical, given the same inputs) copy once UseDs is decided below.
+        // Size the guard against the real components of the final command line — with useDs: true,
+        // since that's what using the tail at all implies — not just the pre-composition display
+        // args: -cfg-/-ma4/-vn/-z/-ds all add up, and a file list that fits without them can still
+        // push the real invocation over the guard. The only bytes NOT counted are the three
+        // separators between the four groups (exe / switches / output / tail) — a fixed ≤3-byte
+        // undercount, far inside the guard's ~7,700-byte margin below the 32,767 hard limit. This
+        // trial list is measurement-only; the caller builds its own (identical, given the same
+        // inputs) copy once UseDs is decided below.
         List<string> trialFinalArguments = BuildFinalArguments(filteredArguments, options, version, useDs: true);
         string joinedFinalSwitches = JoinExecutedArguments(trialFinalArguments);
 
         int candidateLength = rarExeFilePath.Length + joinedFinalSwitches.Length + outputFilePath.Length + display.Length;
         if (candidateLength <= InputFileArgumentsLengthGuard)
         {
-            return (tailEntries, display, true);
+            return (tailEntries, display, true, null);
         }
 
         // Over budget: fall back to rar's own @listfile operand (one file spec per line) instead of
@@ -1604,15 +1654,22 @@ public partial class Manager : IDisposable
                     LogTarget.Phase2);
             }
 
-            return (null, "", false);
+            return (null, "", false, null);
         }
 
         string listPath = Path.Combine(options.OutputDirectoryPath, "rar-file-order.lst");
-        File.WriteAllText(listPath, string.Join('\n', options.RAROptions.OrderedArchiveFiles), Encoding.ASCII);
+        var listFile = new ListFilePlan(listPath, string.Join('\n', options.RAROptions.OrderedArchiveFiles));
 
         List<string> fallbackTail = [$"@{listPath}"];
-        return (fallbackTail, JoinExecutedArguments(fallbackTail), true);
+        return (fallbackTail, JoinExecutedArguments(fallbackTail), true, listFile);
     }
+
+    /// <summary>
+    /// The <c>@listfile</c> fallback planned by <see cref="ComposeInputFileArguments"/> — path
+    /// and ASCII content — for the caller to write. Kept a plan rather than a side effect so the
+    /// compose step stays pure composition.
+    /// </summary>
+    private readonly record struct ListFilePlan(string Path, string Content);
 
     /// <summary>
     /// Normalizes one <see cref="RAROptions.OrderedArchiveFiles"/> entry into a rar input operand
