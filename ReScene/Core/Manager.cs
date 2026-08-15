@@ -941,31 +941,42 @@ public class Manager : IDisposable
             List<string> finalArguments = BuildFinalArguments(filteredArguments, options, version, useDs);
             string executedArguments = JoinExecutedArguments(finalArguments);
 
-            if (File.Exists(rarFilePath))
+            // Everything this candidate is: its identity, paths and composed command line, frozen
+            // into one record so no phase below re-derives a path or a joined argument string.
+            string candidateSlug = Path.GetFileNameWithoutExtension(rarFilePath);
+            var ctx = new CandidateContext(
+                version, rarVersionDirectoryPath, rarVersionDirectoryName, rarExeFilePath,
+                inputFilesDir, rarOutputDir, rarFilePath, candidateSlug,
+                Path.Combine(rarOutputDir, $"assembled-{candidateSlug}"),
+                commandLineArguments, filteredArguments, displayArguments,
+                finalArguments, executedArguments, inputTail, inputFileArguments,
+                totalProgressSize, bruteForceStartDateTime);
+
+            if (File.Exists(ctx.RarFilePath))
             {
                 // Different argument combinations can filter to the same output name for a given
                 // version; the progress denominator counts each combination, so count this skip too
                 // (otherwise the bar/ETA stall well short of 100% for old versions).
-                _logger.Debug(this, $"RAR file already exists, skipping: {rarFilePath}", LogTarget.Phase2);
+                _logger.Debug(this, $"RAR file already exists, skipping: {ctx.RarFilePath}", LogTarget.Phase2);
                 currentProgress++;
-                FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
                 {
                     PhaseDescription = "Phase 2: Full RAR Creation",
-                    InputDirectoryPath = inputFilesDir,
-                    OutputFilePath = rarFilePath,
-                    ExecutedArguments = executedArguments,
-                    InputFileArguments = inputFileArguments
+                    InputDirectoryPath = ctx.InputFilesDir,
+                    OutputFilePath = ctx.RarFilePath,
+                    ExecutedArguments = ctx.ExecutedArguments,
+                    InputFileArguments = ctx.InputFileArguments
                 });
                 continue;
             }
 
-            FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+            FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
             {
                 PhaseDescription = "Phase 2: Full RAR Creation",
-                InputDirectoryPath = inputFilesDir,
-                OutputFilePath = rarFilePath,
-                ExecutedArguments = executedArguments,
-                InputFileArguments = inputFileArguments
+                InputDirectoryPath = ctx.InputFilesDir,
+                OutputFilePath = ctx.RarFilePath,
+                ExecutedArguments = ctx.ExecutedArguments,
+                InputFileArguments = ctx.InputFileArguments
             });
 
             // ---- Execute RAR ----
@@ -993,7 +1004,7 @@ public class Manager : IDisposable
                     // Start RAR without automatic early termination
                     processCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
 
-                    runningProcessTask = _runner.RunAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, LogTarget.Phase2,
+                    runningProcessTask = _runner.RunAsync(ctx.RarExeFilePath, ctx.InputFilesDir, ctx.RarFilePath, ctx.FinalArguments, LogTarget.Phase2,
                         process =>
                         {
                             // Stream this process's full output to its per-attempt log file under
@@ -1001,14 +1012,14 @@ public class Manager : IDisposable
                             // Complete-All-Volumes runs (the wizard default) produced no log files at all;
                             // WriteOutput for an unregistered process is a silent no-op. CloseLog fires from
                             // the shared process-status Completed handler, same as the standard path.
-                            _processLogManager.OpenLog(process, options.OutputDirectoryPath, rarFilePath);
+                            _processLogManager.OpenLog(process, options.OutputDirectoryPath, ctx.RarFilePath);
                             SubscribeToProcessEvents(process);
                         },
-                        processCts.Token, inputTail);
+                        processCts.Token, ctx.InputTail);
 
                     // Wait for first volume to complete (second volume appearing means first is done)
                     using var monitorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
-                    Task monitorTask = MonitorForSecondVolumeAsync(rarFilePath, monitorCts);
+                    Task monitorTask = MonitorForSecondVolumeAsync(ctx.RarFilePath, monitorCts);
                     await Task.WhenAny(runningProcessTask, monitorTask).ConfigureAwait(false);
 
                     // Clean up monitor if process finished before second volume appeared
@@ -1034,22 +1045,22 @@ public class Manager : IDisposable
                     // always awaits the producer to real completion, no grace-timeout abandonment) when
                     // early-terminated — either way early termination requires a volume to already exist,
                     // so those values never reach the not-created branch.
-                    completedExitCode = await RARCompressDirectoryAsync(rarExeFilePath, inputFilesDir, rarFilePath, finalArguments, _cts.Token, inputTail).ConfigureAwait(false);
+                    completedExitCode = await RARCompressDirectoryAsync(ctx.RarExeFilePath, ctx.InputFilesDir, ctx.RarFilePath, ctx.FinalArguments, _cts.Token, ctx.InputTail).ConfigureAwait(false);
                 }
 
                 currentProgress++;
                 combinationCounted = true;
-                FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
                 {
                     PhaseDescription = "Phase 2: Full RAR Creation",
-                    InputDirectoryPath = inputFilesDir,
-                    OutputFilePath = rarFilePath,
-                    ExecutedArguments = executedArguments,
-                    InputFileArguments = inputFileArguments
+                    InputDirectoryPath = ctx.InputFilesDir,
+                    OutputFilePath = ctx.RarFilePath,
+                    ExecutedArguments = ctx.ExecutedArguments,
+                    InputFileArguments = ctx.InputFileArguments
                 });
 
                 // Check if RAR file or volume files were created
-                string? actualRARFilePath = MatchedRARWriter.FindCreatedRARFile(rarFilePath);
+                string? actualRARFilePath = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
                 if (actualRARFilePath == null)
                 {
                     // Invariant: no classification below may run while a CompleteAllVolumes
@@ -1076,33 +1087,32 @@ public class Manager : IDisposable
                     // fire the flagged event only.
                     if (IsCompletedRunFailure(completedExitCode, _cts.IsCancellationRequested))
                     {
-                        _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: rar exited with code {completedExitCode} and no archive was created — marking this combination as failed", LogTarget.Phase2);
-                        FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                        _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: rar exited with code {completedExitCode} and no archive was created — marking this combination as failed", LogTarget.Phase2);
+                        FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
                         {
                             PhaseDescription = "Phase 2: Full RAR Creation",
                             CombinationFailed = true,
-                            InputDirectoryPath = inputFilesDir,
-                            OutputFilePath = rarFilePath,
-                            ExecutedArguments = executedArguments,
-                            InputFileArguments = inputFileArguments
+                            InputDirectoryPath = ctx.InputFilesDir,
+                            OutputFilePath = ctx.RarFilePath,
+                            ExecutedArguments = ctx.ExecutedArguments,
+                            InputFileArguments = ctx.InputFileArguments
                         });
                     }
                     else
                     {
-                        _logger.Information(this, $"RAR file was not created: {rarFilePath}", LogTarget.Phase2);
+                        _logger.Information(this, $"RAR file was not created: {ctx.RarFilePath}", LogTarget.Phase2);
                     }
 
                     continue;
                 }
 
                 // Log what file was actually created (may be different from expected if volumes were created)
-                if (actualRARFilePath != rarFilePath)
+                if (actualRARFilePath != ctx.RarFilePath)
                 {
-                    _logger.Debug(this, $"Actual file created: {actualRARFilePath} (expected: {Path.GetFileName(rarFilePath)})", LogTarget.Phase2);
+                    _logger.Debug(this, $"Actual file created: {actualRARFilePath} (expected: {Path.GetFileName(ctx.RarFilePath)})", LogTarget.Phase2);
                 }
 
                 string hash;
-                string candidateSlug = Path.GetFileNameWithoutExtension(rarFilePath);
                 // Hoisted so the win path below (after "MATCH FOUND") can reuse the quick gate's own
                 // assembled result and duplicate-hash flag without recomputing them; distinct name
                 // from the legacy else-arm's own local `isDuplicateHash` (untouched, below).
@@ -1110,7 +1120,6 @@ public class Manager : IDisposable
                 bool isDuplicateAssemblyHash = false;
                 if (_useAssembly)
                 {
-                    string assemblyDir = Path.Combine(rarOutputDir, $"assembled-{candidateSlug}");
                     bool skipRetentionCleanup = false;   // per-candidate; true ONLY for persistent Error (diagnosis retention)
 
                     // Snapshot BEFORE the attempt, not after: ProducedVolumesPackedSource opens the
@@ -1122,7 +1131,7 @@ public class Manager : IDisposable
                     // snapshot was actually opened, and would wrongly skip the retry for exactly the
                     // incomplete-snapshot case it exists to catch (a real race, not a test artifact).
                     bool retryEligible = runningProcessTask is { IsCompleted: false };
-                    quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
+                    quick = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, 1, _cts.Token).ConfigureAwait(false);
 
                     if (quick.Status != SRRReconstructionStatus.Success && retryEligible)
                     {
@@ -1135,7 +1144,7 @@ public class Manager : IDisposable
                             completedExitCode = await runningProcessTask.ConfigureAwait(false);
                         }
 
-                        quick = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, 1, _cts.Token).ConfigureAwait(false);
+                        quick = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, 1, _cts.Token).ConfigureAwait(false);
                     }
 
                     string? quickHash = quick.Status == SRRReconstructionStatus.Success && quick.WrittenPaths.Count >= 1
@@ -1149,7 +1158,7 @@ public class Manager : IDisposable
                         fileHashes.Add(quickHash);
                     }
 
-                    _logger.Information(this, $"Assembled hash for {(quick.WrittenPaths.Count >= 1 ? quick.WrittenPaths[0] : assemblyDir)}: {quickHash ?? quick.Status.ToString()} (match: {quickMatch})", LogTarget.Phase2);
+                    _logger.Information(this, $"Assembled hash for {(quick.WrittenPaths.Count >= 1 ? quick.WrittenPaths[0] : ctx.AssemblyDir)}: {quickHash ?? quick.Status.ToString()} (match: {quickMatch})", LogTarget.Phase2);
 
                     if (!quickMatch)
                     {
@@ -1161,9 +1170,9 @@ public class Manager : IDisposable
                                 // shape (CombinationFailed progress event + warning). RETENTION: like the
                                 // exception disposition, BOTH artifact classes are LEFT IN PLACE for
                                 // diagnosis.
-                                FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
-                                    totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
-                                    rarFilePath, executedArguments, inputFileArguments, quick.Diagnostic);
+                                FireAssemblyErrorRow(options, ctx.VersionDirectoryPath, ctx.DisplayArguments,
+                                    ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime, ctx.InputFilesDir,
+                                    ctx.RarFilePath, ctx.ExecutedArguments, ctx.InputFileArguments, quick.Diagnostic);
                                 skipRetentionCleanup = true;
                                 break;
                             case SRRReconstructionStatus.SourceExhausted when !options.RAROptions.CompleteAllVolumes:
@@ -1173,7 +1182,7 @@ public class Manager : IDisposable
                                     _inconclusiveGuidanceLogged = true;
                                     _logger.Information(this, "Some candidates are inconclusive without full volumes — enable \"Complete all volumes\" to test them", LogTarget.System);
                                 }
-                                _logger.Debug(this, $"{candidateSlug}: inconclusive (assembly needs produced volume 2+)", LogTarget.Phase2);
+                                _logger.Debug(this, $"{ctx.CandidateSlug}: inconclusive (assembly needs produced volume 2+)", LogTarget.Phase2);
                                 break;
                             default:
                                 // SourceExhausted (CAV, producer done) or a hash mismatch: real no-match.
@@ -1205,7 +1214,7 @@ public class Manager : IDisposable
                         await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
                         if (!skipRetentionCleanup) // false for mismatch/SourceExhausted/duplicate; true for Error
                         {
-                            ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                            ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
                         }
                         continue;
                     }
@@ -1284,7 +1293,6 @@ public class Manager : IDisposable
                 // and finalization via the transactional FinalizeAssembledSet.
                 if (_useAssembly)
                 {
-                    string assemblyDir = Path.Combine(rarOutputDir, $"assembled-{candidateSlug}");
 
                     SRRReconstructionResult assembled;
                     if (options.RAROptions.CompleteAllVolumes)
@@ -1292,7 +1300,7 @@ public class Manager : IDisposable
                         // FULL assembly — fresh source over the now-complete produced set.
                         // Verification and finalization use THIS result's ordered WrittenPaths,
                         // never the quick gate's single-volume result.
-                        assembled = await AssembleCandidateAsync(options, actualRARFilePath, assemblyDir, candidateSlug, int.MaxValue, _cts.Token).ConfigureAwait(false);
+                        assembled = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, int.MaxValue, _cts.Token).ConfigureAwait(false);
                         if (assembled.Status != SRRReconstructionStatus.Success)
                         {
                             // A completed-producer full assembly cannot be an incomplete snapshot —
@@ -1300,15 +1308,15 @@ public class Manager : IDisposable
                             if (assembled.Status == SRRReconstructionStatus.Error)
                             {
                                 // Persistent parse/I-O failure: retains BOTH classes for diagnosis.
-                                FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
-                                    totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
-                                    rarFilePath, executedArguments, inputFileArguments, assembled.Diagnostic);
+                                FireAssemblyErrorRow(options, ctx.VersionDirectoryPath, ctx.DisplayArguments,
+                                    ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime, ctx.InputFilesDir,
+                                    ctx.RarFilePath, ctx.ExecutedArguments, ctx.InputFileArguments, assembled.Diagnostic);
                             }
                             else
                             {
                                 // SourceExhausted: a real no-match — mismatch retention applies to
                                 // both artifact classes.
-                                ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                                ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
                             }
 
                             continue;
@@ -1341,28 +1349,28 @@ public class Manager : IDisposable
                             string detail = verify.CountMismatch
                                 ? $"produced {assembledCrcs.Count} volume(s), expected {assemblyExpectedInOrder.Count}"
                                 : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
-                            _logger.Information(this, $"{rarVersionDirectoryName} / {displayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
+                            _logger.Information(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
 
-                            ApplyMismatchRetention(assemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                            ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
                             continue;
                         }
                     }
 
                     // Finalization runs OUTSIDE the guard (it applies with or without a CRC map):
-                    (IReadOnlyList<string> assembledPlaced, bool assembledComplete) = FinalizeAssembledSet(options, assembled.WrittenPaths, candidateSlug, rarOutputDir);
+                    (IReadOnlyList<string> assembledPlaced, bool assembledComplete) = FinalizeAssembledSet(options, assembled.WrittenPaths, ctx.CandidateSlug, ctx.RarOutputDir);
                     if (!assembledComplete)
                     {
                         // Transactional finalization failed: retain both classes for diagnosis.
-                        FireAssemblyErrorRow(options, rarVersionDirectoryPath, displayArguments,
-                            totalProgressSize, currentProgress, bruteForceStartDateTime, inputFilesDir,
-                            rarFilePath, executedArguments, inputFileArguments, "finalization incomplete — destination occupied or move failed");
+                        FireAssemblyErrorRow(options, ctx.VersionDirectoryPath, ctx.DisplayArguments,
+                            ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime, ctx.InputFilesDir,
+                            ctx.RarFilePath, ctx.ExecutedArguments, ctx.InputFileArguments, "finalization incomplete — destination occupied or move failed");
                         continue;
                     }
 
                     // ---- FULL MATCH (SRR-guided assembly) ----
                     _logger.Information(this, "*** MATCH FOUND (SRR-guided assembly)! ***", LogTarget.System);
-                    _logger.Information(this, $"  Version: {rarVersionDirectoryName}", LogTarget.System);
-                    _logger.Information(this, $"  Params:  {displayArguments}", LogTarget.System);
+                    _logger.Information(this, $"  Version: {ctx.VersionDirectoryName}", LogTarget.System);
+                    _logger.Information(this, $"  Params:  {ctx.DisplayArguments}", LogTarget.System);
                     _logger.Information(this, $"  Hash:    {hash}", LogTarget.System);
                     _logger.Information(this, $"  RAR:     {actualRARFilePath}", LogTarget.System);
 
@@ -1377,10 +1385,10 @@ public class Manager : IDisposable
 
                     try
                     {
-                        if (Directory.Exists(assemblyDir)
-                            && !Directory.EnumerateFiles(assemblyDir, "*", SearchOption.AllDirectories).Any())
+                        if (Directory.Exists(ctx.AssemblyDir)
+                            && !Directory.EnumerateFiles(ctx.AssemblyDir, "*", SearchOption.AllDirectories).Any())
                         {
-                            Directory.Delete(assemblyDir, recursive: true);
+                            Directory.Delete(ctx.AssemblyDir, recursive: true);
                         }
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -1389,7 +1397,7 @@ public class Manager : IDisposable
                         // match into a failure.
                     }
 
-                    var assemblyWinningCombo = new WinningCombo(version, commandLineArguments);
+                    var assemblyWinningCombo = new WinningCombo(ctx.Version, ctx.CommandLineArguments);
                     return (true, currentProgress, new CommittedMatch(assemblyWinningCombo, assembledPlaced));
                 }
 
@@ -1399,7 +1407,7 @@ public class Manager : IDisposable
                 IReadOnlyList<(string Name, string Crc)> expectedInOrder = BuildExpectedInOrder(options);
                 if (options.RAROptions.CompleteAllVolumes && expectedInOrder.Count > 0)
                 {
-                    string? completed = MatchedRARWriter.FindCreatedRARFile(rarFilePath);
+                    string? completed = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
                     List<string> producedVolumes = completed != null ? MatchedRARWriter.GetAllVolumeFiles(completed) : [];
 
                     // Re-patch all volumes before hashing if patching is needed (CRCs are of the
@@ -1426,7 +1434,7 @@ public class Manager : IDisposable
                         string detail = verify.CountMismatch
                             ? $"produced {producedCrcs.Count} volume(s), expected {expectedInOrder.Count}"
                             : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
-                        _logger.Information(this, $"{rarVersionDirectoryName} / {displayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
+                        _logger.Information(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
 
                         if (options.RAROptions.DeleteRARFiles && completed != null)
                         {
@@ -1440,7 +1448,7 @@ public class Manager : IDisposable
                 // ---- FULL MATCH ----
 
                 // Log match to System tab for visibility
-                LogMatchDetails(options, rarVersionDirectoryName, displayArguments, hash, actualRARFilePath);
+                LogMatchDetails(options, ctx.VersionDirectoryName, ctx.DisplayArguments, hash, actualRARFilePath);
 
                 // Rename the matched file(s) to their final name inside the "output" subdirectory.
                 // This is transactional: only a FULLY-placed set (the mode's whole expected volume
@@ -1448,14 +1456,14 @@ public class Manager : IDisposable
                 // move failure, or fewer volumes produced than the release requires) must NOT be
                 // reported as found — the search keeps going so a later, fully-placed combo can
                 // still win, without colliding with this attempt's rolled-back partial output.
-                (IReadOnlyList<string> placed, bool complete) = RenameMatchedOutput(options, rarFilePath, actualRARFilePath, rarOutputDir);
+                (IReadOnlyList<string> placed, bool complete) = RenameMatchedOutput(options, ctx.RarFilePath, actualRARFilePath, ctx.RarOutputDir);
                 if (!complete)
                 {
-                    _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: matched but the full volume set could not be placed — continuing", LogTarget.Phase2);
+                    _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: matched but the full volume set could not be placed — continuing", LogTarget.Phase2);
                     continue;
                 }
 
-                var winningCombo = new WinningCombo(version, commandLineArguments);
+                var winningCombo = new WinningCombo(ctx.Version, ctx.CommandLineArguments);
                 return (true, currentProgress, new CommittedMatch(winningCombo, placed));
             }
             catch (OperationCanceledException)
@@ -1478,7 +1486,7 @@ public class Manager : IDisposable
                 // 64-bit Windows, or an AV block) must not abort the entire brute-force. Log it, count
                 // the combination, and fire a CombinationFailed progress event so this row is reported
                 // as an error instead of a misleading clean "No Match" — then move on.
-                _logger.Warning(this, $"{rarVersionDirectoryName} / {displayArguments}: RAR execution failed ({ex.Message}) — skipping this combination", LogTarget.Phase2);
+                _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: RAR execution failed ({ex.Message}) — skipping this combination", LogTarget.Phase2);
 
                 // Invariant: observe the producer to real completion before this
                 // candidate's cleanup finishes and the loop moves to the next one. A no-op when
@@ -1494,14 +1502,14 @@ public class Manager : IDisposable
                     currentProgress++;
                 }
 
-                FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath, displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+                FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
                 {
                     PhaseDescription = "Phase 2: Full RAR Creation",
                     CombinationFailed = true,
-                    InputDirectoryPath = inputFilesDir,
-                    OutputFilePath = rarFilePath,
-                    ExecutedArguments = executedArguments,
-                    InputFileArguments = inputFileArguments
+                    InputDirectoryPath = ctx.InputFilesDir,
+                    OutputFilePath = ctx.RarFilePath,
+                    ExecutedArguments = ctx.ExecutedArguments,
+                    InputFileArguments = ctx.InputFileArguments
                 });
                 continue;
             }
