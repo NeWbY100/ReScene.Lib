@@ -1192,43 +1192,14 @@ public class Manager : IDisposable
                 }
                 else
                 {
-                    // Apply patching to first volume only (other volumes may still be in progress)
-                    if (options.RAROptions.NeedsPatching)
+                    (bool legacyMatched, string legacyHash) = await TryLegacyGateAsync(
+                        actualRARFilePath, fileHashes, runningProcessTask, processCts, options).ConfigureAwait(false);
+                    if (!legacyMatched)
                     {
-                        PatchRARFilesHostOS(actualRARFilePath, options.RAROptions, allVolumes: false);
-                    }
-
-                    hash = HashCalculator.Calculate(options.HashType, actualRARFilePath);
-
-                    _logger.Information(this, $"Hash for {actualRARFilePath}: {hash} (match: {options.Hashes.Contains(hash)})", LogTarget.Phase2);
-
-                    // Track if we've seen this hash before (to avoid keeping duplicates)
-                    bool isDuplicateHash = fileHashes.Contains(hash);
-                    fileHashes.Add(hash);
-
-                    if (!options.Hashes.Contains(hash))
-                    {
-                        // No match - kill background RAR process if still running, and OBSERVE it to
-                        // real completion before touching any file below (invariant: no deletion while
-                        // a producer task is unobserved). A no-op when runningProcessTask is null
-                        // (standard path: already observed inside RARCompressDirectoryAsync).
-                        await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
-
-                        if (options.RAROptions.DeleteRARFiles)
-                        {
-                            // Delete all non-matching files
-                            DeleteRARFileAndVolumes(actualRARFilePath);
-                        }
-                        else if (options.RAROptions.DeleteDuplicateCRCFiles && isDuplicateHash)
-                        {
-                            // Delete duplicates to save disk space (only keep unique CRC files)
-                            _logger.Debug(this, $"Deleting duplicate hash file: {actualRARFilePath} (hash: {hash})", LogTarget.Phase2);
-                            DeleteRARFileAndVolumes(actualRARFilePath);
-                        }
-                        // If DeleteRARFiles is false and (DeleteDuplicateCRCFiles is false or not a duplicate), keep for debugging
-
                         continue;
                     }
+
+                    hash = legacyHash;
                 }
 
                 // ---- MATCH FOUND (first volume) ----
@@ -1510,6 +1481,67 @@ public class Manager : IDisposable
     {
         _logger.Warning(this, $"{Path.GetFileName(ctx.VersionDirectoryPath)} / {ctx.DisplayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
         FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
+    }
+
+    /// <summary>
+    /// The legacy (non-assembly) first-volume gate: patch volume 1, hash it, and decide whether this
+    /// candidate matches. Returns <c>Matched: false</c> to mean "move to the next candidate" — the
+    /// caller's <c>continue</c> — after applying the configured retention.
+    /// <para>
+    /// Only volume 1 is patched here: with CompleteAllVolumes the remaining volumes may still be
+    /// in progress. Duplicate detection deliberately runs BEFORE the hash is recorded, and the
+    /// producer is observed to real completion before any deletion (invariant: no deletion while a
+    /// producer task is unobserved).
+    /// </para>
+    /// </summary>
+    /// <param name="actualRARFilePath">The archive rar actually created, which may differ from the intended path.</param>
+    /// <param name="fileHashes">The run's accumulated hashes; this method both reads and adds to it.</param>
+    /// <param name="runningProcessTask">The CompleteAllVolumes producer, or null on the standard path.</param>
+    /// <param name="processCts">That producer's cancellation source, or null.</param>
+    /// <param name="options">The run's options.</param>
+    private async Task<(bool Matched, string Hash)> TryLegacyGateAsync(
+        string actualRARFilePath, HashSet<string> fileHashes,
+        Task<int>? runningProcessTask, CancellationTokenSource? processCts, BruteForceOptions options)
+    {
+        // Apply patching to first volume only (other volumes may still be in progress)
+        if (options.RAROptions.NeedsPatching)
+        {
+            PatchRARFilesHostOS(actualRARFilePath, options.RAROptions, allVolumes: false);
+        }
+
+        string hash = HashCalculator.Calculate(options.HashType, actualRARFilePath);
+
+        _logger.Information(this, $"Hash for {actualRARFilePath}: {hash} (match: {options.Hashes.Contains(hash)})", LogTarget.Phase2);
+
+        // Track if we've seen this hash before (to avoid keeping duplicates)
+        bool isDuplicateHash = fileHashes.Contains(hash);
+        fileHashes.Add(hash);
+
+        if (options.Hashes.Contains(hash))
+        {
+            return (true, hash);
+        }
+
+        // No match - kill background RAR process if still running, and OBSERVE it to
+        // real completion before touching any file below (invariant: no deletion while
+        // a producer task is unobserved). A no-op when runningProcessTask is null
+        // (standard path: already observed inside RARCompressDirectoryAsync).
+        await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
+
+        if (options.RAROptions.DeleteRARFiles)
+        {
+            // Delete all non-matching files
+            DeleteRARFileAndVolumes(actualRARFilePath);
+        }
+        else if (options.RAROptions.DeleteDuplicateCRCFiles && isDuplicateHash)
+        {
+            // Delete duplicates to save disk space (only keep unique CRC files)
+            _logger.Debug(this, $"Deleting duplicate hash file: {actualRARFilePath} (hash: {hash})", LogTarget.Phase2);
+            DeleteRARFileAndVolumes(actualRARFilePath);
+        }
+        // If DeleteRARFiles is false and (DeleteDuplicateCRCFiles is false or not a duplicate), keep for debugging
+
+        return (false, hash);
     }
 
     /// <summary>
