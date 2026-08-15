@@ -2,6 +2,16 @@
 
 All notable changes to ReScene.Lib are documented here. Releases follow [SemVer](https://semver.org/) and this file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Earlier releases (v1.0.0 – v1.2.7) are recorded in the Git tags.
 
+## [Unreleased]
+
+### Fixed
+
+- Brute-force setup failures now fail the run properly on every path: a missing or unreadable
+  WinRAR installations directory no longer throws out of `BruteForceRARVersionAsync`, and the
+  empty-installations-directory and input-file-validation early exits now fire the terminal
+  status event (previously a caller keying its busy state off `BruteForceStatusChanged` was
+  stranded at Running).
+
 ## [1.9.0] — 2026-07-05
 
 ### Changed

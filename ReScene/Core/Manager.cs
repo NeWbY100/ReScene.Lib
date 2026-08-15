@@ -312,13 +312,26 @@ public partial class Manager : IDisposable
             };
         }
 
-        string[] rarVersionDirectories = Directory.GetDirectories(options.RARInstallationsDirectoryPath);
+        // A missing or unreadable installations root must fail the run like every other setup
+        // failure — logged error, terminal status, failed result — never throw out of the public
+        // API with the status event stranded at Running. DirectoryNotFoundException and
+        // PathTooLongException both derive from IOException; ArgumentException covers invalid
+        // path characters.
+        string[] rarVersionDirectories;
+        try
+        {
+            rarVersionDirectories = Directory.GetDirectories(options.RARInstallationsDirectoryPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return FailRunSetup($"Cannot enumerate the WinRAR installations directory '{options.RARInstallationsDirectoryPath}': {ex.Message}");
+        }
+
         _logger.Debug(this, $"Found {rarVersionDirectories.Length} RAR version directories in {options.RARInstallationsDirectoryPath}");
 
         if (rarVersionDirectories.Length == 0)
         {
-            _logger.Warning(this, "No RAR executables found in WinRAR directory or sub directories");
-            return new BruteForceRunResult(false, null);
+            return FailRunSetup("No RAR executables found in WinRAR directory or sub directories");
         }
 
         // Get all valid RAR directories first
@@ -334,7 +347,7 @@ public partial class Manager : IDisposable
         // Validate input files before any brute-forcing
         if (options.RAROptions.HasArchiveFileList && !inputDirectoryPreparer.ValidateInputFiles(options))
         {
-            return new BruteForceRunResult(false, null);
+            return FailRunSetup("Input file validation failed — see the log above for the missing or mismatched files");
         }
 
         // === PHASE 1: Comment Block Brute-Force ===
@@ -753,6 +766,20 @@ public partial class Manager : IDisposable
     /// </summary>
     internal static string JoinExecutedArguments(IEnumerable<string> finalArguments)
         => string.Join(" ", finalArguments.Select(a => a.Contains(' ', StringComparison.Ordinal) ? $"\"{a}\"" : a));
+
+    /// <summary>
+    /// Fails a run during setup (before any candidate executes): logs the reason, fires the
+    /// terminal <see cref="BruteForceStatusChanged"/> event, and returns the failed result.
+    /// Callers key their busy state off that event, so every setup exit must move the status
+    /// past <see cref="OperationStatus.Running"/> — returning without it strands them.
+    /// </summary>
+    private BruteForceRunResult FailRunSetup(string reason)
+    {
+        _logger.Error(this, reason, LogTarget.System);
+        FireBruteForceStatusChanged(new BruteForceStatusChangedEventArgs(
+            OperationStatus.Running, OperationStatus.Completed, OperationCompletionStatus.Error));
+        return new BruteForceRunResult(false, null);
+    }
 
     private void FireBruteForceStatusChanged(BruteForceStatusChangedEventArgs e)
         => BruteForceStatusChanged?.Invoke(this, e);
