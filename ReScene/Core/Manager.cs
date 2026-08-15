@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using ReScene.Core.Cryptography;
 using ReScene.Core.Diagnostics;
 using ReScene.Core.IO;
