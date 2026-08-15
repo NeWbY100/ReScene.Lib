@@ -1233,90 +1233,14 @@ public class Manager : IDisposable
                 // and finalization via the transactional FinalizeAssembledSet.
                 if (_useAssembly)
                 {
-
-                    SRRReconstructionResult assembled;
-                    if (options.RAROptions.CompleteAllVolumes)
+                    CommittedMatch? assemblyMatch = await FinalizeAssemblyWinAsync(
+                        ctx, quick!, isDuplicateAssemblyHash, hash, actualRARFilePath, currentProgress, options).ConfigureAwait(false);
+                    if (assemblyMatch is null)
                     {
-                        // FULL assembly — fresh source over the now-complete produced set.
-                        // Verification and finalization use THIS result's ordered WrittenPaths,
-                        // never the quick gate's single-volume result.
-                        assembled = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, int.MaxValue, _cts.Token).ConfigureAwait(false);
-                        if (assembled.Status != SRRReconstructionStatus.Success)
-                        {
-                            // A completed-producer full assembly cannot be an incomplete snapshot —
-                            // there is no retry here (unlike the quick gate above).
-                            if (assembled.Status == SRRReconstructionStatus.Error)
-                            {
-                                // Persistent parse/I-O failure: retains BOTH classes for diagnosis.
-                                FireAssemblyErrorRow(ctx, options, currentProgress, assembled.Diagnostic);
-                            }
-                            else
-                            {
-                                // SourceExhausted: a real no-match — mismatch retention applies to
-                                // both artifact classes.
-                                ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
-                            }
-
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        // Non-CAV: the single quick-gate volume already IS the mode's whole outcome.
-                        assembled = quick!;
-                    }
-
-                    // Per-volume verification — the same gate as the legacy path below, now literally
-                    // the same code (see VerifyVolumeSet). The assembled set is already in memory, so
-                    // its factory is a plain projection.
-                    if (!VerifyVolumeSet(() => assembled.WrittenPaths, options,
-                            $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
-                    {
-                        ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
                         continue;
                     }
 
-                    // Finalization runs OUTSIDE the guard (it applies with or without a CRC map):
-                    (IReadOnlyList<string> assembledPlaced, bool assembledComplete) = FinalizeAssembledSet(options, assembled.WrittenPaths, ctx.CandidateSlug, ctx.RarOutputDir);
-                    if (!assembledComplete)
-                    {
-                        // Transactional finalization failed: retain both classes for diagnosis.
-                        FireAssemblyErrorRow(ctx, options, currentProgress, "finalization incomplete — destination occupied or move failed");
-                        continue;
-                    }
-
-                    // ---- FULL MATCH (SRR-guided assembly) ----
-                    _logger.Information(this, "*** MATCH FOUND (SRR-guided assembly)! ***", LogTarget.System);
-                    _logger.Information(this, $"  Version: {ctx.VersionDirectoryName}", LogTarget.System);
-                    _logger.Information(this, $"  Params:  {ctx.DisplayArguments}", LogTarget.System);
-                    _logger.Information(this, $"  Hash:    {hash}", LogTarget.System);
-                    _logger.Information(this, $"  RAR:     {actualRARFilePath}", LogTarget.System);
-
-                    // Success cleanup — the carrier volumes are not the reconstruction. NOTE: for
-                    // qualified sets (CD2/x.rar) the reconstructor created assemblyDir/CD2/... —
-                    // after the moves the tree still holds empty subdirectories, so removal must be
-                    // RECURSIVE on the file-empty tree (never assume flat).
-                    if (options.RAROptions.DeleteRARFiles)
-                    {
-                        DeleteRARFileAndVolumes(actualRARFilePath);
-                    }
-
-                    try
-                    {
-                        if (Directory.Exists(ctx.AssemblyDir)
-                            && !Directory.EnumerateFiles(ctx.AssemblyDir, "*", SearchOption.AllDirectories).Any())
-                        {
-                            Directory.Delete(ctx.AssemblyDir, recursive: true);
-                        }
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                    {
-                        // Best-effort: an empty-dir cleanup failure must never convert a committed
-                        // match into a failure.
-                    }
-
-                    var assemblyWinningCombo = new WinningCombo(ctx.Version, ctx.CommandLineArguments);
-                    return (true, currentProgress, new CommittedMatch(assemblyWinningCombo, assembledPlaced));
+                    return (true, currentProgress, assemblyMatch);
                 }
 
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).
@@ -1434,6 +1358,114 @@ public class Manager : IDisposable
     {
         _logger.Warning(this, $"{Path.GetFileName(ctx.VersionDirectoryPath)} / {ctx.DisplayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
         FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
+    }
+
+    /// <summary>
+    /// The SRR-guided-assembly win path, entered once volume 1 has matched: re-assemble the full
+    /// set (CompleteAllVolumes only), verify it, finalize it, and log the match. Returns the
+    /// committed match, or <see langword="null"/> to mean "move to the next candidate".
+    /// <para>
+    /// Touches no producer state: the producer was already joined unconditionally before this runs,
+    /// so every path here is safe to take with the producer fully observed.
+    /// </para>
+    /// <para>
+    /// Note the finalize-then-log order here is the reverse of <see cref="TryFinalizeLegacyWin"/>'s
+    /// log-then-finalize. That asymmetry is deliberate and observable in log ordering.
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">The candidate being finalized.</param>
+    /// <param name="quick">The quick gate's assembled result, reused verbatim on the non-CAV path.</param>
+    /// <param name="isDuplicateAssemblyHash">Whether the quick gate saw this hash before; drives mismatch retention.</param>
+    /// <param name="hash">The assembled volume 1 hash, already matched, used only for the match log.</param>
+    /// <param name="actualRARFilePath">The carrier archive rar produced, which is not the reconstruction.</param>
+    /// <param name="currentProgress">The progress counter, for any error row this path fires.</param>
+    /// <param name="options">The run's options.</param>
+    private async Task<CommittedMatch?> FinalizeAssemblyWinAsync(
+        CandidateContext ctx, SRRReconstructionResult quick, bool isDuplicateAssemblyHash,
+        string hash, string actualRARFilePath, int currentProgress, BruteForceOptions options)
+    {
+        SRRReconstructionResult assembled;
+        if (options.RAROptions.CompleteAllVolumes)
+        {
+            // FULL assembly — fresh source over the now-complete produced set.
+            // Verification and finalization use THIS result's ordered WrittenPaths,
+            // never the quick gate's single-volume result.
+            assembled = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, int.MaxValue, _cts.Token).ConfigureAwait(false);
+            if (assembled.Status != SRRReconstructionStatus.Success)
+            {
+                // A completed-producer full assembly cannot be an incomplete snapshot —
+                // there is no retry here (unlike the quick gate above).
+                if (assembled.Status == SRRReconstructionStatus.Error)
+                {
+                    // Persistent parse/I-O failure: retains BOTH classes for diagnosis.
+                    FireAssemblyErrorRow(ctx, options, currentProgress, assembled.Diagnostic);
+                }
+                else
+                {
+                    // SourceExhausted: a real no-match — mismatch retention applies to
+                    // both artifact classes.
+                    ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                }
+
+                return null;
+            }
+        }
+        else
+        {
+            // Non-CAV: the single quick-gate volume already IS the mode's whole outcome.
+            assembled = quick;
+        }
+
+        // Per-volume verification — the same gate as the legacy path, now literally the same code
+        // (see VerifyVolumeSet). The assembled set is already in memory, so its factory is a plain
+        // projection.
+        if (!VerifyVolumeSet(() => assembled.WrittenPaths, options,
+                $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
+        {
+            ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+            return null;
+        }
+
+        // Finalization runs OUTSIDE the guard (it applies with or without a CRC map):
+        (IReadOnlyList<string> assembledPlaced, bool assembledComplete) = FinalizeAssembledSet(options, assembled.WrittenPaths, ctx.CandidateSlug, ctx.RarOutputDir);
+        if (!assembledComplete)
+        {
+            // Transactional finalization failed: retain both classes for diagnosis.
+            FireAssemblyErrorRow(ctx, options, currentProgress, "finalization incomplete — destination occupied or move failed");
+            return null;
+        }
+
+        // ---- FULL MATCH (SRR-guided assembly) ----
+        _logger.Information(this, "*** MATCH FOUND (SRR-guided assembly)! ***", LogTarget.System);
+        _logger.Information(this, $"  Version: {ctx.VersionDirectoryName}", LogTarget.System);
+        _logger.Information(this, $"  Params:  {ctx.DisplayArguments}", LogTarget.System);
+        _logger.Information(this, $"  Hash:    {hash}", LogTarget.System);
+        _logger.Information(this, $"  RAR:     {actualRARFilePath}", LogTarget.System);
+
+        // Success cleanup — the carrier volumes are not the reconstruction. NOTE: for
+        // qualified sets (CD2/x.rar) the reconstructor created assemblyDir/CD2/... —
+        // after the moves the tree still holds empty subdirectories, so removal must be
+        // RECURSIVE on the file-empty tree (never assume flat).
+        if (options.RAROptions.DeleteRARFiles)
+        {
+            DeleteRARFileAndVolumes(actualRARFilePath);
+        }
+
+        try
+        {
+            if (Directory.Exists(ctx.AssemblyDir)
+                && !Directory.EnumerateFiles(ctx.AssemblyDir, "*", SearchOption.AllDirectories).Any())
+            {
+                Directory.Delete(ctx.AssemblyDir, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort: an empty-dir cleanup failure must never convert a committed
+            // match into a failure.
+        }
+
+        return new CommittedMatch(new WinningCombo(ctx.Version, ctx.CommandLineArguments), assembledPlaced);
     }
 
     /// <summary>
