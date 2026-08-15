@@ -467,4 +467,76 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
         Assert.False(result.Success);
         Assert.Equal(OperationCompletionStatus.Cancelled, finalStatus);
     }
+
+    /// <summary>
+    /// The CRC32 <see cref="HashCalculator"/> reports for <paramref name="bytes"/>, computed via a
+    /// disposable scratch file — the exact production code path, not a re-derivation.
+    /// </summary>
+    private string CrcOf(byte[] bytes)
+    {
+        string scratch = Path.Combine(TempDir, $"scratch-{Guid.NewGuid():N}.bin");
+        File.WriteAllBytes(scratch, bytes);
+        return HashCalculator.Calculate(HashType.CRC32, scratch);
+    }
+
+    // ---- Legacy (non-assembly) complete-all-volumes per-volume verification ----
+    // Reaching this block needs _useAssembly == false (no SRRFilePath) AND CompleteAllVolumes AND a
+    // non-empty ExpectedVolumeCrcs. AssemblyTestHost.Options only fills ExpectedVolumeCrcs from a
+    // fixture, and every fixture supplies an SRR path (which engages assembly instead) — so these
+    // populate the public collections directly. Before these tests, the legacy per-volume
+    // verification block was executed by nothing in the suite.
+
+    [Fact]
+    public async Task LegacyCav_AllVolumeCrcsMatch_IsAMatch()
+    {
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: true,
+            originalRarFileNamesOverride: ["t.rar", "t.r00"]);
+        options.Hashes.Add(CarrierCrc());
+        options.ExpectedVolumeCrcs["t.rar"] = CarrierCrc();
+        options.ExpectedVolumeCrcs["t.r00"] = CrcOf(TriggerBytes);
+
+        host.Runner.OnLaunch = l =>
+        {
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes);
+            File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), TriggerBytes);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the legacy CAV run to finish");
+
+        Assert.True(result.Success);
+        Assert.DoesNotContain(host.Log.Entries, e => e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
+        Assert.DoesNotContain(host.Log.Entries, e => e.Message.Contains("volume(s), expected", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyCav_SecondVolumeCrcMismatch_IsNoMatch_AndLogsTheMismatch()
+    {
+        // Volume 1's CRC stays correct so the first-volume gate still matches; only the SECOND
+        // volume's expected CRC is wrong, so the per-volume block is the sole thing that can
+        // reject this candidate. Pins both the rejection and the exact log wording.
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: true,
+            originalRarFileNamesOverride: ["t.rar", "t.r00"]);
+        options.Hashes.Add(CarrierCrc());
+        options.ExpectedVolumeCrcs["t.rar"] = CarrierCrc();
+        options.ExpectedVolumeCrcs["t.r00"] = "ffffffff"; // deliberately wrong
+
+        host.Runner.OnLaunch = l =>
+        {
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes);
+            File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), TriggerBytes);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the legacy CAV run to finish");
+
+        Assert.False(result.Success);
+        Assert.Contains(host.Log.Entries, e =>
+            e.Message.Contains("first volume matched but", StringComparison.Ordinal)
+            && e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
+    }
 }
