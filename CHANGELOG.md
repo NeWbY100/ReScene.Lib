@@ -4,6 +4,11 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
 
 ## [Unreleased]
 
+### Changed
+
+- The test suite now executes on net8.0 as well as net10.0 — previously the library's net8.0
+  target was only ever compile-verified, so a net8.0-only runtime regression could not be caught.
+
 ### Fixed
 
 - Brute-force setup failures now fail the run properly on every path: a missing or unreadable

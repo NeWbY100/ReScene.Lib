@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Mirror the library's own TFMs so net8.0 is EXECUTED, not merely compiled: the library
+         multi-targets net8.0;net10.0, and a test project pinned to net10.0 alone can only ever
+         catch a net8.0 regression at compile time. -->
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
