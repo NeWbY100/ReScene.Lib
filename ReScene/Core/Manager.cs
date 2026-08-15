@@ -1295,32 +1295,14 @@ public class Manager : IDisposable
                         assembled = quick!;
                     }
 
-                    // Per-volume verification — the gate is EXACTLY the legacy block's own below:
-                    // CAV mode AND a non-empty CRC map; with no map, the quick hash was the whole
-                    // gate (first-hash-only parity) and this block is skipped entirely.
-                    // (Named distinctly from the legacy block's own `expectedInOrder` below — C#
-                    // forbids a nested block from reusing a name its enclosing block also declares,
-                    // even in a later, mutually-exclusive branch.)
-                    IReadOnlyList<(string Name, string Crc)> assemblyExpectedInOrder = BuildExpectedInOrder(options);
-                    if (options.RAROptions.CompleteAllVolumes && assemblyExpectedInOrder.Count > 0)
+                    // Per-volume verification — the same gate as the legacy path below, now literally
+                    // the same code (see VerifyVolumeSet). The assembled set is already in memory, so
+                    // its factory is a plain projection.
+                    if (!VerifyVolumeSet(() => assembled.WrittenPaths, options,
+                            $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
                     {
-                        // The SRR-embedded SFV is ALWAYS CRC32, regardless of options.HashType (same
-                        // rationale as the legacy block's comment below).
-                        var assembledCrcs = assembled.WrittenPaths
-                            .Select(v => HashCalculator.Calculate(HashType.CRC32, v))
-                            .ToList();
-                        VolumeMatchResult verify = VolumeMatchEvaluator.Evaluate(assembledCrcs, assemblyExpectedInOrder);
-                        if (!verify.AllMatch)
-                        {
-                            VolumeMatch? m = verify.FirstMismatch;
-                            string detail = verify.CountMismatch
-                                ? $"produced {assembledCrcs.Count} volume(s), expected {assemblyExpectedInOrder.Count}"
-                                : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
-                            _logger.Information(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
-
-                            ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
-                            continue;
-                        }
+                        ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+                        continue;
                     }
 
                     // Finalization runs OUTSIDE the guard (it applies with or without a CRC map):
@@ -1369,45 +1351,38 @@ public class Manager : IDisposable
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).
                 // Only engages when CompleteAllVolumes is set AND we have expected CRCs; otherwise
                 // we fall through to the legacy first-volume success path (back-compat).
-                IReadOnlyList<(string Name, string Crc)> expectedInOrder = BuildExpectedInOrder(options);
-                if (options.RAROptions.CompleteAllVolumes && expectedInOrder.Count > 0)
-                {
-                    string? completed = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
-                    List<string> producedVolumes = completed != null ? MatchedRARWriter.GetAllVolumeFiles(completed) : [];
-
-                    // Re-patch all volumes before hashing if patching is needed (CRCs are of the
-                    // final bytes). PatchRARFilesHostOS is idempotent (compares before writing), so
-                    // re-running over the already-patched first volume is safe.
-                    if (completed != null && options.RAROptions.NeedsPatching)
-                    {
-                        PatchRARFilesHostOS(completed, options.RAROptions);
-                    }
-
-                    // expectedInOrder comes from the SRR's embedded .sfv (BuildExpectedVolumeCrcs),
-                    // which is ALWAYS CRC32 — regardless of whether the user's own verification file
-                    // is a .sfv or a .sha1. Hashing the produced volumes with options.HashType (SHA1)
-                    // here would compare 40-char SHA1s against 8-char CRC32s and reject every
-                    // byte-correct reconstruction, so this block must use CRC32.
-                    var producedCrcs = producedVolumes
-                        .Select(v => HashCalculator.Calculate(HashType.CRC32, v))
-                        .ToList();
-
-                    VolumeMatchResult verify = VolumeMatchEvaluator.Evaluate(producedCrcs, expectedInOrder);
-                    if (!verify.AllMatch)
-                    {
-                        VolumeMatch? m = verify.FirstMismatch;
-                        string detail = verify.CountMismatch
-                            ? $"produced {producedCrcs.Count} volume(s), expected {expectedInOrder.Count}"
-                            : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
-                        _logger.Information(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: first volume matched but {detail} — continuing", LogTarget.Phase2);
-
-                        if (options.RAROptions.DeleteRARFiles && completed != null)
+                // Discovery and re-patching live INSIDE the gate and must stay there: when
+                // verification is not configured this path performs no enumeration and no write at
+                // all. That is why VerifyVolumeSet takes a factory rather than a volume list.
+                string? completed = null;
+                if (!VerifyVolumeSet(
+                        () =>
                         {
-                            DeleteRARFileAndVolumes(completed);
-                        }
+                            completed = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
+                            if (completed == null)
+                            {
+                                return []; // deliberate count mismatch
+                            }
 
-                        continue; // near-miss: keep brute-forcing
+                            // Re-patch all volumes before hashing if patching is needed (CRCs are of
+                            // the final bytes). PatchRARFilesHostOS is idempotent (compares before
+                            // writing), so re-running over the already-patched first volume is safe.
+                            if (options.RAROptions.NeedsPatching)
+                            {
+                                PatchRARFilesHostOS(completed, options.RAROptions);
+                            }
+
+                            return MatchedRARWriter.GetAllVolumeFiles(completed);
+                        },
+                        options,
+                        $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
+                {
+                    if (options.RAROptions.DeleteRARFiles && completed != null)
+                    {
+                        DeleteRARFileAndVolumes(completed);
                     }
+
+                    continue; // near-miss: keep brute-forcing
                 }
 
                 // ---- FULL MATCH ----
@@ -1535,6 +1510,54 @@ public class Manager : IDisposable
     {
         _logger.Warning(this, $"{Path.GetFileName(ctx.VersionDirectoryPath)} / {ctx.DisplayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
         FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
+    }
+
+    /// <summary>
+    /// The per-volume CRC gate shared by the assembly and legacy win paths. Returns
+    /// <see langword="true"/> when the whole produced set matches, or when verification is not
+    /// configured (no CompleteAllVolumes, or no CRC map — in which case the first-volume hash was
+    /// the whole gate, preserving first-hash-only parity). Returns <see langword="false"/> after
+    /// logging the mismatch; the caller then applies its own retention, which differs between the
+    /// two paths.
+    /// <para>
+    /// The volumes arrive as a FACTORY, not a list, and it is invoked only when the gate is on. The
+    /// legacy caller discovers its volumes and re-patches them inside that callback; running either
+    /// when verification is disabled would add filesystem enumeration, a write, and new I/O failure
+    /// modes to a path that currently performs none. Before this method existed, the two blocks were
+    /// kept in step by a comment reading "the gate is EXACTLY the legacy block's own below".
+    /// </para>
+    /// </summary>
+    /// <param name="volumesFactory">Produces the ordered volume paths to hash; invoked only when the gate is on.</param>
+    /// <param name="options">The run's options, carrying the expected per-volume CRCs.</param>
+    /// <param name="label">"{versionDirectoryName} / {displayArguments}", used in the log line.</param>
+    private bool VerifyVolumeSet(Func<IReadOnlyList<string>> volumesFactory, BruteForceOptions options, string label)
+    {
+        IReadOnlyList<(string Name, string Crc)> expectedInOrder = BuildExpectedInOrder(options);
+        if (!options.RAROptions.CompleteAllVolumes || expectedInOrder.Count == 0)
+        {
+            return true;
+        }
+
+        // The SRR-embedded SFV is ALWAYS CRC32, regardless of options.HashType: it comes from
+        // BuildExpectedVolumeCrcs whether the user's own verification file is a .sfv or a .sha1.
+        // Hashing with options.HashType (SHA1) here would compare 40-char SHA1s against 8-char
+        // CRC32s and reject every byte-correct reconstruction.
+        var producedCrcs = volumesFactory()
+            .Select(v => HashCalculator.Calculate(HashType.CRC32, v))
+            .ToList();
+
+        VolumeMatchResult verify = VolumeMatchEvaluator.Evaluate(producedCrcs, expectedInOrder);
+        if (verify.AllMatch)
+        {
+            return true;
+        }
+
+        VolumeMatch? m = verify.FirstMismatch;
+        string detail = verify.CountMismatch
+            ? $"produced {producedCrcs.Count} volume(s), expected {expectedInOrder.Count}"
+            : $"{m?.ExpectedName} CRC mismatch (expected {m?.ExpectedCrc}, got {m?.ActualCrc})";
+        _logger.Information(this, $"{label}: first volume matched but {detail} — continuing", LogTarget.Phase2);
+        return false;
     }
 
     /// <summary>Mismatch/no-match retention applied to BOTH artifact classes under the
