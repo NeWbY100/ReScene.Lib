@@ -541,6 +541,46 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task LegacyCav_SetVerifyMismatch_DeletesDuplicateCarrier_LikeTheAssemblyPath()
+    {
+        // Twin-path asymmetry fix. On a per-volume verification mismatch the ASSEMBLY path applies
+        // ApplyMismatchRetention, which deletes when DeleteRARFiles OR (duplicate &&
+        // DeleteDuplicateCRCFiles). The legacy path deleted on DeleteRARFiles alone, because the
+        // duplicate flag was computed in the first-volume gate and its scope had closed before the
+        // verification block ran. Same situation, different disk retention.
+        //
+        // Two versions produce byte-identical carriers whose volume 1 hash MATCHES (so both clear
+        // the first-volume gate) but whose second volume's expected CRC is wrong (so both fail set
+        // verification). With DeleteRARFiles off and DeleteDuplicateCRCFiles on, candidate 1 is not
+        // a duplicate and must be kept; candidate 2 is, and must be deleted.
+        using AssemblyTestHost host = NewHost();
+        host.AddSecondVersion();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: true,
+            deleteRarFiles: false, deleteDuplicates: true,
+            originalRarFileNamesOverride: ["t.rar", "t.r00"]);
+        options.Hashes.Add(CarrierCrc());
+        options.ExpectedVolumeCrcs["t.rar"] = CarrierCrc();
+        options.ExpectedVolumeCrcs["t.r00"] = "ffffffff"; // set verification always fails
+
+        List<string> written = [];
+        host.Runner.OnLaunch = l =>
+        {
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes);
+            File.WriteAllBytes(SecondVolumePath(l.OutputFilePath), TriggerBytes);
+            written.Add(l.OutputFilePath);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the legacy CAV duplicate run to finish");
+
+        Assert.False(result.Success);
+        Assert.Equal(2, written.Count);
+        Assert.True(File.Exists(written[0]), "candidate 1's carrier is not a duplicate and must be kept");
+        Assert.False(File.Exists(written[1]), "candidate 2's carrier is a duplicate and must be deleted, as on the assembly path");
+    }
+
+    [Fact]
     public async Task Legacy_DuplicateHashAcrossCandidates_SecondCarrierDeleted_WhenDeleteDuplicatesSet()
     {
         // Two versions produce byte-identical non-matching carriers. The first records the hash;

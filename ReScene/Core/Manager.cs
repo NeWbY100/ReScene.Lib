@@ -1049,6 +1049,9 @@ public class Manager : IDisposable
                 // below without recomputing them.
                 SRRReconstructionResult? quick = null;
                 bool isDuplicateAssemblyHash = false;
+                // The legacy counterpart, threaded from the gate to the win path so a duplicate
+                // carrier gets the same mismatch retention the assembly path applies.
+                bool isLegacyDuplicateHash = false;
                 if (_useAssembly)
                 {
                     (GateOutcome outcome, quick, isDuplicateAssemblyHash, string? quickHash) = await TryQuickGateAsync(
@@ -1062,7 +1065,7 @@ public class Manager : IDisposable
                 }
                 else
                 {
-                    (bool legacyMatched, string legacyHash) = await TryLegacyGateAsync(
+                    (bool legacyMatched, string legacyHash, bool legacyDuplicate) = await TryLegacyGateAsync(
                         actualRARFilePath, fileHashes, producer, options).ConfigureAwait(false);
                     if (!legacyMatched)
                     {
@@ -1070,6 +1073,7 @@ public class Manager : IDisposable
                     }
 
                     hash = legacyHash;
+                    isLegacyDuplicateHash = legacyDuplicate;
                 }
 
                 // ---- MATCH FOUND (first volume) ----
@@ -1109,7 +1113,7 @@ public class Manager : IDisposable
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).
                 // Only engages when CompleteAllVolumes is set AND we have expected CRCs; otherwise
                 // we fall through to the legacy first-volume success path (back-compat).
-                CommittedMatch? legacyMatch = TryFinalizeLegacyWin(ctx, hash, actualRARFilePath, options);
+                CommittedMatch? legacyMatch = TryFinalizeLegacyWin(ctx, hash, isLegacyDuplicateHash, actualRARFilePath, options);
                 if (legacyMatch is null)
                 {
                     continue; // near-miss or incomplete placement: keep brute-forcing
@@ -1472,10 +1476,11 @@ public class Manager : IDisposable
     /// </summary>
     /// <param name="ctx">The candidate being finalized.</param>
     /// <param name="hash">Volume 1's hash, already matched, used only for the match log.</param>
+    /// <param name="isDuplicateHash">Whether the gate saw this hash before; drives mismatch retention.</param>
     /// <param name="actualRARFilePath">The archive rar actually created.</param>
     /// <param name="options">The run's options.</param>
     private CommittedMatch? TryFinalizeLegacyWin(
-        CandidateContext ctx, string hash, string actualRARFilePath, BruteForceOptions options)
+        CandidateContext ctx, string hash, bool isDuplicateHash, string actualRARFilePath, BruteForceOptions options)
     {
         // Discovery and re-patching live INSIDE the gate and must stay there: when verification is
         // not configured this path performs no enumeration and no write at all. That is why
@@ -1503,7 +1508,14 @@ public class Manager : IDisposable
                 options,
                 $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
         {
-            if (options.RAROptions.DeleteRARFiles && completed != null)
+            // The SAME retention rule the assembly path applies via ApplyMismatchRetention:
+            // DeleteRARFiles, OR a duplicate hash when DeleteDuplicateCRCFiles is set. Before the
+            // duplicate flag was threaded through from the gate, this arm honoured DeleteRARFiles
+            // alone and a duplicate carrier survived a set-verification mismatch here while the
+            // equivalent assembly carrier was deleted.
+            bool deleteOnMismatch = options.RAROptions.DeleteRARFiles
+                || (isDuplicateHash && options.RAROptions.DeleteDuplicateCRCFiles);
+            if (deleteOnMismatch && completed != null)
             {
                 DeleteRARFileAndVolumes(completed);
             }
@@ -1542,7 +1554,7 @@ public class Manager : IDisposable
     /// <param name="fileHashes">The run's accumulated hashes; this method both reads and adds to it.</param>
     /// <param name="producer">This candidate's producer; empty on the standard early-termination path.</param>
     /// <param name="options">The run's options.</param>
-    private async Task<(bool Matched, string Hash)> TryLegacyGateAsync(
+    private async Task<(bool Matched, string Hash, bool IsDuplicate)> TryLegacyGateAsync(
         string actualRARFilePath, HashSet<string> fileHashes,
         CandidateProducer producer, BruteForceOptions options)
     {
@@ -1562,7 +1574,7 @@ public class Manager : IDisposable
 
         if (options.Hashes.Contains(hash))
         {
-            return (true, hash);
+            return (true, hash, isDuplicateHash);
         }
 
         // No match - kill background RAR process if still running, and OBSERVE it to
@@ -1584,7 +1596,7 @@ public class Manager : IDisposable
         }
         // If DeleteRARFiles is false and (DeleteDuplicateCRCFiles is false or not a duplicate), keep for debugging
 
-        return (false, hash);
+        return (false, hash, isDuplicateHash);
     }
 
     /// <summary>
