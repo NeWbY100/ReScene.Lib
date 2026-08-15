@@ -16,6 +16,16 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
 
 ### Changed
 
+- The brute-force candidate loop is decomposed into named phases — a per-candidate context record,
+  a progress-row factory, both first-volume gates, both win paths, and a producer handle carrying
+  the observation invariant as named operations. `TryProcessCommandLinesAsync` drops from 656 lines
+  at nesting depth 7 to 330 (183 of them code) at depth 5, with every rationale comment preserved.
+  Behavior is unchanged throughout; the assembly and legacy paths keep their deliberate
+  differences in retention, log ordering and failure reporting.
+- The two per-volume verification blocks — previously duplicated and kept in step by nothing but a
+  comment stating they were identical — now share one implementation. The volume list is supplied
+  lazily so the legacy path still performs no enumeration and no write when verification is not
+  configured.
 - `Manager.BruteForceRARVersionAsync` is now explicitly single-run-at-a-time per instance: a
   second call while a run is executing throws `InvalidOperationException` immediately instead
   of silently corrupting the running run's cancellation source and per-run state. `Stop()`
