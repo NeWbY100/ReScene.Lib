@@ -11,7 +11,7 @@ ReScene.Lib/
 │   ├── SRR/              # SRR file format reading and writing
 │   ├── SRS/              # SRS file format reading, writing, and reconstruction
 │   └── Core/             # Brute-force orchestration, comparison
-└── ReScene.Tests/        # xUnit tests (809 tests)
+└── ReScene.Tests/        # xUnit tests (run on net8.0 and net10.0)
     └── TestData/         # Real-world SRR/RAR/SRS test files
 ```
 
@@ -33,7 +33,9 @@ SRR file format support for scene release reconstruction.
 
 - Parses and creates SRR files, a RAR-like container that stores only headers (no file data)
 - Supports embedded RAR 4.x/5.0 headers, stored files (NFO, SFV), OSO hash blocks, and volume size metadata
-- Extracts stored files with path preservation
+- Extracts stored files: `ExtractStoredFiles` extracts everything with relative paths preserved
+  (validating every name and data range before the first write), `ExtractStoredFile` extracts one
+  file flattened to its base name
 
 ### SRS (`namespace ReScene.SRS`)
 
@@ -70,6 +72,8 @@ dotnet test ReScene.Tests/ReScene.Tests.csproj
 | [Crc32.NET](https://www.nuget.org/packages/Crc32.NET) | 1.2.0 |
 | [System.IO.Hashing](https://www.nuget.org/packages/System.IO.Hashing) | 9.0.4 |
 | [CliWrap](https://www.nuget.org/packages/CliWrap) | 3.10.0 |
+| [DiscUtils.Iso9660](https://www.nuget.org/packages/DiscUtils.Iso9660) | 0.16.13 |
+| [DiscUtils.Udf](https://www.nuget.org/packages/DiscUtils.Udf) | 0.16.13 |
 
 ## License
 
