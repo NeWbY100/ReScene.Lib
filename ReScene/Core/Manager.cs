@@ -293,9 +293,13 @@ public class Manager : IDisposable
     {
         // Link the internal cancellation source to the caller's token so the UI's Cancel
         // (which cancels that token) actually reaches the running RAR processes, not just
-        // Stop(). The field-initialized source is replaced and disposed here.
-        _cts.Dispose();
+        // Stop(). Swap the new source in BEFORE disposing the previous one: Stop() reads _cts
+        // un-synchronized, so create-swap-dispose shrinks its race window to "cancelled the
+        // previous (finished) run's source" — harmless — and Stop() itself tolerates the
+        // remaining disposed-source race outright.
+        CancellationTokenSource previousCts = _cts;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        previousCts.Dispose();
 
         _logger.Information(this, $"=== Starting Brute-Force ===", LogTarget.System);
         _logger.Information(this, $"Release: {options.ReleaseDirectoryPath}", LogTarget.System);
@@ -559,7 +563,17 @@ public class Manager : IDisposable
     public void Stop()
     {
         _logger.Information(this, "Stopping brute force operation and cancelling all RAR processes");
-        _cts.Cancel();
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Stop() may race run entry (which swaps and disposes the previous source) or land
+            // after Dispose(). A cancel aimed at a source that no longer exists has nothing left
+            // to stop — swallowing keeps the documented "Stop() is safe to call concurrently"
+            // contract honest (the same cancel-vs-dispose tolerance the app side applies).
+        }
 
         // CliWrap automatically kills the running processes when the token is cancelled;
         // each process then closes its log writer in Process_ProcessStatusChanged.
@@ -1625,11 +1639,12 @@ public class Manager : IDisposable
         // Size the guard against the real components of the final command line — with useDs: true,
         // since that's what using the tail at all implies — not just the pre-composition display
         // args: -cfg-/-ma4/-vn/-z/-ds all add up, and a file list that fits without them can still
-        // push the real invocation over the guard. The only bytes NOT counted are the three
-        // separators between the four groups (exe / switches / output / tail) — a fixed ≤3-byte
-        // undercount, far inside the guard's ~7,700-byte margin below the 32,767 hard limit. This
-        // trial list is measurement-only; the caller builds its own (identical, given the same
-        // inputs) copy once UseDs is decided below.
+        // push the real invocation over the guard. Not counted: the three separators between the
+        // four groups (exe / switches / output / tail) and any quoting the exe/output tokens need
+        // if they contain spaces — a handful of characters (the Windows limit is 32,767 UTF-16
+        // characters), far inside the guard's ~7,700-character margin. This trial list is
+        // measurement-only; the caller builds its own (identical, given the same inputs) copy once
+        // UseDs is decided below.
         List<string> trialFinalArguments = BuildFinalArguments(filteredArguments, options, version, useDs: true);
         string joinedFinalSwitches = JoinExecutedArguments(trialFinalArguments);
 

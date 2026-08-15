@@ -40,6 +40,19 @@ public class ManagerConcurrencyGuardTests : TempDirTestBase
     }
 
     [Fact]
+    public void Stop_AgainstAGoneCancellationSource_DoesNotThrow()
+    {
+        // Stop() is documented as safe to call concurrently with a run — but run entry swaps and
+        // disposes the previous source, and Stop() can also land after Dispose(). A cancel aimed
+        // at a source that no longer exists has nothing left to stop and must be a no-op, never
+        // an ObjectDisposedException.
+        var manager = new Manager();
+        manager.Dispose();
+
+        manager.Stop();
+    }
+
+    [Fact]
     public async Task BruteForceRARVersionAsync_SequentialRuns_ReuseTheInstance()
     {
         // The guard must release on the setup-failure path too: two consecutive failed runs on
