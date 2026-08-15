@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using ReScene.Core;
 using ReScene.Core.Cryptography;
 using ReScene.Core.IO;
@@ -538,6 +538,57 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
         Assert.Contains(host.Log.Entries, e =>
             e.Message.Contains("first volume matched but", StringComparison.Ordinal)
             && e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task LegacyCav_IncompleteFinalization_FiresACombinationFailedRow_LikeTheAssemblyPath()
+    {
+        // Twin-path asymmetry fix. When transactional placement cannot complete, the ASSEMBLY path
+        // calls FireAssemblyErrorRow — a warning AND a CombinationFailed progress row the UI renders
+        // as an error. The legacy path logged a warning and fired no event at all, so the same
+        // failure was invisible in the version grid.
+        //
+        // Volume 1 matches the expected hash (first-volume gate passes) and no per-volume CRC map is
+        // supplied (set verification is skipped), but the release expects two volumes and only one
+        // was produced — so RenameMatchedOutput refuses to place a partial set.
+        using AssemblyTestHost host = NewHost();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: true,
+            originalRarFileNamesOverride: ["t.rar", "t.r00"]);
+        options.Hashes.Add(CarrierCrc());
+
+        host.Runner.OnLaunch = l =>
+        {
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes); // volume 1 only — a partial set
+            l.Exit.TrySetResult(0);
+        };
+
+        List<BruteForceProgressEventArgs> progressEvents = CollectProgressEvents(host.Manager);
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the incomplete-finalization run to finish");
+
+        Assert.False(result.Success);
+        Assert.Contains(host.Log.Entries, e =>
+            e.Message.Contains("the full volume set could not be placed", StringComparison.Ordinal));
+
+        // The failed row must be an ADDITIONAL row, not the ordinary post-run row simply flagged —
+        // the same shape the assembly path produces via FireAssemblyErrorRow. Asserting only "one
+        // CombinationFailed event exists" would stay green if the existing row were flagged in
+        // place, so the exact sequence is pinned: pre-execution row, post-run row, then the failed
+        // row carrying the post-run row's already-incremented progress.
+        //
+        // Note OperationProgressEventArgs CLAMPS progress to the operation size, and this run's
+        // denominator is 1 (one version, one argument combination). So the progress equality below
+        // cannot discriminate a too-large value here; it is the row COUNT and the adjacency that
+        // carry the weight. Verified by mutation: removing the added row fails this test.
+        Assert.Equal(3, progressEvents.Count);
+
+        BruteForceProgressEventArgs failed = Assert.Single(progressEvents, e => e.CombinationFailed);
+        Assert.Same(progressEvents[^1], failed);
+
+        BruteForceProgressEventArgs postRun = progressEvents[^2];
+        Assert.False(postRun.CombinationFailed);
+        Assert.Equal(postRun.OperationProgressed, failed.OperationProgressed);
     }
 
     [Fact]

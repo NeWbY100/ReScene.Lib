@@ -1113,7 +1113,7 @@ public class Manager : IDisposable
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).
                 // Only engages when CompleteAllVolumes is set AND we have expected CRCs; otherwise
                 // we fall through to the legacy first-volume success path (back-compat).
-                CommittedMatch? legacyMatch = TryFinalizeLegacyWin(ctx, hash, isLegacyDuplicateHash, actualRARFilePath, options);
+                CommittedMatch? legacyMatch = TryFinalizeLegacyWin(ctx, hash, isLegacyDuplicateHash, actualRARFilePath, currentProgress, options);
                 if (legacyMatch is null)
                 {
                     continue; // near-miss or incomplete placement: keep brute-forcing
@@ -1478,9 +1478,11 @@ public class Manager : IDisposable
     /// <param name="hash">Volume 1's hash, already matched, used only for the match log.</param>
     /// <param name="isDuplicateHash">Whether the gate saw this hash before; drives mismatch retention.</param>
     /// <param name="actualRARFilePath">The archive rar actually created.</param>
+    /// <param name="currentProgress">The progress counter, for the incomplete-placement error row.</param>
     /// <param name="options">The run's options.</param>
     private CommittedMatch? TryFinalizeLegacyWin(
-        CandidateContext ctx, string hash, bool isDuplicateHash, string actualRARFilePath, BruteForceOptions options)
+        CandidateContext ctx, string hash, bool isDuplicateHash, string actualRARFilePath,
+        int currentProgress, BruteForceOptions options)
     {
         // Discovery and re-patching live INSIDE the gate and must stay there: when verification is
         // not configured this path performs no enumeration and no write at all. That is why
@@ -1532,7 +1534,13 @@ public class Manager : IDisposable
         (IReadOnlyList<string> placed, bool complete) = RenameMatchedOutput(options, ctx.RarFilePath, actualRARFilePath, ctx.RarOutputDir);
         if (!complete)
         {
+            // A warning AND a CombinationFailed row, matching the assembly path's disposition for
+            // the same failure. Previously this logged only, so an incomplete placement was
+            // invisible in the version grid on the legacy path while the assembly path showed it as
+            // an error row. Fired AFTER the candidate's ordinary post-run row and carrying that
+            // row's already-incremented progress — the same shape FireAssemblyErrorRow produces.
             _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: matched but the full volume set could not be placed — continuing", LogTarget.Phase2);
+            FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
             return null;
         }
 
