@@ -1322,60 +1322,13 @@ public class Manager : IDisposable
                 // Full per-volume verification (recreate-whole-release mode with known CRCs).
                 // Only engages when CompleteAllVolumes is set AND we have expected CRCs; otherwise
                 // we fall through to the legacy first-volume success path (back-compat).
-                // Discovery and re-patching live INSIDE the gate and must stay there: when
-                // verification is not configured this path performs no enumeration and no write at
-                // all. That is why VerifyVolumeSet takes a factory rather than a volume list.
-                string? completed = null;
-                if (!VerifyVolumeSet(
-                        () =>
-                        {
-                            completed = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
-                            if (completed == null)
-                            {
-                                return []; // deliberate count mismatch
-                            }
-
-                            // Re-patch all volumes before hashing if patching is needed (CRCs are of
-                            // the final bytes). PatchRARFilesHostOS is idempotent (compares before
-                            // writing), so re-running over the already-patched first volume is safe.
-                            if (options.RAROptions.NeedsPatching)
-                            {
-                                PatchRARFilesHostOS(completed, options.RAROptions);
-                            }
-
-                            return MatchedRARWriter.GetAllVolumeFiles(completed);
-                        },
-                        options,
-                        $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
+                CommittedMatch? legacyMatch = TryFinalizeLegacyWin(ctx, hash, actualRARFilePath, options);
+                if (legacyMatch is null)
                 {
-                    if (options.RAROptions.DeleteRARFiles && completed != null)
-                    {
-                        DeleteRARFileAndVolumes(completed);
-                    }
-
-                    continue; // near-miss: keep brute-forcing
+                    continue; // near-miss or incomplete placement: keep brute-forcing
                 }
 
-                // ---- FULL MATCH ----
-
-                // Log match to System tab for visibility
-                LogMatchDetails(options, ctx.VersionDirectoryName, ctx.DisplayArguments, hash, actualRARFilePath);
-
-                // Rename the matched file(s) to their final name inside the "output" subdirectory.
-                // This is transactional: only a FULLY-placed set (the mode's whole expected volume
-                // identity) counts as a match. An incomplete placement (occupied destination, a
-                // move failure, or fewer volumes produced than the release requires) must NOT be
-                // reported as found — the search keeps going so a later, fully-placed combo can
-                // still win, without colliding with this attempt's rolled-back partial output.
-                (IReadOnlyList<string> placed, bool complete) = RenameMatchedOutput(options, ctx.RarFilePath, actualRARFilePath, ctx.RarOutputDir);
-                if (!complete)
-                {
-                    _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: matched but the full volume set could not be placed — continuing", LogTarget.Phase2);
-                    continue;
-                }
-
-                var winningCombo = new WinningCombo(ctx.Version, ctx.CommandLineArguments);
-                return (true, currentProgress, new CommittedMatch(winningCombo, placed));
+                return (true, currentProgress, legacyMatch);
             }
             catch (OperationCanceledException)
             {
@@ -1481,6 +1434,79 @@ public class Manager : IDisposable
     {
         _logger.Warning(this, $"{Path.GetFileName(ctx.VersionDirectoryPath)} / {ctx.DisplayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
         FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
+    }
+
+    /// <summary>
+    /// The legacy (non-assembly) win path, entered once volume 1 has matched: verify the whole
+    /// produced set, log the match, and transactionally place the output. Returns the committed
+    /// match, or <see langword="null"/> to mean "move to the next candidate".
+    /// <para>
+    /// Placement is transactional: only a FULLY-placed set (the mode's whole expected volume
+    /// identity) counts as a match. An incomplete placement — occupied destination, a move failure,
+    /// or fewer volumes produced than the release requires — must NOT be reported as found, so the
+    /// search keeps going and a later, fully-placed combo can still win without colliding with this
+    /// attempt's rolled-back partial output.
+    /// </para>
+    /// <para>
+    /// Note the log-then-finalize order here is the reverse of the assembly path's
+    /// finalize-then-log. That asymmetry is deliberate and observable in log ordering.
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">The candidate being finalized.</param>
+    /// <param name="hash">Volume 1's hash, already matched, used only for the match log.</param>
+    /// <param name="actualRARFilePath">The archive rar actually created.</param>
+    /// <param name="options">The run's options.</param>
+    private CommittedMatch? TryFinalizeLegacyWin(
+        CandidateContext ctx, string hash, string actualRARFilePath, BruteForceOptions options)
+    {
+        // Discovery and re-patching live INSIDE the gate and must stay there: when verification is
+        // not configured this path performs no enumeration and no write at all. That is why
+        // VerifyVolumeSet takes a factory rather than a volume list.
+        string? completed = null;
+        if (!VerifyVolumeSet(
+                () =>
+                {
+                    completed = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
+                    if (completed == null)
+                    {
+                        return []; // deliberate count mismatch
+                    }
+
+                    // Re-patch all volumes before hashing if patching is needed (CRCs are of the
+                    // final bytes). PatchRARFilesHostOS is idempotent (compares before writing), so
+                    // re-running over the already-patched first volume is safe.
+                    if (options.RAROptions.NeedsPatching)
+                    {
+                        PatchRARFilesHostOS(completed, options.RAROptions);
+                    }
+
+                    return MatchedRARWriter.GetAllVolumeFiles(completed);
+                },
+                options,
+                $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}"))
+        {
+            if (options.RAROptions.DeleteRARFiles && completed != null)
+            {
+                DeleteRARFileAndVolumes(completed);
+            }
+
+            return null; // near-miss: keep brute-forcing
+        }
+
+        // ---- FULL MATCH ----
+
+        // Log match to System tab for visibility
+        LogMatchDetails(options, ctx.VersionDirectoryName, ctx.DisplayArguments, hash, actualRARFilePath);
+
+        // Rename the matched file(s) to their final name inside the "output" subdirectory.
+        (IReadOnlyList<string> placed, bool complete) = RenameMatchedOutput(options, ctx.RarFilePath, actualRARFilePath, ctx.RarOutputDir);
+        if (!complete)
+        {
+            _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: matched but the full volume set could not be placed — continuing", LogTarget.Phase2);
+            return null;
+        }
+
+        return new CommittedMatch(new WinningCombo(ctx.Version, ctx.CommandLineArguments), placed);
     }
 
     /// <summary>
