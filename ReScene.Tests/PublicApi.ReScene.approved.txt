@@ -621,6 +621,7 @@ class static ReScene.SRR.SRREditor
 class ReScene.SRR.SRRFile
     ctor ()
     method Byte[] ReadStoredFile(String, Func<String, Boolean>)
+    method IReadOnlyList<String> ExtractStoredFiles(String, String, CancellationToken)
     method SRRFile Load(String)
     method String ExtractStoredFile(String, String, Func<String, Boolean>)
     property Boolean CmtHasZeroedFileTime { get; }

@@ -4,6 +4,16 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
 
 ## [Unreleased]
 
+### Added
+
+- `SRRFile.ExtractStoredFiles` — bulk stored-file extraction that recreates each entry's
+  relative directory structure (the single-file `ExtractStoredFile` keeps flattening to the
+  base name). Everything is validated before the first write, so a hostile or inconsistent SRR
+  extracts nothing at all: rooted or `.`/`..` names, duplicate names after normalization
+  (case-insensitively, on every host), names needed as both a file and a directory, output
+  paths that pre-existing links inside the output directory would redirect or collide, and
+  out-of-bounds data ranges are all refused loudly.
+
 ### Changed
 
 - The test suite now executes on net8.0 as well as net10.0 — previously the library's net8.0
@@ -11,6 +21,11 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
 
 ### Fixed
 
+- **Security:** dangling links are no longer mistaken for "not yet materialized" paths in the
+  canonicalizer's path walks (`Exists` follows links, so a link with a missing target looked
+  absent) — a dangling link inside an SFV directory or an extraction output directory could
+  route a later write outside the containment root. Dangling links are now resolved like any
+  other link and contained accordingly.
 - Brute-force setup failures now fail the run properly on every path: a missing or unreadable
   WinRAR installations directory no longer throws out of `BruteForceRARVersionAsync`, and the
   empty-installations-directory and input-file-validation early exits now fire the terminal

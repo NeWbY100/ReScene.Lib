@@ -157,11 +157,16 @@ public static class SrrNameCanonicalizer
         bool isDirectory = Directory.Exists(candidate);
         if (!isDirectory && !File.Exists(candidate))
         {
-            // A component that doesn't exist can't be a link either — adopt it literally.
-            // ResolveLinkTarget throws FileNotFoundException for a non-existent path rather than
-            // returning null, so this check must run first. Required so ToExtendedLengthPath
-            // (Windows long-path fallback) can resolve a path whose tail doesn't exist yet,
-            // mirroring ResolveExistingPrefixThenAppend's same tolerance for SFV entries.
+            // Exists FOLLOWS links, so "false" covers two very different cases: a truly absent
+            // entry (adopt literally — required so ToExtendedLengthPath can resolve a path whose
+            // tail doesn't exist yet, mirroring ResolveExistingPrefixThenAppend's tolerance for
+            // SFV entries) and a DANGLING link, whose entry exists and whose stored target a
+            // later write would follow — that one must be resolved like any other link.
+            if (TryGetDanglingLinkTarget(candidate) is { } danglingTarget)
+            {
+                return ResolveAncestorChain(danglingTarget, depth + 1);
+            }
+
             return candidate;
         }
 
@@ -264,6 +269,42 @@ public static class SrrNameCanonicalizer
         return candidateFinal;
     }
 
+    // internal (not private): the materialization-side counterpart of ResolveSfvEntry, used by
+    // SRRFile.ExtractStoredFiles to decide every output path on an OS-resolved FINAL path before
+    // the first byte is written — a pre-existing link inside the output directory (e.g. a
+    // "Sample" junction targeting elsewhere) redirects a lexically-contained name, and only the
+    // final-path walk catches that. Same walk + containment as ResolveSfvEntry, with extraction
+    // wording; excluded from the PublicApi snapshot like the other internal members.
+    // finalRootDirectory must already be a GetFinalPath result — the caller resolves it once for
+    // the whole extraction rather than per stored file.
+    internal static string ResolveContainedOutputPath(string finalRootDirectory, string relativeSpec, string displayName)
+    {
+        string normalized = relativeSpec
+            .Replace('/', Path.DirectorySeparatorChar)
+            .Replace('\\', Path.DirectorySeparatorChar);
+        string candidateFinal = ResolveExistingPrefixThenAppend(finalRootDirectory, normalized);
+        _ = EnsureContainedRelative(finalRootDirectory, candidateFinal, displayName, "Stored file escapes the output directory");
+        return candidateFinal;
+    }
+
+    // Probes a path whose Exists checks (which FOLLOW links) came back false for being a
+    // DANGLING link entry: the link itself exists on disk, only its stored target doesn't, and a
+    // later create-through would follow that target string. Returns the immediate (unresolved)
+    // target's absolute path, or null when the entry is genuinely absent or not a link. Both
+    // probe shapes are needed: FileInfo covers POSIX symlinks (typeless) and Windows file links;
+    // DirectoryInfo covers Windows directory links/junctions, whose reparse data needs a
+    // directory-shaped open.
+    private static string? TryGetDanglingLinkTarget(string candidate)
+    {
+        FileSystemInfo probe = new FileInfo(candidate);
+        if (probe.LinkTarget is null)
+        {
+            probe = new DirectoryInfo(candidate);
+        }
+
+        return probe.LinkTarget is null ? null : probe.ResolveLinkTarget(returnFinalTarget: false)!.FullName;
+    }
+
     // Walks `relativeSpec` component-by-component from the already-final `finalBase`, resolving
     // EVERY existing component through GetFinalPath — existence is checked FRESH on each
     // component, never latched off by an earlier gap (a one-way
@@ -290,8 +331,18 @@ public static class SrrNameCanonicalizer
             }
 
             string candidate = Path.Combine(current, component);
-            current = Directory.Exists(candidate) || File.Exists(candidate)
-                ? GetFinalPath(candidate)
+            if (Directory.Exists(candidate) || File.Exists(candidate))
+            {
+                current = GetFinalPath(candidate);
+                continue;
+            }
+
+            // Exists follows links, so a DANGLING link lands here looking "absent" — but its
+            // entry exists, and a later create-through would follow its stored target. Resolve
+            // it (the target's own ancestors may hold links too); only a genuinely absent
+            // component is adopted literally as "not yet materialized".
+            current = TryGetDanglingLinkTarget(candidate) is { } danglingTarget
+                ? ResolveAncestorChain(danglingTarget)
                 : candidate;
         }
 

@@ -696,6 +696,150 @@ public class SRRFile
     }
 
     /// <summary>
+    /// Extracts every stored file to <paramref name="outputDirectory"/>, recreating each entry's
+    /// relative directory structure — unlike <see cref="ExtractStoredFile"/>, which flattens the
+    /// single requested file to its base name. Every stored name and data range is validated
+    /// BEFORE anything is written — hostile names (rooted, "." / ".." segments), duplicate
+    /// names after normalization, file-vs-directory conflicts ("a" + "a/b.nfo"), output paths
+    /// that a pre-existing link inside the output directory would redirect elsewhere, and
+    /// out-of-bounds data ranges all fail the whole call with the output directory left
+    /// without a single extracted file, instead of failing halfway through a partial
+    /// extraction.
+    /// </summary>
+    /// <param name="srrFilePath">
+    /// The path to the SRR file containing the stored data.
+    /// </param>
+    /// <param name="outputDirectory">
+    /// The directory to extract into. Created on demand; untouched when the SRR stores no files.
+    /// </param>
+    /// <param name="cancellationToken">
+    /// Cancels the extraction between files.
+    /// </param>
+    /// <returns>
+    /// The full paths of the written files, in stored-block order.
+    /// </returns>
+    /// <exception cref="ArgumentException">Thrown when required parameters are null or empty.</exception>
+    /// <exception cref="SrrNameException">Thrown when a stored name is rooted or contains "." / ".." segments.</exception>
+    /// <exception cref="InvalidDataException">Thrown when a stored file's data range is outside the SRR file bounds.</exception>
+    public IReadOnlyList<string> ExtractStoredFiles(string srrFilePath, string outputDirectory, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(srrFilePath))
+        {
+            throw new ArgumentException("SRR file path is required.", nameof(srrFilePath));
+        }
+
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            throw new ArgumentException("Output directory is required.", nameof(outputDirectory));
+        }
+
+        if (StoredFiles.Count == 0)
+        {
+            return [];
+        }
+
+        using FileStream fs = new(srrFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        // The output directory must exist before the containment walks below can resolve final
+        // paths, so it is the one thing materialized ahead of validation. Resolved once for the
+        // whole extraction; every per-file walk starts from this final root.
+        Directory.CreateDirectory(outputDirectory);
+        string finalRoot = SrrNameCanonicalizer.GetFinalPath(outputDirectory);
+
+        // Validation pass, all before the first write: canonicalize every name (SrrNameException
+        // on rooted / "." / ".." forms — the same writer-boundary contract SRRWriter enforces),
+        // resolve every output path to an OS-final contained location (a pre-existing link
+        // inside the output directory would otherwise redirect a lexically-clean name), and
+        // bounds-check every data range.
+        List<(SRRStoredFileBlock Block, string OutputPath)> plan = [];
+        // Logical names: OrdinalIgnoreCase on EVERY host, not just where the filesystem
+        // collides — an SRR whose stored names differ only by case would silently overwrite on
+        // Windows/macOS, so the portable contract refuses it uniformly, like the rest of the
+        // name grammar. Resolved paths: the HOST's own comparison (they are real paths on this
+        // filesystem, the same distinction SrrNameCanonicalizer's containment makes) — two
+        // distinct logical names can still collide here through a link inside the output
+        // directory ("Alias/a.nfo" vs "Real/a.nfo" with Alias -> Real).
+        HashSet<string> seenNames = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> seenResolvedPaths = new(
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        foreach (SRRStoredFileBlock stored in StoredFiles)
+        {
+            string canonical = SrrNameCanonicalizer.CanonicalizeLogicalName(stored.FileName);
+            if (!seenNames.Add(canonical))
+            {
+                throw new SrrNameException($"Duplicate stored file name after normalization: {stored.FileName}");
+            }
+
+            string outputPath = SrrNameCanonicalizer.ResolveContainedOutputPath(
+                finalRoot, canonical, stored.FileName);
+            if (!seenResolvedPaths.Add(outputPath))
+            {
+                throw new SrrNameException($"Stored file resolves to the same output path as another entry: {stored.FileName}");
+            }
+
+            long dataOffset = stored.DataOffset;
+            long dataEnd = dataOffset + stored.FileLength;
+            if (dataOffset < 0 || dataOffset > fs.Length)
+            {
+                throw new InvalidDataException("Stored file data offset is outside the SRR file bounds.");
+            }
+
+            if (dataEnd < dataOffset || dataEnd > fs.Length)
+            {
+                throw new InvalidDataException("Stored file length exceeds SRR file bounds.");
+            }
+
+            plan.Add((stored, outputPath));
+        }
+
+        // A name needed as both a file and a directory ("a" + "a/b.nfo") cannot materialize.
+        // Ancestor-set membership, NOT sorted adjacency: '-' sorts between '' and '/', so in
+        // "a", "a-b", "a/b" the conflicting pair is never adjacent. Checked on the logical
+        // names AND on the resolved paths — links inside the output directory can manufacture
+        // resolved-level conflicts that the logical level cannot see.
+        foreach (string name in seenNames)
+        {
+            for (int slash = name.IndexOf('/'); slash >= 0; slash = name.IndexOf('/', slash + 1))
+            {
+                if (seenNames.Contains(name[..slash]))
+                {
+                    throw new SrrNameException($"Stored file name is also needed as a directory: {name[..slash]}");
+                }
+            }
+        }
+
+        foreach (string resolvedPath in seenResolvedPaths)
+        {
+            for (string? parent = Path.GetDirectoryName(resolvedPath);
+                 parent is not null && parent.Length > finalRoot.Length;
+                 parent = Path.GetDirectoryName(parent))
+            {
+                if (seenResolvedPaths.Contains(parent))
+                {
+                    throw new SrrNameException($"Stored file resolves to a directory another entry needs as a file: {parent}");
+                }
+            }
+        }
+
+        List<string> written = [];
+        foreach ((SRRStoredFileBlock stored, string outputPath) in plan)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+
+            fs.Seek(stored.DataOffset, SeekOrigin.Begin);
+            using FileStream output = new(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            StreamUtilities.CopyBytesStrict(fs, output, stored.FileLength,
+                "Unexpected end of SRR file while reading stored file data.");
+
+            written.Add(outputPath);
+        }
+
+        return written;
+    }
+
+    /// <summary>
     /// Reads the first stored file whose name matches <paramref name="match"/> into memory
     /// and returns its bytes, or <c>null</c> if no matching file is found. This is the
     /// in-memory counterpart of <see cref="ExtractStoredFile"/>.
