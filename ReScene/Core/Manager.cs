@@ -1084,107 +1084,16 @@ public class Manager : IDisposable
                 }
 
                 string hash;
-                // Hoisted so the win path below (after "MATCH FOUND") can reuse the quick gate's own
-                // assembled result and duplicate-hash flag without recomputing them; distinct name
-                // from the legacy else-arm's own local `isDuplicateHash` (untouched, below).
+                // The quick gate's assembled result and duplicate-hash flag, reused by the win path
+                // below without recomputing them.
                 SRRReconstructionResult? quick = null;
                 bool isDuplicateAssemblyHash = false;
                 if (_useAssembly)
                 {
-                    bool skipRetentionCleanup = false;   // per-candidate; true ONLY for persistent Error (diagnosis retention)
-
-                    // Snapshot BEFORE the attempt, not after: ProducedVolumesPackedSource opens the
-                    // produced set as it exists AT THIS INSTANT. If the producer is still running
-                    // here, that snapshot may be incomplete regardless of what the producer does
-                    // WHILE the attempt reads it — including finishing in the background before the
-                    // attempt itself returns. Checking runningProcessTask.IsCompleted only AFTER the
-                    // attempt returns reads the producer's state as of THEN, not as of when the
-                    // snapshot was actually opened, and would wrongly skip the retry for exactly the
-                    // incomplete-snapshot case it exists to catch (a real race, not a test artifact).
-                    bool retryEligible = runningProcessTask is { IsCompleted: false };
-                    quick = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, 1, _cts.Token).ConfigureAwait(false);
-
-                    if (quick.Status != SRRReconstructionStatus.Success && retryEligible)
+                    (GateOutcome outcome, quick, isDuplicateAssemblyHash, string? quickHash) = await TryQuickGateAsync(
+                        ctx, actualRARFilePath, fileHashes, runningProcessTask, processCts, currentProgress, options).ConfigureAwait(false);
+                    if (outcome == GateOutcome.NextCandidate)
                     {
-                        // Incomplete snapshot: ANY non-success while the producer runs — including
-                        // Error from RARStream's missing/short-header ArgumentException — awaits completion
-                        // and retries ONCE with a fresh source.
-                        // Normal wait — faults PROPAGATE (generic catch = error row); not the quiet observer.
-                        if (runningProcessTask is not null)
-                        {
-                            completedExitCode = await runningProcessTask.ConfigureAwait(false);
-                        }
-
-                        quick = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, 1, _cts.Token).ConfigureAwait(false);
-                    }
-
-                    string? quickHash = quick.Status == SRRReconstructionStatus.Success && quick.WrittenPaths.Count >= 1
-                        ? HashCalculator.Calculate(options.HashType, quick.WrittenPaths[0])
-                        : null;
-                    bool quickMatch = quickHash != null && options.Hashes.Contains(quickHash);
-                    // Duplicate detection BEFORE recording the hash (mirrors the legacy fileHashes pattern):
-                    isDuplicateAssemblyHash = quickHash != null && fileHashes.Contains(quickHash);
-                    if (quickHash != null)
-                    {
-                        fileHashes.Add(quickHash);
-                    }
-
-                    _logger.Information(this, $"Assembled hash for {(quick.WrittenPaths.Count >= 1 ? quick.WrittenPaths[0] : ctx.AssemblyDir)}: {quickHash ?? quick.Status.ToString()} (match: {quickMatch})", LogTarget.Phase2);
-
-                    if (!quickMatch)
-                    {
-                        // Post-retry classification:
-                        switch (quick.Status)
-                        {
-                            case SRRReconstructionStatus.Error:
-                                // Persistent parse/I-O failure = failed combination — the EXISTING error-row
-                                // shape (CombinationFailed progress event + warning). RETENTION: like the
-                                // exception disposition, BOTH artifact classes are LEFT IN PLACE for
-                                // diagnosis.
-                                FireAssemblyErrorRow(ctx, options, currentProgress, quick.Diagnostic);
-                                skipRetentionCleanup = true;
-                                break;
-                            case SRRReconstructionStatus.SourceExhausted when !options.RAROptions.CompleteAllVolumes:
-                                // Mirror shift in non-CAV: vol-2 bytes were never written — INCONCLUSIVE.
-                                if (!_inconclusiveGuidanceLogged)
-                                {
-                                    _inconclusiveGuidanceLogged = true;
-                                    _logger.Information(this, "Some candidates are inconclusive without full volumes — enable \"Complete all volumes\" to test them", LogTarget.System);
-                                }
-                                _logger.Debug(this, $"{ctx.CandidateSlug}: inconclusive (assembly needs produced volume 2+)", LogTarget.Phase2);
-                                break;
-                            default:
-                                // SourceExhausted (CAV, producer done) or a hash mismatch: real no-match.
-                                break;
-                        }
-
-                        // Diagnose a produced archive that packs its files in a different order than
-                        // the release: splicing the release's original headers onto data read
-                        // positionally from a differently-ordered solid stream produces wrong bytes
-                        // with no other symptom — comparing the first entry's name is enough to catch
-                        // it and name the likely cause. Runs regardless of quick.Status above (Error/
-                        // SourceExhausted/hash-mismatch can all be caused by this), gated only on
-                        // having something to compare. Reads BOTH files before ApplyMismatchRetention
-                        // below, which may delete actualRARFilePath.
-                        if (!_packOrderGuidanceLogged && quick.WrittenPaths.Count >= 1)
-                        {
-                            string? expectedFirstName = RARFirstEntryReader.TryGetFirstFileName(quick.WrittenPaths[0]);
-                            string? producedFirstName = RARFirstEntryReader.TryGetFirstFileName(actualRARFilePath);
-                            if (expectedFirstName != null && producedFirstName != null
-                                && !string.Equals(expectedFirstName, producedFirstName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                _packOrderGuidanceLogged = true;
-                                _logger.Warning(this,
-                                    $"Produced archive packs files in a different order than the release ('{producedFirstName}' before '{expectedFirstName}') — an /etc/rarfiles.lst order list or a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.",
-                                    LogTarget.Phase2);
-                            }
-                        }
-
-                        await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
-                        if (!skipRetentionCleanup) // false for mismatch/SourceExhausted/duplicate; true for Error
-                        {
-                            ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
-                        }
                         continue;
                     }
 
@@ -1358,6 +1267,130 @@ public class Manager : IDisposable
     {
         _logger.Warning(this, $"{Path.GetFileName(ctx.VersionDirectoryPath)} / {ctx.DisplayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
         FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
+    }
+
+    /// <summary>
+    /// The SRR-guided-assembly first-volume gate: assemble volume 1 from the produced set, hash it,
+    /// and decide whether this candidate matches. Returns
+    /// <see cref="GateOutcome.NextCandidate"/> to mean "move to the next candidate" after applying
+    /// the configured retention.
+    /// <para>
+    /// The assembled result and the duplicate flag are returned rather than recomputed, because the
+    /// win path needs both.
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">The candidate being gated.</param>
+    /// <param name="actualRARFilePath">The carrier archive rar actually produced.</param>
+    /// <param name="fileHashes">The run's accumulated hashes; read for duplicate detection, then added to.</param>
+    /// <param name="runningProcessTask">The CompleteAllVolumes producer, or null on the standard path.</param>
+    /// <param name="processCts">That producer's cancellation source, or null.</param>
+    /// <param name="currentProgress">The progress counter, for any error row this gate fires.</param>
+    /// <param name="options">The run's options.</param>
+    private async Task<(GateOutcome Outcome, SRRReconstructionResult? Quick, bool IsDuplicate, string? Hash)> TryQuickGateAsync(
+        CandidateContext ctx, string actualRARFilePath, HashSet<string> fileHashes,
+        Task<int>? runningProcessTask, CancellationTokenSource? processCts, int currentProgress, BruteForceOptions options)
+    {
+        bool skipRetentionCleanup = false;   // per-candidate; true ONLY for persistent Error (diagnosis retention)
+
+        // Snapshot BEFORE the attempt, not after: ProducedVolumesPackedSource opens the
+        // produced set as it exists AT THIS INSTANT. If the producer is still running
+        // here, that snapshot may be incomplete regardless of what the producer does
+        // WHILE the attempt reads it — including finishing in the background before the
+        // attempt itself returns. Checking runningProcessTask.IsCompleted only AFTER the
+        // attempt returns reads the producer's state as of THEN, not as of when the
+        // snapshot was actually opened, and would wrongly skip the retry for exactly the
+        // incomplete-snapshot case it exists to catch (a real race, not a test artifact).
+        bool retryEligible = runningProcessTask is { IsCompleted: false };
+        SRRReconstructionResult quick = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, 1, _cts.Token).ConfigureAwait(false);
+
+        if (quick.Status != SRRReconstructionStatus.Success && retryEligible)
+        {
+            // Incomplete snapshot: ANY non-success while the producer runs — including
+            // Error from RARStream's missing/short-header ArgumentException — awaits completion
+            // and retries ONCE with a fresh source.
+            // Normal wait — faults PROPAGATE (generic catch = error row); not the quiet observer.
+            // The exit code is deliberately discarded: its only reader is the not-created
+            // classification, which has already moved to the next candidate by the time we get here.
+            if (runningProcessTask is not null)
+            {
+                await runningProcessTask.ConfigureAwait(false);
+            }
+
+            quick = await AssembleCandidateAsync(options, actualRARFilePath, ctx.AssemblyDir, ctx.CandidateSlug, 1, _cts.Token).ConfigureAwait(false);
+        }
+
+        string? quickHash = quick.Status == SRRReconstructionStatus.Success && quick.WrittenPaths.Count >= 1
+            ? HashCalculator.Calculate(options.HashType, quick.WrittenPaths[0])
+            : null;
+        bool quickMatch = quickHash != null && options.Hashes.Contains(quickHash);
+        // Duplicate detection BEFORE recording the hash (mirrors the legacy fileHashes pattern):
+        bool isDuplicateAssemblyHash = quickHash != null && fileHashes.Contains(quickHash);
+        if (quickHash != null)
+        {
+            fileHashes.Add(quickHash);
+        }
+
+        _logger.Information(this, $"Assembled hash for {(quick.WrittenPaths.Count >= 1 ? quick.WrittenPaths[0] : ctx.AssemblyDir)}: {quickHash ?? quick.Status.ToString()} (match: {quickMatch})", LogTarget.Phase2);
+
+        if (quickMatch)
+        {
+            return (GateOutcome.Match, quick, isDuplicateAssemblyHash, quickHash);
+        }
+
+        // Post-retry classification:
+        switch (quick.Status)
+        {
+            case SRRReconstructionStatus.Error:
+                // Persistent parse/I-O failure = failed combination — the EXISTING error-row
+                // shape (CombinationFailed progress event + warning). RETENTION: like the
+                // exception disposition, BOTH artifact classes are LEFT IN PLACE for
+                // diagnosis.
+                FireAssemblyErrorRow(ctx, options, currentProgress, quick.Diagnostic);
+                skipRetentionCleanup = true;
+                break;
+            case SRRReconstructionStatus.SourceExhausted when !options.RAROptions.CompleteAllVolumes:
+                // Mirror shift in non-CAV: vol-2 bytes were never written — INCONCLUSIVE.
+                if (!_inconclusiveGuidanceLogged)
+                {
+                    _inconclusiveGuidanceLogged = true;
+                    _logger.Information(this, "Some candidates are inconclusive without full volumes — enable \"Complete all volumes\" to test them", LogTarget.System);
+                }
+                _logger.Debug(this, $"{ctx.CandidateSlug}: inconclusive (assembly needs produced volume 2+)", LogTarget.Phase2);
+                break;
+            default:
+                // SourceExhausted (CAV, producer done) or a hash mismatch: real no-match.
+                break;
+        }
+
+        // Diagnose a produced archive that packs its files in a different order than
+        // the release: splicing the release's original headers onto data read
+        // positionally from a differently-ordered solid stream produces wrong bytes
+        // with no other symptom — comparing the first entry's name is enough to catch
+        // it and name the likely cause. Runs regardless of quick.Status above (Error/
+        // SourceExhausted/hash-mismatch can all be caused by this), gated only on
+        // having something to compare. Reads BOTH files before ApplyMismatchRetention
+        // below, which may delete actualRARFilePath.
+        if (!_packOrderGuidanceLogged && quick.WrittenPaths.Count >= 1)
+        {
+            string? expectedFirstName = RARFirstEntryReader.TryGetFirstFileName(quick.WrittenPaths[0]);
+            string? producedFirstName = RARFirstEntryReader.TryGetFirstFileName(actualRARFilePath);
+            if (expectedFirstName != null && producedFirstName != null
+                && !string.Equals(expectedFirstName, producedFirstName, StringComparison.OrdinalIgnoreCase))
+            {
+                _packOrderGuidanceLogged = true;
+                _logger.Warning(this,
+                    $"Produced archive packs files in a different order than the release ('{producedFirstName}' before '{expectedFirstName}') — an /etc/rarfiles.lst order list or a rar default switch such as -ds from .rarrc or the RAR environment variable can cause this.",
+                    LogTarget.Phase2);
+            }
+        }
+
+        await ObserveProducerQuietlyAsync(runningProcessTask, processCts, cancelFirst: true).ConfigureAwait(false);
+        if (!skipRetentionCleanup) // false for mismatch/SourceExhausted/duplicate; true for Error
+        {
+            ApplyMismatchRetention(ctx.AssemblyDir, actualRARFilePath, options, isDuplicateAssemblyHash);
+        }
+
+        return (GateOutcome.NextCandidate, quick, isDuplicateAssemblyHash, quickHash);
     }
 
     /// <summary>
