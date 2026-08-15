@@ -99,7 +99,7 @@ public class SFVFileTests
     {
         var sfv = SFVFile.ReadFile(TestFile("store_split_folder_old_srrsfv_windows", "store_split_folder.sfv"));
 
-        Assert.All(sfv.Entries, entry => Assert.Equal(entry.CRC, entry.CRC.ToLower()));
+        Assert.All(sfv.Entries, entry => Assert.Equal(entry.CRC, entry.CRC.ToLowerInvariant()));
     }
 
     #endregion

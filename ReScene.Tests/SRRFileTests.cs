@@ -18,7 +18,7 @@ public class SRRFileTests : TempDirTestBase
         var srr = SRRFile.Load(path);
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock!.BlockType);
+        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock.BlockType);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public class SRRFileTests : TempDirTestBase
         var srr = SRRFile.Load(path);
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.True(srr.HeaderBlock!.HasAppName);
+        Assert.True(srr.HeaderBlock.HasAppName);
         Assert.Equal("pyReScene 0.7", srr.HeaderBlock.AppName);
     }
 
@@ -45,7 +45,7 @@ public class SRRFileTests : TempDirTestBase
         var srr = SRRFile.Load(path);
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.False(srr.HeaderBlock!.HasAppName);
+        Assert.False(srr.HeaderBlock.HasAppName);
         Assert.Null(srr.HeaderBlock.AppName);
     }
 
@@ -106,7 +106,7 @@ public class SRRFileTests : TempDirTestBase
 
         Assert.NotNull(extracted);
         Assert.True(File.Exists(extracted));
-        byte[] readBack = File.ReadAllBytes(extracted!);
+        byte[] readBack = File.ReadAllBytes(extracted);
         Assert.Equal(sfvData, readBack);
     }
 
@@ -731,7 +731,7 @@ public class SRRFileTests : TempDirTestBase
 
         // Header
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal("TestApp 1.0", srr.HeaderBlock!.AppName);
+        Assert.Equal("TestApp 1.0", srr.HeaderBlock.AppName);
 
         // Stored files
         Assert.Single(srr.StoredFiles);
@@ -782,7 +782,7 @@ public class SRRFileTests : TempDirTestBase
         // With method 0x33, the synthetic data isn't actually compressed,
         // so decompression via native decompressor may or may not succeed.
         // But CmtCompressedData should always be populated.
-        Assert.True(srr.CmtCompressedData!.Value.Length > 0);
+        Assert.True(srr.CmtCompressedData.Value.Length > 0);
     }
 
     [Fact]
@@ -800,7 +800,7 @@ public class SRRFileTests : TempDirTestBase
 
         Assert.NotNull(extracted);
         Assert.True(File.Exists(extracted));
-        Assert.Equal(0L, new FileInfo(extracted!).Length);
+        Assert.Equal(0L, new FileInfo(extracted).Length);
     }
 
     [Fact]
@@ -822,7 +822,7 @@ public class SRRFileTests : TempDirTestBase
         string? extracted = srr.ExtractStoredFile(srrPath, outputDir, name => name.EndsWith(".sfv", StringComparison.Ordinal));
 
         Assert.NotNull(extracted);
-        byte[] readBack = File.ReadAllBytes(extracted!);
+        byte[] readBack = File.ReadAllBytes(extracted);
         Assert.Equal(data1, readBack);
         Assert.EndsWith("release.sfv", extracted, StringComparison.Ordinal);
     }
@@ -845,7 +845,7 @@ public class SRRFileTests : TempDirTestBase
             name => name.Equals("release.nfo", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extracted);
-        byte[] readBack = File.ReadAllBytes(extracted!);
+        byte[] readBack = File.ReadAllBytes(extracted);
         Assert.Equal(nfoData, readBack);
     }
 
@@ -1692,7 +1692,7 @@ public class SRRFileTests : TempDirTestBase
         BitConverter.GetBytes((uint)0).CopyTo(header, 7);
         BitConverter.GetBytes((uint)0).CopyTo(header, 11);
         header[15] = 2;
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(header, 16);
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(header, 16);
         BitConverter.GetBytes((uint)0x5A8E3100).CopyTo(header, 20);
         header[24] = 29;
         header[25] = 0x33;

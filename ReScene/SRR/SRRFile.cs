@@ -799,7 +799,7 @@ public class SRRFile
         // resolved-level conflicts that the logical level cannot see.
         foreach (string name in seenNames)
         {
-            for (int slash = name.IndexOf('/'); slash >= 0; slash = name.IndexOf('/', slash + 1))
+            for (int slash = name.IndexOf('/', StringComparison.Ordinal); slash >= 0; slash = name.IndexOf('/', slash + 1))
             {
                 if (seenNames.Contains(name[..slash]))
                 {

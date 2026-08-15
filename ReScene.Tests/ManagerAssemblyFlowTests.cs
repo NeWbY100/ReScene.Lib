@@ -659,9 +659,9 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
             return (Directory.Exists(assemblyDir), File.Exists(launch.OutputFilePath));
         }
 
-        (bool AssemblyDirExists, bool CarrierExists) kept = await RunScenarioAsync(deleteRarFiles: false);
-        Assert.True(kept.AssemblyDirExists);
-        Assert.True(kept.CarrierExists);
+        (bool AssemblyDirExists, bool CarrierExists) = await RunScenarioAsync(deleteRarFiles: false);
+        Assert.True(AssemblyDirExists);
+        Assert.True(CarrierExists);
 
         (bool AssemblyDirExists, bool CarrierExists) deleted = await RunScenarioAsync(deleteRarFiles: true);
         Assert.False(deleted.AssemblyDirExists);
@@ -936,7 +936,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal([$".{sep}b.bin", $".{sep}a.cue"], launch.InputPaths);
 
         Assert.NotNull(firstEvent);
-        Assert.Contains("-ds", firstEvent!.ExecutedArguments.Split(' '));
+        Assert.Contains("-ds", firstEvent.ExecutedArguments.Split(' '));
         Assert.Equal(Manager.JoinExecutedArguments([$".{sep}b.bin", $".{sep}a.cue"]), firstEvent.InputFileArguments);
     }
 
@@ -963,7 +963,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Null(launch.InputPaths);
 
         Assert.NotNull(firstEvent);
-        Assert.DoesNotContain("-ds", firstEvent!.ExecutedArguments.Split(' '));
+        Assert.DoesNotContain("-ds", firstEvent.ExecutedArguments.Split(' '));
         Assert.Equal("", firstEvent.InputFileArguments);
     }
 
@@ -994,7 +994,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal(names, File.ReadAllText(expectedListPath, Encoding.ASCII).Split('\n'));
 
         Assert.NotNull(firstEvent);
-        Assert.Equal(Manager.JoinExecutedArguments([$"@{expectedListPath}"]), firstEvent!.InputFileArguments);
+        Assert.Equal(Manager.JoinExecutedArguments([$"@{expectedListPath}"]), firstEvent.InputFileArguments);
     }
 
     [Fact]
@@ -1049,7 +1049,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.Equal([name], File.ReadAllText(expectedListPath, Encoding.ASCII).Split('\n'));
 
         Assert.NotNull(firstEvent);
-        Assert.Equal(Manager.JoinExecutedArguments([$"@{expectedListPath}"]), firstEvent!.InputFileArguments);
+        Assert.Equal(Manager.JoinExecutedArguments([$"@{expectedListPath}"]), firstEvent.InputFileArguments);
     }
 
     [Fact]
@@ -1083,7 +1083,7 @@ public class ManagerAssemblyFlowTests : TempDirTestBase
         Assert.False(File.Exists(Path.Combine(host.WorkDir, "rar-file-order.lst")));
 
         Assert.NotNull(firstEvent);
-        Assert.Equal("", firstEvent!.InputFileArguments);
+        Assert.Equal("", firstEvent.InputFileArguments);
 
         const string expectedWarning =
             "File names exceed the command-line limit and are not ASCII — using rar's own ordering for this run";

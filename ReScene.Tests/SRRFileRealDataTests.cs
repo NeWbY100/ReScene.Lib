@@ -20,7 +20,7 @@ public class SRRFileRealDataTests : TempDirTestBase
         var srr = SRRFile.Load(TestFile("store_little", "store_little.srr"));
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock!.BlockType);
+        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock.BlockType);
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public class SRRFileRealDataTests : TempDirTestBase
         var srr = SRRFile.Load(TestFile("store_utf8_comment", "store_utf8_comment.srr"));
 
         Assert.NotNull(srr.ArchiveCommentBytes);
-        Assert.Equal(13, srr.ArchiveCommentBytes!.Value.Length);
+        Assert.Equal(13, srr.ArchiveCommentBytes.Value.Length);
     }
 
     [Fact]
@@ -807,7 +807,7 @@ public class SRRFileRealDataTests : TempDirTestBase
         var srr = SRRFile.Load(TestFile(relativePath.Split('/')));
 
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock!.BlockType);
+        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock.BlockType);
     }
 
     [Theory]
@@ -842,7 +842,7 @@ public class SRRFileRealDataTests : TempDirTestBase
 
         Assert.NotNull(extractedPath);
         Assert.True(File.Exists(extractedPath));
-        var info = new FileInfo(extractedPath!);
+        var info = new FileInfo(extractedPath);
         Assert.Equal(124, info.Length);
     }
 
@@ -870,7 +870,7 @@ public class SRRFileRealDataTests : TempDirTestBase
 
         Assert.NotNull(extractedPath);
         Assert.True(File.Exists(extractedPath));
-        var info = new FileInfo(extractedPath!);
+        var info = new FileInfo(extractedPath);
         Assert.Equal(65, info.Length);
     }
 
@@ -897,7 +897,7 @@ public class SRRFileRealDataTests : TempDirTestBase
 
         Assert.NotNull(extractedPath);
         Assert.True(File.Exists(extractedPath));
-        var info = new FileInfo(extractedPath!);
+        var info = new FileInfo(extractedPath);
         Assert.Equal(0, info.Length);
     }
 
@@ -912,7 +912,7 @@ public class SRRFileRealDataTests : TempDirTestBase
 
         Assert.NotNull(extractedPath);
         Assert.True(File.Exists(extractedPath));
-        var info = new FileInfo(extractedPath!);
+        var info = new FileInfo(extractedPath);
         Assert.Equal(372, info.Length);
     }
 
@@ -927,7 +927,7 @@ public class SRRFileRealDataTests : TempDirTestBase
 
         Assert.NotNull(extractedPath);
 
-        var reloaded = SRRFile.Load(extractedPath!);
+        var reloaded = SRRFile.Load(extractedPath);
         Assert.NotNull(reloaded.HeaderBlock);
         Assert.Single(reloaded.RARFiles);
         Assert.Equal("store_little.rar", reloaded.RARFiles[0].FileName);
@@ -944,7 +944,7 @@ public class SRRFileRealDataTests : TempDirTestBase
             name => name.EndsWith(".nfo", StringComparison.OrdinalIgnoreCase));
 
         Assert.NotNull(extractedPath);
-        var info = new FileInfo(extractedPath!);
+        var info = new FileInfo(extractedPath);
         Assert.Equal(12800, info.Length);
     }
 

@@ -106,7 +106,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Contains("avi_fname.avi", srs.FileData!.FileName, StringComparison.Ordinal);
+        Assert.Contains("avi_fname.avi", srs.FileData.FileName, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Equal("TestSRSApp", srs.FileData!.AppName);
+        Assert.Equal("TestSRSApp", srs.FileData.AppName);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Equal((ulong)expectedSize, srs.FileData!.SampleSize);
+        Assert.Equal((ulong)expectedSize, srs.FileData.SampleSize);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Equal(result.SampleCRC32, srs.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, srs.FileData.CRC32);
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        Assert.Equal("ReScene.Lib", srs.FileData!.AppName);
+        Assert.Equal("ReScene.Lib", srs.FileData.AppName);
     }
 
     #endregion
@@ -346,7 +346,7 @@ public class SRSFileTests : TempDirTestBase
 
         Assert.Equal(expectedType, srs.ContainerType);
         Assert.NotNull(srs.FileData);
-        Assert.Equal(result.SampleCRC32, srs.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, srs.FileData.CRC32);
         Assert.Equal((ulong)result.SampleSize, srs.FileData.SampleSize);
         Assert.True(srs.Tracks.Count > 0, $"Expected tracks for format {format}");
         Assert.Equal(result.TrackCount, srs.Tracks.Count);
@@ -410,7 +410,7 @@ public class SRSFileTests : TempDirTestBase
         var srs = SRSFile.Load(srsPath);
 
         Assert.NotNull(srs.FileData);
-        SRSFileDataBlock fd = srs.FileData!;
+        SRSFileDataBlock fd = srs.FileData;
         Assert.True(fd.BlockPosition >= 0);
         Assert.True(fd.BlockSize > 0);
         Assert.True(fd.FrameHeaderSize > 0);

@@ -6,8 +6,6 @@ namespace ReScene.Tests;
 
 public class RARHeaderReaderTests
 {
-    private static readonly byte[] RAR4Marker = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x00];
-
     /// <summary>
     /// Builds a minimal RAR4 archive header block with valid CRC.
     /// </summary>
@@ -103,7 +101,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
+        Assert.Equal(RAR4BlockType.ArchiveHeader, block.BlockType);
         Assert.True(block.CRCValid);
         Assert.NotNull(block.ArchiveHeader);
     }
@@ -118,7 +116,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ArchiveHeader);
-        Assert.True(block!.ArchiveHeader!.IsVolume);
+        Assert.True(block.ArchiveHeader.IsVolume);
         Assert.True(block.ArchiveHeader.IsSolid);
         Assert.True(block.ArchiveHeader.HasRecoveryRecord);
     }
@@ -132,7 +130,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal(3, block!.FileHeader!.HostOS);     // Unix
+        Assert.Equal(3, block.FileHeader.HostOS);     // Unix
         Assert.Equal(5, block.FileHeader.CompressionMethod); // Best (0x35 - 0x30)
         Assert.Equal(29, block.FileHeader.UnpackVersion);
         Assert.Equal("testfile.txt", block.FileHeader.FileName);
@@ -150,7 +148,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal(dosTime, block!.FileHeader!.FileTimeDOS);
+        Assert.Equal(dosTime, block.FileHeader.FileTimeDOS);
         Assert.NotNull(block.FileHeader.ModifiedTime);
     }
 
@@ -163,7 +161,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Null(block!.FileHeader!.ModifiedTime);
+        Assert.Null(block.FileHeader.ModifiedTime);
     }
 
     [Fact]
@@ -176,7 +174,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal(64, block!.FileHeader!.DictionarySizeKB);
+        Assert.Equal(64, block.FileHeader.DictionarySizeKB);
     }
 
     [Fact]
@@ -188,7 +186,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: false);
 
         Assert.NotNull(block);
-        Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
+        Assert.Equal(RAR4BlockType.ArchiveHeader, block.BlockType);
         Assert.Null(block.ArchiveHeader);
     }
 
@@ -229,7 +227,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.False(block!.CRCValid);
+        Assert.False(block.CRCValid);
     }
 
     #endregion
@@ -305,11 +303,11 @@ public class RARHeaderReaderTests
 
         RARBlockReadResult? firstBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(firstBlock);
-        reader.SkipBlock(firstBlock!, includeData: false);
+        reader.SkipBlock(firstBlock, includeData: false);
 
         RARBlockReadResult? secondBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(secondBlock);
-        Assert.Equal(RAR4BlockType.FileHeader, secondBlock!.BlockType);
+        Assert.Equal(RAR4BlockType.FileHeader, secondBlock.BlockType);
     }
 
     #endregion
@@ -328,18 +326,18 @@ public class RARHeaderReaderTests
 
         RARBlockReadResult? block1 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block1);
-        Assert.Equal(RAR4BlockType.ArchiveHeader, block1!.BlockType);
+        Assert.Equal(RAR4BlockType.ArchiveHeader, block1.BlockType);
         reader.SkipBlock(block1, includeData: false);
 
         RARBlockReadResult? block2 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block2);
-        Assert.Equal(RAR4BlockType.FileHeader, block2!.BlockType);
+        Assert.Equal(RAR4BlockType.FileHeader, block2.BlockType);
         Assert.Equal("data.bin", block2.FileHeader?.FileName);
         reader.SkipBlock(block2, includeData: false);
 
         RARBlockReadResult? block3 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block3);
-        Assert.Equal(RAR4BlockType.EndArchive, block3!.BlockType);
+        Assert.Equal(RAR4BlockType.EndArchive, block3.BlockType);
     }
 
     #endregion
@@ -361,7 +359,7 @@ public class RARHeaderReaderTests
 
         RARBlockReadResult? block = reader.ReadBlock();
         Assert.NotNull(block);
-        Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
+        Assert.Equal(RAR4BlockType.ArchiveHeader, block.BlockType);
     }
 
     #endregion
@@ -404,7 +402,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
-        Assert.Equal("CMT", block!.ServiceBlockInfo!.SubType);
+        Assert.Equal("CMT", block.ServiceBlockInfo.SubType);
         Assert.Equal(2, block.ServiceBlockInfo.HostOS);
         Assert.True(block.ServiceBlockInfo.IsStored);
         Assert.Equal((ulong)commentData.Length, block.ServiceBlockInfo.PackedSize);
@@ -518,7 +516,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal(0x0000000100000100UL, block!.FileHeader!.PackedSize);
+        Assert.Equal(0x0000000100000100UL, block.FileHeader.PackedSize);
     }
 
     [Fact]
@@ -533,7 +531,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal(0x0000000280000000UL, block!.FileHeader!.UnpackedSize);
+        Assert.Equal(0x0000000280000000UL, block.FileHeader.UnpackedSize);
     }
 
     [Fact]
@@ -547,7 +545,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.True(block!.FileHeader!.HasLargeSize);
+        Assert.True(block.FileHeader.HasLargeSize);
     }
 
     [Fact]
@@ -561,7 +559,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal(3u, block!.FileHeader!.HighPackSize);
+        Assert.Equal(3u, block.FileHeader.HighPackSize);
         Assert.Equal(7u, block.FileHeader.HighUnpSize);
     }
 
@@ -579,7 +577,7 @@ public class RARHeaderReaderTests
         Assert.NotNull(block?.FileHeader);
         ulong expectedPack = 0xFFFFFFFF | (1UL << 32);   // 0x00000001FFFFFFFF
         ulong expectedUnp = 0xFFFFFFFF | (3UL << 32);    // 0x00000003FFFFFFFF
-        Assert.Equal(expectedPack, block!.FileHeader!.PackedSize);
+        Assert.Equal(expectedPack, block.FileHeader.PackedSize);
         Assert.Equal(expectedUnp, block.FileHeader.UnpackedSize);
     }
 
@@ -594,7 +592,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.FileHeader);
-        Assert.Equal("largefile.rar", block!.FileHeader!.FileName);
+        Assert.Equal("largefile.rar", block.FileHeader.FileName);
     }
 
     [Fact]
@@ -611,7 +609,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.Equal(0x00000100u, block!.AddSize);            // low 32 bits only
+        Assert.Equal(0x00000100u, block.AddSize);            // low 32 bits only
         Assert.Equal(0x0000000200000100L, block.DataSize);    // full 64-bit packed size
     }
 
@@ -633,12 +631,12 @@ public class RARHeaderReaderTests
         // Read and skip archive header
         RARBlockReadResult? block1 = reader.ReadBlock(parseContents: false);
         Assert.NotNull(block1);
-        reader.SkipBlock(block1!, includeData: false);
+        reader.SkipBlock(block1, includeData: false);
 
         // Read file header
         RARBlockReadResult? block2 = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block2);
-        Assert.Equal(RAR4BlockType.FileHeader, block2!.BlockType);
+        Assert.Equal(RAR4BlockType.FileHeader, block2.BlockType);
 
         // Skip file header - since includeData=false and this is a file header,
         // it skips just the header, not the ADD_SIZE data
@@ -662,7 +660,7 @@ public class RARHeaderReaderTests
 
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
         Assert.NotNull(block);
-        Assert.Equal(RAR4BlockType.FileHeader, block!.BlockType);
+        Assert.Equal(RAR4BlockType.FileHeader, block.BlockType);
 
         // For FileHeader type, includeData is ignored - SkipBlock never adds AddSize
         reader.SkipBlock(block, includeData: true);
@@ -724,7 +722,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
-        Assert.Equal("RR", block!.ServiceBlockInfo!.SubType);
+        Assert.Equal("RR", block.ServiceBlockInfo.SubType);
         Assert.Equal((ulong)rrData.Length, block.ServiceBlockInfo.PackedSize);
     }
 
@@ -743,7 +741,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
-        Assert.Equal("AV", block!.ServiceBlockInfo!.SubType);
+        Assert.Equal("AV", block.ServiceBlockInfo.SubType);
     }
 
     [Fact]
@@ -780,7 +778,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
-        Assert.Equal(0x33, block!.ServiceBlockInfo!.CompressionMethod);
+        Assert.Equal(0x33, block.ServiceBlockInfo.CompressionMethod);
         Assert.False(block.ServiceBlockInfo.IsStored);
     }
 
@@ -799,7 +797,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
-        Assert.True(block!.ServiceBlockInfo!.IsStored);
+        Assert.True(block.ServiceBlockInfo.IsStored);
     }
 
     [Fact]
@@ -817,7 +815,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block?.ServiceBlockInfo);
-        Assert.Equal(3, block!.ServiceBlockInfo!.HostOS);
+        Assert.Equal(3, block.ServiceBlockInfo.HostOS);
     }
 
     #endregion
@@ -888,10 +886,10 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.False(block!.CRCValid);
+        Assert.False(block.CRCValid);
         // File header should still be parsed even with invalid CRC
         Assert.NotNull(block.FileHeader);
-        Assert.Equal("test.txt", block.FileHeader!.FileName);
+        Assert.Equal("test.txt", block.FileHeader.FileName);
     }
 
     [Fact]
@@ -912,7 +910,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.False(block!.CRCValid);
+        Assert.False(block.CRCValid);
     }
 
     [Fact]
@@ -927,7 +925,7 @@ public class RARHeaderReaderTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.Equal(RAR4BlockType.EndArchive, block!.BlockType);
+        Assert.Equal(RAR4BlockType.EndArchive, block.BlockType);
         Assert.False(block.CRCValid);
     }
 

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using ReScene.Core;
 using ReScene.Core.Cryptography;
 using ReScene.Core.IO;
+using ReScene.RAR;
 
 namespace ReScene.Tests;
 

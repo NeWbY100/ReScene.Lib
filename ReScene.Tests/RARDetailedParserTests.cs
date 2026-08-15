@@ -60,7 +60,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileBlock);
-        Assert.NotNull(fileBlock!.ItemName);
+        Assert.NotNull(fileBlock.ItemName);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class RARDetailedParserTests
         RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileBlock);
 
-        var fieldNames = fileBlock!.Fields.Select(f => f.Name).ToList();
+        var fieldNames = fileBlock.Fields.Select(f => f.Name).ToList();
         Assert.Contains("Header CRC", fieldNames);
         Assert.Contains("Block Type", fieldNames);
         Assert.Contains("Flags", fieldNames);
@@ -266,7 +266,7 @@ public class RARDetailedParserTests
         // HOST_OS = Windows
         header[15] = 2;
         // FILE_CRC
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(header, 16);
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(header, 16);
         // FILE_TIME (DOS format)
         BitConverter.GetBytes((uint)0x5A8E3100).CopyTo(header, 20);
         // UNP_VER = 29 (RAR 2.9)
@@ -310,7 +310,7 @@ public class RARDetailedParserTests
         // HOST_OS = Windows
         header[15] = 2;
         // FILE_CRC
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(header, 16);
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(header, 16);
         // FILE_TIME (DOS format)
         BitConverter.GetBytes((uint)0x5A8E3100).CopyTo(header, 20);
         // UNP_VER = 29 (RAR 2.9)
@@ -589,7 +589,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileBlock);
-        Assert.Equal("embedded.txt", fileBlock!.ItemName);
+        Assert.Equal("embedded.txt", fileBlock.ItemName);
     }
 
     [Fact]
@@ -655,7 +655,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? end = blocks.FirstOrDefault(b => b.BlockType == "End of Archive");
         Assert.NotNull(end);
-        Assert.Equal(0x7B, end!.BlockTypeValue);
+        Assert.Equal(0x7B, end.BlockTypeValue);
     }
 
     [Fact]
@@ -669,7 +669,7 @@ public class RARDetailedParserTests
         BitConverter.GetBytes(flags).CopyTo(hdr, 3);
         BitConverter.GetBytes((ushort)headerSize).CopyTo(hdr, 5);
         // Data CRC = 0xDEADBEEF
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(hdr, 7);
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(hdr, 7);
         uint crc32 = Crc32Algorithm.Compute(hdr, 2, hdr.Length - 2);
         BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
 
@@ -680,7 +680,7 @@ public class RARDetailedParserTests
         RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
         RARHeaderField? crcField = end.Fields.FirstOrDefault(f => f.Name == "Archive Data CRC");
         Assert.NotNull(crcField);
-        Assert.Equal("0xDEADBEEF", crcField!.Value);
+        Assert.Equal("0xDEADBEEF", crcField.Value);
     }
 
     [Fact]
@@ -705,7 +705,7 @@ public class RARDetailedParserTests
         RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
         RARHeaderField? volField = end.Fields.FirstOrDefault(f => f.Name == "Volume Number");
         Assert.NotNull(volField);
-        Assert.Equal("42", volField!.Value);
+        Assert.Equal("42", volField.Value);
     }
 
     [Fact]
@@ -757,7 +757,7 @@ public class RARDetailedParserTests
         RARDetailedBlock end = blocks.First(b => b.BlockType == "End of Archive");
         RARHeaderField? reservedField = end.Fields.FirstOrDefault(f => f.Name == "Reserved Space");
         Assert.NotNull(reservedField);
-        Assert.Equal(7, reservedField!.Length);
+        Assert.Equal(7, reservedField.Length);
         Assert.Equal(7, reservedField.RawBytes.Length);
         Assert.Equal("00 00 00 00 00 00 00", reservedField.Value);
         Assert.Equal("EARC_REVSPACE reserved region", reservedField.Description);
@@ -773,7 +773,7 @@ public class RARDetailedParserTests
         hdr[2] = 0x7B;
         BitConverter.GetBytes(flags).CopyTo(hdr, 3);
         BitConverter.GetBytes((ushort)headerSize).CopyTo(hdr, 5);
-        BitConverter.GetBytes((uint)0xAABBCCDD).CopyTo(hdr, 7); // Data CRC
+        BitConverter.GetBytes(0xAABBCCDD).CopyTo(hdr, 7); // Data CRC
         BitConverter.GetBytes((ushort)1).CopyTo(hdr, 11);        // Volume number
         uint crc32 = Crc32Algorithm.Compute(hdr, 2, hdr.Length - 2);
         BitConverter.GetBytes((ushort)(crc32 & 0xFFFF)).CopyTo(hdr, 0);
@@ -843,7 +843,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? svc = blocks.FirstOrDefault(b => b.BlockType == "Service Block");
         Assert.NotNull(svc);
-        Assert.Equal("CMT", svc!.ItemName);
+        Assert.Equal("CMT", svc.ItemName);
     }
 
     [Fact]
@@ -874,7 +874,7 @@ public class RARDetailedParserTests
         RARDetailedBlock svc = blocks.First(b => b.BlockType == "Service Block");
         RARHeaderField? commentField = svc.Fields.FirstOrDefault(f => f.Name == "Comment Data");
         Assert.NotNull(commentField);
-        Assert.Equal(comment, commentField!.Value);
+        Assert.Equal(comment, commentField.Value);
         Assert.Equal("Stored (uncompressed)", commentField.Description);
     }
 
@@ -891,7 +891,7 @@ public class RARDetailedParserTests
         RARDetailedBlock svc = blocks.First(b => b.BlockType == "Service Block");
         RARHeaderField? methodField = svc.Fields.FirstOrDefault(f => f.Name == "Compression Method");
         Assert.NotNull(methodField);
-        Assert.Equal("0x30", methodField!.Value);
+        Assert.Equal("0x30", methodField.Value);
         Assert.Equal("Store", methodField.Description);
     }
 
@@ -917,7 +917,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? unknown = blocks.FirstOrDefault(b => b.BlockType == "Unknown (0x60)");
         Assert.NotNull(unknown);
-        Assert.Equal(0x60, unknown!.BlockTypeValue);
+        Assert.Equal(0x60, unknown.BlockTypeValue);
     }
 
     [Fact]
@@ -1059,7 +1059,7 @@ public class RARDetailedParserTests
         Assert.NotNull(blocks);
         // The creation-time field is still emitted, marked invalid instead of crashing.
         Assert.Contains(
-            FlattenFields(blocks!),
+            FlattenFields(blocks),
             f => f.Value is not null && f.Value.Contains("invalid", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -1194,7 +1194,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? fileHdr = blocks.FirstOrDefault(b => b.BlockType == "File Header");
         Assert.NotNull(fileHdr);
-        Assert.Equal("test.txt", fileHdr!.ItemName);
+        Assert.Equal("test.txt", fileHdr.ItemName);
         Assert.True(fileHdr.HasData);
         Assert.Equal(50, fileHdr.DataSize);
     }
@@ -1213,7 +1213,7 @@ public class RARDetailedParserTests
         RARHeaderField? compInfo = fileHdr.Fields.FirstOrDefault(f => f.Name == "Compression Info");
         Assert.NotNull(compInfo);
         // Should have children for VERSION, SOLID, METHOD, DICT_SIZE
-        Assert.Contains(compInfo!.Children, c => c.Name == "METHOD");
+        Assert.Contains(compInfo.Children, c => c.Name == "METHOD");
         Assert.Contains(compInfo.Children, c => c.Name == "VERSION");
     }
 
@@ -1230,7 +1230,7 @@ public class RARDetailedParserTests
         RARDetailedBlock fileHdr = blocks.First(b => b.BlockType == "File Header");
         RARHeaderField? hostOs = fileHdr.Fields.FirstOrDefault(f => f.Name == "Host OS");
         Assert.NotNull(hostOs);
-        Assert.Equal("Windows", hostOs!.Description);
+        Assert.Equal("Windows", hostOs.Description);
     }
 
     [Fact]
@@ -1243,7 +1243,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? end = blocks.FirstOrDefault(b => b.BlockType == "End of Archive");
         Assert.NotNull(end);
-        Assert.Equal(5, end!.BlockTypeValue);
+        Assert.Equal(5, end.BlockTypeValue);
     }
 
     [Fact]
@@ -1368,7 +1368,7 @@ public class RARDetailedParserTests
 
         RARDetailedBlock? fileBlock = blocks.FirstOrDefault(b => b.BlockType.Contains("File", StringComparison.Ordinal));
         Assert.NotNull(fileBlock);
-        Assert.Equal("little_file.txt", fileBlock!.ItemName);
+        Assert.Equal("little_file.txt", fileBlock.ItemName);
     }
 
     [Fact]

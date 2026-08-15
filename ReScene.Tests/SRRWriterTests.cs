@@ -24,7 +24,7 @@ public class SRRWriterTests : TempDirTestBase
         Assert.True(result.Success);
         var srr = SRRFile.Load(srrPath);
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock!.BlockType);
+        Assert.Equal(SRRBlockType.Header, srr.HeaderBlock.BlockType);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public class SRRWriterTests : TempDirTestBase
         string? extracted = srr.ExtractStoredFile(srrPath, extractDir, n => n.EndsWith(".sfv", StringComparison.Ordinal));
 
         Assert.NotNull(extracted);
-        string readBack = File.ReadAllText(extracted!);
+        string readBack = File.ReadAllText(extracted);
         Assert.Equal(content, readBack);
     }
 
@@ -261,7 +261,7 @@ public class SRRWriterTests : TempDirTestBase
         SRRCreationResult result = await writer.CreateAsync(srrPath, [rarPath], ct: cts.Token);
 
         Assert.False(result.Success);
-        Assert.Contains("cancel", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cancel", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.False(File.Exists(srrPath));
     }
 
@@ -321,7 +321,7 @@ public class SRRWriterTests : TempDirTestBase
         SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, "/nonexistent/release.sfv");
 
         Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -335,7 +335,7 @@ public class SRRWriterTests : TempDirTestBase
         SRRCreationResult result = await writer.CreateFromSFVAsync(srrPath, sfvPath);
 
         Assert.False(result.Success);
-        Assert.Contains("No RAR volumes", result.ErrorMessage!, StringComparison.Ordinal);
+        Assert.Contains("No RAR volumes", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     #endregion
@@ -426,11 +426,11 @@ public class SRRWriterTests : TempDirTestBase
         string extractDir = Path.Combine(TempDir, "extract_verify");
         string? extractedSFV = srr.ExtractStoredFile(srrPath, extractDir, n => n.EndsWith(".sfv", StringComparison.Ordinal));
         Assert.NotNull(extractedSFV);
-        Assert.Equal(sfvContent, File.ReadAllText(extractedSFV!));
+        Assert.Equal(sfvContent, File.ReadAllText(extractedSFV));
 
         string? extractedNfo = srr.ExtractStoredFile(srrPath, extractDir, n => n.EndsWith(".nfo", StringComparison.Ordinal));
         Assert.NotNull(extractedNfo);
-        Assert.Equal(nfoContent, File.ReadAllText(extractedNfo!));
+        Assert.Equal(nfoContent, File.ReadAllText(extractedNfo));
     }
 
     [Fact]

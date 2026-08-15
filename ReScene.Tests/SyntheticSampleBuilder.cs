@@ -56,7 +56,7 @@ internal static class SyntheticSampleBuilder
         // Calculate total sizes
         uint hdrlSize = (uint)(4 + hdrlBytes.Length); // "hdrl" + children
         uint moviSize = (uint)(4 + moviBytes.Length); // "movi" + children
-        uint riffSize = (uint)(4 + 8 + hdrlSize + 8 + moviSize); // "AVI " + LIST headers
+        uint riffSize = 4 + 8 + hdrlSize + 8 + moviSize; // "AVI " + LIST headers
 
         // Write RIFF header
         bw.Write(Encoding.ASCII.GetBytes("RIFF"));
@@ -89,6 +89,7 @@ internal static class SyntheticSampleBuilder
     /// its sample/movie files share identical track-2 bytes; the writer/parser
     /// suites use the default 42.
     /// </param>
+    /// <param name="path">Destination path for the built MKV.</param>
     public static string BuildMKV(string path, int block2Seed = 42)
     {
         using var ms = new MemoryStream();

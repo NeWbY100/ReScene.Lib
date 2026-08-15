@@ -304,7 +304,7 @@ public class SRSRebuilderTests : TempDirTestBase
         // Simulate the real scenario: SRS is from a small sample,
         // media file is a larger "movie" that contains the same data
         string samplePath = BuildSyntheticMKV();
-        string mediaPath = BuildSyntheticMovieMKV(samplePath);
+        string mediaPath = BuildSyntheticMovieMKV();
 
         string srsPath = Path.Combine(TempDir, "test.srs");
         var writer = new SRSWriter();
@@ -406,7 +406,7 @@ public class SRSRebuilderTests : TempDirTestBase
             mediaPath, trackDict, null, null, CancellationToken.None);
 
         Assert.NotNull(offsets);
-        Assert.True(offsets!.ContainsKey(1), "Video track (1) was not located.");
+        Assert.True(offsets.ContainsKey(1), "Video track (1) was not located.");
         Assert.True(offsets.ContainsKey(2), "Subtitle-style track (2) was not located.");
 
         // Sanity-check: the generic raw byte scan from SRSRebuilder cannot find
@@ -614,7 +614,7 @@ public class SRSRebuilderTests : TempDirTestBase
             cts.Token);
 
         Assert.False(result.Success);
-        Assert.Contains("cancel", result.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cancel", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
@@ -1107,7 +1107,7 @@ public class SRSRebuilderTests : TempDirTestBase
 
         uint hdrlSize = (uint)(4 + hdrlBytes.Length);
         uint moviSize = (uint)(4 + moviBytes.Length);
-        uint riffSize = (uint)(4 + 8 + hdrlSize + 8 + moviSize);
+        uint riffSize = 4 + 8 + hdrlSize + 8 + moviSize;
 
         bw.Write(Encoding.ASCII.GetBytes("RIFF"));
         bw.Write(riffSize);
@@ -1191,7 +1191,7 @@ public class SRSRebuilderTests : TempDirTestBase
     /// the same block data that appears in the sample. This simulates
     /// a real media file where the sample data is embedded deep in the file.
     /// </summary>
-    private string BuildSyntheticMovieMKV(string samplePath)
+    private string BuildSyntheticMovieMKV()
     {
         string path = Path.Combine(TempDir, "test_movie.mkv");
         using var ms = new MemoryStream();

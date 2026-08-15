@@ -36,7 +36,9 @@ public class RarExecutableTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            try
+            { Directory.Delete(dir, recursive: true); }
+            catch { }
         }
     }
 
@@ -53,7 +55,9 @@ public class RarExecutableTests
         }
         finally
         {
-            try { Directory.Delete(dir, recursive: true); } catch { }
+            try
+            { Directory.Delete(dir, recursive: true); }
+            catch { }
         }
     }
 }

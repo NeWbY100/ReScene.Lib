@@ -206,7 +206,7 @@ public class SRREditorAddRemoveTests : TempDirTestBase
         var srr = SRRFile.Load(srrPath);
         Assert.Empty(srr.StoredFiles);
         Assert.NotNull(srr.HeaderBlock);
-        Assert.Equal("ReScene .NET", srr.HeaderBlock!.AppName);
+        Assert.Equal("ReScene .NET", srr.HeaderBlock.AppName);
     }
 
     // Byte preservation across an Add: a non-StoredFile block (OSO hash) must be

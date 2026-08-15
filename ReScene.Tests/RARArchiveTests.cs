@@ -209,7 +209,7 @@ public class RARArchiveTests
         RARBlockReadResult? block = reader.ReadBlock(parseContents: true);
 
         Assert.NotNull(block);
-        Assert.Equal(RAR4BlockType.ArchiveHeader, block!.BlockType);
+        Assert.Equal(RAR4BlockType.ArchiveHeader, block.BlockType);
         Assert.True((block.Flags & 0x0002) != 0, $"MHD_COMMENT flag not set. Flags=0x{block.Flags:X4}");
 
         // Read embedded comment header
@@ -412,7 +412,7 @@ public class RARArchiveTests
         // Output block list for debugging
         string debugInfo = string.Join("\n", blockList);
         Assert.True(foundServiceInfo != null, $"CMT block not found. Blocks found:\n{debugInfo}");
-        Assert.Equal("CMT", foundServiceInfo!.SubType);
+        Assert.Equal("CMT", foundServiceInfo.SubType);
         Assert.True(foundServiceInfo.PackedSize > 0);
         Assert.True(foundServiceInfo.UnpackedSize > 0);
         Assert.Equal(0x33, foundServiceInfo.CompressionMethod); // Normal compression
@@ -571,7 +571,7 @@ public class RARArchiveTests
         // Read Main header
         RAR5BlockReadResult? mainBlock = reader.ReadBlock();
         Assert.NotNull(mainBlock);
-        Assert.Equal(RAR5BlockType.Main, mainBlock!.BlockType);
+        Assert.Equal(RAR5BlockType.Main, mainBlock.BlockType);
         Assert.Equal(10ul, mainBlock.HeaderSize); // Should be 10
         long posAfterMain = fs.Position;
 
@@ -582,7 +582,7 @@ public class RARArchiveTests
         // Read Service header
         RAR5BlockReadResult? serviceBlock = reader.ReadBlock();
         Assert.NotNull(serviceBlock);
-        Assert.Equal(RAR5BlockType.Service, serviceBlock!.BlockType);
+        Assert.Equal(RAR5BlockType.Service, serviceBlock.BlockType);
 
         // Key assertion: HeaderSize should be 19, not 56
         Assert.True(serviceBlock.HeaderSize == 19,
@@ -652,7 +652,7 @@ public class RARArchiveTests
         // Output block list for debugging
         string debugInfo = string.Join("\n", blockList);
         Assert.True(foundServiceInfo != null, $"CMT block not found. Blocks found:\n{debugInfo}");
-        Assert.Equal("CMT", foundServiceInfo!.SubType);
+        Assert.Equal("CMT", foundServiceInfo.SubType);
     }
 
     #region Large Entry Skipping (HIGH_PACK_SIZE)

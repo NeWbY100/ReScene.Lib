@@ -48,7 +48,8 @@ public class RenameMatchedOutputTests : TempDirTestBase
         // on-disk name — MoveMatchedFile's source==dest short-circuit fires for it while the other
         // two volumes are genuinely renamed. All three still count as "placed".
         string v1 = CreateProduced("570-m5.part01.rar");
-        string v2 = CreateProduced("570-m5.part02.rar");
+
+        _ = CreateProduced("570-m5.part02.rar");
         string v3 = CreateProduced("570-m5.part03.rar");
 
         BruteForceOptions options = MakeOptions(["aln-movie.rar", "570-m5.part02.rar", "aln-movie.r01"], completeAllVolumes: true);

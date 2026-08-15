@@ -42,7 +42,7 @@ public class HexSearcherTests
     [Fact]
     public void FindForward_NullSource_ReturnsMinusOne()
     {
-        long result = HexSearcher.FindForward(null!, Pattern(0x52), 0);
+        long result = HexSearcher.FindForward(null!, Pattern("R"u8.ToArray()), 0);
         Assert.Equal(-1, result);
     }
 
@@ -66,7 +66,7 @@ public class HexSearcherTests
     public void FindForward_PatternAtOffsetZero_ReturnsZero()
     {
         using IHexDataSource src = Source([0x52, 0x61, 0x72, 0x21]);
-        long result = HexSearcher.FindForward(src, Pattern(0x52, 0x61), 0);
+        long result = HexSearcher.FindForward(src, Pattern("Ra"u8.ToArray()), 0);
         Assert.Equal(0, result);
     }
 
@@ -74,7 +74,7 @@ public class HexSearcherTests
     public void FindForward_PatternAtEnd_ReturnsCorrectOffset()
     {
         using IHexDataSource src = Source([0x00, 0x00, 0x00, 0x52, 0x61]);
-        long result = HexSearcher.FindForward(src, Pattern(0x52, 0x61), 0);
+        long result = HexSearcher.FindForward(src, Pattern("Ra"u8.ToArray()), 0);
         Assert.Equal(3, result);
     }
 
@@ -90,7 +90,7 @@ public class HexSearcherTests
     public void FindForward_NegativeStartOffset_ClampsToZeroAndFindsMatch()
     {
         using IHexDataSource src = Source([0x52, 0x61, 0x72, 0x21]);
-        long result = HexSearcher.FindForward(src, Pattern(0x52, 0x61), -5);
+        long result = HexSearcher.FindForward(src, Pattern("Ra"u8.ToArray()), -5);
         Assert.Equal(0, result);
     }
 
@@ -116,7 +116,7 @@ public class HexSearcherTests
     [Fact]
     public void FindBackward_NullSource_ReturnsMinusOne()
     {
-        long result = HexSearcher.FindBackward(null!, Pattern(0x52), 100);
+        long result = HexSearcher.FindBackward(null!, Pattern("R"u8.ToArray()), 100);
         Assert.Equal(-1, result);
     }
 
@@ -132,7 +132,7 @@ public class HexSearcherTests
     public void FindBackward_EmptySource_ReturnsMinusOne()
     {
         using IHexDataSource src = Source([]);
-        long result = HexSearcher.FindBackward(src, Pattern(0x52), 0);
+        long result = HexSearcher.FindBackward(src, Pattern("R"u8.ToArray()), 0);
         Assert.Equal(-1, result);
     }
 
@@ -140,7 +140,7 @@ public class HexSearcherTests
     public void FindBackward_BeforeOffsetZero_ReturnsMinusOne()
     {
         using IHexDataSource src = Source([0x52, 0x61, 0x72, 0x21]);
-        long result = HexSearcher.FindBackward(src, Pattern(0x52), 0);
+        long result = HexSearcher.FindBackward(src, Pattern("R"u8.ToArray()), 0);
         Assert.Equal(-1, result);
     }
 
@@ -149,7 +149,7 @@ public class HexSearcherTests
     {
         // Two matches: at offset 0 and offset 5. Search before offset 7 should find the one at 5.
         using IHexDataSource src = Source([0x52, 0x61, 0x00, 0x00, 0x00, 0x52, 0x61, 0x00]);
-        long result = HexSearcher.FindBackward(src, Pattern(0x52, 0x61), 7);
+        long result = HexSearcher.FindBackward(src, Pattern("Ra"u8.ToArray()), 7);
         Assert.Equal(5, result);
     }
 
@@ -158,7 +158,7 @@ public class HexSearcherTests
     {
         // Pattern at offset 0 in a 4-byte source; beforeOffset=9999 should still find it.
         using IHexDataSource src = Source([0x52, 0x61, 0x00, 0x00]);
-        long result = HexSearcher.FindBackward(src, Pattern(0x52, 0x61), 9999);
+        long result = HexSearcher.FindBackward(src, Pattern("Ra"u8.ToArray()), 9999);
         Assert.Equal(0, result);
     }
 
@@ -202,7 +202,7 @@ public class HexSearcherTests
     [Fact]
     public void FindAll_NullSource_ReturnsEmptyList()
     {
-        IReadOnlyList<long> result = HexSearcher.FindAll(null!, Pattern(0x52));
+        IReadOnlyList<long> result = HexSearcher.FindAll(null!, Pattern("R"u8.ToArray()));
         Assert.Empty(result);
     }
 
@@ -227,7 +227,7 @@ public class HexSearcherTests
     {
         // Matches at offsets 0, 3, 6
         using IHexDataSource src = Source([0x52, 0x61, 0x00, 0x52, 0x61, 0x00, 0x52, 0x61]);
-        IReadOnlyList<long> result = HexSearcher.FindAll(src, Pattern(0x52, 0x61));
+        IReadOnlyList<long> result = HexSearcher.FindAll(src, Pattern("Ra"u8.ToArray()));
         Assert.Equal(3, result.Count);
         Assert.Equal(0, result[0]);
         Assert.Equal(3, result[1]);
@@ -239,7 +239,7 @@ public class HexSearcherTests
     {
         // 6 matches in the source, but we cap at 2
         using IHexDataSource src = Source([0x52, 0x61, 0x00, 0x52, 0x61, 0x00, 0x52, 0x61, 0x00, 0x52, 0x61, 0x00, 0x52, 0x61, 0x00, 0x52, 0x61]);
-        IReadOnlyList<long> result = HexSearcher.FindAll(src, Pattern(0x52, 0x61), maxResults: 2);
+        IReadOnlyList<long> result = HexSearcher.FindAll(src, Pattern("Ra"u8.ToArray()), maxResults: 2);
         Assert.Equal(2, result.Count);
     }
 

@@ -170,7 +170,6 @@ internal class RAR4HeaderBuilder(BinaryWriter writer)
             if (accessTimeDOS.HasValue)
             {
                 BitConverter.GetBytes(accessTimeDOS.Value).CopyTo(header, timeOffset);
-                timeOffset += 4;
             }
         }
 

@@ -29,7 +29,7 @@ public class SRSFileFromSRRTests : TempDirTestBase
                 name => name == stored.FileName);
             Assert.NotNull(extracted);
 
-            var srs = SRSFile.Load(extracted!);
+            var srs = SRSFile.Load(extracted);
 
             Assert.True(Enum.IsDefined(srs.ContainerType),
                 $"ContainerType {srs.ContainerType} is not a valid enum value");
@@ -56,7 +56,7 @@ public class SRSFileFromSRRTests : TempDirTestBase
                 name => name == stored.FileName);
             Assert.NotNull(extracted);
 
-            var srs = SRSFile.Load(extracted!);
+            var srs = SRSFile.Load(extracted);
 
             Assert.NotNull(srs.FileData);
         }
@@ -190,7 +190,7 @@ public class SRSFileFromSRRTests : TempDirTestBase
                 name => name == stored.FileName);
             Assert.NotNull(extracted);
 
-            var srs = SRSFile.Load(extracted!);
+            var srs = SRSFile.Load(extracted);
 
             Assert.True(srs.Tracks.Count > 0,
                 $"SRS from {stored.FileName} has no tracks");
@@ -217,7 +217,7 @@ public class SRSFileFromSRRTests : TempDirTestBase
                 name => name == stored.FileName);
             Assert.NotNull(extracted);
 
-            var srs = SRSFile.Load(extracted!);
+            var srs = SRSFile.Load(extracted);
 
             foreach (SRSTrackDataBlock track in srs.Tracks)
             {
@@ -247,7 +247,7 @@ public class SRSFileFromSRRTests : TempDirTestBase
                 name => name == stored.FileName);
             Assert.NotNull(extracted);
 
-            var srs = SRSFile.Load(extracted!);
+            var srs = SRSFile.Load(extracted);
 
             foreach (SRSTrackDataBlock track in srs.Tracks)
             {
@@ -298,10 +298,10 @@ public class SRSFileFromSRRTests : TempDirTestBase
                 name => name == stored.FileName);
             Assert.NotNull(extracted);
 
-            var srs = SRSFile.Load(extracted!);
+            var srs = SRSFile.Load(extracted);
 
             Assert.NotNull(srs.FileData);
-            Assert.False(string.IsNullOrEmpty(srs.FileData!.AppName),
+            Assert.False(string.IsNullOrEmpty(srs.FileData.AppName),
                 $"SRS {stored.FileName}: AppName is empty");
             Assert.False(string.IsNullOrEmpty(srs.FileData.FileName),
                 $"SRS {stored.FileName}: FileName is empty");

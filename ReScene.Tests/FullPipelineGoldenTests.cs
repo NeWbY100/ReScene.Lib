@@ -124,9 +124,15 @@ public class FullPipelineGoldenTests : IDisposable
         using var ms = new MemoryStream();
         using (var w = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true))
         {
-            w.Write((byte)'S'); w.Write((byte)'T'); w.Write((byte)'R'); w.Write((byte)'M'); // fake marker
+            w.Write((byte)'S');
+            w.Write((byte)'T');
+            w.Write((byte)'R');
+            w.Write((byte)'M'); // fake marker
             w.Write(8);
-            w.Write((byte)'S'); w.Write((byte)'R'); w.Write((byte)'S'); w.Write((byte)'F');
+            w.Write((byte)'S');
+            w.Write((byte)'R');
+            w.Write((byte)'S');
+            w.Write((byte)'F');
             w.Write(chunkLength);
             w.Write(payloadBytes);
             w.Write(trailing);

@@ -346,7 +346,7 @@ public class RARPatcherTests : TempDirTestBase
         BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 7); // ADD_SIZE (packed data size = 0)
         BitConverter.GetBytes((uint)100).CopyTo(fileHeader, 11); // UnpSize
         fileHeader[15] = 2; // HostOS = Windows
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(fileHeader, 16); // FileCRC
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(fileHeader, 16); // FileCRC
         BitConverter.GetBytes((uint)0x5A000000).CopyTo(fileHeader, 20); // FileTime
         fileHeader[24] = 29; // UnpVer
         fileHeader[25] = 0x33; // Method (Normal)
@@ -410,13 +410,13 @@ public class RARPatcherTests : TempDirTestBase
         // Skip archive header
         RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
-        reader.SkipBlock(archBlock!);
+        reader.SkipBlock(archBlock);
 
         // Read file header
         RARBlockReadResult? fileBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(fileBlock);
-        Assert.NotNull(fileBlock!.FileHeader);
-        Assert.True(fileBlock.FileHeader!.HasLargeSize);
+        Assert.NotNull(fileBlock.FileHeader);
+        Assert.True(fileBlock.FileHeader.HasLargeSize);
         Assert.Equal(0x12345678u, fileBlock.FileHeader.HighPackSize);
         Assert.Equal(0xABCDEF00u, fileBlock.FileHeader.HighUnpSize);
         Assert.True(fileBlock.CRCValid);
@@ -449,12 +449,12 @@ public class RARPatcherTests : TempDirTestBase
 
         RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
-        reader.SkipBlock(archBlock!);
+        reader.SkipBlock(archBlock);
 
         RARBlockReadResult? fileBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(fileBlock);
-        Assert.NotNull(fileBlock!.FileHeader);
-        Assert.False(fileBlock.FileHeader!.HasLargeSize);
+        Assert.NotNull(fileBlock.FileHeader);
+        Assert.False(fileBlock.FileHeader.HasLargeSize);
         Assert.Equal(0u, fileBlock.FileHeader.HighPackSize);
         Assert.Equal(0u, fileBlock.FileHeader.HighUnpSize);
         Assert.True(fileBlock.CRCValid);
@@ -950,7 +950,7 @@ public class RARPatcherTests : TempDirTestBase
             BitConverter.GetBytes((uint)64).CopyTo(fileHeader, 7); // ADD_SIZE = 64
             BitConverter.GetBytes((uint)100).CopyTo(fileHeader, 11); // UnpSize
             fileHeader[15] = 2; // HostOS = Windows
-            BitConverter.GetBytes((uint)0xAAAAAAAA).CopyTo(fileHeader, 16);
+            BitConverter.GetBytes(0xAAAAAAAA).CopyTo(fileHeader, 16);
             BitConverter.GetBytes((uint)0x5A000000).CopyTo(fileHeader, 20);
             fileHeader[24] = 29;
             fileHeader[25] = 0x33;
@@ -979,7 +979,7 @@ public class RARPatcherTests : TempDirTestBase
             BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 7);
             BitConverter.GetBytes((uint)10).CopyTo(fileHeader, 11);
             fileHeader[15] = 3; // HostOS = Unix
-            BitConverter.GetBytes((uint)0xBBBBBBBB).CopyTo(fileHeader, 16);
+            BitConverter.GetBytes(0xBBBBBBBB).CopyTo(fileHeader, 16);
             BitConverter.GetBytes((uint)0x5A000000).CopyTo(fileHeader, 20);
             fileHeader[24] = 29;
             fileHeader[25] = 0x33;
@@ -1043,14 +1043,14 @@ public class RARPatcherTests : TempDirTestBase
         // Skip archive header
         RARBlockReadResult? archBlock = reader.ReadBlock(parseContents: false);
         Assert.NotNull(archBlock);
-        reader.SkipBlock(archBlock!);
+        reader.SkipBlock(archBlock);
 
         // First file header (LARGE)
         RARBlockReadResult? firstBlock = reader.ReadBlock(parseContents: true);
         Assert.NotNull(firstBlock);
-        Assert.True(firstBlock!.CRCValid, "First block CRC should be valid after patching");
+        Assert.True(firstBlock.CRCValid, "First block CRC should be valid after patching");
         Assert.NotNull(firstBlock.FileHeader);
-        Assert.Equal(3, firstBlock.FileHeader!.HostOS); // Patched to Unix
+        Assert.Equal(3, firstBlock.FileHeader.HostOS); // Patched to Unix
         Assert.True(firstBlock.FileHeader.HasLargeSize);
     }
 
@@ -1136,7 +1136,7 @@ public class RARPatcherTests : TempDirTestBase
         BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 7);
         BitConverter.GetBytes((uint)100).CopyTo(fileHeader, 11);
         fileHeader[15] = 2;
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(fileHeader, 16);
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(fileHeader, 16);
         BitConverter.GetBytes(dosFileTime).CopyTo(fileHeader, 20);
         fileHeader[24] = 29;
         fileHeader[25] = 0x33;
@@ -1213,7 +1213,7 @@ public class RARPatcherTests : TempDirTestBase
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
-            extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });    // 0x6C2F50 = 7,090,000
+            extMtimeBytes: "P/l"u8.ToArray());    // 0x6C2F50 = 7,090,000
 
         string testFile = Path.Combine(TempDir, "mtime_patch.rar");
         File.WriteAllBytes(testFile, rarData);
@@ -1284,7 +1284,7 @@ public class RARPatcherTests : TempDirTestBase
         }
 
         Assert.NotNull(recovered);
-        Assert.Equal(target, recovered!.ModifiedTime);
+        Assert.Equal(target, recovered.ModifiedTime);
     }
 
     [Fact]
@@ -1478,7 +1478,7 @@ public class RARPatcherTests : TempDirTestBase
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
-            extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C },
+            extMtimeBytes: "P/l"u8.ToArray(),
             extMtimeNeedsRounding: false);
 
         string testFile = Path.Combine(TempDir, "mtime_odd_second.rar");
@@ -1511,14 +1511,14 @@ public class RARPatcherTests : TempDirTestBase
         }
 
         Assert.NotNull(recovered);
-        Assert.Equal(target, recovered!.ModifiedTime);
+        Assert.Equal(target, recovered.ModifiedTime);
     }
 
     [Fact]
     public void PatchFile_FileModifiedTimes_NameNotInDictionary_LeftAlone()
     {
         DateTime initial = new DateTime(2026, 04, 20, 09, 02, 04).AddTicks(7_090_000);
-        byte[] expectedExtBytes = new byte[] { 0x50, 0x2F, 0x6C };
+        byte[] expectedExtBytes = "P/l"u8.ToArray();
         byte[] rarData = BuildMinimalRAR4(
             fileName: "other.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
@@ -1583,7 +1583,7 @@ public class RARPatcherTests : TempDirTestBase
         byte[] rarData = BuildMinimalRAR4(
             fileName: "subs.idx",
             dosFileTime: EncodeDosDateTimeForTest(initial),
-            extMtimeBytes: new byte[] { 0x50, 0x2F, 0x6C });
+            extMtimeBytes: "P/l"u8.ToArray());
 
         string testFile = Path.Combine(TempDir, "mtime_crc.rar");
         File.WriteAllBytes(testFile, rarData);
@@ -1651,7 +1651,7 @@ public class RARPatcherTests : TempDirTestBase
         BitConverter.GetBytes((uint)0).CopyTo(fileHeader, 7);
         BitConverter.GetBytes((uint)100).CopyTo(fileHeader, 11);
         fileHeader[15] = 2;
-        BitConverter.GetBytes((uint)0xDEADBEEF).CopyTo(fileHeader, 16);
+        BitConverter.GetBytes(0xDEADBEEF).CopyTo(fileHeader, 16);
         BitConverter.GetBytes(EncodeDosDateTimeForTest(initial)).CopyTo(fileHeader, 20);
         fileHeader[24] = 29;
         fileHeader[25] = 0x33;

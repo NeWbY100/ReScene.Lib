@@ -18,15 +18,10 @@ public class StreamUtilitiesTests : TempDirTestBase
     /// modelling pipe/network streams that satisfy reads partially. This forces the loop-based
     /// helpers to iterate rather than completing in a single read.
     /// </summary>
-    private sealed class DripStream : Stream
+    private sealed class DripStream(byte[] data) : Stream
     {
-        private readonly byte[] _data;
+        private readonly byte[] _data = data;
         private int _position;
-
-        public DripStream(byte[] data)
-        {
-            _data = data;
-        }
 
         public override bool CanRead => true;
         public override bool CanSeek => false;

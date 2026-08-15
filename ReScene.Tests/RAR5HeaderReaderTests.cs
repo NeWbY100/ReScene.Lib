@@ -136,7 +136,7 @@ public class RAR5HeaderReaderTests
         RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
-        Assert.Equal(RAR5BlockType.Main, block!.BlockType);
+        Assert.Equal(RAR5BlockType.Main, block.BlockType);
         Assert.True(block.CRCValid);
     }
 
@@ -205,7 +205,7 @@ public class RAR5HeaderReaderTests
         }
 
         Assert.NotNull(cmtBlock);
-        Assert.Equal("CMT", cmtBlock!.SubType);
+        Assert.Equal("CMT", cmtBlock.SubType);
     }
 
     #endregion
@@ -477,7 +477,7 @@ public class RAR5HeaderReaderTests
         RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
-        Assert.Equal(RAR5BlockType.EndArchive, block!.BlockType);
+        Assert.Equal(RAR5BlockType.EndArchive, block.BlockType);
         Assert.Equal(largeDataSize, block.DataSize);
     }
 
@@ -497,7 +497,7 @@ public class RAR5HeaderReaderTests
         fileContent.Write(EncodeVInt(0x20)); // attributes (normal file)
         // No mtime (TimePresent not set)
         // CRC32 present: write 4 bytes
-        fileContent.Write(BitConverter.GetBytes((uint)0xDEADBEEF));
+        fileContent.Write(BitConverter.GetBytes(0xDEADBEEF));
         fileContent.Write(EncodeVInt(0)); // compressionInfo (stored, method=0)
         fileContent.Write(EncodeVInt(0)); // hostOS (Windows=0)
         fileContent.Write(EncodeVInt((ulong)nameBytes.Length));
@@ -515,9 +515,9 @@ public class RAR5HeaderReaderTests
         RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
-        Assert.Equal(RAR5BlockType.File, block!.BlockType);
+        Assert.Equal(RAR5BlockType.File, block.BlockType);
         Assert.NotNull(block.FileInfo);
-        Assert.Equal(largeUnpackedSize, block.FileInfo!.UnpackedSize);
+        Assert.Equal(largeUnpackedSize, block.FileInfo.UnpackedSize);
         Assert.Equal(fileName, block.FileInfo.FileName);
         Assert.True(block.FileInfo.IsStored);
         // CRC32 flag set -> value present; time flag clear -> stays null (NOT 0), so the SRR
@@ -542,7 +542,7 @@ public class RAR5HeaderReaderTests
         byte? blockType = reader.PeekBlockType();
 
         Assert.NotNull(blockType);
-        Assert.Equal((byte)RAR5BlockType.Main, blockType!.Value);
+        Assert.Equal((byte)RAR5BlockType.Main, blockType.Value);
         Assert.Equal(posBefore, stream.Position);
     }
 
@@ -573,7 +573,7 @@ public class RAR5HeaderReaderTests
         RAR5BlockReadResult? block = reader.ReadBlock();
 
         Assert.NotNull(block);
-        Assert.Equal(extraSize, block!.ExtraAreaSize);
+        Assert.Equal(extraSize, block.ExtraAreaSize);
         Assert.Equal(dataSize, block.DataSize);
     }
 

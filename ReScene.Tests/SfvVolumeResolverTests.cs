@@ -30,7 +30,7 @@ public sealed class SfvVolumeResolverTests : IDisposable
     private void Touch(string name) => File.WriteAllText(Path.Combine(_dir, name), "x");
 
     private static string[][] BaseNames(IReadOnlyList<IReadOnlyList<string>> chains)
-        => [.. chains.Select(c => c.Select(v => Path.GetFileName(v)!).ToArray())];
+        => [.. chains.Select(c => c.Select(v => Path.GetFileName(v)).ToArray())];
 
     [Fact]
     public void ParseSfvEntryNames_SpacedName_KeepsSpaces_SkipsCommentsAndBlanks()

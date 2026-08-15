@@ -30,7 +30,7 @@ public class SRRFileParserTests : TempDirTestBase
 
         Assert.Null(ex);
         Assert.NotNull(srr);
-        Assert.NotNull(srr!.HeaderBlock);
+        Assert.NotNull(srr.HeaderBlock);
         Assert.Empty(srr.RARFiles);
     }
 }

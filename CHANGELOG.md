@@ -23,6 +23,10 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
   input-operand composition step to its call site — pure refactor, same file, same timing.
 - The test suite now executes on net8.0 as well as net10.0 — previously the library's net8.0
   target was only ever compile-verified, so a net8.0-only runtime regression could not be caught.
+- The test project now builds with the library's own analyzer regime (`AnalysisLevel=latest-All`
+  + `EnforceCodeStyleInBuild`), warning-free; test-only conventions (underscore test names,
+  seeded `Random`, Action-based recorder hooks) are exempted with justifications in
+  `.editorconfig` rather than in code.
 
 ### Fixed
 

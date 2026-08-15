@@ -443,6 +443,11 @@ dotnet_diagnostic.IDE0090.severity = suggestion
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity = none
 
+# IDE0330 (use System.Threading.Lock): the library and its tests multi-target net8.0, where
+# Lock does not exist — the rule only fires on the net10.0 leg and its fix breaks the net8.0
+# build, so it stays off until net8.0 support is dropped.
+dotnet_diagnostic.IDE0330.severity = none
+
 # IDE0160: Use file-scoped namespace
 dotnet_diagnostic.IDE0160.severity = warning
 
@@ -487,6 +492,24 @@ dotnet_diagnostic.CA2007.severity = none
 # helper base classes must be public because public xUnit test classes derive from
 # them, so the rule doesn't apply to test code.
 dotnet_diagnostic.CA1515.severity = none
+
+# CA1707: underscore-separated test names (Method_Scenario_Expectation) are the
+# established convention across the whole suite — a test name is a sentence.
+dotnet_diagnostic.CA1707.severity = none
+
+# IDE1006: the same underscore names trip the method-naming rule, and async Task
+# test methods deliberately carry no Async suffix, for the same reason.
+dotnet_diagnostic.IDE1006.severity = none
+
+# CA5394 (insecure randomness): tests use seeded System.Random precisely BECAUSE it
+# is deterministic (e.g. SyntheticSampleBuilder's Random(42)); nothing here is
+# security-sensitive.
+dotnet_diagnostic.CA5394.severity = none
+
+# CA1003 (generic EventHandler): test doubles expose plain Action-based hooks
+# (RecordingLogger.Logged) — sender/EventArgs ceremony adds nothing to a recorder
+# whose only subscriber is the test that constructed it.
+dotnet_diagnostic.CA1003.severity = none
 
 # ── XAML files ───────────────────────────────────────────
 

@@ -117,7 +117,7 @@ public class RARUtilsTests
         DateTime? result = RARUtils.DosDateToDateTime(dosTime);
 
         Assert.NotNull(result);
-        Assert.Equal(2025, result!.Value.Year);
+        Assert.Equal(2025, result.Value.Year);
         Assert.Equal(1, result.Value.Month);
         Assert.Equal(15, result.Value.Day);
         Assert.Equal(10, result.Value.Hour);
@@ -135,7 +135,7 @@ public class RARUtilsTests
         DateTime? result = RARUtils.DosDateToDateTime(dosTime);
 
         Assert.NotNull(result);
-        Assert.Equal(1980, result!.Value.Year);
+        Assert.Equal(1980, result.Value.Year);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class RARUtilsTests
         DateTime? result = RARUtils.DosDateToDateTime(dosTime);
 
         Assert.NotNull(result);
-        Assert.Equal(30, result!.Value.Second); // 15*2 = 30
+        Assert.Equal(30, result.Value.Second); // 15*2 = 30
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class RARUtilsTests
         DateTime? result = RARUtils.DosDateToDateTime(dosTime);
 
         Assert.NotNull(result);
-        Assert.Equal(2107, result!.Value.Year);
+        Assert.Equal(2107, result.Value.Year);
         Assert.Equal(12, result.Value.Month);
         Assert.Equal(31, result.Value.Day);
         Assert.Equal(23, result.Value.Hour);
@@ -232,7 +232,7 @@ public class RARUtilsTests
         DateTime? result = RARUtils.DosDateToDateTime(dosTime);
 
         Assert.NotNull(result);
-        Assert.Equal(new DateTime(2024, 2, 29, 12, 0, 0), result!.Value);
+        Assert.Equal(new DateTime(2024, 2, 29, 12, 0, 0), result.Value);
     }
 
     #endregion
@@ -351,7 +351,7 @@ public class RARUtilsTests
 
         Assert.NotNull(result);
         Assert.StartsWith("test", result, StringComparison.Ordinal);
-        Assert.Equal(5, result!.Length); // 5 characters decoded
+        Assert.Equal(5, result.Length); // 5 characters decoded
     }
 
     [Fact]

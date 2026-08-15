@@ -73,7 +73,7 @@ public class SRSWriterTests : TempDirTestBase
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(expectedType, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData.CRC32);
         Assert.True(parsed.Tracks.Count > 0);
     }
 
@@ -94,7 +94,7 @@ public class SRSWriterTests : TempDirTestBase
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.AVI, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal("ReScene.Lib", parsed.FileData!.AppName);
+        Assert.Equal("ReScene.Lib", parsed.FileData.AppName);
         Assert.Contains("test_sample.avi", parsed.FileData.FileName, StringComparison.Ordinal);
         Assert.Equal(result.SampleCRC32, parsed.FileData.CRC32);
         Assert.Equal((ulong)result.SampleSize, parsed.FileData.SampleSize);
@@ -129,7 +129,7 @@ public class SRSWriterTests : TempDirTestBase
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.MP4, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData.CRC32);
         Assert.True(parsed.Tracks.Count > 0);
     }
 
@@ -150,7 +150,7 @@ public class SRSWriterTests : TempDirTestBase
         var parsed = SRSFile.Load(srsPath);
         Assert.Equal(SRSContainerType.MP4, parsed.ContainerType);
         Assert.NotNull(parsed.FileData);
-        Assert.Equal(result.SampleCRC32, parsed.FileData!.CRC32);
+        Assert.Equal(result.SampleCRC32, parsed.FileData.CRC32);
         Assert.True(parsed.Tracks.Count > 0);
     }
 

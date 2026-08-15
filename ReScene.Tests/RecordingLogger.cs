@@ -15,6 +15,8 @@ public sealed class RecordingLogger : IReSceneLogger
     /// <summary>One recorded log call: its severity, target log panel, and message text.</summary>
     public readonly record struct LogEntry(string Level, LogTarget Target, string Message);
 
+    // A plain object monitor, NOT System.Threading.Lock: the suite executes on net8.0 too,
+    // where Lock does not exist (IDE0330 is silenced in .editorconfig for exactly this reason).
     private readonly object _gate = new();
     private readonly List<string> _debugMessages = [];
     private readonly List<string> _informationMessages = [];

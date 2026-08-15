@@ -28,7 +28,7 @@ public class VolumeMatchEvaluatorTests
 
         Assert.False(r.AllMatch);
         Assert.NotNull(r.FirstMismatch);
-        Assert.Equal(1, r.FirstMismatch!.Index);
+        Assert.Equal(1, r.FirstMismatch.Index);
         Assert.Equal("x.r00", r.FirstMismatch.ExpectedName);
     }
 

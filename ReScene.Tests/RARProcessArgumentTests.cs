@@ -20,7 +20,9 @@ public sealed class RARProcessArgumentTests : IDisposable
 
     public void Dispose()
     {
-        try { File.Delete(_stubRar); } catch { /* best effort */ }
+        try
+        { File.Delete(_stubRar); }
+        catch { /* best effort */ }
     }
 
     [Fact]

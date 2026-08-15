@@ -203,7 +203,7 @@ public class MKVFileDataTests : TempDirTestBase
         Assert.Empty(cluster.Children);
         // But the first Timestamp is surfaced as a hint value.
         Assert.NotNull(cluster.Value);
-        Assert.Contains("Timestamp", cluster.Value!, StringComparison.Ordinal);
+        Assert.Contains("Timestamp", cluster.Value, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -447,7 +447,7 @@ public class MKVFileDataTests : TempDirTestBase
             .First(c => c.Name == "TimestampScale");
 
         Assert.NotNull(scale.Value);
-        Assert.Contains("bytes", scale.Value!, StringComparison.Ordinal);
+        Assert.Contains("bytes", scale.Value, StringComparison.Ordinal);
     }
 
     [Fact]

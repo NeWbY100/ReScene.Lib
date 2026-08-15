@@ -78,7 +78,8 @@ public class SRREditorTests : TempDirTestBase
         SRREditor.MoveStoredFile(path, "b.nfo", offset: -1);
 
         var names = SRRFile.Load(path).StoredFiles.Select(b => b.FileName).ToList();
-        Assert.Equal(new[] { "b.nfo", "a.nfo", "c.nfo" }, names);
+        string[] expected = ["b.nfo", "a.nfo", "c.nfo"];
+        Assert.Equal(expected, names);
     }
 
     [Fact]
@@ -94,7 +95,8 @@ public class SRREditorTests : TempDirTestBase
         SRREditor.MoveStoredFile(path, "b.nfo", offset: 1);
 
         var names = SRRFile.Load(path).StoredFiles.Select(b => b.FileName).ToList();
-        Assert.Equal(new[] { "a.nfo", "c.nfo", "b.nfo" }, names);
+        string[] expected = ["a.nfo", "c.nfo", "b.nfo"];
+        Assert.Equal(expected, names);
     }
 
     [Fact]
@@ -109,7 +111,8 @@ public class SRREditorTests : TempDirTestBase
         SRREditor.MoveStoredFile(path, "a.nfo", offset: -1);
 
         var names = SRRFile.Load(path).StoredFiles.Select(b => b.FileName).ToList();
-        Assert.Equal(new[] { "a.nfo", "b.nfo" }, names);
+        string[] expected = ["a.nfo", "b.nfo"];
+        Assert.Equal(expected, names);
     }
 
     [Fact]

@@ -120,7 +120,7 @@ public class FileOperationsTests : TempDirTestBase
 
         // Final progress event reflects the completed counts.
         Assert.NotNull(last);
-        Assert.Equal(1, last!.FilesCopied);
+        Assert.Equal(1, last.FilesCopied);
         Assert.Equal(payload.Length, last.BytesCopied);
         Assert.Equal("source.bin", last.FileName);
     }

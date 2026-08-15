@@ -67,7 +67,7 @@ public class SRRWriterRealDataTests : TempDirTestBase
         Assert.NotNull(extracted);
 
         byte[] originalBytes = await File.ReadAllBytesAsync(littleTxt);
-        byte[] extractedBytes = await File.ReadAllBytesAsync(extracted!);
+        byte[] extractedBytes = await File.ReadAllBytesAsync(extracted);
         Assert.Equal(originalBytes, extractedBytes);
     }
 

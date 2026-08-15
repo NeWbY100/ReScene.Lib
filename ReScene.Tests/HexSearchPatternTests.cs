@@ -33,7 +33,7 @@ public class HexSearchPatternTests
     {
         var result = HexSearchPattern.TryParse("5261", asHex: true);
         Assert.NotNull(result);
-        Assert.Equal(2, result!.Bytes.Length);
+        Assert.Equal(2, result.Bytes.Length);
         Assert.Equal(0x52, result.Bytes.Span[0]);
         Assert.Equal(0x61, result.Bytes.Span[1]);
         Assert.True(result.IsHex);
@@ -44,7 +44,7 @@ public class HexSearchPatternTests
     {
         var result = HexSearchPattern.TryParse("52 61", asHex: true);
         Assert.NotNull(result);
-        Assert.Equal(2, result!.Bytes.Length);
+        Assert.Equal(2, result.Bytes.Length);
         Assert.Equal(0x52, result.Bytes.Span[0]);
         Assert.Equal(0x61, result.Bytes.Span[1]);
     }
@@ -54,7 +54,7 @@ public class HexSearchPatternTests
     {
         var result = HexSearchPattern.TryParse("52-61", asHex: true);
         Assert.NotNull(result);
-        Assert.Equal(2, result!.Bytes.Length);
+        Assert.Equal(2, result.Bytes.Length);
         Assert.Equal(0x52, result.Bytes.Span[0]);
         Assert.Equal(0x61, result.Bytes.Span[1]);
     }
@@ -78,7 +78,7 @@ public class HexSearchPatternTests
     {
         var result = HexSearchPattern.TryParse("  52 61  ", asHex: true);
         Assert.NotNull(result);
-        Assert.Equal("52 61", result!.DisplayText);
+        Assert.Equal("52 61", result.DisplayText);
     }
 
     #endregion
@@ -113,7 +113,7 @@ public class HexSearchPatternTests
         Assert.NotNull(result);
 
         byte[] expected = Encoding.UTF8.GetBytes("RAR!");
-        Assert.Equal(expected, result!.Bytes.ToArray());
+        Assert.Equal(expected, result.Bytes.ToArray());
         Assert.False(result.IsHex);
     }
 
@@ -122,7 +122,7 @@ public class HexSearchPatternTests
     {
         var result = HexSearchPattern.TryParse("RAR!", asHex: false);
         Assert.NotNull(result);
-        Assert.Equal("RAR!", result!.DisplayText);
+        Assert.Equal("RAR!", result.DisplayText);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class HexSearchPatternTests
     {
         var result = HexSearchPattern.TryParse("hello", asHex: false);
         Assert.NotNull(result);
-        Assert.False(result!.IsHex);
+        Assert.False(result.IsHex);
     }
 
     #endregion

@@ -45,10 +45,18 @@ public class SRRPreflightTests : TempDirTestBase
         {
             switch (shape)
             {
-                case "protected": h.AddArchiveHeader(RARArchiveFlags.Protected); break;
-                case "protect78": h.AddArchiveHeader().AddProtectBlock(64); break;
-                case "rrService": h.AddArchiveHeader().AddServiceBlock("RR", 64, includeData: false); break;
-                case "avStripped": h.AddArchiveHeader().AddServiceBlock("AV", 16, includeData: false); break;
+                case "protected":
+                    h.AddArchiveHeader(RARArchiveFlags.Protected);
+                    break;
+                case "protect78":
+                    h.AddArchiveHeader().AddProtectBlock(64);
+                    break;
+                case "rrService":
+                    h.AddArchiveHeader().AddServiceBlock("RR", 64, includeData: false);
+                    break;
+                case "avStripped":
+                    h.AddArchiveHeader().AddServiceBlock("AV", 16, includeData: false);
+                    break;
             }
             h.AddEndArchive();
         });

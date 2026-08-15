@@ -7,7 +7,7 @@ namespace ReScene.Tests;
 /// <summary>
 /// Tests for <see cref="OSOHashCalculator"/>. The public surface (<c>ComputeHashes</c>) takes
 /// real RAR volume paths and only hashes stored, non-split entries that are at least 64 KiB.
-/// <see cref="OSOHashCalculator.ComputeHash"/> is private, so every case is driven end-to-end
+/// <c>OSOHashCalculator.ComputeHash</c> is private, so every case is driven end-to-end
 /// through a minimal but real RAR4 archive written to disk by <see cref="WriteStoredRAR4"/>.
 ///
 /// The independent oracle <see cref="ExpectedOSOHash"/> recomputes the expected value the way the
@@ -31,10 +31,10 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
 
-        (string FileName, ulong FileSize, byte[] Hash) entry = Assert.Single(results);
-        Assert.Equal("clip.bin", entry.FileName);
-        Assert.Equal((ulong)HashChunkSize, entry.FileSize);
-        Assert.Equal(ExpectedOSOHash(content), entry.Hash);
+        (string FileName, ulong FileSize, byte[] Hash) = Assert.Single(results);
+        Assert.Equal("clip.bin", FileName);
+        Assert.Equal((ulong)HashChunkSize, FileSize);
+        Assert.Equal(ExpectedOSOHash(content), Hash);
     }
 
     [Fact]
@@ -48,13 +48,13 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
 
-        (string FileName, ulong FileSize, byte[] Hash) entry = Assert.Single(results);
-        Assert.Equal("movie.sample.mkv", entry.FileName);
-        Assert.Equal(70_000UL, entry.FileSize);
-        Assert.Equal(ExpectedOSOHash(content), entry.Hash);
+        (string FileName, ulong FileSize, byte[] Hash) = Assert.Single(results);
+        Assert.Equal("movie.sample.mkv", FileName);
+        Assert.Equal(70_000UL, FileSize);
+        Assert.Equal(ExpectedOSOHash(content), Hash);
 
         // The hash is exactly 8 bytes (a little-endian ulong).
-        Assert.Equal(8, entry.Hash.Length);
+        Assert.Equal(8, Hash.Length);
     }
 
     // ---- Skip / boundary cases --------------------------------------------
@@ -105,8 +105,8 @@ public sealed class OSOHashCalculatorTests : TempDirTestBase
         List<(string FileName, ulong FileSize, byte[] Hash)> results =
             OSOHashCalculator.ComputeHashes([rar]);
 
-        (string FileName, ulong FileSize, byte[] Hash) entry = Assert.Single(results);
-        Assert.Equal("whole.bin", entry.FileName);
+        (string FileName, ulong FileSize, byte[] Hash) = Assert.Single(results);
+        Assert.Equal("whole.bin", FileName);
         Assert.DoesNotContain(results, r => r.FileName == "continued.bin");
     }
 

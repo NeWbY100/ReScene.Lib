@@ -81,7 +81,8 @@ public class ManagerHelpersTests
     public void FilterArgumentsForVersion_IncludesWithinVersionRange()
     {
         RARCommandLineArgument[] args = [new("-m5", minimumVersion: 300, maximumVersion: 700)];
-        Assert.Equal(new[] { "-m5" }, RARVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
+        string[] expected = ["-m5"];
+        Assert.Equal(expected, RARVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR4));
     }
 
     [Fact]
@@ -96,7 +97,8 @@ public class ManagerHelpersTests
     {
         RARCommandLineArgument[] args =
             [new("-m5", minimumVersion: 0, archiveVersion: RARArchiveVersion.RAR4 | RARArchiveVersion.RAR5)];
-        Assert.Equal(new[] { "-m5" }, RARVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR5));
+        string[] expected = ["-m5"];
+        Assert.Equal(expected, RARVersionSelector.FilterArgumentsForVersion(args, 600, RARArchiveVersion.RAR5));
     }
 
     [Fact]
@@ -108,7 +110,8 @@ public class ManagerHelpersTests
             new("-md64m", 600),    // excluded at version 500
             new("-s", 0),
         ];
-        Assert.Equal(new[] { "-m5", "-s" }, RARVersionSelector.FilterArgumentsForVersion(args, 500, RARArchiveVersion.RAR4));
+        string[] expected = ["-m5", "-s"];
+        Assert.Equal(expected, RARVersionSelector.FilterArgumentsForVersion(args, 500, RARArchiveVersion.RAR4));
     }
 
     #endregion
@@ -450,7 +453,7 @@ public class ManagerHelpersTests
         await runTask;
 
         Assert.NotNull(executedArguments);
-        return executedArguments!;
+        return executedArguments;
     }
 
     #endregion

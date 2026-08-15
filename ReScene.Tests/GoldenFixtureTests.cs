@@ -11,7 +11,7 @@ namespace ReScene.Tests;
 /// <c>TestData/multiset/README.md</c> for the pinned pyrescene commit and generation commands.
 /// This harness originally found a real divergence (RarFile block flags — see
 /// <see cref="TwoDiscTree_MatchesPyresceneGoldenBytes"/> and the README's "Fixed divergence"
-/// section); <see cref="SRRWriter.WriteRARFileBlock"/> now writes
+/// section); <see cref="SRRWriter"/>'s RAR-file block now carries
 /// <see cref="SRRBlockFlags.RecoveryBlocksRemoved"/> for pyReScene parity and both golden tests
 /// pass. Design: spec §6 (docs/superpowers/specs/2026-07-18-multiset-srr-creation-design.md).
 /// </summary>
@@ -202,7 +202,7 @@ public class GoldenFixtureTests
         w.Write((ushort)0x0001);
         w.Write((ushort)29);
         w.Write((ushort)20);
-        w.Write(new byte[] { 0x41, 0x42 });
+        w.Write("AB"u8.ToArray());
         byte[] input = ms.ToArray();
 
         var ex = Assert.Throws<InvalidOperationException>(() => NormalizeAppName(input));
