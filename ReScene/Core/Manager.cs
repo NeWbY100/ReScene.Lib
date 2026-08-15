@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using ReScene.Core.Cryptography;
 using ReScene.Core.Diagnostics;
 using ReScene.Core.IO;
@@ -959,25 +959,11 @@ public class Manager : IDisposable
                 // (otherwise the bar/ETA stall well short of 100% for old versions).
                 _logger.Debug(this, $"RAR file already exists, skipping: {ctx.RarFilePath}", LogTarget.Phase2);
                 currentProgress++;
-                FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
-                {
-                    PhaseDescription = "Phase 2: Full RAR Creation",
-                    InputDirectoryPath = ctx.InputFilesDir,
-                    OutputFilePath = ctx.RarFilePath,
-                    ExecutedArguments = ctx.ExecutedArguments,
-                    InputFileArguments = ctx.InputFileArguments
-                });
+                FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress));
                 continue;
             }
 
-            FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
-            {
-                PhaseDescription = "Phase 2: Full RAR Creation",
-                InputDirectoryPath = ctx.InputFilesDir,
-                OutputFilePath = ctx.RarFilePath,
-                ExecutedArguments = ctx.ExecutedArguments,
-                InputFileArguments = ctx.InputFileArguments
-            });
+            FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress));
 
             // ---- Execute RAR ----
             // When CompleteAllVolumes is enabled, we start RAR without auto-kill and check
@@ -1050,14 +1036,7 @@ public class Manager : IDisposable
 
                 currentProgress++;
                 combinationCounted = true;
-                FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
-                {
-                    PhaseDescription = "Phase 2: Full RAR Creation",
-                    InputDirectoryPath = ctx.InputFilesDir,
-                    OutputFilePath = ctx.RarFilePath,
-                    ExecutedArguments = ctx.ExecutedArguments,
-                    InputFileArguments = ctx.InputFileArguments
-                });
+                FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress));
 
                 // Check if RAR file or volume files were created
                 string? actualRARFilePath = MatchedRARWriter.FindCreatedRARFile(ctx.RarFilePath);
@@ -1088,15 +1067,7 @@ public class Manager : IDisposable
                     if (IsCompletedRunFailure(completedExitCode, _cts.IsCancellationRequested))
                     {
                         _logger.Warning(this, $"{ctx.VersionDirectoryName} / {ctx.DisplayArguments}: rar exited with code {completedExitCode} and no archive was created — marking this combination as failed", LogTarget.Phase2);
-                        FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
-                        {
-                            PhaseDescription = "Phase 2: Full RAR Creation",
-                            CombinationFailed = true,
-                            InputDirectoryPath = ctx.InputFilesDir,
-                            OutputFilePath = ctx.RarFilePath,
-                            ExecutedArguments = ctx.ExecutedArguments,
-                            InputFileArguments = ctx.InputFileArguments
-                        });
+                        FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
                     }
                     else
                     {
@@ -1170,9 +1141,7 @@ public class Manager : IDisposable
                                 // shape (CombinationFailed progress event + warning). RETENTION: like the
                                 // exception disposition, BOTH artifact classes are LEFT IN PLACE for
                                 // diagnosis.
-                                FireAssemblyErrorRow(options, ctx.VersionDirectoryPath, ctx.DisplayArguments,
-                                    ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime, ctx.InputFilesDir,
-                                    ctx.RarFilePath, ctx.ExecutedArguments, ctx.InputFileArguments, quick.Diagnostic);
+                                FireAssemblyErrorRow(ctx, options, currentProgress, quick.Diagnostic);
                                 skipRetentionCleanup = true;
                                 break;
                             case SRRReconstructionStatus.SourceExhausted when !options.RAROptions.CompleteAllVolumes:
@@ -1308,9 +1277,7 @@ public class Manager : IDisposable
                             if (assembled.Status == SRRReconstructionStatus.Error)
                             {
                                 // Persistent parse/I-O failure: retains BOTH classes for diagnosis.
-                                FireAssemblyErrorRow(options, ctx.VersionDirectoryPath, ctx.DisplayArguments,
-                                    ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime, ctx.InputFilesDir,
-                                    ctx.RarFilePath, ctx.ExecutedArguments, ctx.InputFileArguments, assembled.Diagnostic);
+                                FireAssemblyErrorRow(ctx, options, currentProgress, assembled.Diagnostic);
                             }
                             else
                             {
@@ -1361,9 +1328,7 @@ public class Manager : IDisposable
                     if (!assembledComplete)
                     {
                         // Transactional finalization failed: retain both classes for diagnosis.
-                        FireAssemblyErrorRow(options, ctx.VersionDirectoryPath, ctx.DisplayArguments,
-                            ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime, ctx.InputFilesDir,
-                            ctx.RarFilePath, ctx.ExecutedArguments, ctx.InputFileArguments, "finalization incomplete — destination occupied or move failed");
+                        FireAssemblyErrorRow(ctx, options, currentProgress, "finalization incomplete — destination occupied or move failed");
                         continue;
                     }
 
@@ -1502,15 +1467,7 @@ public class Manager : IDisposable
                     currentProgress++;
                 }
 
-                FireBruteForceProgress(new(options.ReleaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments, ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
-                {
-                    PhaseDescription = "Phase 2: Full RAR Creation",
-                    CombinationFailed = true,
-                    InputDirectoryPath = ctx.InputFilesDir,
-                    OutputFilePath = ctx.RarFilePath,
-                    ExecutedArguments = ctx.ExecutedArguments,
-                    InputFileArguments = ctx.InputFileArguments
-                });
+                FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
                 continue;
             }
             finally
@@ -1545,24 +1502,39 @@ public class Manager : IDisposable
             assemblyDir, names, [], options.HashType, ct).ConfigureAwait(false);
     }
 
-    /// <summary>The error-row shape shared with the not-created branch's "rar exited with code…"
-    /// case above: one warning + one CombinationFailed progress event; then callers continue.</summary>
-    private void FireAssemblyErrorRow(BruteForceOptions options, string rarVersionDirectoryPath,
-        string displayArguments, int totalProgressSize, int currentProgress,
-        DateTime bruteForceStartDateTime, string inputFilesDir, string rarFilePath,
-        string executedArguments, string inputFileArguments, string? diagnostic)
-    {
-        _logger.Warning(this, $"{Path.GetFileName(rarVersionDirectoryPath)} / {displayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
-        FireBruteForceProgress(new(options.ReleaseDirectoryPath, rarVersionDirectoryPath,
-            displayArguments, totalProgressSize, currentProgress, bruteForceStartDateTime)
+    /// <summary>
+    /// Builds one candidate's progress row. Every field is derived from the candidate context and
+    /// the run's counters, so the emission sites cannot drift apart in what they report. Callers
+    /// remain responsible for WHEN they fire and for whether they have already incremented
+    /// <paramref name="currentProgress"/> — that ordering differs per site and is load-bearing.
+    /// </summary>
+    /// <param name="ctx">The candidate this row describes.</param>
+    /// <param name="releaseDirectoryPath">
+    /// The run's release directory. Passed explicitly rather than read from the
+    /// <see cref="BruteForceOptions"/> property: the property and the per-run parameter are the
+    /// same object only by convention, and this factory must not deepen that coupling.
+    /// </param>
+    /// <param name="currentProgress">The progress counter as the caller wants it reported.</param>
+    /// <param name="combinationFailed">Whether this row marks the combination as failed.</param>
+    private static BruteForceProgressEventArgs NewRow(
+        CandidateContext ctx, string releaseDirectoryPath, int currentProgress, bool combinationFailed = false)
+        => new(releaseDirectoryPath, ctx.VersionDirectoryPath, ctx.DisplayArguments,
+            ctx.TotalProgressSize, currentProgress, ctx.BruteForceStartDateTime)
         {
             PhaseDescription = "Phase 2: Full RAR Creation",
-            CombinationFailed = true,
-            InputDirectoryPath = inputFilesDir,
-            OutputFilePath = rarFilePath,
-            ExecutedArguments = executedArguments,
-            InputFileArguments = inputFileArguments,
-        });
+            InputDirectoryPath = ctx.InputFilesDir,
+            OutputFilePath = ctx.RarFilePath,
+            ExecutedArguments = ctx.ExecutedArguments,
+            InputFileArguments = ctx.InputFileArguments,
+            CombinationFailed = combinationFailed
+        };
+
+    /// <summary>The error-row shape shared with the not-created branch's "rar exited with code…"
+    /// case above: one warning + one CombinationFailed progress event; then callers continue.</summary>
+    private void FireAssemblyErrorRow(CandidateContext ctx, BruteForceOptions options, int currentProgress, string? diagnostic)
+    {
+        _logger.Warning(this, $"{Path.GetFileName(ctx.VersionDirectoryPath)} / {ctx.DisplayArguments}: assembly failed ({diagnostic}) — marking this combination as failed", LogTarget.Phase2);
+        FireBruteForceProgress(NewRow(ctx, options.ReleaseDirectoryPath, currentProgress, combinationFailed: true));
     }
 
     /// <summary>Mismatch/no-match retention applied to BOTH artifact classes under the
