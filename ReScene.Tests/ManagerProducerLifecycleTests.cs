@@ -539,4 +539,35 @@ public class ManagerProducerLifecycleTests : TempDirTestBase
             e.Message.Contains("first volume matched but", StringComparison.Ordinal)
             && e.Message.Contains("CRC mismatch", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public async Task Legacy_DuplicateHashAcrossCandidates_SecondCarrierDeleted_WhenDeleteDuplicatesSet()
+    {
+        // Two versions produce byte-identical non-matching carriers. The first records the hash;
+        // the second sees it already in fileHashes (isDuplicateHash) and — with
+        // DeleteDuplicateCRCFiles set and DeleteRARFiles NOT set — must delete its own carrier
+        // while the first candidate's file stays. Pins the legacy duplicate arm, which is
+        // otherwise covered only on the assembly side.
+        using AssemblyTestHost host = NewHost();
+        host.AddSecondVersion();
+        BruteForceOptions options = host.Options(fixture: null, completeAllVolumes: false,
+            deleteRarFiles: false, deleteDuplicates: true);
+        options.Hashes.Add("ffffffff"); // never matches, so every candidate is a mismatch
+
+        List<string> written = [];
+        host.Runner.OnLaunch = l =>
+        {
+            File.WriteAllBytes(l.OutputFilePath, CarrierBytes); // identical bytes => duplicate hash
+            written.Add(l.OutputFilePath);
+            l.Exit.TrySetResult(0);
+        };
+
+        BruteForceRunResult result = await WithTimeoutAsync(
+            host.Manager.BruteForceRARVersionAsync(options), "the duplicate-hash run to finish");
+
+        Assert.False(result.Success);
+        Assert.Equal(2, written.Count);
+        Assert.True(File.Exists(written[0]), "the first candidate's carrier is not a duplicate and must be kept");
+        Assert.False(File.Exists(written[1]), "the second candidate's carrier is a duplicate and must be deleted");
+    }
 }
