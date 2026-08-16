@@ -152,6 +152,27 @@ public class SRRWriterDestinationSafetyTests : TempDirTestBase
     }
 
     [Fact]
+    public async Task CreateFromSFVAsync_OutputDirectoryDoesNotExistYet_StillCreatesTheSRR()
+    {
+        // The self-collision guard added to this overload computes a key that resolves THROUGH the
+        // output directory, and the resolver requires its target to exist. Guarding before
+        // creating the directory made this path fail outright for a destination in a new folder —
+        // which CreateAsync, the method it delegates to, would have created itself.
+        RarFixtures.WriteStoreModeRarSet(TempDir, "release", volumeCount: 1, payloadBytes: 16);
+
+        string sfv = Path.Combine(TempDir, "release.sfv");
+        await File.WriteAllTextAsync(sfv, "release.rar 00000000\n", Encoding.UTF8);
+
+        string destination = Path.Combine(TempDir, "does-not-exist-yet", "out.srr");
+
+        var writer = new SRRWriter();
+        SRRCreationResult result = await writer.CreateFromSFVAsync(destination, sfv);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(File.Exists(destination));
+    }
+
+    [Fact]
     public async Task CreateAsync_Success_StillReplacesAPreExistingDestination()
     {
         RarFixtures.WriteStoreModeRarSet(TempDir, "release", volumeCount: 1, payloadBytes: 16);
