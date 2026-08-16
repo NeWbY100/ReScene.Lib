@@ -62,12 +62,14 @@ public class SRSRebuilder
         }
         catch (OperationCanceledException)
         {
-            StreamUtilities.TryDeleteFile(outputPath);
+            // No cleanup of outputPath here: RebuildCore rebuilds into a staging file and owns
+            // deleting it. Deleting outputPath would destroy a pre-existing destination this call
+            // never wrote to — including when the throw came from the existence checks that run
+            // before any rebuilding starts.
             return new SRSReconstructionResult(false, false, 0, 0, 0, 0, "Operation was cancelled.");
         }
         catch (Exception ex)
         {
-            StreamUtilities.TryDeleteFile(outputPath);
             return new SRSReconstructionResult(false, false, 0, 0, 0, 0, ex.Message);
         }
     }
@@ -84,6 +86,20 @@ public class SRSRebuilder
         {
             throw new FileNotFoundException("Media file not found.", mediaFilePath);
         }
+
+        // Create the output directory and check for a self-collision up front, before the
+        // expensive signature scan, so a doomed call fails fast. As in the SRR writer, a later
+        // failure can leave this freshly-created directory behind, empty — an accepted trade-off,
+        // since removing it could race another writer or delete one that pre-existed.
+        string? outputDirectory = Path.GetDirectoryName(outputPath);
+        if (!string.IsNullOrEmpty(outputDirectory))
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
+
+        // Rebuilding over the SRS or the media file would destroy an input this call is reading.
+        DestinationTransaction.RejectIfMatches(
+            DestinationTransaction.ComputeKey(outputPath), [srsFilePath, mediaFilePath], "an input file");
 
         // Step 1: Parse SRS
         ReportProgress("Loading SRS", 0, 0, 0);
@@ -130,21 +146,33 @@ public class SRSRebuilder
 
         trackOffsets ??= FindSampleStreams(mediaFilePath, trackDict, ct);
 
-        // Step 3: Rebuild the sample (reads track data directly from media file)
+        // Step 3: Rebuild the sample (reads track data directly from media file) into a staging
+        // file beside the destination, so a failure leaves a pre-existing destination untouched.
         ReportProgress("Rebuilding", 0, tracks.Count, 40);
-        string? outputDir = Path.GetDirectoryName(outputPath);
-        if (!string.IsNullOrEmpty(outputDir))
+        string stagingPath = DestinationTransaction.ReserveStagingPath(outputPath);
+
+        long actualSize;
+        uint actualCRC;
+        try
         {
-            Directory.CreateDirectory(outputDir);
+            RebuildSample(srsFilePath, srs.ContainerType, trackDict,
+                mediaFilePath, trackOffsets, stagingPath, ct);
+
+            // Step 4: Verify CRC
+            ReportProgress("Verifying CRC", 0, tracks.Count, 90);
+            actualSize = new FileInfo(stagingPath).Length;
+            actualCRC = CRCUtility.ComputeFileCRC32(stagingPath, ct);
+        }
+        catch
+        {
+            StreamUtilities.TryDeleteFile(stagingPath);
+            throw;
         }
 
-        RebuildSample(srsFilePath, srs.ContainerType, trackDict,
-            mediaFilePath, trackOffsets, outputPath, ct);
-
-        // Step 4: Verify CRC
-        ReportProgress("Verifying CRC", 0, tracks.Count, 90);
-        long actualSize = new FileInfo(outputPath).Length;
-        uint actualCRC = CRCUtility.ComputeFileCRC32(outputPath, ct);
+        // Committed even when the CRC or size does not match: a completed-but-mismatched rebuild
+        // was always left at the destination for the caller to inspect, and the result below
+        // still reports Success=false. Only a THROWN failure discards the staging file.
+        DestinationTransaction.Commit(stagingPath, outputPath);
 
         // The SRSF CRC may be stored in either byte order depending on the tool
         // that created the SRS. Check both the direct value and byte-reversed.

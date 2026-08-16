@@ -48,6 +48,8 @@ public class SRRWriter
     {
         options ??= new SRRCreationOptions();
         var result = new SRRCreationResult();
+        string tmpPath = string.Empty;
+        bool tmpCreated = false;
 
         try
         {
@@ -76,99 +78,118 @@ public class SRRWriter
                 }
             }
 
+            // Create the output directory BEFORE computing the collision key: ComputeOutputKey
+            // resolves through the directory, which must therefore exist (same ordering as
+            // CreateFromInputsAsync).
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
             {
                 Directory.CreateDirectory(outputDir);
             }
 
-            using var outStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            using var writer = new BinaryWriter(outStream, Encoding.UTF8, leaveOpen: true);
-
-            // 1. Write SRR Header block
-            WriteSRRHeader(writer, options.AppName);
-
-            // 2. Write stored file blocks, in the given order. A stored name can only appear once
-            //    in an SRR, so a repeat (after slash-normalization) is skipped (first wins).
+            // Reject an outputPath that resolves to one of this call's own inputs. Without this,
+            // the commit below would destroy the very file being described.
+            string outputKey = ComputeOutputKey(outputPath);
+            RejectIfOutputMatches(outputKey, rarVolumePaths, "a RAR volume");
             if (storedFiles != null)
             {
-                var writtenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (StoredFileEntry entry in storedFiles)
+                RejectIfOutputMatches(outputKey, storedFiles.Select(e => e.FullPath), "a stored source");
+            }
+
+            // Stage into a temp file beside the destination and commit only on success, so a
+            // failure anywhere below leaves a pre-existing destination byte-for-byte unchanged.
+            (FileStream outStream, tmpPath) = CreateExclusiveTempFile(outputPath);
+            tmpCreated = true;
+            using (outStream)
+            using (var writer = new BinaryWriter(outStream, Encoding.UTF8, leaveOpen: true))
+            {
+                // 1. Write SRR Header block
+                WriteSRRHeader(writer, options.AppName);
+
+                // 2. Write stored file blocks, in the given order. A stored name can only appear once
+                //    in an SRR, so a repeat (after slash-normalization) is skipped (first wins).
+                if (storedFiles != null)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    string storedName = entry.StoredName.Replace('\\', '/');
-                    if (!writtenNames.Add(storedName))
+                    var writtenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (StoredFileEntry entry in storedFiles)
                     {
-                        Log($"Skipping duplicate stored name: {storedName}");
-                        continue;
+                        ct.ThrowIfCancellationRequested();
+                        string storedName = entry.StoredName.Replace('\\', '/');
+                        if (!writtenNames.Add(storedName))
+                        {
+                            Log($"Skipping duplicate stored name: {storedName}");
+                            continue;
+                        }
+
+                        byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct).ConfigureAwait(false);
+                        Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
+                        SRRBlockWriter.WriteStoredFileBlock(writer, storedName, fileData);
+                        result.StoredFileCount++;
+                    }
+                }
+
+                // 3. Process each RAR volume
+                await WriteVolumesAsync(
+                    writer,
+                    rarVolumePaths.Select(p => (Path.GetFileName(p), p)).ToList(),
+                    options,
+                    result,
+                    ct).ConfigureAwait(false);
+
+                // 4. Optionally compute and write OSO hash blocks
+                if (options.ComputeOSOHashes)
+                {
+                    Log("Computing OSO hashes...");
+                    List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(
+                        rarVolumePaths,
+                        onWarning: warning =>
+                        {
+                            Log(warning);
+                            result.Warnings.Add(warning);
+                        });
+                    foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
+                    {
+                        Log($"Added OSO hash: {fileName}");
+                        WriteOSOHashBlock(writer, fileName, fileSize, hash);
+                    }
+                }
+
+                // 5. Optionally generate and store languages.diz from VobSub .idx files
+                if (options.GenerateLanguagesDiz)
+                {
+                    Log("Scanning RAR archive for VobSub .idx files...");
+                    LanguagesDizGenerator.Result dizResult = LanguagesDizGenerator.Generate(rarVolumePaths);
+                    foreach (string idxFileName in dizResult.IdxFileNames)
+                    {
+                        result.LanguagesDizIdxFiles.Add(idxFileName);
                     }
 
-                    byte[] fileData = await File.ReadAllBytesAsync(entry.FullPath, ct).ConfigureAwait(false);
-                    Log($"Adding stored file: {storedName} ({fileData.Length:N0} bytes)");
-                    SRRBlockWriter.WriteStoredFileBlock(writer, storedName, fileData);
-                    result.StoredFileCount++;
-                }
-            }
-
-            // 3. Process each RAR volume
-            await WriteVolumesAsync(
-                writer,
-                rarVolumePaths.Select(p => (Path.GetFileName(p), p)).ToList(),
-                options,
-                result,
-                ct).ConfigureAwait(false);
-
-            // 4. Optionally compute and write OSO hash blocks
-            if (options.ComputeOSOHashes)
-            {
-                Log("Computing OSO hashes...");
-                List<(string FileName, ulong FileSize, byte[] Hash)> hashes = OSOHashCalculator.ComputeHashes(
-                    rarVolumePaths,
-                    onWarning: warning =>
+                    foreach (string warning in dizResult.Warnings)
                     {
-                        Log(warning);
                         result.Warnings.Add(warning);
-                    });
-                foreach ((string? fileName, ulong fileSize, byte[]? hash) in hashes)
-                {
-                    Log($"Added OSO hash: {fileName}");
-                    WriteOSOHashBlock(writer, fileName, fileSize, hash);
+                    }
+
+                    if (dizResult.Data is not null)
+                    {
+                        Log($"Adding languages.diz ({dizResult.Data.Length:N0} bytes)");
+                        SRRBlockWriter.WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
+                        result.StoredFileCount++;
+                    }
+                    else if (dizResult.IdxFileNames.Count == 0)
+                    {
+                        result.Warnings.Add("languages.diz requested but no VobSub .idx files were found.");
+                    }
+                    else if (dizResult.Warnings.Count == 0)
+                    {
+                        result.Warnings.Add("languages.diz requested but no language lines could be extracted from the .idx file(s).");
+                    }
                 }
+
+                await outStream.FlushAsync(ct).ConfigureAwait(false);
+                result.SRRFileSize = outStream.Length;
             }
 
-            // 5. Optionally generate and store languages.diz from VobSub .idx files
-            if (options.GenerateLanguagesDiz)
-            {
-                Log("Scanning RAR archive for VobSub .idx files...");
-                LanguagesDizGenerator.Result dizResult = LanguagesDizGenerator.Generate(rarVolumePaths);
-                foreach (string idxFileName in dizResult.IdxFileNames)
-                {
-                    result.LanguagesDizIdxFiles.Add(idxFileName);
-                }
-
-                foreach (string warning in dizResult.Warnings)
-                {
-                    result.Warnings.Add(warning);
-                }
-
-                if (dizResult.Data is not null)
-                {
-                    Log($"Adding languages.diz ({dizResult.Data.Length:N0} bytes)");
-                    SRRBlockWriter.WriteStoredFileBlock(writer, "languages.diz", dizResult.Data);
-                    result.StoredFileCount++;
-                }
-                else if (dizResult.IdxFileNames.Count == 0)
-                {
-                    result.Warnings.Add("languages.diz requested but no VobSub .idx files were found.");
-                }
-                else if (dizResult.Warnings.Count == 0)
-                {
-                    result.Warnings.Add("languages.diz requested but no language lines could be extracted from the .idx file(s).");
-                }
-            }
-
-            await outStream.FlushAsync(ct).ConfigureAwait(false);
-            result.SRRFileSize = outStream.Length;
+            File.Move(tmpPath, outputPath, overwrite: true);
             result.OutputPath = outputPath;
             result.Success = true;
 
@@ -177,12 +198,18 @@ public class SRRWriter
         catch (OperationCanceledException)
         {
             result.ErrorMessage = "Operation was cancelled.";
-            StreamUtilities.TryDeleteFile(outputPath);
+            if (tmpCreated)
+            {
+                StreamUtilities.TryDeleteFile(tmpPath);
+            }
         }
         catch (Exception ex)
         {
             result.ErrorMessage = ex.Message;
-            StreamUtilities.TryDeleteFile(outputPath);
+            if (tmpCreated)
+            {
+                StreamUtilities.TryDeleteFile(tmpPath);
+            }
         }
 
         return result;
@@ -220,6 +247,18 @@ public class SRRWriter
         if (!File.Exists(sfvFilePath))
         {
             return new SRRCreationResult { ErrorMessage = $"SFV file not found: {sfvFilePath}" };
+        }
+
+        // The SFV is read here to DISCOVER the volumes and is never forwarded to CreateAsync as an
+        // input, so CreateAsync's own collision check cannot see it. Without this guard the commit
+        // would replace the SFV this call is reading from.
+        try
+        {
+            RejectIfOutputMatches(ComputeOutputKey(outputPath), [sfvFilePath], "the source SFV");
+        }
+        catch (Exception ex)
+        {
+            return new SRRCreationResult { ErrorMessage = ex.Message };
         }
 
         string sfvDir = Path.GetDirectoryName(sfvFilePath) ?? ".";
@@ -447,11 +486,7 @@ public class SRRWriter
     /// yet).
     /// </summary>
     private static string ComputeOutputKey(string outputPath) =>
-        File.Exists(outputPath)
-            ? SrrNameCanonicalizer.GetFinalPath(outputPath)
-            : Path.Combine(
-                SrrNameCanonicalizer.GetFinalPath(Path.GetDirectoryName(Path.GetFullPath(outputPath))!),
-                Path.GetFileName(outputPath));
+        DestinationTransaction.ComputeKey(outputPath);
 
     /// <summary>
     /// Rejects <paramref name="outputKey"/> (from <see cref="ComputeOutputKey"/>) if it matches
@@ -460,16 +495,8 @@ public class SRRWriter
     /// (discovered volumes/stored sources) so a symlink/junction can't disguise a
     /// self-collision either way.
     /// </summary>
-    private static void RejectIfOutputMatches(string outputKey, IEnumerable<string> candidatePaths, string sourceKind)
-    {
-        foreach (string candidate in candidatePaths)
-        {
-            if (string.Equals(outputKey, SrrNameCanonicalizer.GetFinalPath(candidate), StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Output path is the same as {sourceKind}: {candidate}");
-            }
-        }
-    }
+    private static void RejectIfOutputMatches(string outputKey, IEnumerable<string> candidatePaths, string sourceKind) =>
+        DestinationTransaction.RejectIfMatches(outputKey, candidatePaths, sourceKind);
 
     /// <summary>
     /// Creates the transaction's temp file exclusively (<see cref="FileMode.CreateNew"/>) so an

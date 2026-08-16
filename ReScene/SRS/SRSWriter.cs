@@ -56,6 +56,8 @@ public class SRSWriter
     {
         options ??= new SRSCreationOptions();
         var result = new SRSCreationResult();
+        string stagingPath = string.Empty;
+        bool staged = false;
 
         try
         {
@@ -71,11 +73,18 @@ public class SRSWriter
 
             ReportProgress($"Detected container: {containerType}");
 
+            // Create the output directory BEFORE computing the collision key, which resolves
+            // through that directory and therefore requires it to exist.
             string? outputDir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(outputDir))
             {
                 Directory.CreateDirectory(outputDir);
             }
+
+            // Writing the SRS over its own sample would destroy the very file being described —
+            // and the Stream handler would happily do it and report success.
+            DestinationTransaction.RejectIfMatches(
+                DestinationTransaction.ComputeKey(outputPath), [sampleFilePath], "the sample file");
 
             if (!_handlers.TryGetValue(containerType, out IContainerHandler? handler))
             {
@@ -120,13 +129,17 @@ public class SRSWriter
                 }
             }
 
-            // Write the SRS file
+            // Write the SRS file into a staging file beside the destination, so a failure here
+            // leaves a pre-existing destination byte-for-byte unchanged.
             ReportProgress("Writing SRS file...");
+            stagingPath = DestinationTransaction.ReserveStagingPath(outputPath);
+            staged = true;
             await Task.Run(() => handler.WriteSRS(
-                outputPath, sampleFilePath,
+                stagingPath, sampleFilePath,
                 tracks, sampleSize, crc32, options, ct), ct).ConfigureAwait(false);
 
-            result.SRSFileSize = new FileInfo(outputPath).Length;
+            result.SRSFileSize = new FileInfo(stagingPath).Length;
+            DestinationTransaction.Commit(stagingPath, outputPath);
             result.OutputPath = outputPath;
             result.Success = true;
 
@@ -135,12 +148,18 @@ public class SRSWriter
         catch (OperationCanceledException)
         {
             result.ErrorMessage = "Operation was cancelled.";
-            StreamUtilities.TryDeleteFile(outputPath);
+            if (staged)
+            {
+                StreamUtilities.TryDeleteFile(stagingPath);
+            }
         }
         catch (Exception ex)
         {
             result.ErrorMessage = ex.Message;
-            StreamUtilities.TryDeleteFile(outputPath);
+            if (staged)
+            {
+                StreamUtilities.TryDeleteFile(stagingPath);
+            }
         }
 
         return result;
