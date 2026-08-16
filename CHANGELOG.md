@@ -14,15 +14,6 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
   paths that pre-existing links inside the output directory would redirect or collide, and
   out-of-bounds data ranges are all refused loudly.
 
-### Fixed
-
-- The legacy (non-assembly) reconstruction path now matches the assembly path in two places where
-  the two had silently diverged. A carrier whose hash duplicates an earlier candidate's is now
-  deleted on a per-volume verification mismatch when "delete duplicate CRC files" is enabled — it
-  previously survived, because the duplicate flag was computed in a block that had already closed.
-  And a placement that cannot complete is now reported as a failed combination, so it appears as an
-  error in the version grid instead of only in the log.
-
 ### Changed
 
 - The brute-force candidate loop is decomposed into named phases — a per-candidate context record,
@@ -48,7 +39,6 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
   `.editorconfig` rather than in code.
 
 ### Fixed
-
 - **Security:** dangling links are no longer mistaken for "not yet materialized" paths in the
   canonicalizer's path walks (`Exists` follows links, so a link with a missing target looked
   absent) — a dangling link inside an SFV directory or an extraction output directory could
@@ -59,6 +49,12 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
   empty-installations-directory and input-file-validation early exits now fire the terminal
   status event (previously a caller keying its busy state off `BruteForceStatusChanged` was
   stranded at Running).
+- The legacy (non-assembly) reconstruction path now matches the assembly path in two places where
+  the two had silently diverged. A carrier whose hash duplicates an earlier candidate's is now
+  deleted on a per-volume verification mismatch when "delete duplicate CRC files" is enabled — it
+  previously survived, because the duplicate flag was computed in a block that had already closed.
+  And a placement that cannot complete is now reported as a failed combination, so it appears as an
+  error in the version grid instead of only in the log.
 
 ## [1.9.0] — 2026-07-05
 
