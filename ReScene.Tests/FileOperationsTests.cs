@@ -53,6 +53,42 @@ public class FileOperationsTests : TempDirTestBase
         Assert.Equal(string.Empty, rel);
     }
 
+    [Theory]
+    [InlineData("../OUT/evil.rar")]
+    [InlineData("..\\OUT\\evil.rar")]
+    [InlineData("../../evil.rar")]
+    [InlineData("sub/../../evil.rar")]
+    [InlineData("./../OUT/evil.rar")]
+    public void TryResolveRelativePath_ResolvedEntryAlwaysStaysUnderTheBase(string entry)
+    {
+        // The containment test used to be the case-INSENSITIVE prefix check alone, which is only
+        // correct on a case-insensitive filesystem. On Linux, base "<tmp>/out" with the entry
+        // "../OUT/evil.rar" resolves to "<tmp>/OUT/evil.rar" — a genuinely different directory —
+        // yet OrdinalIgnoreCase accepted it and handed back "../OUT/evil.rar" as "safe".
+        //
+        // Asserting the INVARIANT rather than a fixed verdict keeps this meaningful on both
+        // platforms: on Windows the case variants legitimately resolve INSIDE the base, so the
+        // call may succeed; what must never happen anywhere is a success whose relative path
+        // escapes.
+        string baseDir = Path.Combine(TempDir, "out");
+        Directory.CreateDirectory(baseDir);
+
+        bool ok = FileOperations.TryResolveRelativePath(baseDir, entry, out string rel);
+
+        if (!ok)
+        {
+            Assert.Equal(string.Empty, rel);
+            return;
+        }
+
+        Assert.False(Path.IsPathRooted(rel), $"escaped via a rooted path: {rel}");
+        Assert.False(rel.StartsWith("..", StringComparison.Ordinal), $"escaped via parent segments: {rel}");
+
+        string resolved = Path.GetFullPath(Path.Combine(baseDir, rel));
+        string root = Path.GetFullPath(baseDir) + Path.DirectorySeparatorChar;
+        Assert.StartsWith(root, resolved, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TryResolveRelativePath_InvalidPathCharacters_ReturnsFalseNotThrows()
     {

@@ -615,6 +615,16 @@ internal static class RARPatcher
 
                 if (wantLarge && !hasLarge)
                 {
+                    // HEAD_SIZE is a ushort, so a header within 8 bytes of the maximum cannot
+                    // record its own grown size: 65530 + 8 truncated to 2, desynchronizing the
+                    // archive irrecoverably. Refuse rather than emit that.
+                    if (headerSize > ushort.MaxValue - 8)
+                    {
+                        throw new InvalidDataException(
+                            $"Cannot add LARGE fields to a {headerSize}-byte header: the resulting " +
+                            $"size would exceed the {ushort.MaxValue}-byte HEAD_SIZE field.");
+                    }
+
                     // ADD LARGE: insert 8 bytes at FixedFieldsEnd (after ATTR field)
                     byte[] header = new byte[headerSize + 8];
                     // Copy fixed fields (0..FixedFieldsEnd-1, up to and including ATTR)

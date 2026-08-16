@@ -229,11 +229,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                             }
                         }
 
-                        // Write padding bytes to output
+                        // Write padding bytes to output. Chunked rather than one array: addSize is
+                        // a uint read straight from the SRR, so a malformed file could otherwise
+                        // drive a single ~4 GB allocation before anything validated it.
                         if (outputStream != null && addSize > 0)
                         {
-                            byte[] padding = new byte[addSize];
-                            outputStream.Write(padding, 0, padding.Length);
+                            WriteZeroBytes(outputStream, addSize);
                             _logger.Debug(this, $"Wrote {addSize} bytes of padding");
                         }
 
@@ -370,8 +371,12 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
                                         LogTarget.System);
                                 }
 
-                                byte[] serviceData = reader.ReadBytes((int)rarAddSize);
-                                outputStream.Write(serviceData, 0, serviceData.Length);
+                                // Streamed, not ReadBytes((int)rarAddSize): rarAddSize is a uint,
+                                // so any value at or above 0x80000000 became a NEGATIVE int and
+                                // threw ArgumentOutOfRangeException out of the reconstruction,
+                                // while merely-large values allocated the whole payload at once.
+                                // CopyBytesAsync is bounded and already handles partial reads.
+                                await CopyBytesAsync(srrStream, outputStream, rarAddSize, cancellationToken).ConfigureAwait(false);
                             }
 
                             break;
@@ -1120,6 +1125,25 @@ internal class SRRReconstructor(IReSceneLogger? logger = null)
         }
 
         throw new FileNotFoundException($"Source file not found for archived entry: {archivedFileName}", archivedFileName);
+    }
+
+    /// <summary>Writes <paramref name="count"/> zero bytes in bounded chunks.</summary>
+    /// <remarks>
+    /// The count comes from a file-declared ADD_SIZE (a <see cref="uint"/>, so up to ~4 GB).
+    /// Allocating a single array of that size let a malformed SRR drive a multi-gigabyte
+    /// allocation; chunking caps the cost at the buffer size whatever the file claims.
+    /// </remarks>
+    internal static void WriteZeroBytes(Stream destination, long count)
+    {
+        byte[] buffer = new byte[(int)Math.Min(80 * 1024, count)];
+        long remaining = count;
+
+        while (remaining > 0)
+        {
+            int toWrite = (int)Math.Min(buffer.Length, remaining);
+            destination.Write(buffer, 0, toWrite);
+            remaining -= toWrite;
+        }
     }
 
     internal static async Task CopyBytesAsync(Stream source, Stream destination, long count, CancellationToken cancellationToken)

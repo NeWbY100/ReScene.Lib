@@ -1500,9 +1500,18 @@ public class Manager : IDisposable
                     // Re-patch all volumes before hashing if patching is needed (CRCs are of the
                     // final bytes). PatchRARFilesHostOS is idempotent (compares before writing), so
                     // re-running over the already-patched first volume is safe.
-                    if (options.RAROptions.NeedsPatching)
+                    if (options.RAROptions.NeedsPatching
+                        && !PatchRARFilesHostOS(completed, options.RAROptions))
                     {
-                        PatchRARFilesHostOS(completed, options.RAROptions);
+                        // The hash below covers only the volumes with a known CRC, so a volume
+                        // whose patch failed could otherwise ride along unverified. Reuse the
+                        // deliberate count-mismatch signal rather than returning a set that
+                        // includes bytes the SRR does not describe.
+                        _logger.Error(
+                            this,
+                            "Refusing this candidate: one or more volumes could not be patched to match the SRR.",
+                            LogTarget.Phase2);
+                        return [];
                     }
 
                     return MatchedRARWriter.GetAllVolumeFiles(completed);
@@ -1941,10 +1950,18 @@ public class Manager : IDisposable
                 return ([], false);
             }
 
-            // Patch remaining volumes (first volume already patched - will be no-op for it)
-            if (options.RAROptions.NeedsPatching)
+            // Patch remaining volumes (first volume already patched - will be no-op for it).
+            // Only the first volume's hash was checked, so nothing downstream would notice a
+            // later volume that failed to patch: it would be renamed into place and reported as
+            // a successful reconstruction while not matching what the SRR describes.
+            if (options.RAROptions.NeedsPatching
+                && !PatchRARFilesHostOS(completedRARFilePath, options.RAROptions))
             {
-                PatchRARFilesHostOS(completedRARFilePath, options.RAROptions);
+                _logger.Error(
+                    this,
+                    "One or more volumes could not be patched to match the SRR; not placing this candidate.",
+                    LogTarget.System);
+                return ([], false);
             }
 
             List<string> producedVolumes = MatchedRARWriter.GetAllVolumeFiles(completedRARFilePath);
@@ -2121,12 +2138,25 @@ public class Manager : IDisposable
             ErrorMessage = errorMessage
         });
 
-    private void PatchRARFilesHostOS(string rarFilePath, RAROptions rarOptions, bool allVolumes = true)
+    /// <summary>
+    /// Applies the SRR-derived Host OS / attribute / LARGE patches to a candidate's volumes.
+    /// Returns <see langword="false"/> if any requested patch failed.
+    /// </summary>
+    /// <remarks>
+    /// The return value matters: patched bytes determine correctness, so a failure here means the
+    /// volume no longer matches what the SRR describes. This used to be a <c>void</c> helper that
+    /// logged a warning and continued, which was safe only where a hash of the patched bytes is
+    /// checked afterwards. Where no hash covers a volume — the CompleteAllVolumes path, whose
+    /// later volumes may have no known CRC — a failed patch was committed as a successful match.
+    /// </remarks>
+    private bool PatchRARFilesHostOS(string rarFilePath, RAROptions rarOptions, bool allVolumes = true)
     {
         if (!rarOptions.NeedsPatching)
         {
-            return;
+            return true;
         }
+
+        bool allPatched = true;
 
         try
         {
@@ -2211,7 +2241,10 @@ public class Manager : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    _logger.Warning(this, $"Failed to patch {filePath}: {ex.Message}", LogTarget.Phase2);
+                    // Error, not Warning: the caller decides whether to reject the candidate, and
+                    // the remaining volumes are still attempted so the log shows the full picture.
+                    allPatched = false;
+                    _logger.Error(this, $"Failed to patch {filePath}: {ex.Message}", LogTarget.Phase2);
                 }
             }
 
@@ -2219,8 +2252,11 @@ public class Manager : IDisposable
         }
         catch (Exception ex)
         {
-            _logger.Warning(this, $"Patching failed: {ex.Message}", LogTarget.Phase2);
+            allPatched = false;
+            _logger.Error(this, $"Patching failed: {ex.Message}", LogTarget.Phase2);
         }
+
+        return allPatched;
     }
 
     /// <summary>

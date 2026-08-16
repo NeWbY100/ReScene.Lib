@@ -89,13 +89,33 @@ internal static class FileOperations
             ? basePath
             : basePath + Path.DirectorySeparatorChar;
 
+        // Fast reject. Deliberately case-INSENSITIVE: on Windows it is the correct containment
+        // test, and on a case-sensitive filesystem it is merely permissive, never wrongly
+        // rejecting. It cannot be the authoritative check for exactly that reason — with base
+        // "/tmp/out", the entry "../OUT/evil.rar" resolves to "/tmp/OUT/evil.rar", which passes
+        // this prefix test while being a DIFFERENT directory on Linux. The relative-path check
+        // below is the one that actually decides, and it holds on every platform.
         if (!fullPath.StartsWith(basePrefix, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        relativePath = Path.GetRelativePath(basePath, fullPath);
-        return !string.IsNullOrWhiteSpace(relativePath) && relativePath != ".";
+        string candidate = Path.GetRelativePath(basePath, fullPath);
+
+        // GetRelativePath returns a ROOTED path when no relative path exists (a different drive
+        // or root), and a ".."-prefixed one when the target sits outside the base. Either means
+        // the entry escaped, whatever the filesystem's case rules.
+        if (string.IsNullOrWhiteSpace(candidate)
+            || candidate == "."
+            || candidate == ".."
+            || candidate.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            || Path.IsPathRooted(candidate))
+        {
+            return false;
+        }
+
+        relativePath = candidate;
+        return true;
     }
 
     /// <summary>

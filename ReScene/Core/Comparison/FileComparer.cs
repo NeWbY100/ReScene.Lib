@@ -568,6 +568,17 @@ public static class FileComparer
         }
 
         CompareProperty(result._archiveDifferences, "Format", left.IsRAR5 ? "RAR 5.x" : "RAR 4.x", right.IsRAR5 ? "RAR 5.x" : "RAR 4.x");
+
+        // Without BOTH block lists the only thing compared above is the format string, so two
+        // entirely different RAR4 archives would produce zero differences — and every consumer
+        // reads TotalDifferences == 0 as "identical". Record the incompleteness explicitly so
+        // "nothing to report" can never be mistaken for "the files match".
+        result._archiveDifferences.Add(new PropertyDifference
+        {
+            PropertyName = "Detailed block comparison",
+            LeftValue = leftBlocks is null ? "not supplied" : "supplied",
+            RightValue = rightBlocks is null ? "not supplied" : "supplied",
+        });
     }
 
     /// <summary>
@@ -664,12 +675,12 @@ public static class FileComparer
     private static string BuildBlockKey(RARDetailedBlock block, Dictionary<string, int> occurrences)
     {
         string identity = IsItemBlock(block.BlockType)
-            ? $"{block.BlockType} {block.ItemName ?? string.Empty}"
+            ? $"{block.BlockType}\0{block.ItemName ?? string.Empty}"
             : block.BlockType;
 
         int occurrence = occurrences.TryGetValue(identity, out int n) ? n : 0;
         occurrences[identity] = occurrence + 1;
-        return $"{identity} #{occurrence}";
+        return $"{identity}\0#{occurrence}";
     }
 
     /// <summary>

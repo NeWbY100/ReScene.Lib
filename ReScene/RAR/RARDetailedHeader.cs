@@ -95,7 +95,12 @@ public static class RARDetailedParser
             return blocks;
         }
 
-        bool isRAR5 = RAR5HeaderReader.IsRAR5(stream);
+        // At the CURRENT position, not offset 0. HasValidRARSignature above already validates from
+        // stream.Position, so probing offset 0 disagreed with it for any archive parsed from a
+        // nonzero offset — the embedded-RAR-inside-an-SRR case this overload exists for. A RAR5
+        // stream embedded after a RAR4 one was classified RAR4 and every following block
+        // misparsed. RARUtils.IsRAR5Marker already passes stream.Position for the same reason.
+        bool isRAR5 = RAR5HeaderReader.IsRAR5(stream, stream.Position);
 
         if (isRAR5)
         {
@@ -344,7 +349,12 @@ public static class RARDetailedParser
             block.Fields.Add(addSizeField);
             block.DataSize = addSize;
             block.HasData = addSize > 0;
-            block.TotalSize = headSize + addSize;
+
+            // (long) BEFORE the addition, not after: headSize is a ushort and addSize a uint, so
+            // the sum was evaluated in uint and WRAPPED for a legal near-4 GiB entry. With
+            // ADD_SIZE 0xFFFFFFF0 and a 32-byte header the result was 16, and the walker's
+            // "StartOffset + TotalSize" then resumed inside the header it had just read.
+            block.TotalSize = (long)headSize + addSize;
         }
 
         long pos = cursor.Pos;
@@ -1111,8 +1121,12 @@ public static class RARDetailedParser
             EmitFlags(fileFlagsField, (ushort)fileFlags, _rar5FileFlags);
             block.Fields.Add(fileFlagsField);
 
-            // Unpacked size (vint)
-            if (cursor.Pos < headerEnd)
+            // Unpacked size (vint) — ABSENT when UNKNOWN_SIZE is set. Reading it unconditionally
+            // consumed the NEXT field instead, shifting attributes, mtime, CRC, compression info,
+            // host OS and the filename by one field each. RAR5HeaderReader.ReadRAR5FileFields
+            // gates on the same flag; this parser had drifted from it.
+            bool unknownSize = (fileFlags & (ulong)RAR5FileFlags.UnknownSize) != 0;
+            if (!unknownSize && cursor.Pos < headerEnd)
             {
                 ulong unpSize = cursor.EmitVInt("Unpacked Size", out RARHeaderField unpSizeField);
                 unpSizeField.Value = $"{unpSize:N0} bytes";
