@@ -79,10 +79,22 @@ internal static class DestinationTransaction
     /// exclusively, and returns it. The caller writes there and commits with <see cref="Commit"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="FileMode.CreateNew"/> rather than <see cref="FileMode.Create"/> so an
     /// astronomically unlikely 8-hex suffix collision with a pre-existing file can never silently
     /// truncate it; on that collision the suffix is regenerated a bounded number of times. The
     /// staging file sits in the destination's OWN directory so the commit is a same-volume move.
+    /// </para>
+    /// <para>
+    /// "Reserves" is deliberately weaker than it sounds: the handle is CLOSED before returning,
+    /// because the callers here hand a PATH to a container handler that opens the file itself.
+    /// Between the close and that reopen another process can open or replace the empty file. The
+    /// exclusive create still rules out colliding with a pre-existing file and with another
+    /// concurrent call from this code, which is what the retry loop is for.
+    /// <see cref="ReScene.SRR.SRRWriter"/>'s own temp helper keeps its handle open and is
+    /// therefore strictly stronger; closing that gap here needs the handler API to accept a
+    /// stream.
+    /// </para>
     /// </remarks>
     public static string ReserveStagingPath(string outputPath)
     {

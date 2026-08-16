@@ -138,12 +138,24 @@ public class SRSWriter
                 stagingPath, sampleFilePath,
                 tracks, sampleSize, crc32, options, ct), ct).ConfigureAwait(false);
 
-            result.SRSFileSize = new FileInfo(stagingPath).Length;
+            // Size published only after the commit succeeds: a failed commit creates no file, and
+            // reporting a size for one would contradict what SRSFileSize documents.
+            long producedSize = new FileInfo(stagingPath).Length;
             DestinationTransaction.Commit(stagingPath, outputPath);
+            result.SRSFileSize = producedSize;
             result.OutputPath = outputPath;
             result.Success = true;
 
-            ReportProgress("SRS creation complete.");
+            // The commit must be the LAST fallible action affecting the result — a throwing
+            // Progress subscriber here must not flip an already-committed success into an error.
+            try
+            {
+                ReportProgress("SRS creation complete.");
+            }
+            catch
+            {
+                // Intentionally ignored — see comment above.
+            }
         }
         catch (OperationCanceledException)
         {

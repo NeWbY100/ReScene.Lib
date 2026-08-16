@@ -50,6 +50,7 @@ public class SRRWriter
         var result = new SRRCreationResult();
         string tmpPath = string.Empty;
         bool tmpCreated = false;
+        long producedSize = 0;
 
         try
         {
@@ -186,14 +187,30 @@ public class SRRWriter
                 }
 
                 await outStream.FlushAsync(ct).ConfigureAwait(false);
-                result.SRRFileSize = outStream.Length;
+
+                // Read while the stream is open, but published to the result only after the
+                // commit below succeeds: a failed commit creates no file, and reporting a size
+                // for one would contradict what SRRFileSize documents.
+                producedSize = outStream.Length;
             }
 
             File.Move(tmpPath, outputPath, overwrite: true);
+            result.SRRFileSize = producedSize;
             result.OutputPath = outputPath;
             result.Success = true;
 
-            ReportProgress(rarVolumePaths.Count, rarVolumePaths.Count, "SRR creation complete.");
+            // The commit above must be the LAST fallible action affecting the result — a throwing
+            // Progress subscriber here, including one throwing OperationCanceledException, must
+            // not flip an already-committed success into an error result. Same reasoning, and the
+            // same guard, as CreateFromInputsAsync.
+            try
+            {
+                ReportProgress(rarVolumePaths.Count, rarVolumePaths.Count, "SRR creation complete.");
+            }
+            catch
+            {
+                // Intentionally ignored — see comment above.
+            }
         }
         catch (OperationCanceledException)
         {

@@ -2140,14 +2140,23 @@ public class Manager : IDisposable
 
     /// <summary>
     /// Applies the SRR-derived Host OS / attribute / LARGE patches to a candidate's volumes.
-    /// Returns <see langword="false"/> if any requested patch failed.
+    /// Returns <see langword="false"/> if patching THREW for any volume.
     /// </summary>
     /// <remarks>
-    /// The return value matters: patched bytes determine correctness, so a failure here means the
-    /// volume no longer matches what the SRR describes. This used to be a <c>void</c> helper that
-    /// logged a warning and continued, which was safe only where a hash of the patched bytes is
-    /// checked afterwards. Where no hash covers a volume — the CompleteAllVolumes path, whose
-    /// later volumes may have no known CRC — a failed patch was committed as a successful match.
+    /// <para>
+    /// Deliberately narrower than "every requested patch succeeded", which is what an earlier
+    /// version of this summary claimed. <see cref="RARPatcher.PatchStream"/> stops at a malformed
+    /// or truncated header by breaking out of its walk and returning an empty result rather than
+    /// throwing, so a volume whose headers could not be reached still reports success here. Fixing
+    /// that belongs in the patcher, not in this return value.
+    /// </para>
+    /// <para>
+    /// What it does buy: patched bytes determine correctness, so a THROWN failure means the volume
+    /// no longer matches what the SRR describes. This used to be a <c>void</c> helper that logged a
+    /// warning and continued, which is safe only where a hash of the patched bytes is checked
+    /// afterwards. Where no hash covers a volume — the CompleteAllVolumes path, whose later volumes
+    /// may have no known CRC — such a failure was committed as a successful match.
+    /// </para>
     /// </remarks>
     private bool PatchRARFilesHostOS(string rarFilePath, RAROptions rarOptions, bool allVolumes = true)
     {
@@ -2214,58 +2223,44 @@ public class Manager : IDisposable
             int totalPatched = 0;
             foreach (string filePath in filesToPatch)
             {
-                // Bounded retry on a SHARING failure only. Now that a patch failure rejects the
-                // whole candidate, a scanner or indexer holding a freshly written volume for a
-                // moment would throw away an otherwise-correct reconstruction — and with
-                // DeleteRARFiles set, delete it. Patching opens FileAccess.ReadWrite,
-                // FileShare.None, which is exactly the open such a process blocks. Only IOException
-                // is retried; a malformed archive throws InvalidDataException and fails at once.
-                const int maxPatchAttempts = 3;
-                for (int attempt = 1; ; attempt++)
+                // NOT retried on a transient IOException, though a scanner briefly holding a
+                // volume does cost an otherwise-good candidate. A retry is unsafe here because
+                // patching is only IDEMPOTENT for the header writes: if the first attempt wrote
+                // them and then failed recomputing the archive-data CRC, the second attempt finds
+                // the headers already correct, returns zero results, and SKIPS the CRC step — so
+                // a volume with a stale CRC would be reported as fully patched. Failing the
+                // candidate is the safe direction; the run simply produces it again.
+                try
                 {
-                    try
+                    // LARGE patching must run first (structural change) before in-place patching
+                    if (rarOptions.NeedsLargePatching)
                     {
-                        // LARGE patching must run first (structural change) before in-place patching
-                        if (rarOptions.NeedsLargePatching)
+                        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                        bool largeModified = RARPatcher.PatchLargeFlags(stream, patchOptions);
+                        if (largeModified)
                         {
-                            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                            bool largeModified = RARPatcher.PatchLargeFlags(stream, patchOptions);
-                            if (largeModified)
-                            {
-                                _logger.Debug(this, $"LARGE flag patched in: {filePath}", LogTarget.Phase2);
-                            }
-                        }
-
-                        // In-place patching (Host OS, Attributes, File Time, CRC)
-                        List<PatchResult> results = RARPatcher.PatchFile(filePath, patchOptions);
-                        totalPatched += results.Count;
-
-                        foreach (PatchResult result in results)
-                        {
-                            string blockDesc = result.BlockType == RAR4BlockType.Service
-                                ? $"Service ({result.FileName ?? "?"})"
-                                : $"File ({result.FileName ?? "?"})";
-                            _logger.Debug(this, $"Patched {blockDesc}: Host OS 0x{result.OriginalHostOS:X2} -> 0x{result.NewHostOS:X2}, Attrs 0x{result.OriginalAttributes:X8} -> 0x{result.NewAttributes:X8}, CRC 0x{result.OriginalCRC:X4} -> 0x{result.NewCRC:X4}", LogTarget.Phase2);
+                            _logger.Debug(this, $"LARGE flag patched in: {filePath}", LogTarget.Phase2);
                         }
                     }
-                    catch (IOException ex) when (attempt < maxPatchAttempts)
-                    {
-                        _logger.Warning(
-                            this,
-                            $"Could not open {filePath} to patch it (attempt {attempt}/{maxPatchAttempts}): {ex.Message}. Retrying.",
-                            LogTarget.Phase2);
-                        Thread.Sleep(200 * attempt);
-                        continue;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Error, not Warning: the caller decides whether to reject the candidate, and
-                        // the remaining volumes are still attempted so the log shows the full picture.
-                        allPatched = false;
-                        _logger.Error(this, $"Failed to patch {filePath}: {ex.Message}", LogTarget.Phase2);
-                    }
 
-                    break;
+                    // In-place patching (Host OS, Attributes, File Time, CRC)
+                    List<PatchResult> results = RARPatcher.PatchFile(filePath, patchOptions);
+                    totalPatched += results.Count;
+
+                    foreach (PatchResult result in results)
+                    {
+                        string blockDesc = result.BlockType == RAR4BlockType.Service
+                            ? $"Service ({result.FileName ?? "?"})"
+                            : $"File ({result.FileName ?? "?"})";
+                        _logger.Debug(this, $"Patched {blockDesc}: Host OS 0x{result.OriginalHostOS:X2} -> 0x{result.NewHostOS:X2}, Attrs 0x{result.OriginalAttributes:X8} -> 0x{result.NewAttributes:X8}, CRC 0x{result.OriginalCRC:X4} -> 0x{result.NewCRC:X4}", LogTarget.Phase2);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Error, not Warning: the caller decides whether to reject the candidate, and
+                    // the remaining volumes are still attempted so the log shows the full picture.
+                    allPatched = false;
+                    _logger.Error(this, $"Failed to patch {filePath}: {ex.Message}", LogTarget.Phase2);
                 }
             }
 

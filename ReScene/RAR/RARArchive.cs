@@ -202,18 +202,23 @@ internal sealed class RARArchive : IDisposable
             return null;
         }
 
-        // The cap above bounds the OUTPUT; the packed buffer below is sized from a separate
-        // header field and was unbounded, so a damaged entry declaring a huge packed size drove
-        // that allocation before anything read a byte of it.
-        if (entry.PackedSize > maxUnpackedBytes)
-        {
-            skipReason = $"packed size {entry.PackedSize} bytes exceeds {maxUnpackedBytes}-byte cap";
-            return null;
-        }
-
         try
         {
             using Stream stream = OpenPackedStream(entry);
+
+            // The cap above bounds the OUTPUT; the packed buffer below is sized from a separate
+            // header field and was unbounded, so a damaged entry declaring a huge packed size
+            // drove that allocation before anything read a byte of it.
+            //
+            // Bounded by the bytes that actually EXIST rather than by maxUnpackedBytes: RAR does
+            // not guarantee packed <= unpacked, and a literal-heavy compressed entry can be
+            // slightly larger than its output, so reusing the unpacked cap here rejected valid
+            // archives.
+            if (entry.PackedSize > stream.Length)
+            {
+                skipReason = $"declared packed size {entry.PackedSize} exceeds the {stream.Length} bytes available";
+                return null;
+            }
 
             byte[] packed = new byte[entry.PackedSize];
             stream.ReadExactly(packed, 0, packed.Length);
@@ -244,15 +249,20 @@ internal sealed class RARArchive : IDisposable
             // header CRC and fail cleanly on mismatch. Callers skip the entry (no
             // garbage embedded).
             //
-            // The CRC is the ONLY thing standing between those decoder limits and corrupt output,
-            // so an entry without one cannot be returned: "no CRC to check" was previously treated
-            // as "nothing to worry about", which is exactly backwards. RAR5 entries may legitimately
-            // omit the data CRC, and the RAR5 decoder additionally parses filters (x86, delta, ...)
-            // and then DISCARDS them, so unfiltered bytes would be handed back as though correct.
-            // Stored entries returned above are unaffected — they are never decompressed.
+            // The CRC is the only verification THIS CODE performs, so an entry without one cannot
+            // be returned: "no CRC to check" was previously treated as "nothing to worry about",
+            // which is exactly backwards. The RAR5 decoder additionally parses filters (x86,
+            // delta, ...) and then DISCARDS them, so unfiltered bytes would be handed back as
+            // though correct. Stored entries returned above are unaffected — never decompressed.
+            //
+            // This DOES refuse otherwise-valid archives: RAR5 written with -htb carries a BLAKE2sp
+            // hash in an extra record instead of a CRC32 field, so integrity metadata exists and is
+            // simply not read here. Refusing is still the right side to err on — the alternative is
+            // embedding bytes nothing checked — but implementing BLAKE2sp verification would let
+            // those archives through legitimately.
             if (entry.ExpectedCrc is not uint expectedCrc)
             {
-                skipReason = "compressed entry has no CRC to verify the decompressed data against";
+                skipReason = "compressed entry carries no CRC32 this code can verify the decompressed data against";
                 return null;
             }
 
