@@ -252,8 +252,19 @@ public class SRRWriter
         // The SFV is read here to DISCOVER the volumes and is never forwarded to CreateAsync as an
         // input, so CreateAsync's own collision check cannot see it. Without this guard the commit
         // would replace the SFV this call is reading from.
+        //
+        // The output directory must be created FIRST: ComputeOutputKey resolves through it (the
+        // normal case is a destination that does not exist yet), and GetFinalPath requires its
+        // target to exist. Guarding before creating it made this overload fail outright for an
+        // output path in a new folder - which CreateAsync would happily have created.
         try
         {
+            string? sfvOutputDir = Path.GetDirectoryName(outputPath);
+            if (!string.IsNullOrEmpty(sfvOutputDir))
+            {
+                Directory.CreateDirectory(sfvOutputDir);
+            }
+
             RejectIfOutputMatches(ComputeOutputKey(outputPath), [sfvFilePath], "the source SFV");
         }
         catch (Exception ex)

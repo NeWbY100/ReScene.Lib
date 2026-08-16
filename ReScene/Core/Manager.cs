@@ -2214,37 +2214,58 @@ public class Manager : IDisposable
             int totalPatched = 0;
             foreach (string filePath in filesToPatch)
             {
-                try
+                // Bounded retry on a SHARING failure only. Now that a patch failure rejects the
+                // whole candidate, a scanner or indexer holding a freshly written volume for a
+                // moment would throw away an otherwise-correct reconstruction — and with
+                // DeleteRARFiles set, delete it. Patching opens FileAccess.ReadWrite,
+                // FileShare.None, which is exactly the open such a process blocks. Only IOException
+                // is retried; a malformed archive throws InvalidDataException and fails at once.
+                const int maxPatchAttempts = 3;
+                for (int attempt = 1; ; attempt++)
                 {
-                    // LARGE patching must run first (structural change) before in-place patching
-                    if (rarOptions.NeedsLargePatching)
+                    try
                     {
-                        using var stream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-                        bool largeModified = RARPatcher.PatchLargeFlags(stream, patchOptions);
-                        if (largeModified)
+                        // LARGE patching must run first (structural change) before in-place patching
+                        if (rarOptions.NeedsLargePatching)
                         {
-                            _logger.Debug(this, $"LARGE flag patched in: {filePath}", LogTarget.Phase2);
+                            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                            bool largeModified = RARPatcher.PatchLargeFlags(stream, patchOptions);
+                            if (largeModified)
+                            {
+                                _logger.Debug(this, $"LARGE flag patched in: {filePath}", LogTarget.Phase2);
+                            }
+                        }
+
+                        // In-place patching (Host OS, Attributes, File Time, CRC)
+                        List<PatchResult> results = RARPatcher.PatchFile(filePath, patchOptions);
+                        totalPatched += results.Count;
+
+                        foreach (PatchResult result in results)
+                        {
+                            string blockDesc = result.BlockType == RAR4BlockType.Service
+                                ? $"Service ({result.FileName ?? "?"})"
+                                : $"File ({result.FileName ?? "?"})";
+                            _logger.Debug(this, $"Patched {blockDesc}: Host OS 0x{result.OriginalHostOS:X2} -> 0x{result.NewHostOS:X2}, Attrs 0x{result.OriginalAttributes:X8} -> 0x{result.NewAttributes:X8}, CRC 0x{result.OriginalCRC:X4} -> 0x{result.NewCRC:X4}", LogTarget.Phase2);
                         }
                     }
-
-                    // In-place patching (Host OS, Attributes, File Time, CRC)
-                    List<PatchResult> results = RARPatcher.PatchFile(filePath, patchOptions);
-                    totalPatched += results.Count;
-
-                    foreach (PatchResult result in results)
+                    catch (IOException ex) when (attempt < maxPatchAttempts)
                     {
-                        string blockDesc = result.BlockType == RAR4BlockType.Service
-                            ? $"Service ({result.FileName ?? "?"})"
-                            : $"File ({result.FileName ?? "?"})";
-                        _logger.Debug(this, $"Patched {blockDesc}: Host OS 0x{result.OriginalHostOS:X2} -> 0x{result.NewHostOS:X2}, Attrs 0x{result.OriginalAttributes:X8} -> 0x{result.NewAttributes:X8}, CRC 0x{result.OriginalCRC:X4} -> 0x{result.NewCRC:X4}", LogTarget.Phase2);
+                        _logger.Warning(
+                            this,
+                            $"Could not open {filePath} to patch it (attempt {attempt}/{maxPatchAttempts}): {ex.Message}. Retrying.",
+                            LogTarget.Phase2);
+                        Thread.Sleep(200 * attempt);
+                        continue;
                     }
-                }
-                catch (Exception ex)
-                {
-                    // Error, not Warning: the caller decides whether to reject the candidate, and
-                    // the remaining volumes are still attempted so the log shows the full picture.
-                    allPatched = false;
-                    _logger.Error(this, $"Failed to patch {filePath}: {ex.Message}", LogTarget.Phase2);
+                    catch (Exception ex)
+                    {
+                        // Error, not Warning: the caller decides whether to reject the candidate, and
+                        // the remaining volumes are still attempted so the log shows the full picture.
+                        allPatched = false;
+                        _logger.Error(this, $"Failed to patch {filePath}: {ex.Message}", LogTarget.Phase2);
+                    }
+
+                    break;
                 }
             }
 

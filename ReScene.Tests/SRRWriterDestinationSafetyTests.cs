@@ -167,15 +167,33 @@ public class SRRWriterDestinationSafetyTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_Failure_LeavesNoStagingFileBehind()
+    public async Task CreateAsync_FailureAfterStaging_LeavesNoStagingFileBehind()
     {
+        // Deliberately a failure that occurs AFTER the staging file exists. An earlier version of
+        // this test used a missing volume, which throws during validation — before the staging
+        // file is ever created — so it passed no matter what the cleanup did. Cancellation is
+        // the cheapest failure that lands on the far side of CreateExclusiveTempFile.
+        RarFixtures.WriteStoreModeRarSet(TempDir, "release", volumeCount: 1, payloadBytes: 16);
+        string volume = Path.Combine(TempDir, "release.rar");
+
+        string nfo = Path.Combine(TempDir, "release.nfo");
+        await File.WriteAllTextAsync(nfo, "nfo body");
+
         string destination = Path.Combine(TempDir, "output.srr");
-        string missing = Path.Combine(TempDir, "nope.rar");
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
 
         var writer = new SRRWriter();
-        SRRCreationResult result = await writer.CreateAsync(destination, [missing]);
+        SRRCreationResult result = await writer.CreateAsync(
+            destination,
+            [volume],
+            [new StoredFileEntry("release.nfo", nfo)],
+            options: null,
+            ct: cts.Token);
 
         Assert.False(result.Success);
         Assert.Empty(Directory.GetFiles(TempDir, "output.srr.tmp-*"));
+        Assert.False(File.Exists(destination), "a cancelled creation must not leave the destination behind.");
     }
 }

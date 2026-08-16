@@ -76,13 +76,21 @@ public class SRSDestinationSafetyTests : TempDirTestBase
     }
 
     [Fact]
-    public async Task CreateAsync_Failure_LeavesNoStagingFileBehind()
+    public async Task CreateAsync_FailureDuringCommit_LeavesNoStagingFileBehind()
     {
+        // Reaching the far side of ReserveStagingPath is the whole point, and it is fiddlier here
+        // than in the SRR writer. A missing sample throws during validation; a pre-cancelled token
+        // makes Task.Run(handler.Profile, ct) throw WITHOUT running — both land before the staging
+        // file exists, so asserting on leftovers there proves nothing.
+        //
+        // A DIRECTORY sitting at the destination path is the cheap failure that lands after the
+        // staging file has been fully written: the final File.Move cannot replace a directory.
+        string sample = WriteStreamSample();
         string destination = Path.Combine(TempDir, "out.srs");
-        string missingSample = Path.Combine(TempDir, "nope.mkv");
+        Directory.CreateDirectory(destination);
 
         var writer = new SRSWriter();
-        SRSCreationResult result = await writer.CreateAsync(destination, missingSample);
+        SRSCreationResult result = await writer.CreateAsync(destination, sample);
 
         Assert.False(result.Success);
         Assert.Empty(Directory.GetFiles(TempDir, "out.srs.tmp-*"));
@@ -117,19 +125,34 @@ public class SRSDestinationSafetyTests : TempDirTestBase
         AssertIntact(destination, "the missing-media check throws before anything is written");
     }
 
-    [Fact]
-    public async Task RebuildAsync_OutputEqualsTheMediaFile_IsRejectedAndLeavesItIntact()
+    /// <summary>Builds a REAL SRS describing <paramref name="sample"/>, so the rebuild path runs.</summary>
+    private async Task<string> WriteRealSrsAsync(string sample)
     {
+        string srs = Path.Combine(TempDir, "real.srs");
+        SRSCreationResult created = await new SRSWriter().CreateAsync(srs, sample);
+        Assert.True(created.Success, created.ErrorMessage);
+        return srs;
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RebuildAsync_OutputEqualsAnInput_IsRejectedAndLeavesThatInputIntact(bool aliasTheMedia)
+    {
+        // The SRS here is a REAL one. An earlier version passed a stub containing the literal
+        // "not really an srs", so SRSFile.Load threw regardless and the test would have passed
+        // with the self-collision guard deleted — it proved nothing about the guard.
         string media = WriteStreamSample("media.vob");
-        byte[] before = await File.ReadAllBytesAsync(media);
-        string srs = Path.Combine(TempDir, "some.srs");
-        await File.WriteAllTextAsync(srs, "not really an srs");
+        string srs = await WriteRealSrsAsync(media);
+
+        string aliased = aliasTheMedia ? media : srs;
+        byte[] before = await File.ReadAllBytesAsync(aliased);
 
         var rebuilder = new SRSRebuilder();
-        SRSReconstructionResult result = await rebuilder.RebuildAsync(srs, media, media);
+        SRSReconstructionResult result = await rebuilder.RebuildAsync(srs, media, aliased);
 
         Assert.False(result.Success);
-        Assert.True(File.Exists(media), "the media file being read was deleted.");
-        Assert.Equal(before, await File.ReadAllBytesAsync(media));
+        Assert.True(File.Exists(aliased), "the input being read was deleted.");
+        Assert.Equal(before, await File.ReadAllBytesAsync(aliased));
     }
 }

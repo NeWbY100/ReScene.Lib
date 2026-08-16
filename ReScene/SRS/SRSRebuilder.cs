@@ -101,6 +101,7 @@ public class SRSRebuilder
         DestinationTransaction.RejectIfMatches(
             DestinationTransaction.ComputeKey(outputPath), [srsFilePath, mediaFilePath], "an input file");
 
+
         // Step 1: Parse SRS
         ReportProgress("Loading SRS", 0, 0, 0);
         var srs = SRSFile.Load(srsFilePath);
@@ -162,17 +163,22 @@ public class SRSRebuilder
             ReportProgress("Verifying CRC", 0, tracks.Count, 90);
             actualSize = new FileInfo(stagingPath).Length;
             actualCRC = CRCUtility.ComputeFileCRC32(stagingPath, ct);
+
+            // Committed inside the guarded region. RebuildAsync's catch deliberately deletes
+            // nothing and does not know the staging name, so a Commit that throws out here - a
+            // locked destination is enough - would strand a FULL-SIZE rebuilt sample beside it
+            // forever, and the sample restorer defaults its output directory to the media folder.
+            //
+            // Committed even when the CRC or size does not match: a completed-but-mismatched
+            // rebuild was always left at the destination for the caller to inspect, and the result
+            // below still reports Success=false. Only a THROWN failure discards the staging file.
+            DestinationTransaction.Commit(stagingPath, outputPath);
         }
         catch
         {
             StreamUtilities.TryDeleteFile(stagingPath);
             throw;
         }
-
-        // Committed even when the CRC or size does not match: a completed-but-mismatched rebuild
-        // was always left at the destination for the caller to inspect, and the result below
-        // still reports Success=false. Only a THROWN failure discards the staging file.
-        DestinationTransaction.Commit(stagingPath, outputPath);
 
         // The SRSF CRC may be stored in either byte order depending on the tool
         // that created the SRS. Check both the direct value and byte-reversed.

@@ -569,16 +569,17 @@ public static class FileComparer
 
         CompareProperty(result._archiveDifferences, "Format", left.IsRAR5 ? "RAR 5.x" : "RAR 4.x", right.IsRAR5 ? "RAR 5.x" : "RAR 4.x");
 
-        // Without BOTH block lists the only thing compared above is the format string, so two
-        // entirely different RAR4 archives would produce zero differences — and every consumer
-        // reads TotalDifferences == 0 as "identical". Record the incompleteness explicitly so
-        // "nothing to report" can never be mistaken for "the files match".
-        result._archiveDifferences.Add(new PropertyDifference
-        {
-            PropertyName = "Detailed block comparison",
-            LeftValue = leftBlocks is null ? "not supplied" : "supplied",
-            RightValue = rightBlocks is null ? "not supplied" : "supplied",
-        });
+        // NOTE: without both block lists the only thing compared above is the format string, so two
+        // entirely different RAR4 archives produce zero differences here, and a consumer reading
+        // TotalDifferences == 0 as "identical" would be wrong.
+        //
+        // This deliberately does NOT record a synthetic difference to signal that. Callers sum
+        // ArchiveDifferences into a user-facing "files are identical" verdict, and the app reaches
+        // this fallback for every ordinary .r00/.r01 continuation volume — ParseDetailedBlocks
+        // returns null for any extension other than .rar — so a marker here reported two
+        // byte-identical volumes as differing. Incompleteness needs its own channel on
+        // CompareResult, not a row in the difference list; until then the honest statement is that
+        // this overload compares only what its arguments allow.
     }
 
     /// <summary>

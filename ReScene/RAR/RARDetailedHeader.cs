@@ -1037,12 +1037,21 @@ public static class RARDetailedParser
 
             // Same narrowing hazard as HEAD_SIZE above: (long) of a ulong at or above 2^63 is
             // negative, which drove TotalSize BACKWARDS and made the block walker revisit bytes it
-            // had already parsed. A block cannot hold more data than the file has left.
-            long dataBytesLeft = Math.Max(reader.BaseStream.Length - blockStart, 0);
-            long boundedDataSize = dataSize > (ulong)dataBytesLeft ? dataBytesLeft : (long)dataSize;
+            // had already parsed.
+            //
+            // Saturated at long.MaxValue rather than clamped to the bytes remaining in the file.
+            // "A block cannot hold more data than the file has left" is FALSE for the case this
+            // parser exists to serve: ParseFromPosition reads RAR data embedded in an SRR, where
+            // the packed payload is stripped by design, so the declared Data Size legitimately
+            // exceeds everything that follows it. Clamping there rewrote a correct value into
+            // "bytes left in the SRR" and made two SRRs describing the same release report
+            // spurious Data Size differences.
+            long boundedDataSize = dataSize > long.MaxValue ? long.MaxValue : (long)dataSize;
             block.DataSize = boundedDataSize;
             block.HasData = dataSize > 0;
-            block.TotalSize += boundedDataSize;
+            block.TotalSize = boundedDataSize > long.MaxValue - block.TotalSize
+                ? long.MaxValue
+                : block.TotalSize + boundedDataSize;
         }
 
         long pos = cursor.Pos;

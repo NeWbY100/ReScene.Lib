@@ -98,6 +98,41 @@ public class RARDetailedParserRegressionTests
         Assert.Equal(8, marker.TotalSize);
     }
 
+    [Theory]
+    [InlineData(ushort.MaxValue - 8, false)]   // 65527: grows to exactly 65535 — still valid
+    [InlineData(ushort.MaxValue - 7, true)]    // 65528: grows to 65536 — cannot be represented
+    public void PatchLargeFlags_AtTheHeadSizeBoundary_RefusesOnlyWhatCannotGrow(int headerSize, bool expectThrow)
+    {
+        // Pins the BOUNDARY, not just a comfortably-oversized header: a single-value test passed
+        // for any threshold between MaxValue-8 and MaxValue-4, so an off-by-one in the guard
+        // would have survived it.
+        byte[] header = new byte[headerSize];
+
+        header[2] = 0x74;
+        BitConverter.GetBytes((ushort)RARFileFlags.LongBlock).CopyTo(header, 3);
+        BitConverter.GetBytes((ushort)headerSize).CopyTo(header, 5);
+        BitConverter.GetBytes(0u).CopyTo(header, 7);
+
+        uint boundaryCrc = Crc32Algorithm.Compute(header, 2, header.Length - 2);
+        BitConverter.GetBytes((ushort)(boundaryCrc & 0xFFFF)).CopyTo(header, 0);
+
+        using var boundaryStream = new MemoryStream();
+        boundaryStream.Write(RARUtils.RAR4Marker);
+        boundaryStream.Write(header);
+        boundaryStream.Position = 0;
+
+        var boundaryOptions = new PatchOptions { SetLargeFlag = true, HighPackSize = 1, HighUnpSize = 1 };
+
+        if (expectThrow)
+        {
+            Assert.Throws<InvalidDataException>(() => { RARPatcher.PatchLargeFlags(boundaryStream, boundaryOptions); });
+        }
+        else
+        {
+            RARPatcher.PatchLargeFlags(boundaryStream, boundaryOptions);
+        }
+    }
+
     [Fact]
     public void PatchFile_HeaderTooLargeToGrow_ThrowsInsteadOfTruncatingHeadSize()
     {

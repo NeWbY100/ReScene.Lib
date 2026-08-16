@@ -45,9 +45,13 @@ internal static class DestinationTransaction
     /// <paramref name="candidatePaths"/>, so a writer never destroys one of its own inputs.
     /// </summary>
     /// <remarks>
-    /// Candidates that cannot be resolved are SKIPPED rather than treated as a match: a candidate
-    /// that does not exist cannot be the destination's alias, and this method is also called with
-    /// caller-supplied lists whose entries are validated elsewhere.
+    /// A candidate that cannot be RESOLVED is skipped rather than treated as a match, because a
+    /// path that does not exist cannot be the destination's alias. Note the filter is wider than
+    /// that justification: <see cref="IOException"/>, <see cref="UnauthorizedAccessException"/> and
+    /// <see cref="ArgumentException"/> mean the candidate may well exist and merely could not be
+    /// inspected, and for those the check is silently skipped. That is the deliberate trade —
+    /// callers validate their inputs' existence first, and failing a whole creation because one
+    /// input momentarily could not be opened would be worse — but it is a gap, not a guarantee.
     /// </remarks>
     public static void RejectIfMatches(string outputKey, IEnumerable<string> candidatePaths, string sourceKind)
     {
@@ -105,6 +109,16 @@ internal static class DestinationTransaction
     }
 
     /// <summary>Moves a completed staging file into place, replacing any existing destination.</summary>
+    /// <remarks>
+    /// This REPLACES the destination file object rather than truncating it in place, which the
+    /// previous <see cref="FileMode.Create"/> writes did. Consequences worth knowing: the
+    /// destination's ACL, alternate data streams (a <c>Zone.Identifier</c> mark-of-the-web, say),
+    /// creation time, inode, hard links and POSIX ownership do NOT survive a replace, and the
+    /// operation needs delete permission on the destination plus create permission in its
+    /// directory, where a truncate needed only write on the file. Both are accepted: an SRR or SRS
+    /// this tool produces is a fresh artifact, and atomicity is worth more than preserving metadata
+    /// on a file whose contents are being wholly replaced anyway.
+    /// </remarks>
     public static void Commit(string stagingPath, string outputPath) =>
         File.Move(stagingPath, outputPath, overwrite: true);
 }
