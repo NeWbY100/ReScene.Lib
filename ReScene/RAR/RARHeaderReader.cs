@@ -648,14 +648,20 @@ internal class RARHeaderReader
         }
 
         long dataStart = block.BlockPosition + block.HeaderSize;
-        long dataSize = block.AddSize;
 
-        if (dataSize == 0 || dataStart + dataSize > _stream.Length)
+        // ServiceBlockInfo.PackedSize, not block.AddSize. AddSize carries only the LOW 32 bits of
+        // the packed size; when the LARGE flag is set the true size combines HIGH_PACK_SIZE, which
+        // PackedSize already does. Reading AddSize alone silently returned just the first
+        // (size mod 4 GiB) bytes of a large service block and reported that as the whole thing.
+        ulong packedSize = block.ServiceBlockInfo.PackedSize;
+
+        if (packedSize == 0 || packedSize > int.MaxValue)
         {
             return null;
         }
 
-        if (dataSize > int.MaxValue)
+        long dataSize = (long)packedSize;
+        if (dataStart + dataSize > _stream.Length)
         {
             return null;
         }

@@ -202,6 +202,15 @@ internal sealed class RARArchive : IDisposable
             return null;
         }
 
+        // The cap above bounds the OUTPUT; the packed buffer below is sized from a separate
+        // header field and was unbounded, so a damaged entry declaring a huge packed size drove
+        // that allocation before anything read a byte of it.
+        if (entry.PackedSize > maxUnpackedBytes)
+        {
+            skipReason = $"packed size {entry.PackedSize} bytes exceeds {maxUnpackedBytes}-byte cap";
+            return null;
+        }
+
         try
         {
             using Stream stream = OpenPackedStream(entry);
@@ -233,8 +242,21 @@ internal sealed class RARArchive : IDisposable
             // decoders are also not byte-perfect on some smaller inputs. Rather than
             // embed corrupt bytes, verify the decompressed output against the entry's
             // header CRC and fail cleanly on mismatch. Callers skip the entry (no
-            // garbage embedded). Skipped when the header carries no CRC.
-            if (entry.ExpectedCrc is uint expectedCrc && Crc32.HashToUInt32(unpacked) != expectedCrc)
+            // garbage embedded).
+            //
+            // The CRC is the ONLY thing standing between those decoder limits and corrupt output,
+            // so an entry without one cannot be returned: "no CRC to check" was previously treated
+            // as "nothing to worry about", which is exactly backwards. RAR5 entries may legitimately
+            // omit the data CRC, and the RAR5 decoder additionally parses filters (x86, delta, ...)
+            // and then DISCARDS them, so unfiltered bytes would be handed back as though correct.
+            // Stored entries returned above are unaffected — they are never decompressed.
+            if (entry.ExpectedCrc is not uint expectedCrc)
+            {
+                skipReason = "compressed entry has no CRC to verify the decompressed data against";
+                return null;
+            }
+
+            if (Crc32.HashToUInt32(unpacked) != expectedCrc)
             {
                 skipReason = "decompressed data failed CRC check";
                 return null;

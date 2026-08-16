@@ -156,7 +156,10 @@ internal class RAR5HeaderReader(Stream stream)
         // Header content starts here (after header size vint)
         long headerContentStart = _stream.Position;
 
-        if (headerContentStart + (long)headerSize > _stream.Length)
+        // Compared in the UNSIGNED domain. headerSize is a ulong read straight from the archive,
+        // and (long)ulong.MaxValue is -1 — so casting first made this bounds check PASS for the
+        // largest value the field can hold, letting the parse run off the end of the stream.
+        if (headerSize > (ulong)(_stream.Length - headerContentStart))
         {
             return null;
         }
@@ -359,19 +362,22 @@ internal class RAR5HeaderReader(Stream stream)
     /// </param>
     public void SkipBlock(RAR5BlockReadResult block)
     {
-        // Move past the header
-        long target = block.BlockPosition + (long)block.HeaderSize;
-
-        // Include data area if present
+        // HeaderSize and DataSize are ulongs from the archive. Casting each to long unchecked let
+        // a declared size at or above 2^63 wrap NEGATIVE, so the running total could end up before
+        // the block — and assigning a negative Stream.Position throws out of the archive walk
+        // instead of skipping the block. Accumulated with saturation, then clamped to the stream.
+        ulong advance = block.HeaderSize;
         if ((block.Flags & (ulong)RAR5HeaderFlags.DataArea) != 0)
         {
-            target += (long)block.DataSize;
+            advance = advance > ulong.MaxValue - block.DataSize
+                ? ulong.MaxValue
+                : advance + block.DataSize;
         }
 
-        if (target > _stream.Length)
-        {
-            target = _stream.Length;
-        }
+        long available = Math.Max(_stream.Length - block.BlockPosition, 0);
+        long target = advance > (ulong)available
+            ? _stream.Length
+            : block.BlockPosition + (long)advance;
 
         _stream.Position = target;
     }

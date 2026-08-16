@@ -36,8 +36,15 @@ internal class Unpack29
 
     private BlockType _blockType;
     private ModelPPM? _ppm;
-    private int _ppmEscChar;
     private bool _ppmDetected;
+
+    /// <summary>
+    /// The PPM escape character. A constant rather than a field because nothing can write it any
+    /// more: <see cref="ReadTables30"/> rejects PPM streams before <c>DecodeInit</c> runs, which
+    /// was the only place that set it. The PPM decode path that reads it is unreachable retained
+    /// plumbing.
+    /// </summary>
+    private const int PpmEscChar = 0;
 
     static Unpack29()
     {
@@ -192,7 +199,7 @@ internal class Unpack29
                 break;
             }
 
-            if (ch == _ppmEscChar)
+            if (ch == PpmEscChar)
             {
                 int nextCh = _ppm.DecodeChar();
                 if (nextCh < 0)
@@ -480,25 +487,16 @@ internal class Unpack29
             _blockType = BlockType.PPM;
             _ppm ??= new ModelPPM();
 
-            // Initialize PPM decoder
-            byte[] remainingData = new byte[_inp.InBuf.Length - _inp.InAddr];
-            Array.Copy(_inp.InBuf, _inp.InAddr, remainingData, 0, remainingData.Length);
-
-            int offset = 0;
-            int escChar = _ppmEscChar;
-            if (!_ppm.DecodeInit(remainingData, ref offset, ref escChar))
-            {
-                return false;
-            }
-
-            _ppmEscChar = escChar;
-            _inp.InAddr += offset;
-
-            // STOPGAP (audit #7/#23): PPMd is unsupported (the model above is an
-            // incomplete stub that desyncs from the encoder). The model is still
-            // allocated so the retained PPM plumbing keeps compiling, but we flag
-            // PPM and fail the table read so Decompress returns null rather than
-            // handing back garbage. See the _ppmDetected guard in Decompress.
+            // STOPGAP (audit #7/#23): PPMd is unsupported (ModelPPM is an incomplete stub that
+            // desyncs from the encoder). The model object is still created so the retained PPM
+            // plumbing keeps compiling, but we flag PPM and fail the table read so Decompress
+            // returns null rather than handing back garbage. See the _ppmDetected guard in
+            // Decompress.
+            //
+            // Rejected BEFORE DecodeInit, which used to run first: it reads maxMB from the
+            // ARCHIVE and passes it to StartSubAllocator(maxMB + 1), so a header requesting the
+            // maximum allocated on the order of 256 MB for a model that was then discarded
+            // unread. Nothing downstream consumed anything DecodeInit produced.
             _ppmDetected = true;
             return false;
         }

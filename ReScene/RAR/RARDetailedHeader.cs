@@ -986,7 +986,13 @@ public static class RARDetailedParser
 
         // HEAD_SIZE (vint)
         ulong headSize = cursor.EmitVInt("Header Size", out RARHeaderField headSizeField);
-        block.HeaderSize = (int)headSize + 4 + headSizeField.Length; // CRC + vint + header data
+
+        // Bounded by what the file actually holds before narrowing. headSize is a ulong straight
+        // from the archive, and an unchecked (int) cast wrapped NEGATIVE for anything above
+        // int.MaxValue — every offset computed from HeaderSize then ran backwards.
+        long bytesLeft = Math.Max(reader.BaseStream.Length - blockStart, 0);
+        long boundedHeadSize = headSize > (ulong)bytesLeft ? bytesLeft : (long)headSize;
+        block.HeaderSize = (int)Math.Min(boundedHeadSize + 4 + headSizeField.Length, int.MaxValue); // CRC + vint + header data
         headSizeField.Value = $"{headSize} bytes (vint)";
         block.Fields.Add(headSizeField);
 
@@ -1028,9 +1034,15 @@ public static class RARDetailedParser
             ulong dataSize = cursor.EmitVInt("Data Size", out RARHeaderField dataSizeField);
             dataSizeField.Value = $"{dataSize} bytes";
             block.Fields.Add(dataSizeField);
-            block.DataSize = (long)dataSize;
+
+            // Same narrowing hazard as HEAD_SIZE above: (long) of a ulong at or above 2^63 is
+            // negative, which drove TotalSize BACKWARDS and made the block walker revisit bytes it
+            // had already parsed. A block cannot hold more data than the file has left.
+            long dataBytesLeft = Math.Max(reader.BaseStream.Length - blockStart, 0);
+            long boundedDataSize = dataSize > (ulong)dataBytesLeft ? dataBytesLeft : (long)dataSize;
+            block.DataSize = boundedDataSize;
             block.HasData = dataSize > 0;
-            block.TotalSize += (long)dataSize;
+            block.TotalSize += boundedDataSize;
         }
 
         long pos = cursor.Pos;
