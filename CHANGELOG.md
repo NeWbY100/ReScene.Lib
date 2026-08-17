@@ -39,6 +39,66 @@ All notable changes to ReScene.Lib are documented here. Releases follow [SemVer]
   `.editorconfig` rather than in code.
 
 ### Fixed
+- **Data loss:** a failed SRR or SRS creation could delete a pre-existing file it had never
+  written to. Cleanup deleted the output path unconditionally from the catch blocks, but the
+  guarded region also covered the argument and existence validation that runs *before* the output
+  is opened — so `CreateAsync("existing.srr", [])`, or a missing volume, stored file, sample or
+  media file, destroyed an unrelated file at that path. The everyday case needed no bad arguments
+  at all: re-creating an SRR over an existing one truncated it with `FileMode.Create` and then
+  deleted the remains when anything later failed. `SRRWriter.CreateAsync`,
+  `SRRWriter.CreateFromSFVAsync`, `SRSWriter.CreateAsync` and `SRSRebuilder` now stage into a
+  temporary file beside the destination and commit only on success, as `CreateFromInputsAsync`
+  already did; a failure deletes only the staging file and leaves the destination byte-for-byte
+  unchanged. All four also refuse an output path that resolves to one of their own inputs, so a
+  writer can no longer destroy the very file it is describing.
+- **Security:** path containment was decided by a case-insensitive prefix test, which is correct
+  only on a case-insensitive filesystem. On Linux, an SRR entry of `../OUT/evil.rar` under the
+  base `/tmp/out` resolves to `/tmp/OUT/evil.rar` — a different directory — yet passed and was
+  returned as a safe relative path. Containment is now decided on the resolved relative path, so a
+  rooted or `..`-prefixed result is refused on every platform.
+- Malformed SRR data could drive a multi-gigabyte allocation or throw out of reconstruction. The
+  padding writer allocated one array of the file-declared `ADD_SIZE` (a `uint`, so up to ~4 GB),
+  and the service-block payload narrowed the same field with `(int)` — turning anything at or
+  above `0x80000000` negative and raising an uncaught `ArgumentOutOfRangeException`. Both are now
+  bounded and streamed.
+- Four RAR parsing defects that produced silently wrong output rather than an error.
+  `ParseFromPosition` validated the signature at the current position but decided RAR4-vs-RAR5 by
+  probing offset 0, so a RAR5 volume embedded in an SRR that begins with RAR4 was parsed as RAR4
+  and every following block misparsed. The RAR4 walk computed `headSize + addSize` in `uint`, which
+  wrapped for a legal near-4 GiB entry and resumed the walk *inside* the header it had just read.
+  The detailed RAR5 parser always consumed `Unpacked Size`, which is absent when `UNKNOWN_SIZE` is
+  set, shifting attributes, timestamps, CRC, host OS and the filename by one field each — the main
+  reader gated on that flag correctly and the two had drifted. And adding the LARGE fields to a
+  header within eight bytes of the 16-bit `HEAD_SIZE` maximum recorded a truncated size,
+  desynchronizing the archive irrecoverably; that is now refused.
+- Sizes read from an archive are bounded before they are narrowed. A RAR5 header-bounds check
+  compared against a `(long)` cast of a `ulong`, so the largest value the field can hold became
+  `-1` and the check *passed*; `SkipBlock` could likewise wrap negative and throw out of the
+  archive walk when assigning `Stream.Position`. The detailed parser's `HEAD_SIZE` and RAR5 data
+  size are bounded likewise.
+- Large service blocks are no longer truncated. `ReadServiceBlockData` sized its read from
+  `AddSize`, which carries only the low 32 bits; when the LARGE flag is set the true size combines
+  `HIGH_PACK_SIZE`, so a block above 4 GiB returned its first `size mod 4 GiB` bytes and reported
+  them as complete.
+- Decompressed entries are no longer returned unverified. The LZ decoders use a fixed 64 KiB window
+  and the RAR5 decoder parses filters it then discards, so the entry CRC is the only check standing
+  between those limits and corrupt output — yet an entry carrying *no* CRC was returned anyway,
+  which is exactly backwards. Such entries are now refused. (This does turn away otherwise-valid
+  RAR5 archives written with `-htb`, which carry a BLAKE2sp hash this code does not yet read;
+  refusing is still preferable to embedding bytes nothing verified.) The packed buffer is also
+  bounded by the bytes actually present rather than sized from an unchecked header field.
+- PPM-compressed streams are rejected before their allocator runs. PPM is unsupported and was
+  already rejected, but only after `DecodeInit` had read `maxMB` from the archive and handed it to
+  `StartSubAllocator` — allocating on the order of 256 MB for a model discarded unread on the very
+  next line.
+- Patch failures are no longer silently accepted. `PatchRARFilesHostOS` logged a warning and
+  continued, which is safe only where a hash of the patched bytes is checked afterwards; on the
+  CompleteAllVolumes path, whose later volumes may have no known CRC, a volume that failed to patch
+  was renamed into place and reported as a successful reconstruction. It now reports failure and
+  the two call sites not covered by a later hash reject the candidate.
+- `FileComparer.cs` contained two raw NUL bytes as block-key delimiters, which made `grep` and
+  `ripgrep` classify the whole file as binary and skip it in every repository-wide search. Written
+  as the `\0` escape now — identical bytes at runtime, searchable file.
 - **Security:** dangling links are no longer mistaken for "not yet materialized" paths in the
   canonicalizer's path walks (`Exists` follows links, so a link with a missing target looked
   absent) — a dangling link inside an SFV directory or an extraction output directory could
