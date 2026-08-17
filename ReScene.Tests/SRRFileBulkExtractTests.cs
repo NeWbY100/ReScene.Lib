@@ -15,10 +15,28 @@ public class SRRFileBulkExtractTests : TempDirTestBase
 {
     private readonly string _outDir;
 
+    /// <summary>
+    /// <see cref="_outDir"/> as the extractor itself reports it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SRRFile.ExtractStoredFiles"/> resolves its output root through the filesystem
+    /// once and builds every returned path from THAT — deliberately, so a link inside the output
+    /// directory cannot redirect a lexically-clean name. On macOS the temp directory sits behind
+    /// exactly such a link: <c>Path.GetTempPath()</c> hands back <c>/var/folders/…</c> while
+    /// <c>/var</c> is a symlink to <c>/private/var</c>, so the returned paths are rooted at
+    /// <c>/private/var/folders/…</c>. Comparing raw <see cref="Path.Combine(string, string)"/>
+    /// results against them therefore failed on macOS only, while passing on Windows and Linux
+    /// where no such link exists. Expectations are built from the resolved root for that reason.
+    /// The unresolved <see cref="_outDir"/> is still what gets PASSED IN, which is what a real
+    /// caller does.
+    /// </remarks>
+    private readonly string _resolvedOutDir;
+
     public SRRFileBulkExtractTests()
     {
         _outDir = Path.Combine(TempDir, "out");
         Directory.CreateDirectory(_outDir);
+        _resolvedOutDir = SrrNameCanonicalizer.GetFinalPath(_outDir);
     }
 
     private static readonly byte[] NfoBytes = [0x4E, 0x46, 0x4F, 0x21];
@@ -40,8 +58,8 @@ public class SRRFileBulkExtractTests : TempDirTestBase
 
         IReadOnlyList<string> written = SRRFile.Load(srrPath).ExtractStoredFiles(srrPath, _outDir);
 
-        string expectedNfo = Path.Combine(_outDir, "release.nfo");
-        string expectedSrs = Path.Combine(_outDir, "Sample", "clip.srs");
+        string expectedNfo = Path.Combine(_resolvedOutDir, "release.nfo");
+        string expectedSrs = Path.Combine(_resolvedOutDir, "Sample", "clip.srs");
         Assert.Equal([expectedNfo, expectedSrs], written);
         Assert.Equal(NfoBytes, File.ReadAllBytes(expectedNfo));
         Assert.Equal(SrsBytes, File.ReadAllBytes(expectedSrs));
@@ -54,7 +72,31 @@ public class SRRFileBulkExtractTests : TempDirTestBase
 
         IReadOnlyList<string> written = SRRFile.Load(srrPath).ExtractStoredFiles(srrPath, _outDir);
 
-        Assert.Equal([Path.Combine(_outDir, "Subs", "idx.nfo")], written);
+        Assert.Equal([Path.Combine(_resolvedOutDir, "Subs", "idx.nfo")], written);
+    }
+
+    [Fact]
+    public void ExtractStoredFiles_OutputDirectoryReachedThroughALink_ReturnsPathsRootedAtTheResolvedDirectory()
+    {
+        // Reproduces on EVERY platform what previously only macOS hit: the output directory handed
+        // in is reached through a link, so the paths returned are rooted at the link's TARGET
+        // rather than at the spelling the caller passed. On macOS that arises with nobody arranging
+        // it — Path.GetTempPath() returns /var/folders/…, and /var is a symlink to /private/var —
+        // which is why two assertions built with a plain Path.Combine of the passed-in directory
+        // passed on Windows and Linux and failed on macOS alone, red-lighting CI.
+        string real = Path.Combine(TempDir, "real-out");
+        Directory.CreateDirectory(real);
+
+        string linked = Path.Combine(TempDir, "linked-out");
+        CreateLink(linked, real);
+
+        string srrPath = BuildSrr(b => b.AddStoredFile("Sample/clip.srs", SrsBytes));
+
+        IReadOnlyList<string> written = SRRFile.Load(srrPath).ExtractStoredFiles(srrPath, linked);
+
+        string expected = Path.Combine(SrrNameCanonicalizer.GetFinalPath(real), "Sample", "clip.srs");
+        Assert.Equal([expected], written);
+        Assert.True(File.Exists(expected), "the extracted file should exist at the resolved path.");
     }
 
     [Fact]
